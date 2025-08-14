@@ -15,32 +15,24 @@ export default function CodInstructionsPage() {
         const url = `${origin}/secure-cod?amount={{ product.price | money_without_currency | url_encode }}&name={{ product.title | url_encode }}`;
         setIframeUrl(url);
 
-        const code = `{% comment %}
-  This button will only show up for products that have an option for Cash on Delivery.
-  You will need to ensure your shipping rates are set up in Shopify to offer COD.
-{% endcomment %}
-{%- for option in product.options_with_values -%}
-  {%- if option.name == 'Payment' and option.values contains 'Cash on Delivery' -%}
-    <div id="snazzpay-secure-cod-container" style="margin-top: 20px;">
-      <a href="${url}" target="_blank" style="text-decoration: none;">
-        <button 
-          type="button" 
-          class="shopify-payment-button__button shopify-payment-button__button--unbranded"
-        >
-          Secure with Razorpay eMandate
-        </button>
-      </a>
-    </div>
-    <style>
-      #snazzpay-secure-cod-container button {
-        width: 100%;
-        margin-top: 10px;
-        min-height: 44px;
-        font-size: 16px;
-      }
-    </style>
-  {%- endif -%}
-{%- endfor -%}`;
+        const code = `<div id="snazzpay-secure-cod-container" style="margin-top: 20px;">
+  <a href="${url}" target="_blank" style="text-decoration: none;">
+    <button 
+      type="button" 
+      class="shopify-payment-button__button shopify-payment-button__button--unbranded"
+    >
+      Secure with Razorpay eMandate
+    </button>
+  </a>
+</div>
+<style>
+  #snazzpay-secure-cod-container button {
+    width: 100%;
+    margin-top: 10px;
+    min-height: 44px;
+    font-size: 16px;
+  }
+</style>`;
         setEmbedCode(code);
     }, []);
     
