@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -9,34 +10,25 @@ import { Loader2 } from "lucide-react";
 export default function SecureCodPage() {
     const searchParams = useSearchParams();
     const [orderDetails, setOrderDetails] = useState({
-        orderId: '',
+        productName: '',
         amount: '0',
-        customerName: '',
-        customerEmail: '',
-        customerPhone: ''
     });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
     useEffect(() => {
-        const orderId = searchParams.get('order_id');
         const amount = searchParams.get('amount');
         const name = searchParams.get('name');
-        const email = searchParams.get('email');
-        const phone = searchParams.get('phone');
         
-        if (!orderId || !amount || !name) {
-            setError('Missing order details. This page should be accessed from your Shopify store.');
+        if (!amount || !name) {
+            setError('Missing product details. This page should be accessed from your Shopify store product page.');
             setLoading(false);
             return;
         }
 
         setOrderDetails({
-            orderId,
-            amount,
-            customerName: name,
-            customerEmail: email || '',
-            customerPhone: phone || ''
+            productName: name,
+            amount: amount,
         });
         setLoading(false);
     }, [searchParams]);
@@ -44,7 +36,7 @@ export default function SecureCodPage() {
     const handlePayment = () => {
         // Here you would integrate with Razorpay to create and open the mandate link.
         // This is a placeholder for the actual integration.
-        alert(`Redirecting to Razorpay to secure COD for Order ${orderDetails.orderId} of amount ₹${orderDetails.amount}`);
+        alert(`Redirecting to Razorpay to secure COD for Product: ${orderDetails.productName} of amount ₹${orderDetails.amount}`);
     };
 
     if (loading) {
@@ -80,16 +72,12 @@ export default function SecureCodPage() {
                 <CardContent className="space-y-4">
                     <div className="border rounded-lg p-4 space-y-2">
                         <div className="flex justify-between">
-                            <span className="text-muted-foreground">Order ID:</span>
-                            <span className="font-medium">{orderDetails.orderId}</span>
+                            <span className="text-muted-foreground">Product:</span>
+                            <span className="font-medium">{orderDetails.productName}</span>
                         </div>
                         <div className="flex justify-between">
                             <span className="text-muted-foreground">Amount:</span>
                             <span className="font-medium">₹{parseFloat(orderDetails.amount).toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                             <span className="text-muted-foreground">Customer:</span>
-                            <span className="font-medium">{orderDetails.customerName}</span>
                         </div>
                     </div>
                     <p className="text-xs text-muted-foreground text-center">

@@ -1,49 +1,71 @@
+
+'use client';
+
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { CodeBlock } from "@/components/code-block";
+import { useEffect, useState } from 'react';
 
 export default function CodInstructionsPage() {
+    const [iframeUrl, setIframeUrl] = useState('');
+    const [embedCode, setEmbedCode] = useState('');
 
-    const iframeUrl = typeof window !== 'undefined' 
-        ? `${window.location.origin}/secure-cod?order_id={{ order.name | url_encode }}&amount={{ order.total_price | money_without_currency | url_encode }}&name={{ customer.name | url_encode }}&email={{ customer.email | url_encode }}&phone={{ customer.phone | url_encode }}`
-        : '';
+    useEffect(() => {
+        const origin = typeof window !== 'undefined' ? window.location.origin : '';
+        const url = `${origin}/secure-cod?amount={{ product.price | money_without_currency | url_encode }}&name={{ product.title | url_encode }}`;
+        setIframeUrl(url);
+
+        const code = `{% comment %}
+  This button will only show up for products that have an option for Cash on Delivery.
+  You will need to ensure your shipping rates are set up in Shopify to offer COD.
+{% endcomment %}
+{%- for option in product.options_with_values -%}
+  {%- if option.name == 'Payment' and option.values contains 'Cash on Delivery' -%}
+    <div id="snazzpay-secure-cod-container" style="margin-top: 20px;">
+      <a href="${url}" target="_blank" style="text-decoration: none;">
+        <button 
+          type="button" 
+          class="shopify-payment-button__button shopify-payment-button__button--unbranded"
+        >
+          Secure with Razorpay eMandate
+        </button>
+      </a>
+    </div>
+    <style>
+      #snazzpay-secure-cod-container button {
+        width: 100%;
+        margin-top: 10px;
+        min-height: 44px;
+        font-size: 16px;
+      }
+    </style>
+  {%- endif -%}
+{%- endfor -%}`;
+        setEmbedCode(code);
+    }, []);
     
-    const embedCode = `<div id="snazzpay-secure-cod-container"></div>
-<script>
-  (function() {
-    const container = document.getElementById('snazzpay-secure-cod-container');
-    if (container) {
-      const iframe = document.createElement('iframe');
-      iframe.src = "${iframeUrl}";
-      iframe.style.width = '100%';
-      iframe.style.height = '500px';
-      iframe.style.border = 'none';
-      container.appendChild(iframe);
-    }
-  })();
-</script>`;
 
   return (
     <AppShell title="Embedding Instructions">
       <Card>
         <CardHeader>
-          <CardTitle>Embed Secure COD in Shopify</CardTitle>
+          <CardTitle>Embed Secure COD on Product Page</CardTitle>
           <CardDescription>
-            Follow these steps to add the Secure COD button to your Shopify store's thank you page.
+            Follow these steps to add the Secure COD button to your Shopify store's product page.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-2">
-            <h3 className="text-lg font-semibold">Step 1: Go to Shopify Checkout Settings</h3>
+            <h3 className="text-lg font-semibold">Step 1: Go to your Shopify Theme Editor</h3>
             <p className="text-muted-foreground">
-              In your Shopify admin, go to <span className="font-mono bg-muted p-1 rounded-md">Settings</span> &gt; <span className="font-mono bg-muted p-1 rounded-md">Checkout</span>.
+              In your Shopify admin, go to <span className="font-mono bg-muted p-1 rounded-md">Online Store</span> &gt; <span className="font-mono bg-muted p-1 rounded-md">Themes</span>. Find your current theme and click on <span className="font-mono bg-muted p-1 rounded-md">Customize</span>, then click <span className="font-mono bg-muted p-1 rounded-md">Edit code</span> from the dropdown menu.
             </p>
           </div>
 
           <div className="space-y-2">
-            <h3 className="text-lg font-semibold">Step 2: Add Script to Thank You Page</h3>
+            <h3 className="text-lg font-semibold">Step 2: Edit your Product Template</h3>
             <p className="text-muted-foreground">
-              Scroll down to the <span className="font-mono bg-muted p-1 rounded-md">Order status page</span> section. In the <span className="font-mono bg-muted p-1 rounded-md">Additional scripts</span> box, paste the following code.
+              In the theme editor, find the file that controls your product page. This is usually called <span className="font-mono bg-muted p-1 rounded-md">product.liquid</span> or is inside a file in the <span className="font-mono bg-muted p-1 rounded-md">Sections</span> folder called <span className="font-mono bg-muted p-1 rounded-md">main-product.liquid</span> or similar. Paste the code below where you want the button to appear (e.g., near the 'Add to Cart' button).
             </p>
             <CodeBlock code={embedCode} />
           </div>
@@ -51,7 +73,7 @@ export default function CodInstructionsPage() {
           <div className="space-y-2">
             <h3 className="text-lg font-semibold">How it works</h3>
             <p className="text-muted-foreground">
-              This script will only display the Secure COD authorization flow if the selected shipping method for the order is Cash on Delivery (COD). It dynamically passes the order details from Shopify to your app.
+              This code adds a "Secure with Razorpay eMandate" button to your product pages. When a customer clicks it, they will be taken to a new page to authorize a mandate for the product's price. This helps confirm their intent for Cash on Delivery orders before they even go to checkout.
             </p>
           </div>
         </CardContent>
