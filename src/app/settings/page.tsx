@@ -47,7 +47,7 @@ export default function SettingsPage() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="shopify-store-url">Store URL</Label>
-                <Input id="shopify-store-url" placeholder="your-store.myshopify.com" defaultValue="snazzify.co.in" />
+                <Input id="shopify-store-url" placeholder="your-store.myshopify.com" defaultValue="www.snazzify.co.in" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="shopify-api-key">API Key</Label>
