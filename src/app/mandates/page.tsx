@@ -1,3 +1,4 @@
+
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
@@ -13,26 +14,64 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { getMandates, getCustomer, type Mandate as RazorpayMandate } from "@/services/razorpay";
+import { format } from "date-fns";
 
 type Mandate = {
   mandateId: string;
   customerName: string;
   amount: number;
-  status: 'active' | 'pending' | 'failed' | 'completed';
+  status: 'active' | 'pending' | 'failed' | 'completed' | 'halted' | 'cancelled' | 'created';
   createdAt: string;
   nextBilling: string;
 };
 
-const allMandates: Mandate[] = [
-    { mandateId: 'mand_12aBcDeFg', customerName: 'Liam Johnson', amount: 500.00, status: 'active', createdAt: '2023-10-01', nextBilling: '2023-12-01' },
-    { mandateId: 'mand_34hIjKlMn', customerName: 'Noah Smith', amount: 250.50, status: 'pending', createdAt: '2023-10-05', nextBilling: 'N/A' },
-    { mandateId: 'mand_56oPqRsTu', customerName: 'Emma Williams', amount: 750.00, status: 'active', createdAt: '2023-10-10', nextBilling: '2023-12-10' },
-    { mandateId: 'mand_78vWxYzAb', customerName: 'Ava Brown', amount: 120.00, status: 'failed', createdAt: '2023-10-15', nextBilling: 'N/A' },
-    { mandateId: 'mand_90cDdEfGg', customerName: 'James Jones', amount: 99.99, status: 'completed', createdAt: '2023-10-20', nextBilling: 'N/A' },
-    { mandateId: 'mand_11hIiJjKk', customerName: 'Sophia Garcia', amount: 300.00, status: 'active', createdAt: '2023-10-25', nextBilling: '2023-12-25' },
-];
 
-export default function MandatesPage() {
+function mapRazorpayMandate(mandate: RazorpayMandate, customerName: string): Mandate {
+    let status: Mandate['status'] = 'pending';
+    // Mapping Razorpay status to our app's status
+    switch (mandate.status) {
+        case 'active':
+            status = 'active';
+            break;
+        case 'pending':
+            status = 'pending';
+            break;
+        case 'completed':
+            status = 'completed';
+            break;
+        case 'halted':
+            status = 'halted';
+            break;
+        case 'cancelled':
+            status = 'cancelled';
+            break;
+        case 'created':
+            status = 'created';
+            break;
+        case 'failed':
+            status = 'failed';
+            break;
+    }
+
+    return {
+        mandateId: mandate.id,
+        customerName: customerName,
+        amount: mandate.max_amount / 100, // Assuming amount is in paise
+        status: status,
+        createdAt: format(new Date(mandate.created_at * 1000), "yyyy-MM-dd"),
+        nextBilling: mandate.next_debit_date ? format(new Date(mandate.next_debit_date * 1000), "yyyy-MM-dd") : 'N/A',
+    };
+}
+
+
+export default async function MandatesPage() {
+  const razorpayMandates = await getMandates();
+  const allMandates = await Promise.all(razorpayMandates.map(async (mandate) => {
+    const customer = await getCustomer(mandate.customer_id);
+    return mapRazorpayMandate(mandate, customer?.name || 'Unknown Customer');
+  }));
+
   return (
     <AppShell title="Mandates">
       <Card>
