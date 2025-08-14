@@ -23,7 +23,7 @@ export default function CodInstructionsPage() {
       onmouseover="this.style.backgroundColor='#4a28c7'"
       onmouseout="this.style.backgroundColor='#5a31f4'"
     >
-      Secure with Razorpay eMandate
+      Secure COD
     </button>
   </a>
 </div>`;
@@ -59,7 +59,7 @@ export default function CodInstructionsPage() {
           <div className="space-y-2">
             <h3 className="text-lg font-semibold">How it works</h3>
             <p className="text-muted-foreground">
-              This code adds a "Secure with Razorpay eMandate" button to your product pages. When a customer clicks it, they will be taken to a new page to authorize a mandate for the product's price. This helps confirm their intent for Cash on Delivery orders before they even go to checkout.
+              This code adds a "Secure COD" button to your product pages. When a customer clicks it, they will be taken to a new page to authorize a mandate for the product's price. This helps confirm their intent for Cash on Delivery orders before they even go to checkout.
             </p>
           </div>
         </CardContent>
