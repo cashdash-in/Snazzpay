@@ -1,3 +1,4 @@
+
 import {
   Card,
   CardHeader,
@@ -14,29 +15,40 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { MandateStatus } from "@/components/mandate-status";
+import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
+import { format } from "date-fns";
+
 
 type Order = {
   orderId: string;
   customerName: string;
   amount: number;
-  status: 'active' | 'pending' | 'failed' | 'completed';
+  status: 'active' | 'pending' | 'failed' | 'completed' | 'none';
   date: string;
 };
 
-const orders: Order[] = [
-  { orderId: "#3210", customerName: "Olivia Martin", amount: 250.00, status: 'active', date: "2023-11-20" },
-  { orderId: "#3209", customerName: "Jackson Lee", amount: 150.75, status: 'pending', date: "2023-11-19" },
-  { orderId: "#3208", customerName: "Isabella Nguyen", amount: 350.00, status: 'failed', date: "2023-11-18" },
-  { orderId: "#3207", customerName: "William Kim", amount: 450.50, status: 'completed', date: "2023-11-17" },
-  { orderId: "#3206", customerName: "Sophia Davis", amount: 550.00, status: 'active', date: "2023-11-16" },
-];
+function mapShopifyOrderToAppOrder(shopifyOrder: ShopifyOrder): Order {
+    const customer = shopifyOrder.customer;
+    const customerName = customer ? `${customer.first_name || ''} ${customer.last_name || ''}`.trim() : 'N/A';
 
-export function RecentOrders() {
+    return {
+        orderId: shopifyOrder.name,
+        customerName,
+        amount: parseFloat(shopifyOrder.total_price),
+        status: 'none', // This needs to be determined based on your app's logic
+        date: format(new Date(shopifyOrder.created_at), "yyyy-MM-dd"),
+    };
+}
+
+
+export async function RecentOrders() {
+  const shopifyOrders = await getOrders();
+  const orders: Order[] = shopifyOrders.slice(0, 5).map(mapShopifyOrderToAppOrder);
   return (
     <Card>
       <CardHeader>
         <CardTitle>Recent Orders</CardTitle>
-        <CardDescription>A list of recent orders with their mandate status.</CardDescription>
+        <CardDescription>A list of recent orders from your Shopify store.</CardDescription>
       </CardHeader>
       <CardContent>
         <Table>
@@ -56,7 +68,7 @@ export function RecentOrders() {
                 <TableCell>{order.customerName}</TableCell>
                 <TableCell className="text-right">₹{order.amount.toFixed(2)}</TableCell>
                 <TableCell className="text-center">
-                  <MandateStatus status={order.status} />
+                  {order.status !== 'none' ? <MandateStatus status={order.status} /> : <Badge variant="outline">N/A</Badge>}
                 </TableCell>
                 <TableCell>{order.date}</TableCell>
               </TableRow>
