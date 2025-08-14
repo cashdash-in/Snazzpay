@@ -15,24 +15,18 @@ export default function CodInstructionsPage() {
         const url = `${origin}/secure-cod?amount={{ product.price | money_without_currency | url_encode }}&name={{ product.title | url_encode }}`;
         setIframeUrl(url);
 
-        const code = `<div id="snazzpay-secure-cod-container" style="margin-top: 20px;">
-  <a href="${url}" target="_blank" style="text-decoration: none;">
+        const code = `<div style="margin-top: 15px; width: 100%;">
+  <a href="${url}" target="_blank" style="text-decoration: none; display: block; width: 100%;">
     <button 
       type="button" 
-      class="shopify-payment-button__button shopify-payment-button__button--unbranded"
+      style="width: 100%; min-height: 45px; font-size: 16px; background-color: #5a31f4; color: white; border: none; border-radius: 5px; cursor: pointer;"
+      onmouseover="this.style.backgroundColor='#4a28c7'"
+      onmouseout="this.style.backgroundColor='#5a31f4'"
     >
       Secure with Razorpay eMandate
     </button>
   </a>
-</div>
-<style>
-  #snazzpay-secure-cod-container button {
-    width: 100%;
-    margin-top: 10px;
-    min-height: 44px;
-    font-size: 16px;
-  }
-</style>`;
+</div>`;
         setEmbedCode(code);
     }, []);
     
