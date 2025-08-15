@@ -4,124 +4,138 @@
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
-import { MandateStatus } from "@/components/mandate-status";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Search } from "lucide-react";
 import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import { format } from "date-fns";
 import { useState, useEffect } from "react";
+import { Loader2 } from "lucide-react";
 
-type Order = {
+type EditableOrder = {
+  id: string; // Internal unique ID for React key
   orderId: string;
   customerName: string;
-  amount: number;
-  paymentStatus: 'Paid' | 'Pending' | 'COD' | 'Refunded' | 'Authorized' | 'Partially Paid' | 'Voided';
-  mandateStatus: 'active' | 'pending' | 'failed' | 'completed' | 'none';
+  customerAddress: string;
+  pincode: string;
+  contactNo: string;
+  productOrdered: string;
+  quantity: number;
+  price: string;
+  paymentStatus: string;
   date: string;
 };
 
-function mapShopifyOrderToAppOrder(shopifyOrder: ShopifyOrder): Order {
+function formatAddress(address: ShopifyOrder['shipping_address']): string {
+    if (!address) return 'N/A';
+    const parts = [address.address1, address.city, address.province, address.country];
+    return parts.filter(Boolean).join(', ');
+}
+
+function mapShopifyOrderToEditableOrder(shopifyOrder: ShopifyOrder): EditableOrder {
     const customer = shopifyOrder.customer;
     const customerName = customer ? `${customer.first_name || ''} ${customer.last_name || ''}`.trim() : 'N/A';
     
-    let paymentStatus: Order['paymentStatus'] = 'Pending';
+    let paymentStatus: string = 'Pending';
     switch (shopifyOrder.financial_status) {
-        case 'paid':
-            paymentStatus = 'Paid';
-            break;
-        case 'pending':
-            paymentStatus = 'Pending';
-            break;
-        case 'refunded':
-        case 'partially_refunded':
-            paymentStatus = 'Refunded';
-            break;
-        case 'authorized':
-            paymentStatus = 'Authorized';
-            break;
-        case 'partially_paid':
-            paymentStatus = 'Partially Paid';
-            break;
-        case 'voided':
-            paymentStatus = 'Voided';
-            break;
-        default:
-            paymentStatus = 'Pending';
+        case 'paid': paymentStatus = 'Paid'; break;
+        case 'pending': paymentStatus = 'Pending'; break;
+        case 'refunded': case 'partially_refunded': paymentStatus = 'Refunded'; break;
+        case 'authorized': paymentStatus = 'Authorized'; break;
+        case 'partially_paid': paymentStatus = 'Partially Paid'; break;
+        case 'voided': paymentStatus = 'Voided'; break;
+        default: paymentStatus = shopifyOrder.financial_status || 'Pending';
     }
-
+    
+    const products = shopifyOrder.line_items.map(item => item.title).join(', ');
 
     return {
+        id: shopifyOrder.id.toString(),
         orderId: shopifyOrder.name,
         customerName,
-        amount: parseFloat(shopifyOrder.total_price),
+        customerAddress: formatAddress(shopifyOrder.shipping_address),
+        pincode: shopifyOrder.shipping_address?.zip || 'N/A',
+        contactNo: shopifyOrder.customer?.phone || 'N/A',
+        productOrdered: products,
+        quantity: shopifyOrder.line_items.reduce((sum, item) => sum + item.quantity, 0),
+        price: shopifyOrder.total_price,
         paymentStatus,
-        mandateStatus: 'none', // This needs to be determined based on your app's logic
         date: format(new Date(shopifyOrder.created_at), "yyyy-MM-dd"),
     };
 }
 
-
 export default function OrdersPage() {
-  const [allOrders, setAllOrders] = useState<Order[]>([]);
+  const [orders, setOrders] = useState<EditableOrder[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchOrders() {
-        const shopifyOrders = await getOrders();
-        const orders = shopifyOrders.map(mapShopifyOrderToAppOrder);
-        setAllOrders(orders);
+        setLoading(true);
+        try {
+            const shopifyOrders = await getOrders();
+            const editableOrders = shopifyOrders.map(mapShopifyOrderToEditableOrder);
+            setOrders(editableOrders);
+        } catch (error) {
+            console.error("Failed to fetch orders:", error);
+        } finally {
+            setLoading(false);
+        }
     }
     fetchOrders();
   }, []);
 
+  const handleFieldChange = (orderId: string, field: keyof EditableOrder, value: string | number) => {
+    setOrders(prevOrders =>
+        prevOrders.map(order =>
+            order.id === orderId ? { ...order, [field]: value } : order
+        )
+    );
+  };
 
   return (
-    <AppShell title="Orders">
+    <AppShell title="All Orders">
       <Card>
         <CardHeader>
-          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-              <div>
-                  <CardTitle>All Orders</CardTitle>
-                  <CardDescription>View and manage all orders from your Shopify store.</CardDescription>
-              </div>
-              <div className="relative">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input placeholder="Search orders..." className="pl-8" />
-              </div>
-          </div>
+          <CardTitle>All Orders</CardTitle>
+          <CardDescription>View and manage all orders from your Shopify store. All fields are manually editable.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Order ID</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-                <TableHead className="text-center">Payment Status</TableHead>
-                <TableHead className="text-center">Mandate Status</TableHead>
-                <TableHead>Date</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {allOrders.map((order) => (
-                <TableRow key={order.orderId}>
-                  <TableCell className="font-medium">{order.orderId}</TableCell>
-                  <TableCell>{order.customerName}</TableCell>
-                  <TableCell className="text-right">₹{order.amount.toFixed(2)}</TableCell>
-                  <TableCell className="text-center">
-                    <Badge variant={order.paymentStatus === 'Paid' ? 'default' : 'secondary'} className={order.paymentStatus === 'Paid' ? 'bg-green-500 hover:bg-green-600' : ''}>
-                      {order.paymentStatus}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {order.mandateStatus !== 'none' ? <MandateStatus status={order.mandateStatus} /> : <Badge variant="outline">N/A</Badge>}
-                  </TableCell>
-                  <TableCell>{order.date}</TableCell>
+          {loading ? (
+            <div className="flex justify-center items-center h-64">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Order ID</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Address</TableHead>
+                  <TableHead>Pincode</TableHead>
+                  <TableHead>Contact</TableHead>
+                  <TableHead>Product(s)</TableHead>
+                  <TableHead>Qty</TableHead>
+                  <TableHead>Price</TableHead>
+                  <TableHead>Payment Status</TableHead>
+                  <TableHead>Date</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {orders.map((order) => (
+                  <TableRow key={order.id}>
+                    <TableCell><Input value={order.orderId} onChange={(e) => handleFieldChange(order.id, 'orderId', e.target.value)} className="w-28" /></TableCell>
+                    <TableCell><Input value={order.customerName} onChange={(e) => handleFieldChange(order.id, 'customerName', e.target.value)} className="w-40" /></TableCell>
+                    <TableCell><Input value={order.customerAddress} onChange={(e) => handleFieldChange(order.id, 'customerAddress', e.target.value)} className="w-48 text-xs" /></TableCell>
+                    <TableCell><Input value={order.pincode} onChange={(e) => handleFieldChange(order.id, 'pincode', e.target.value)} className="w-24" /></TableCell>
+                    <TableCell><Input value={order.contactNo} onChange={(e) => handleFieldChange(order.id, 'contactNo', e.target.value)} className="w-32" /></TableCell>
+                    <TableCell><Input value={order.productOrdered} onChange={(e) => handleFieldChange(order.id, 'productOrdered', e.target.value)} className="w-48" /></TableCell>
+                    <TableCell><Input type="number" value={order.quantity} onChange={(e) => handleFieldChange(order.id, 'quantity', parseInt(e.target.value, 10))} className="w-20" /></TableCell>
+                    <TableCell><Input value={order.price} onChange={(e) => handleFieldChange(order.id, 'price', e.target.value)} className="w-24" /></TableCell>
+                    <TableCell><Input value={order.paymentStatus} onChange={(e) => handleFieldChange(order.id, 'paymentStatus', e.target.value)} className="w-32" /></TableCell>
+                    <TableCell><Input type="date" value={order.date} onChange={(e) => handleFieldChange(order.id, 'date', e.target.value)} className="w-32" /></TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </AppShell>

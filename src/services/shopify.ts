@@ -6,6 +6,13 @@ import { z } from 'zod';
 const SHOPIFY_STORE_URL = process.env.SHOPIFY_STORE_URL || "www.snazzify.co.in";
 const SHOPIFY_API_KEY = process.env.SHOPIFY_API_KEY || "shpat_xxxxxxxxxxxxxxxx";
 
+const LineItemSchema = z.object({
+    id: z.number(),
+    title: z.string(),
+    quantity: z.number(),
+    price: z.string(),
+});
+
 const OrderSchema = z.object({
     id: z.number(),
     name: z.string(),
@@ -24,6 +31,7 @@ const OrderSchema = z.object({
         province: z.string().nullable(),
         country: z.string().nullable(),
     }).nullable(),
+    line_items: z.array(LineItemSchema),
 });
 
 const OrdersResponseSchema = z.object({
