@@ -23,15 +23,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid total amount provided.' }, { status: 400 });
     }
 
-    // Step 1: Create a Plan
-    // A plan is required to create a subscription.
-    // For an on-demand "charge at will" mandate, we create a long-term plan with a nominal amount.
     const planOptions = {
       period: 'yearly' as const,
-      interval: 10, // A long interval, like 10 years, for a long-lived mandate
+      interval: 10,
       item: {
         name: 'SnazzPay On-Demand Mandate Plan',
-        amount: 100, // Minimum amount (1 Rupee in paise) for plan creation
+        amount: 100, 
         currency: 'INR',
         description: 'Plan for authorizing future on-demand payments.',
       },
@@ -46,14 +43,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Failed to create Razorpay plan.' }, { status: 500 });
     }
 
-    // Step 2: Create a Subscription
-    // Link the subscription to the plan and set the total charge limit.
     const subscriptionOptions = {
       plan_id: plan.id,
-      total_count: 1, // This is for a single authorization cycle
+      total_count: 1, 
       quantity: 1,
-      customer_notify: 0, // We handle notifications
-      // This is the maximum amount that can be charged for this mandate
+      customer_notify: 0,
       authorization_amount: totalAmount * 100, // Amount in paise
       notes: {
         order_purpose: 'On-demand payment authorization for COD',
@@ -70,8 +64,8 @@ export async function POST(req: NextRequest) {
 
   } catch (error: any) {
     console.error('Razorpay API Error:', error);
-    // Provide a more specific error message if available
-    const errorMessage = error.error?.description || error.message || 'An internal server error occurred.';
+    // Correctly extract error message from Razorpay's SDK error object
+    const errorMessage = error.description || error.message || 'An internal server error occurred.';
     return NextResponse.json({ error: `Failed to create Razorpay subscription: ${errorMessage}` }, { status: 500 });
   }
 }

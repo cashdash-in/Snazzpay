@@ -9,11 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Loader2, HelpCircle } from "lucide-react";
+import { Loader2, HelpCircle, AlertTriangle } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
-
-const RAZORPAY_KEY_ID = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
 
 export default function SecureCodPage() {
     const searchParams = useSearchParams();
@@ -59,6 +57,7 @@ export default function SecureCodPage() {
         setOrderDetails(currentOrderDetails);
         
         async function createSubscription() {
+            setLoading(true);
             try {
                 const res = await fetch('/api/create-subscription', {
                     method: 'POST',
@@ -66,11 +65,11 @@ export default function SecureCodPage() {
                     body: JSON.stringify({ totalAmount: currentOrderDetails.baseAmount * currentOrderDetails.quantity }),
                 });
 
-                if (!res.ok) {
-                    const errorData = await res.json();
-                    throw new Error(errorData.error || 'Failed to create subscription.');
-                }
                 const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.error || 'Failed to create subscription.');
+                }
+                
                 setSubscriptionId(data.subscription_id);
             } catch (err: any) {
                 console.error(err);
@@ -149,8 +148,7 @@ export default function SecureCodPage() {
                 };
 
                 localStorage.setItem(`payment_info_${orderDetails.orderId}`, JSON.stringify(paymentInfo));
-
-                setIsCreatingLink(false);
+                window.location.href = `/orders/${orderDetails.orderId}`;
             },
             prefill: {
                 name: "Customer Name",
@@ -193,12 +191,17 @@ export default function SecureCodPage() {
     if (error) {
         return (
             <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
-                <Card className="w-full max-w-md">
-                    <CardHeader>
-                        <CardTitle>Error</CardTitle>
+                <Card className="w-full max-w-md shadow-lg">
+                    <CardHeader className="text-center">
+                        <AlertTriangle className="mx-auto h-10 w-10 text-destructive" />
+                        <CardTitle>Error Initializing Payment</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <p className="text-red-500">{error}</p>
+                        <p className="text-center text-muted-foreground">We couldn't set up the secure payment link. Please see the error below:</p>
+                        <div className="mt-4 bg-destructive/10 p-3 rounded-md text-center text-destructive text-sm font-mono">
+                            {error}
+                        </div>
+                         <p className="text-center text-muted-foreground text-xs mt-4">Please check your Razorpay API keys in the settings and ensure they are correct.</p>
                     </CardContent>
                 </Card>
             </div>
