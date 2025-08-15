@@ -34,39 +34,81 @@ export default function CodInstructionsPage() {
 </div>
 
 <script>
-  document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function() {
     const secureCodLink = document.getElementById('secure-cod-link');
-    const quantityInput = document.querySelector('input[name="quantity"], select[name="quantity"]');
+    const productForm = document.querySelector('form[action^="/cart/add"]');
+
+    if (!productForm || !secureCodLink) {
+        console.error('Secure COD: Could not find product form or link element.');
+        return;
+    }
+
     const productName = \`{{ product.title | url_encode }}\`;
-    const productPrice = parseFloat(\`{{ product.price | money_without_currency | remove: "," }}\`);
+    const baseUrl = '${url}';
+
+    function getProductPrice() {
+        // Find the price element. Shopify themes have many different structures.
+        // This selector tries to find common patterns for the product price.
+        const priceElement = productForm.querySelector('.price__container .price-item--regular, .product-price, [data-product-price]');
+        let priceText = '{{ product.price | money_without_currency }}'; // Fallback to initial price
+
+        if (priceElement) {
+           priceText = priceElement.textContent;
+        }
+        
+        return parseFloat(priceText.replace(/[^\\d.-]/g, ''));
+    }
 
     function updateCodLink() {
-      const quantity = quantityInput ? parseInt(quantityInput.value, 10) : 1;
-      const totalAmount = (productPrice * quantity).toFixed(2);
-      const baseUrl = '${url}';
-      const finalUrl = baseUrl + '?amount=' + encodeURIComponent(totalAmount) + '&name=' + productName;
-      if (secureCodLink) {
+        const quantityInput = productForm.querySelector('input[name="quantity"], select[name="quantity"]');
+        const quantity = quantityInput ? parseInt(quantityInput.value, 10) : 1;
+        const productPrice = getProductPrice();
+
+        if (isNaN(productPrice)) {
+            console.error('Secure COD: Could not determine product price.');
+            return;
+        }
+
+        const totalAmount = (productPrice * quantity).toFixed(2);
+        const finalUrl = baseUrl + '?amount=' + encodeURIComponent(totalAmount) + '&name=' + productName;
         secureCodLink.href = finalUrl;
-      }
     }
 
     // Initial update
     updateCodLink();
 
-    // Update when quantity changes
-    if (quantityInput) {
-      quantityInput.addEventListener('change', updateCodLink);
-      quantityInput.addEventListener('keyup', updateCodLink);
-    }
-    
-    // Also monitor for variant changes, as this can affect price
-    document.body.addEventListener('change', function(event) {
-        if (event.target.name === 'id') { // 'id' is a common name for variant selectors
-             setTimeout(updateCodLink, 100); // Give time for new variant price to load if needed
+    // Listen for changes on quantity and variant selectors
+    productForm.addEventListener('change', function(event) {
+        if (event.target.name === 'quantity' || event.target.name === 'id') {
+            updateCodLink();
         }
     });
-  });
-</script>`;
+    productForm.addEventListener('keyup', function(event) {
+        if (event.target.name === 'quantity') {
+            updateCodLink();
+        }
+    });
+
+    // Use a MutationObserver to watch for price changes when variants are updated,
+    // as some themes replace the price element dynamically.
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            // Check if nodes were added or character data changed, which can indicate a price update.
+            if (mutation.type === 'childList' || mutation.type === 'characterData') {
+                // A small delay can help ensure all DOM changes are complete.
+                setTimeout(updateCodLink, 50);
+            }
+        });
+    });
+
+    observer.observe(productForm, {
+        childList: true,
+        subtree: true,
+        characterData: true
+    });
+});
+</script>
+`;
         setEmbedCode(code);
     }, []);
     
@@ -107,4 +149,3 @@ export default function CodInstructionsPage() {
     </AppShell>
   );
 }
-
