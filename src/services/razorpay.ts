@@ -36,7 +36,7 @@ const CustomerSchema = z.object({
     contact: z.string().nullable(),
 });
 
-const PaymentLinkSchema = z.object({
+const SubscriptionLinkSchema = z.object({
     id: z.string(),
     short_url: z.string(),
 });
@@ -73,45 +73,45 @@ async function razorpayFetch(endpoint: string, options: RequestInit = {}) {
     return responseData;
 }
 
-
 export async function createSubscriptionLink(maxAmount: number, description: string): Promise<{ success: boolean, url?: string, error?: string }> {
     try {
-        const paymentLinkPayload = {
-            amount: 100, // Verification amount of Re. 1
-            currency: "INR",
-            description: `eMandate authorization for ${description}`,
-            subscription_registration: {
-                method: "emandate",
-                auth_type: "netbanking",
-                max_amount: maxAmount, // The actual maximum amount for the mandate
-                expire_at: Math.floor(Date.now() / 1000) + (3600 * 24 * 365 * 10), // 10 years from now
+        const subscriptionPayload = {
+            plan: {
+                period: "yearly",
+                interval: 1,
+                item: {
+                    name: `Mandate for ${description}`,
+                    amount: 100, // Verification amount of Re. 1. This will be the first charge.
+                    currency: "INR",
+                    description: "Authorization for future charges"
+                },
             },
-            customer: {
-                name: "Secure COD Customer",
-                email: "secure.cod@example.com",
-                contact: "+919876543210"
-            },
+            total_count: 100, // A large number for a long-running mandate
+            quantity: 1,
+            customer_notify: 1,
             notes: {
                 description: `Secure COD Authorization for: ${description}`
             },
-            callback_url: "https://snazzify.co.in/thank-you",
-            callback_method: "get"
+            auth_type: "netbanking", // specify auth type
+            // The max_amount for the mandate is set in the subscription itself
+            payment_capture: 0, // This is important, we only authorize, not capture.
+            authorization_amount: maxAmount // Set the max amount for the mandate
         };
         
-        const jsonResponse = await razorpayFetch('payment_links', {
+        const jsonResponse = await razorpayFetch('subscriptions', {
             method: 'POST',
-            body: JSON.stringify(paymentLinkPayload),
+            body: JSON.stringify(subscriptionPayload),
         });
 
-        const parsed = PaymentLinkSchema.safeParse(jsonResponse);
+        const parsed = SubscriptionLinkSchema.safeParse(jsonResponse);
         if (!parsed.success) {
-            console.error("Failed to parse Razorpay payment link response:", parsed.error);
+            console.error("Failed to parse Razorpay subscription response:", parsed.error);
             return { success: false, error: "Could not create mandate link." };
         }
 
         return { success: true, url: parsed.data.short_url };
     } catch (error: any) {
-        console.error("Error creating Razorpay payment link:", error);
+        console.error("Error creating Razorpay subscription link:", error);
         return { success: false, error: error.message || "An unexpected error occurred." };
     }
 }
@@ -119,7 +119,6 @@ export async function createSubscriptionLink(maxAmount: number, description: str
 
 export async function getMandates(): Promise<Mandate[]> {
     try {
-        // This will fetch all mandates since we don't have a plan_id to filter by
         const jsonResponse = await razorpayFetch(`subscriptions`);
         const parsed = MandatesResponseSchema.safeParse(jsonResponse);
 
@@ -127,9 +126,6 @@ export async function getMandates(): Promise<Mandate[]> {
             console.error("Failed to parse Razorpay mandates response:", parsed.error);
             return [];
         }
-
-        // This is a workaround as subscriptions don't map perfectly to on-demand mandates
-        // We will need to find the actual mandates via a different endpoint in a real scenario
         return []; 
     } catch (error) {
         console.error("Error fetching Razorpay mandates:", error);

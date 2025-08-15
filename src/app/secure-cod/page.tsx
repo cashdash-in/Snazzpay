@@ -31,7 +31,6 @@ export default function SecureCodPage() {
         const name = searchParams.get('name');
         
         if (!amountStr || !name) {
-            // Allow manual entry if params are missing
             setOrderDetails({ productName: '', baseAmount: 0, quantity: 1});
             setLoading(false);
             return;
