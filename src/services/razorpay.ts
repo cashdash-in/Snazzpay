@@ -6,24 +6,10 @@ import { z } from 'zod';
 const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID;
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
 
-// This schema is for the response when creating a subscription
 const SubscriptionResponseSchema = z.object({
     id: z.string(),
-    entity: z.string(),
     short_url: z.string(),
 });
-
-export async function getMandates(): Promise<any[]> {
-    // In a real app, you'd fetch from Razorpay API.
-    // This is placeholder data.
-    console.log("Fetching mandates (mock)...");
-    return [];
-}
-
-export async function getCustomer(id: string): Promise<any> {
-    console.log(`Fetching customer ${id} (mock)...`);
-    return { name: 'Placeholder Customer' };
-}
 
 export async function createSubscriptionLink(maxAmount: number, description: string): Promise<{ success: boolean, url?: string, error?: string }> {
     try {
@@ -67,15 +53,13 @@ export async function createSubscriptionLink(maxAmount: number, description: str
         // Step 2: Create a Subscription using the Plan ID
         const subscriptionPayload = {
             plan_id: planId,
-            total_count: 120, // Authorize for 10 years (120 months if period were monthly)
+            total_count: 120, // Authorize for 10 years 
             quantity: 1,
             customer_notify: 1,
             notes: {
                 purpose: "Secure COD Mandate",
                 description: description
             },
-            // The authorization_amount is the maximum amount that can be charged on this mandate.
-            // This is the key part for creating a mandate with a spending limit.
             authorization_amount: maxAmount, 
         };
 
