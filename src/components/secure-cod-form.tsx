@@ -106,8 +106,8 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         setError('');
 
         try {
-            // Step 1: Call our own API to create a subscription on the server
-            const response = await fetch('/api/create-subscription', {
+            // Step 1: Call our own API to create a mandate order on the server
+            const response = await fetch('/api/create-mandate-order', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -120,15 +120,16 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to create subscription.');
+                throw new Error(errorData.error || 'Failed to create mandate order.');
             }
 
-            const { subscription_id } = await response.json();
+            const { order_id, amount } = await response.json();
 
-            // Step 2: Open Razorpay checkout with the subscription_id
+            // Step 2: Open Razorpay checkout with the order_id
             const options = {
                 key: razorpayKeyId,
-                subscription_id: subscription_id,
+                amount: amount, // The ₹1 amount from the server
+                order_id: order_id,
                 name: "Snazzify Secure COD",
                 description: `Authorize eMandate for ${orderDetails.productName}`,
                 handler: function (response: any){
@@ -140,14 +141,14 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                     
                     const paymentInfo = {
                         paymentId: response.razorpay_payment_id,
-                        orderId: orderDetails.orderId,
-                        subscriptionId: response.razorpay_subscription_id,
+                        orderId: response.razorpay_order_id,
                         signature: response.razorpay_signature,
                         status: 'authorized', // This is now an authorized mandate
                         authorizedAt: new Date().toISOString()
                     };
 
-                    localStorage.setItem(`payment_info_${orderDetails.orderId}`, JSON.stringify(paymentInfo));
+                    // We use the Razorpay order ID to store the payment info
+                    localStorage.setItem(`payment_info_${response.razorpay_order_id}`, JSON.stringify(paymentInfo));
                     
                     setIsAuthorizing(false);
                 },
@@ -159,7 +160,7 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                 notes: {
                     "address": "Customer Address",
                     "product": orderDetails.productName,
-                    "order_id": orderDetails.orderId,
+                    "original_order_id": orderDetails.orderId,
                 },
                 theme: {
                     color: "#5a31f4"
@@ -221,7 +222,7 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                 <Card className="w-full max-w-md shadow-lg">
                     <CardHeader className="text-center">
                         <CardTitle>Secure Your COD Order</CardTitle>
-                        <CardDescription>Authorize a small, refundable amount (₹1.00) to confirm your order. You will pay the full amount in cash upon delivery.</CardDescription>
+                        <CardDescription>Authorize your intent with a small, refundable amount (₹1.00) to confirm your order. You will pay the full amount in cash upon delivery.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="border rounded-lg p-4 space-y-3">
