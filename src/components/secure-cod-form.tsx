@@ -320,7 +320,7 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                             </Label>
                         </div>
                         <p className="text-xs text-muted-foreground text-center">
-                           By clicking the button below, you authorize an auto-debit of ₹{totalAmount.toFixed(2)} from your account upon order dispatch.
+                           By clicking the button below, you authorize an auto-debit of ₹300.00 from your account upon confirmation at the time of delivery
                         </p>
                     </CardContent>
                     <CardFooter>
@@ -334,3 +334,5 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         </>
     );
 }
+
+    
