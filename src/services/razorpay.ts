@@ -41,10 +41,10 @@ async function razorpayFetch(endpoint: string, options: RequestInit) {
 export async function createSubscriptionLink(maxAmount: number, description: string): Promise<{ success: boolean, url?: string, error?: string }> {
     try {
        const payload = {
-            amount: maxAmount * 100, // Amount in paise
+            amount: 100, // Mandate verification is Re. 1
             currency: "INR",
             accept_partial: false,
-            description: description,
+            description: `Mandate for ${description}`,
             customer: {
                 // You can prefill customer details here if you have them
                 // name: "Gaurav Kumar",
