@@ -25,15 +25,19 @@ export async function POST(request: Request) {
     });
 
     try {
-        const { amount, productName } = await request.json();
+        const { amount, productName, customerName, customerContact, customerAddress, customerPincode } = await request.json();
         console.log(`Received request to create mandate for product: ${productName}, amount: ${amount}`);
 
         // Step 1: Create a Customer
         console.log("Creating Razorpay customer...");
         const customer = await razorpay.customers.create({
-            name: 'Secure COD Customer',
-            email: `customer_${uuidv4().substring(0,8)}@example.com`,
-            contact: '9999999999', // Placeholder contact
+            name: customerName,
+            email: `customer.${customerContact || uuidv4().substring(0,8)}@example.com`, // Email is required, create a unique one
+            contact: customerContact,
+            notes: {
+                address: customerAddress,
+                pincode: customerPincode
+            }
         });
         console.log("Successfully created Razorpay customer:", customer);
 
