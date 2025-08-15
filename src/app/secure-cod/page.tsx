@@ -9,14 +9,18 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
+import { createSubscriptionLink } from '@/services/razorpay';
+import { useToast } from '@/hooks/use-toast';
 
 export default function SecureCodPage() {
     const searchParams = useSearchParams();
+    const { toast } = useToast();
     const [orderDetails, setOrderDetails] = useState({
         productName: '',
         amount: '0',
     });
     const [loading, setLoading] = useState(true);
+    const [isCreatingLink, setIsCreatingLink] = useState(false);
     const [error, setError] = useState('');
     const [agreed, setAgreed] = useState(false);
 
@@ -37,10 +41,30 @@ export default function SecureCodPage() {
         setLoading(false);
     }, [searchParams]);
 
-    const handlePayment = () => {
-        // Here you would integrate with Razorpay to create and open the mandate link.
-        // This is a placeholder for the actual integration.
-        alert(`Redirecting to Razorpay to secure COD for Product: ${orderDetails.productName} of amount ₹${orderDetails.amount}`);
+    const handlePayment = async () => {
+        setIsCreatingLink(true);
+        try {
+            const amountInPaise = Math.round(parseFloat(orderDetails.amount) * 100);
+            const result = await createSubscriptionLink(amountInPaise, orderDetails.productName);
+
+            if (result.success && result.url) {
+                window.location.href = result.url;
+            } else {
+                toast({
+                    variant: 'destructive',
+                    title: 'Error',
+                    description: result.error || 'Could not create mandate link. Please try again.',
+                });
+            }
+        } catch (error) {
+             toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: 'An unexpected error occurred. Please try again.',
+            });
+        } finally {
+            setIsCreatingLink(false);
+        }
     };
 
     if (loading) {
@@ -99,7 +123,8 @@ export default function SecureCodPage() {
                     </p>
                 </CardContent>
                 <CardFooter>
-                    <Button className="w-full" onClick={handlePayment} disabled={!agreed}>
+                    <Button className="w-full" onClick={handlePayment} disabled={!agreed || isCreatingLink}>
+                        {isCreatingLink && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Authorize with Razorpay
                     </Button>
                 </CardFooter>

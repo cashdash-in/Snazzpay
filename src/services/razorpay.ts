@@ -3,8 +3,10 @@
 
 import { z } from 'zod';
 
-const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || 'rzp_live_xxxxxxxxxxxxxx';
-const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || 'supersecretpassword';
+const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || 'rzp_test_xxxxxxxxxxxxxx';
+const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || 'testsecret';
+// This should be a plan with 'max_amount' enabled, created in your Razorpay dashboard.
+const RAZORPAY_PLAN_ID = process.env.RAZORPAY_PLAN_ID || 'plan_XXXXXXXXXXXXXX';
 
 const MandateSchema = z.object({
     id: z.string(),
@@ -36,30 +38,89 @@ const CustomerSchema = z.object({
     contact: z.string().nullable(),
 });
 
+const SubscriptionSchema = z.object({
+    id: z.string(),
+    short_url: z.string(),
+});
+
 export type Mandate = z.infer<typeof MandateSchema>;
 export type Customer = z.infer<typeof CustomerSchema>;
 
-async function razorpayFetch(endpoint: string) {
+async function razorpayFetch(endpoint: string, options: RequestInit = {}) {
     const url = `https://api.razorpay.com/v1/${endpoint}`;
     const credentials = Buffer.from(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`).toString('base64');
     
     const response = await fetch(url, {
+        ...options,
         headers: {
             'Authorization': `Basic ${credentials}`,
+            'Content-Type': 'application/json',
+            ...options.headers,
         },
         cache: 'no-store',
     });
 
     if (!response.ok) {
-        const errorBody = await response.text();
-        throw new Error(`Razorpay API error: ${response.status} ${response.statusText} - ${errorBody}`);
+        const errorBody = await response.json();
+        console.error(`Razorpay API error for ${endpoint}:`, errorBody);
+        throw new Error(errorBody?.error?.description || 'An unknown Razorpay API error occurred');
     }
     return response.json();
 }
 
+export async function createSubscriptionLink(maxAmount: number, description: string): Promise<{ success: boolean, url?: string, error?: string }> {
+    try {
+        if (!RAZORPAY_PLAN_ID.startsWith('plan_')) {
+            throw new Error('Razorpay Plan ID is not configured. Please set RAZORPAY_PLAN_ID in your environment.');
+        }
+
+        // Create a subscription with the plan ID and total count of 1
+        const subscriptionPayload = {
+            plan_id: RAZORPAY_PLAN_ID,
+            total_count: 1, // This is for a single charge authorization
+            quantity: 1,
+            notes: {
+                description: `Secure COD for: ${description}`
+            },
+            // This sets the maximum amount that can be charged for this mandate
+            subscription_items: [
+                {
+                    item: {
+                        name: "eMandate for COD",
+                        amount: maxAmount, // This sets the max_amount on the mandate
+                        currency: "INR",
+                        description: `Authorization for ${description}`
+                    }
+                }
+            ]
+        };
+
+        const jsonResponse = await razorpayFetch('subscriptions', {
+            method: 'POST',
+            body: JSON.stringify(subscriptionPayload),
+        });
+
+        const parsed = SubscriptionSchema.safeParse(jsonResponse);
+        if (!parsed.success) {
+            console.error("Failed to parse Razorpay subscription response:", parsed.error);
+            return { success: false, error: "Could not create mandate link." };
+        }
+
+        return { success: true, url: parsed.data.short_url };
+    } catch (error: any) {
+        console.error("Error creating Razorpay subscription:", error);
+        return { success: false, error: error.message || "An unexpected error occurred." };
+    }
+}
+
+
 export async function getMandates(): Promise<Mandate[]> {
     try {
-        const jsonResponse = await razorpayFetch('subscriptions?plan_id=plan_XXXXXXXXXXXXXX'); // This plan ID needs to be configured
+        if (!RAZORPAY_PLAN_ID.startsWith('plan_')) {
+             console.warn('Razorpay Plan ID is not configured. Mandate fetching may be incorrect.');
+             return [];
+        }
+        const jsonResponse = await razorpayFetch(`subscriptions?plan_id=${RAZORPAY_PLAN_ID}`);
         const parsed = MandatesResponseSchema.safeParse(jsonResponse);
 
         if (!parsed.success) {
