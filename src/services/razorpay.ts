@@ -30,7 +30,7 @@ export async function createSubscriptionLink(maxAmount: number, description: str
                     description: `Annual mandate for ${description}`
                 }
             },
-            total_count: 10, // Mandate valid for 10 years
+            total_count: 120, // Mandate valid for 10 years (120 months)
             quantity: 1,
             customer_notify: 1,
             authorization_amount: maxAmount, // The actual maximum amount for future charges
