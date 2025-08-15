@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Loader2, HelpCircle } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
+import { v4 as uuidv4 } from 'uuid';
 
 // NOTE: It is safe to expose the Razorpay Key ID on the client side.
 // It is used to initialize the Razorpay Checkout.
@@ -23,6 +24,7 @@ export default function SecureCodPage() {
         productName: '',
         baseAmount: 0,
         quantity: 1,
+        orderId: ''
     });
     const [loading, setLoading] = useState(true);
     const [isCreatingLink, setIsCreatingLink] = useState(false);
@@ -34,7 +36,7 @@ export default function SecureCodPage() {
         const name = searchParams.get('name');
         
         if (!amountStr || !name) {
-            setOrderDetails({ productName: 'Sample Product', baseAmount: 1, quantity: 1});
+            setOrderDetails({ productName: 'Sample Product', baseAmount: 1, quantity: 1, orderId: `manual_${uuidv4()}`});
             setLoading(false);
             return;
         }
@@ -50,6 +52,7 @@ export default function SecureCodPage() {
             productName: name,
             baseAmount: baseAmount,
             quantity: 1,
+            orderId: `prod_${name.replace(/\s+/g, '_')}`
         });
         setLoading(false);
     }, [searchParams]);
@@ -94,26 +97,39 @@ export default function SecureCodPage() {
 
         const options = {
             key: RAZORPAY_KEY_ID,
-            amount: totalAmount * 100, // amount in the smallest currency unit
+            amount: totalAmount * 100,
             currency: "INR",
             name: "Snazzify Secure COD",
             description: `Mandate for ${orderDetails.productName}`,
-            // This is the key part for creating a mandate
             recurring: 'initial',
             notes: {
                 "name": orderDetails.productName,
                 "quantity": orderDetails.quantity.toString(),
+                "order_id_internal": orderDetails.orderId,
             },
             handler: function (response: any){
-                // This function is called when the payment is successful.
-                // You can handle the success response here, e.g., save the payment ID.
                 toast({
                     title: 'Authorization Successful!',
                     description: `Payment ID: ${response.razorpay_payment_id}`,
                 });
-                // In a real app, you would likely redirect to a success page
-                // that verifies the payment status with your server.
-                 setIsCreatingLink(false);
+                
+                // Store payment info in local storage
+                const paymentInfo = {
+                    paymentId: response.razorpay_payment_id,
+                    orderId: response.razorpay_order_id,
+                    signature: response.razorpay_signature,
+                    status: 'authorized',
+                    authorizedAt: new Date().toISOString()
+                };
+
+                // In a real app, you would send this to your backend for verification.
+                // For now, we save it to localStorage to be viewed in the app.
+                localStorage.setItem(`payment_info_${orderDetails.orderId}`, JSON.stringify(paymentInfo));
+
+                setIsCreatingLink(false);
+                
+                // Optionally redirect to a success page
+                // window.location.href = '/payment-success';
             },
             prefill: {
                 name: "Customer Name",
@@ -135,8 +151,7 @@ export default function SecureCodPage() {
             }
         };
 
-        // @ts-ignore
-        if (!window.Razorpay) {
+        if (!(window as any).Razorpay) {
              toast({
                 variant: 'destructive',
                 title: 'SDK Error',
@@ -147,8 +162,7 @@ export default function SecureCodPage() {
         }
 
         try {
-            // @ts-ignore
-            const rzp = new window.Razorpay(options);
+            const rzp = new (window as any).Razorpay(options);
             rzp.open();
         } catch(e) {
             console.error("Razorpay SDK Error:", e);
@@ -264,3 +278,5 @@ export default function SecureCodPage() {
         </>
     );
 }
+
+    

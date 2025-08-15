@@ -8,10 +8,19 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, Save } from 'lucide-react';
+import { ArrowLeft, Loader2, Save, ExternalLink } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { EditableOrder } from '../page';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { format } from 'date-fns';
+
+type PaymentInfo = {
+    paymentId: string;
+    orderId: string;
+    signature: string;
+    status: string;
+    authorizedAt: string;
+}
 
 export default function OrderDetailPage() {
     const router = useRouter();
@@ -20,17 +29,15 @@ export default function OrderDetailPage() {
     const id = params.id as string;
     
     const [order, setOrder] = useState<EditableOrder | null>(null);
+    const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         if (!id) return;
         setLoading(true);
-        // We need to find the order from either manual orders or shopify orders (which might just be an ID)
-        // Since all data is now stored via overrides or in manualOrders, we can construct the full order object.
         
         let foundOrder: EditableOrder | null = null;
         
-        // Check manual orders first
         const manualOrdersJSON = localStorage.getItem('manualOrders');
         const manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
         const manualOrder = manualOrders.find(o => o.id === id);
@@ -39,8 +46,6 @@ export default function OrderDetailPage() {
             foundOrder = manualOrder;
         }
 
-        // If not a manual order, it must be a Shopify order. We reconstruct it from stored data.
-        // For this app, we assume if it's not in manualOrders, we can get its base data from an override.
         const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${id}`) || '{}');
 
         if (storedOverrides && Object.keys(storedOverrides).length > 0) {
@@ -49,12 +54,18 @@ export default function OrderDetailPage() {
              } else {
                  foundOrder = storedOverrides as EditableOrder;
              }
-        } else if (!foundOrder) {
-            // This case is tricky without a DB. We'll show a not found message.
-            // A real app would fetch the order by ID from Shopify/DB here.
         }
         
         setOrder(foundOrder);
+
+        // Check for payment info
+        if (foundOrder) {
+            const paymentInfoJSON = localStorage.getItem(`payment_info_${foundOrder.orderId}`);
+            if (paymentInfoJSON) {
+                setPaymentInfo(JSON.parse(paymentInfoJSON));
+            }
+        }
+
         setLoading(false);
 
     }, [id]);
@@ -137,6 +148,30 @@ export default function OrderDetailPage() {
                         Save Changes
                     </Button>
                 </div>
+
+                {paymentInfo && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Payment Authorization Details</CardTitle>
+                            <CardDescription>This information was captured from a successful Secure COD authorization.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                            <div><span className="font-medium text-muted-foreground">Razorpay Payment ID:</span> {paymentInfo.paymentId}</div>
+                            <div><span className="font-medium text-muted-foreground">Authorization Status:</span> <span className="capitalize bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">{paymentInfo.status}</span></div>
+                            <div><span className="font-medium text-muted-foreground">Authorized At:</span> {format(new Date(paymentInfo.authorizedAt), "PPP p")}</div>
+                            <div className="flex items-center">
+                                <a 
+                                    href={`https://dashboard.razorpay.com/app/payments/${paymentInfo.paymentId}`} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    className="text-primary hover:underline inline-flex items-center gap-1"
+                                >
+                                    View on Razorpay <ExternalLink className="h-4 w-4" />
+                                </a>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
 
                 <Card>
                     <CardHeader>
@@ -283,3 +318,5 @@ export default function OrderDetailPage() {
         </AppShell>
     );
 }
+
+    
