@@ -31,7 +31,7 @@ export async function POST(request: Request) {
         const orderOptions = {
             amount: 100, // 100 paise = ₹1 for authorization
             currency: 'INR',
-            receipt: `receipt_cod_${uuidv4()}`,
+            receipt: `rcpt_cod_${uuidv4().substring(0,8)}`,
             payment_capture: true,
             notes: {
                 product: productName,
