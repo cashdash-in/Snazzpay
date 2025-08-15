@@ -43,7 +43,7 @@ export async function POST(request: Request) {
             amount: 100, // 100 paise = ₹1 for authorization
             currency: 'INR',
             receipt: `rcpt_cod_${uuidv4().substring(0,8)}`,
-            payment_capture: true,
+            payment_capture: false,
             customer_id: customer.id, // Pass the newly created customer ID
             notes: {
                 product: productName,
