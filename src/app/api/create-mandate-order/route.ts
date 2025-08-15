@@ -28,31 +28,24 @@ export async function POST(request: Request) {
         const { amount, productName, customerName, customerContact, customerAddress, customerPincode } = await request.json();
         console.log(`Received request to create mandate for product: ${productName}, amount: ${amount}`);
 
-        // Step 1: Create a Customer
-        console.log("Creating Razorpay customer...");
-        const customer = await razorpay.customers.create({
-            name: customerName,
-            email: `customer.${customerContact || uuidv4().substring(0,8)}@example.com`, // Email is required, create a unique one
-            contact: customerContact,
-            notes: {
-                address: customerAddress,
-                pincode: customerPincode
-            }
-        });
-        console.log("Successfully created Razorpay customer:", customer);
+        // Step 1 (REMOVED): No longer creating customer on the backend.
+        // This will be handled by Razorpay checkout based on prefill data.
 
-
-        // Step 2: Create the Order with the customer_id
+        // Step 2: Create the Order
         const orderOptions = {
             amount: 100, // Correctly set to 100 paise (₹1) for authorization
             currency: 'INR',
             receipt: `rcpt_cod_${uuidv4().substring(0,8)}`,
             payment_capture: false,
-            customer_id: customer.id, // Pass the newly created customer ID
+            // customer_id is no longer passed here
             notes: {
                 product: productName,
                 original_amount: amount,
-                type: "secure_cod_mandate"
+                type: "secure_cod_mandate",
+                customerName,
+                customerContact,
+                customerAddress,
+                customerPincode
             },
             // This token object is crucial for creating an eMandate
             token: {
@@ -64,13 +57,19 @@ export async function POST(request: Request) {
         const order = await razorpay.orders.create(orderOptions);
         console.log("Successfully created Razorpay order:", order);
 
-        return NextResponse.json({ order_id: order.id, amount: order.amount, customer_id: customer.id });
+        // We don't have a customer_id to return anymore, which is fine.
+        return NextResponse.json({ order_id: order.id, amount: order.amount });
 
     } catch (error: any) {
         // --- Enhanced Error Logging ---
         console.error("--- Razorpay API Error ---");
         console.error("Failed to create Razorpay mandate order. Full error object:");
-        console.error(JSON.stringify(error, null, 2));
+        // Check for Razorpay's specific error structure
+        if (error.error) {
+             console.error(JSON.stringify(error.error, null, 2));
+        } else {
+            console.error(error);
+        }
         // --- End Enhanced Error Logging ---
 
         // Send a more detailed error back to the client
