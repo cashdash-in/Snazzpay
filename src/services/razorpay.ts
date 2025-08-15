@@ -16,20 +16,24 @@ const SubscriptionResponseSchema = z.object({
 });
 
 
-async function razorpayFetch(endpoint: string, options: RequestInit) {
+async function razorpayFetch(endpoint: string, payload: object) {
     if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
         throw new Error('Razorpay API keys are not configured on the server. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables.');
     }
     const credentials = Buffer.from(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`).toString('base64');
     const url = `https://api.razorpay.com/v1/${endpoint}`;
+    
+    const body = JSON.stringify(payload);
+    const bodyBuffer = Buffer.from(body, 'utf-8');
 
     const response = await fetch(url, {
-        ...options,
+        method: 'POST',
         headers: {
             'Authorization': `Basic ${credentials}`,
             'Content-Type': 'application/json',
-            ...options.headers,
+            'Content-Length': bodyBuffer.length.toString(),
         },
+        body: body,
         cache: 'no-store',
     });
 
@@ -55,10 +59,7 @@ async function createPlan(): Promise<string> {
         }
     };
 
-    const response = await razorpayFetch('plans', {
-        method: 'POST',
-        body: JSON.stringify(planPayload),
-    });
+    const response = await razorpayFetch('plans', planPayload);
 
     const parsed = PlanResponseSchema.safeParse(response);
     if (!parsed.success) {
@@ -84,13 +85,11 @@ export async function createSubscriptionLink(maxAmount: number, description: str
                 amount: `Up to ₹${maxAmount.toFixed(2)}`
             },
             // The auth amount is part of the subscription, not the plan
-            authorization_amount: maxAmount * 100, 
+            auth_type: 'debit' as const,
+            authorization_amount: maxAmount * 100,
         };
 
-        const response = await razorpayFetch('subscriptions', {
-            method: 'POST',
-            body: JSON.stringify(subscriptionPayload),
-        });
+        const response = await razorpayFetch('subscriptions', subscriptionPayload);
 
         const parsedResponse = SubscriptionResponseSchema.safeParse(response);
          if (!parsedResponse.success) {
