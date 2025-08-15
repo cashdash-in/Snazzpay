@@ -17,14 +17,12 @@ const razorpay = new Razorpay({
 
 export async function POST(req: NextRequest) {
   try {
-    const { totalAmount } = await req.json();
-
-    if (!totalAmount || typeof totalAmount !== 'number' || totalAmount <= 0) {
-      return NextResponse.json({ error: 'Invalid total amount provided.' }, { status: 400 });
-    }
+    // The total amount is not needed here for an on-demand mandate.
+    // The authorization happens for a nominal amount, and future charges are separate.
     
     // Use a single, pre-created plan for all on-demand subscriptions.
     // This plan should be created once in your Razorpay dashboard or via the create-plan API.
+    // The plan amount should be 0.
     const planId = 'plan_EMandateSnazzPay';
 
     const subscriptionOptions = {
@@ -32,7 +30,8 @@ export async function POST(req: NextRequest) {
       total_count: 120, // Authorize for 10 years (12 * 10)
       quantity: 1,
       customer_notify: 0,
-      authorization_amount: totalAmount * 100, // Amount in paise
+      // REMOVED: authorization_amount is not used for this type of on-demand mandate.
+      // Its presence was causing the API error.
       notes: {
         order_purpose: 'On-demand payment authorization for COD',
       },
@@ -47,7 +46,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ subscription_id: subscription.id });
 
   } catch (error: any) {
-    console.error('Razorpay API Error:', error);
+    console.error('Razorpay API Error creating subscription:', error);
     const errorMessage = error.description || error.message || 'An internal server error occurred.';
     return NextResponse.json({ error: `Failed to create Razorpay subscription: ${errorMessage}` }, { status: 500 });
   }

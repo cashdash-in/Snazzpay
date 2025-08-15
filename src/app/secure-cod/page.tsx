@@ -59,10 +59,10 @@ export default function SecureCodPage() {
         async function createSubscription() {
             setLoading(true);
             try {
+                // The body is now empty as the server doesn't need the amount.
                 const res = await fetch('/api/create-subscription', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ totalAmount: currentOrderDetails.baseAmount * currentOrderDetails.quantity }),
                 });
 
                 const data = await res.json();
