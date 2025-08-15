@@ -18,8 +18,9 @@ interface SecureCodFormProps {
     razorpayKeyId: string | null;
 }
 
-// IMPORTANT: This plan must be created in your Razorpay Dashboard with Amount=0 and the desired frequency.
-const RAZORPAY_PLAN_ID = 'plan_EMandateSnazzPay';
+// IMPORTANT: This plan must be created in your Razorpay Dashboard.
+// It should be a plan with a monthly billing frequency and an amount of 0.
+const RAZORPAY_PLAN_ID = 'plan_EMandateSnazzPay'; 
 
 export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
     const searchParams = useSearchParams();
@@ -58,7 +59,6 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                  setError('Invalid product price received.');
             }
         } else {
-            // Default values for when query params are missing
             initialAmount = 500;
             initialName = 'My Awesome Product';
         }
@@ -99,7 +99,7 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         }
         if (!razorpayKeyId) {
             toast({ variant: 'destructive', title: 'Configuration Error', description: 'Razorpay Key ID is not configured.' });
-            setError('Razorpay Key ID is not configured.');
+            setError('Razorpay Key ID is not configured on the server.');
             return;
         }
         if (!(window as any).Razorpay) {
@@ -120,6 +120,7 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                 notes: {
                     order_id: orderDetails.orderId,
                     product_name: orderDetails.productName,
+                    amount: totalAmount.toFixed(2),
                 }
             });
 
@@ -207,7 +208,7 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                         <div className="mt-4 bg-destructive/10 p-3 rounded-md text-center text-destructive text-sm font-mono">
                             {error}
                         </div>
-                         <p className="text-center text-muted-foreground text-xs mt-4">Please check your Razorpay API keys in the settings and ensure they are correct.</p>
+                         <p className="text-center text-muted-foreground text-xs mt-4">Please check your Razorpay API keys in the settings and ensure they are correct. You may also need to create a 0-value Plan in your Razorpay dashboard with ID: {RAZORPAY_PLAN_ID}</p>
                     </CardContent>
                 </Card>
             </div>
