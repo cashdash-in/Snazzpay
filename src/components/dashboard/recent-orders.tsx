@@ -22,6 +22,8 @@ import { Input } from "../ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Button } from "../ui/button";
 import { Send, Loader2 } from "lucide-react";
+import type { EditableOrder } from "@/app/orders/page";
+import { format } from "date-fns";
 
 
 type OrderStatus = 'pending' | 'dispatched' | 'out-for-delivery' | 'delivered' | 'failed';
@@ -35,6 +37,7 @@ type DeliveryOrder = {
   trackingNumber: string;
   status: OrderStatus;
   estDelivery: string;
+  date: string;
 };
 
 function formatAddress(address: ShopifyOrder['shipping_address']): string {
@@ -43,19 +46,17 @@ function formatAddress(address: ShopifyOrder['shipping_address']): string {
     return parts.filter(Boolean).join(', ');
 }
 
-function mapShopifyOrderToDeliveryOrder(order: ShopifyOrder): DeliveryOrder {
-    const customer = order.customer;
-    const customerName = customer ? `${customer.first_name || ''} ${customer.last_name || ''}`.trim() : 'N/A';
-    
+function mapToDeliveryOrder(order: EditableOrder): DeliveryOrder {
     return {
         id: order.id.toString(),
-        orderId: order.name,
-        customerName: customerName,
-        customerAddress: formatAddress(order.shipping_address),
-        contactNo: customer?.phone || 'N/A',
-        trackingNumber: '',
-        status: 'pending',
-        estDelivery: '',
+        orderId: order.orderId,
+        customerName: order.customerName,
+        customerAddress: order.customerAddress,
+        contactNo: order.contactNo,
+        trackingNumber: '', // Default value
+        status: 'pending', // Default value
+        estDelivery: '', // Default value
+        date: order.date,
     };
 }
 
@@ -65,20 +66,49 @@ export function RecentOrders() {
   const [loading, setLoading] = useState(true);
   
   useEffect(() => {
-    async function fetchOrders() {
+    async function fetchAndSetOrders() {
         setLoading(true);
+        let combinedOrders: EditableOrder[] = [];
         try {
+            // Fetch from Shopify
             const shopifyOrders = await getOrders();
-            const recentOrders = shopifyOrders.slice(0, 5).map(mapShopifyOrderToDeliveryOrder);
-            setOrders(recentOrders);
-        } catch(e) {
-            console.error(e)
-        } finally {
-            setLoading(false);
+            const shopifyEditableOrders: EditableOrder[] = shopifyOrders.map(order => ({
+                id: order.id.toString(),
+                orderId: order.name,
+                customerName: `${order.customer?.first_name || ''} ${order.customer?.last_name || ''}`.trim(),
+                customerAddress: formatAddress(order.shipping_address),
+                pincode: order.shipping_address?.zip || 'N/A',
+                contactNo: order.customer?.phone || 'N/A',
+                productOrdered: order.line_items.map(item => item.title).join(', '),
+                quantity: order.line_items.reduce((sum, item) => sum + item.quantity, 0),
+                price: order.total_price,
+                paymentStatus: order.financial_status || 'Pending',
+                date: format(new Date(order.created_at), "yyyy-MM-dd"),
+            }));
+            combinedOrders = [...shopifyEditableOrders];
+        } catch (error) {
+            console.error("Failed to fetch Shopify orders:", error);
+            // Continue with manual orders even if Shopify fails
         }
+
+        try {
+            // Fetch from LocalStorage
+            const manualOrdersJSON = localStorage.getItem('manualOrders');
+            const manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
+            combinedOrders = [...combinedOrders, ...manualOrders];
+        } catch (error) {
+            console.error("Failed to load manual orders:", error);
+        }
+
+        // Sort by date (descending) and take the top 5
+        const sortedOrders = combinedOrders.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        const recentOrders = sortedOrders.slice(0, 5).map(mapToDeliveryOrder);
+        setOrders(recentOrders);
+        setLoading(false);
     }
-    fetchOrders();
+    fetchAndSetOrders();
   }, []);
+
 
   const handleFieldChange = (orderId: string, field: keyof DeliveryOrder, value: string) => {
     setOrders(prevOrders =>
