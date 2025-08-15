@@ -109,7 +109,7 @@ export default function SecureCodPage() {
             key: RAZORPAY_KEY_ID,
             amount: totalAmount * 100, // Amount in paise
             currency: "INR",
-            name: "Snazzify Secure COD",
+            name: orderDetails.productName,
             description: `Mandate for ${orderDetails.productName}`,
             order_id: '', // Will be created by Razorpay SDK for subscription
             recurring: 'initial', // This is the key for creating a mandate
