@@ -177,7 +177,6 @@ export default function SecureCodPage() {
 
     return (
         <>
-            <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
             <div className="flex items-center justify-center min-h-screen bg-transparent p-4">
                 <Card className="w-full max-w-md shadow-lg">
                     <CardHeader className="text-center">
