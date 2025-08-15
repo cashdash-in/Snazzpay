@@ -41,9 +41,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const productName = \`{{ product.title | url_encode }}\`;
     const productPrice = {{ product.price | money_without_currency | replace: ',', '' }};
+    // Use the order name (e.g., #1001) as the order_id for tracking
+    const orderId = \`{{ order.name | url_encode }}\`; 
     const baseUrl = '${url}';
 
-    const finalUrl = baseUrl + '?amount=' + encodeURIComponent(productPrice) + '&name=' + productName;
+    const finalUrl = baseUrl + '?amount=' + encodeURIComponent(productPrice) + '&name=' + productName + '&order_id=' + orderId;
     secureCodLink.href = finalUrl;
 });
 </script>

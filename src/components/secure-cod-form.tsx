@@ -45,17 +45,17 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
 
         const amountStr = searchParams.get('amount');
         const name = searchParams.get('name');
+        const orderId = searchParams.get('order_id');
         
         let initialAmount = 1;
         let initialName = 'Sample Product';
-        let initialOrderId = `manual_${uuidv4()}`;
+        let initialOrderId = orderId || `manual_${uuidv4()}`;
 
         if (amountStr && name) {
             const baseAmount = parseFloat(amountStr);
             if (!isNaN(baseAmount)) {
                 initialAmount = baseAmount;
                 initialName = name;
-                initialOrderId = `prod_${name.replace(/\s+/g, '_').toLowerCase()}_${uuidv4().substring(0, 4)}`;
             } else {
                  setError('Invalid product price received.');
             }
@@ -155,14 +155,15 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                     
                     const paymentInfo = {
                         paymentId: response.razorpay_payment_id,
-                        orderId: response.razorpay_order_id,
+                        orderId: orderDetails.orderId, // Using OUR internal order ID
+                        razorpayOrderId: response.razorpay_order_id, // Storing razorpay's order ID too
                         signature: response.razorpay_signature,
                         status: 'authorized', // This is now an authorized mandate
                         authorizedAt: new Date().toISOString()
                     };
-
-                    // We use the Razorpay order ID to store the payment info
-                    localStorage.setItem(`payment_info_${response.razorpay_order_id}`, JSON.stringify(paymentInfo));
+                    
+                    // We use OUR internal order ID to store the payment info
+                    localStorage.setItem(`payment_info_${orderDetails.orderId}`, JSON.stringify(paymentInfo));
                     
                     setIsAuthorizing(false);
                 },
@@ -334,5 +335,3 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         </>
     );
 }
-
-    

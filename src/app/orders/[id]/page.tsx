@@ -16,7 +16,8 @@ import { format } from 'date-fns';
 
 type PaymentInfo = {
     paymentId: string;
-    orderId: string;
+    orderId: string; // This is our internal order ID now
+    razorpayOrderId: string;
     signature: string;
     status: string;
     authorizedAt: string;
@@ -59,16 +60,12 @@ export default function OrderDetailPage() {
         
         setOrder(foundOrder);
 
-        // Check for payment info
+        // Check for payment info using the order's display ID (e.g., #1001)
         if (foundOrder) {
             const paymentInfoJSON = localStorage.getItem(`payment_info_${foundOrder.orderId}`);
             if (paymentInfoJSON) {
                 setPaymentInfo(JSON.parse(paymentInfoJSON));
             }
-        } else {
-             // Fallback for Shopify orders that might not be in the override yet.
-             // We don't have the full order data, but we can construct the key if we know the orderId pattern.
-             // For now, let's assume we can't find it if the order isn't found.
         }
 
         setLoading(false);
