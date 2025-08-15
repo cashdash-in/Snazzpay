@@ -20,10 +20,9 @@ async function razorpayFetch(endpoint: string, payload: object) {
     if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
         throw new Error('Razorpay API keys are not configured on the server. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables.');
     }
-    const credentials = Buffer.from(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`).toString('base64');
-    const url = `https://api.razorpay.com/v1/${endpoint}`;
     
-    const body = JSON.stringify(payload);
+    const url = `https://api.razorpay.com/v1/${endpoint}`;
+    const credentials = Buffer.from(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`).toString('base64');
 
     const response = await fetch(url, {
         method: 'POST',
@@ -31,7 +30,7 @@ async function razorpayFetch(endpoint: string, payload: object) {
             'Authorization': `Basic ${credentials}`,
             'Content-Type': 'application/json',
         },
-        body: body,
+        body: JSON.stringify(payload),
         cache: 'no-store',
     });
 
@@ -39,8 +38,12 @@ async function razorpayFetch(endpoint: string, payload: object) {
 
     if (!response.ok) {
         console.error(`Razorpay API Error (${url}):`, jsonResponse);
-        throw new Error(jsonResponse?.error?.description || `Failed API call to ${endpoint}`);
+        const errorMessage = jsonResponse?.error?.description || `Failed API call to ${endpoint}`;
+        // The "URL not found" error on the client is because the server is throwing an error here.
+        // We need to return a more structured error to the client.
+        throw new Error(errorMessage);
     }
+    
     return jsonResponse;
 }
 
@@ -62,7 +65,7 @@ async function createPlan(): Promise<string> {
     const parsed = PlanResponseSchema.safeParse(response);
     if (!parsed.success) {
         console.error("Failed to parse Razorpay Plan response:", parsed.error.flatten());
-        throw new Error("Could not create mandate plan due to unexpected response.");
+        throw new Error("Could not create mandate plan due to unexpected response from Razorpay.");
     }
     return parsed.data.id;
 }
