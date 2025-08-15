@@ -1,4 +1,5 @@
 
+'use client';
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
@@ -16,6 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { getMandates, getCustomer, type Mandate as RazorpayMandate } from "@/services/razorpay";
 import { format } from "date-fns";
+import { useEffect, useState } from "react";
 
 type Mandate = {
   mandateId: string;
@@ -65,12 +67,20 @@ function mapRazorpayMandate(mandate: RazorpayMandate, customerName: string): Man
 }
 
 
-export default async function MandatesPage() {
-  const razorpayMandates = await getMandates();
-  const allMandates = await Promise.all(razorpayMandates.map(async (mandate) => {
-    const customer = await getCustomer(mandate.customer_id);
-    return mapRazorpayMandate(mandate, customer?.name || 'Unknown Customer');
-  }));
+export default function MandatesPage() {
+  const [allMandates, setAllMandates] = useState<Mandate[]>([]);
+
+  useEffect(() => {
+    async function fetchMandates() {
+        const razorpayMandates = await getMandates();
+        const mandates = await Promise.all(razorpayMandates.map(async (mandate) => {
+            const customer = await getCustomer(mandate.customer_id);
+            return mapRazorpayMandate(mandate, customer?.name || 'Unknown Customer');
+        }));
+        setAllMandates(mandates);
+    }
+    fetchMandates();
+  }, []);
 
   return (
     <AppShell title="Mandates">

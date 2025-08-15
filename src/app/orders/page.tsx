@@ -1,4 +1,6 @@
 
+'use client';
+
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
@@ -9,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
 import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import { format } from "date-fns";
+import { useState, useEffect } from "react";
 
 type Order = {
   orderId: string;
@@ -60,9 +63,18 @@ function mapShopifyOrderToAppOrder(shopifyOrder: ShopifyOrder): Order {
 }
 
 
-export default async function OrdersPage() {
-  const shopifyOrders = await getOrders();
-  const allOrders: Order[] = shopifyOrders.map(mapShopifyOrderToAppOrder);
+export default function OrdersPage() {
+  const [allOrders, setAllOrders] = useState<Order[]>([]);
+
+  useEffect(() => {
+    async function fetchOrders() {
+        const shopifyOrders = await getOrders();
+        const orders = shopifyOrders.map(mapShopifyOrderToAppOrder);
+        setAllOrders(orders);
+    }
+    fetchOrders();
+  }, []);
+
 
   return (
     <AppShell title="Orders">

@@ -32,12 +32,14 @@ import {
   ShieldCheck,
   Bell,
   FileCode,
+  Truck,
 } from 'lucide-react';
 
 const menuItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/mandates', label: 'Mandates', icon: WalletCards },
   { href: '/orders', label: 'Orders', icon: ShoppingCart },
+  { href: '/delivery-tracking', label: 'Delivery Tracking', icon: Truck },
   { href: '/cod-instructions', label: 'Embedding', icon: FileCode },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];

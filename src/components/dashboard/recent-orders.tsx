@@ -1,4 +1,6 @@
 
+'use client';
+
 import {
   Card,
   CardHeader,
@@ -17,7 +19,8 @@ import {
 import { MandateStatus } from "@/components/mandate-status";
 import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import { format } from "date-fns";
-
+import { Badge } from "../ui/badge";
+import { useState, useEffect } from "react";
 
 type Order = {
   orderId: string;
@@ -41,9 +44,18 @@ function mapShopifyOrderToAppOrder(shopifyOrder: ShopifyOrder): Order {
 }
 
 
-export async function RecentOrders() {
-  const shopifyOrders = await getOrders();
-  const orders: Order[] = shopifyOrders.slice(0, 5).map(mapShopifyOrderToAppOrder);
+export function RecentOrders() {
+  const [orders, setOrders] = useState<Order[]>([]);
+  
+  useEffect(() => {
+    async function fetchOrders() {
+        const shopifyOrders = await getOrders();
+        const recentOrders = shopifyOrders.slice(0, 5).map(mapShopifyOrderToAppOrder);
+        setOrders(recentOrders);
+    }
+    fetchOrders();
+  }, []);
+
   return (
     <Card>
       <CardHeader>
