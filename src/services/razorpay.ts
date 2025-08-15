@@ -37,7 +37,7 @@ export async function createSubscriptionLink(maxAmount: number, description: str
                 max_amount: maxAmount, // The actual maximum amount for future charges
                 total_count: 120, // Authorize for 10 years (12 * 10)
             },
-            upi_qr: 1, // Required parameter
+            upi_qr: true, // Required parameter
             notes: {
                 policy_name: "Secure COD Mandate"
             },
