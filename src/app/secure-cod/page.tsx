@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -11,7 +12,6 @@ import { Input } from "@/components/ui/input";
 import { Loader2, HelpCircle, AlertTriangle } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
-import { createSubscription } from '../actions';
 
 export default function SecureCodPage() {
     const searchParams = useSearchParams();
@@ -22,11 +22,10 @@ export default function SecureCodPage() {
         quantity: 1,
         orderId: ''
     });
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     const [isCreatingLink, setIsCreatingLink] = useState(false);
     const [error, setError] = useState('');
     const [agreed, setAgreed] = useState(false);
-    const [subscriptionId, setSubscriptionId] = useState<string | null>(null);
 
     useEffect(() => {
         const amountStr = searchParams.get('amount');
@@ -45,6 +44,10 @@ export default function SecureCodPage() {
             } else {
                  setError('Invalid product price received.');
             }
+        } else {
+            // Default values for when query params are missing
+            initialAmount = 500;
+            initialName = 'My Awesome Product';
         }
 
         const currentOrderDetails = {
@@ -56,26 +59,7 @@ export default function SecureCodPage() {
 
         setOrderDetails(currentOrderDetails);
         
-        async function getSubscription() {
-            setLoading(true);
-            try {
-                const result = await createSubscription();
-                if (result.error) {
-                    throw new Error(result.error);
-                }
-                setSubscriptionId(result.subscription_id!);
-            } catch (err: any) {
-                console.error(err);
-                setError(err.message || 'An unexpected error occurred.');
-                toast({ variant: 'destructive', title: 'Error', description: err.message });
-            } finally {
-                setLoading(false);
-            }
-        }
-
-        getSubscription();
-        
-    }, [searchParams, toast]);
+    }, [searchParams]);
 
     const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const quantity = parseInt(e.target.value, 10);
@@ -107,23 +91,16 @@ export default function SecureCodPage() {
             toast({ variant: 'destructive', title: 'SDK Error', description: 'Razorpay Checkout SDK failed to load. Please check your internet connection and try again.' });
             return;
         }
-        if (!subscriptionId) {
-            toast({ variant: 'destructive', title: 'Subscription Error', description: 'Could not create a subscription. Please refresh and try again.' });
-            return;
-        }
         
         setIsCreatingLink(true);
 
         const options = {
             key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-            subscription_id: subscriptionId,
-            name: "eMandate for " + orderDetails.productName,
-            description: `Mandate for Order: ${orderDetails.orderId}`,
-            notes: {
-                "name": orderDetails.productName,
-                "quantity": orderDetails.quantity.toString(),
-                "order_id_internal": orderDetails.orderId,
-            },
+            amount: totalAmount * 100, // amount in the smallest currency unit
+            currency: "INR",
+            name: "Snazzify Secure COD",
+            description: "Test Transaction for " + orderDetails.productName,
+            order_id: '', // We are not creating an order, but it's good practice to have it
             handler: function (response: any){
                 toast({
                     title: 'Authorization Successful!',
@@ -134,19 +111,29 @@ export default function SecureCodPage() {
                 const paymentInfo = {
                     paymentId: response.razorpay_payment_id,
                     orderId: orderDetails.orderId,
-                    subscriptionId: response.razorpay_subscription_id,
                     signature: response.razorpay_signature,
                     status: 'authorized',
                     authorizedAt: new Date().toISOString()
                 };
 
                 localStorage.setItem(`payment_info_${orderDetails.orderId}`, JSON.stringify(paymentInfo));
-                window.location.href = `/orders/${orderDetails.orderId}`;
+                
+                // For demonstration, redirect to a generic success page or the order page
+                // In a real app, you would likely verify the payment on your server first.
+                // window.location.href = `/orders/${orderDetails.orderId}`;
+                
+                setIsCreatingLink(false);
+
             },
             prefill: {
                 name: "Customer Name",
                 email: "customer@example.com",
                 contact: "9999999999"
+            },
+            notes: {
+                "address": "Customer Address",
+                "product": orderDetails.productName,
+                "order_id": orderDetails.orderId,
             },
             theme: {
                 color: "#5a31f4"
@@ -267,11 +254,11 @@ export default function SecureCodPage() {
                             </Label>
                         </div>
                         <p className="text-xs text-muted-foreground text-center">
-                            By clicking the button below, you agree to authorize a temporary hold of ₹{totalAmount.toFixed(2)} on your card via Razorpay eMandate. This hold may be partially captured for a shipping fee if the order is canceled after dispatch.
+                            By clicking the button below, you agree to authorize a temporary hold of ₹{totalAmount.toFixed(2)} on your card. This hold may be partially captured for a shipping fee if the order is canceled after dispatch.
                         </p>
                     </CardContent>
                     <CardFooter>
-                        <Button className="w-full" onClick={handlePayment} disabled={!agreed || isCreatingLink || !subscriptionId}>
+                        <Button className="w-full" onClick={handlePayment} disabled={!agreed || isCreatingLink}>
                             {isCreatingLink && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Authorize with Razorpay
                         </Button>
