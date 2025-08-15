@@ -15,7 +15,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 // NOTE: It is safe to expose the Razorpay Key ID on the client side.
 // It is used to initialize the Razorpay Checkout.
-const RAZORPAY_KEY_ID = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_live_R5cgT6cx4nfFJd";
+const RAZORPAY_KEY_ID = "rzp_live_R5cgT6cx4nfFJd";
 
 export default function SecureCodPage() {
     const searchParams = useSearchParams();
@@ -93,15 +93,26 @@ export default function SecureCodPage() {
             return;
         }
         
+        if (!(window as any).Razorpay) {
+            toast({
+               variant: 'destructive',
+               title: 'SDK Error',
+               description: 'Razorpay Checkout SDK failed to load. Please check your internet connection and try again.',
+           });
+           setIsCreatingLink(false);
+           return;
+       }
+        
         setIsCreatingLink(true);
 
         const options = {
             key: RAZORPAY_KEY_ID,
-            amount: totalAmount * 100,
+            amount: totalAmount * 100, // Amount in paise
             currency: "INR",
             name: "Snazzify Secure COD",
             description: `Mandate for ${orderDetails.productName}`,
-            recurring: 'initial',
+            order_id: '', // Will be created by Razorpay SDK for subscription
+            recurring: 'initial', // This is the key for creating a mandate
             notes: {
                 "name": orderDetails.productName,
                 "quantity": orderDetails.quantity.toString(),
@@ -111,6 +122,7 @@ export default function SecureCodPage() {
                 toast({
                     title: 'Authorization Successful!',
                     description: `Payment ID: ${response.razorpay_payment_id}`,
+                    variant: 'default'
                 });
                 
                 // Store payment info in local storage
@@ -122,8 +134,6 @@ export default function SecureCodPage() {
                     authorizedAt: new Date().toISOString()
                 };
 
-                // In a real app, you would send this to your backend for verification.
-                // For now, we save it to localStorage to be viewed in the app.
                 localStorage.setItem(`payment_info_${orderDetails.orderId}`, JSON.stringify(paymentInfo));
 
                 setIsCreatingLink(false);
@@ -137,9 +147,9 @@ export default function SecureCodPage() {
                 contact: "9999999999"
             },
             theme: {
-                color: "#5a31f4"
+                color: "#663399"
             },
-             modal: {
+            modal: {
                 ondismiss: function() {
                     setIsCreatingLink(false);
                      toast({
@@ -150,16 +160,6 @@ export default function SecureCodPage() {
                 }
             }
         };
-
-        if (!(window as any).Razorpay) {
-             toast({
-                variant: 'destructive',
-                title: 'SDK Error',
-                description: 'Razorpay Checkout SDK failed to load. Please check your internet connection and try again.',
-            });
-            setIsCreatingLink(false);
-            return;
-        }
 
         try {
             const rzp = new (window as any).Razorpay(options);
@@ -278,5 +278,3 @@ export default function SecureCodPage() {
         </>
     );
 }
-
-    
