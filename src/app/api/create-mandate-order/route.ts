@@ -28,11 +28,23 @@ export async function POST(request: Request) {
         const { amount, productName } = await request.json();
         console.log(`Received request to create mandate for product: ${productName}, amount: ${amount}`);
 
+        // Step 1: Create a Customer
+        console.log("Creating Razorpay customer...");
+        const customer = await razorpay.customers.create({
+            name: 'Secure COD Customer',
+            email: `customer_${uuidv4().substring(0,8)}@example.com`,
+            contact: '9999999999', // Placeholder contact
+        });
+        console.log("Successfully created Razorpay customer:", customer);
+
+
+        // Step 2: Create the Order with the customer_id
         const orderOptions = {
             amount: 100, // 100 paise = ₹1 for authorization
             currency: 'INR',
             receipt: `rcpt_cod_${uuidv4().substring(0,8)}`,
             payment_capture: true,
+            customer_id: customer.id, // Pass the newly created customer ID
             notes: {
                 product: productName,
                 original_amount: amount,
@@ -50,7 +62,7 @@ export async function POST(request: Request) {
         const order = await razorpay.orders.create(orderOptions);
         console.log("Successfully created Razorpay order:", order);
 
-        return NextResponse.json({ order_id: order.id, amount: order.amount });
+        return NextResponse.json({ order_id: order.id, amount: order.amount, customer_id: customer.id });
 
     } catch (error: any) {
         // --- Enhanced Error Logging ---
