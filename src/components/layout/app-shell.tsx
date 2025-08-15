@@ -1,3 +1,4 @@
+
 'use client';
 import type {FC, PropsWithChildren} from 'react';
 import {
@@ -33,6 +34,8 @@ import {
   Bell,
   FileCode,
   Truck,
+  Ban,
+  CircleDollarSign,
 } from 'lucide-react';
 
 const menuItems = [
@@ -40,6 +43,8 @@ const menuItems = [
   { href: '/mandates', label: 'Mandates', icon: WalletCards },
   { href: '/orders', label: 'Orders', icon: ShoppingCart },
   { href: '/delivery-tracking', label: 'Delivery Tracking', icon: Truck },
+  { href: '/cancellations', label: 'Cancellations', icon: Ban },
+  { href: '/refunds', label: 'Refunds', icon: CircleDollarSign },
   { href: '/cod-instructions', label: 'Embedding', icon: FileCode },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
