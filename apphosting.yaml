@@ -10,5 +10,5 @@ runConfig:
   environmentVariables:
     RAZORPAY_KEY_ID: "rzp_live_R5cgT6cx4nfFJd"
     RAZORPAY_KEY_SECRET: "1dxA6vKysOAKplHZfgbPXBOO"
-    SHOPIFY_STORE_URL: "www.snazzify.co.in"
+    SHOPIFY_STORE_URL: "snazzify.myshopify.com"
     SHOPIFY_API_KEY: "d2ca40f57d83b2796d35cae032a0fe3b"
