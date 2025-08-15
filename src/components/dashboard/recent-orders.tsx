@@ -21,24 +21,13 @@ import { useState, useEffect } from "react";
 import { Input } from "../ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Button } from "../ui/button";
-import { Send, Loader2 } from "lucide-react";
+import { Send, Loader2, Save } from "lucide-react";
 import type { EditableOrder } from "@/app/orders/page";
 import { format } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
 
 
 type OrderStatus = 'pending' | 'dispatched' | 'out-for-delivery' | 'delivered' | 'failed';
-
-type DeliveryOrder = {
-  id: string;
-  orderId: string;
-  customerName: string;
-  customerAddress: string;
-  contactNo: string;
-  trackingNumber: string;
-  status: OrderStatus;
-  estDelivery: string;
-  date: string;
-};
 
 function formatAddress(address: ShopifyOrder['shipping_address']): string {
     if (!address) return 'N/A';
@@ -46,53 +35,41 @@ function formatAddress(address: ShopifyOrder['shipping_address']): string {
     return parts.filter(Boolean).join(', ');
 }
 
-function mapToDeliveryOrder(order: EditableOrder): DeliveryOrder {
+function mapShopifyToEditable(order: ShopifyOrder): EditableOrder {
     return {
         id: order.id.toString(),
-        orderId: order.orderId,
-        customerName: order.customerName,
-        customerAddress: order.customerAddress,
-        contactNo: order.contactNo,
-        trackingNumber: '', // Default value
-        status: 'pending', // Default value
-        estDelivery: '', // Default value
-        date: order.date,
+        orderId: order.name,
+        customerName: `${order.customer?.first_name || ''} ${order.customer?.last_name || ''}`.trim(),
+        customerAddress: formatAddress(order.shipping_address),
+        pincode: order.shipping_address?.zip || 'N/A',
+        contactNo: order.customer?.phone || 'N/A',
+        productOrdered: order.line_items.map(item => item.title).join(', '),
+        quantity: order.line_items.reduce((sum, item) => sum + item.quantity, 0),
+        price: order.total_price,
+        paymentStatus: order.financial_status || 'Pending',
+        date: format(new Date(order.created_at), "yyyy-MM-dd"),
     };
 }
 
 
 export function RecentOrders() {
-  const [orders, setOrders] = useState<DeliveryOrder[]>([]);
+  const [orders, setOrders] = useState<EditableOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
   
   useEffect(() => {
     async function fetchAndSetOrders() {
         setLoading(true);
         let combinedOrders: EditableOrder[] = [];
         try {
-            // Fetch from Shopify
             const shopifyOrders = await getOrders();
-            const shopifyEditableOrders: EditableOrder[] = shopifyOrders.map(order => ({
-                id: order.id.toString(),
-                orderId: order.name,
-                customerName: `${order.customer?.first_name || ''} ${order.customer?.last_name || ''}`.trim(),
-                customerAddress: formatAddress(order.shipping_address),
-                pincode: order.shipping_address?.zip || 'N/A',
-                contactNo: order.customer?.phone || 'N/A',
-                productOrdered: order.line_items.map(item => item.title).join(', '),
-                quantity: order.line_items.reduce((sum, item) => sum + item.quantity, 0),
-                price: order.total_price,
-                paymentStatus: order.financial_status || 'Pending',
-                date: format(new Date(order.created_at), "yyyy-MM-dd"),
-            }));
+            const shopifyEditableOrders: EditableOrder[] = shopifyOrders.map(mapShopifyToEditable);
             combinedOrders = [...shopifyEditableOrders];
         } catch (error) {
             console.error("Failed to fetch Shopify orders:", error);
-            // Continue with manual orders even if Shopify fails
         }
 
         try {
-            // Fetch from LocalStorage
             const manualOrdersJSON = localStorage.getItem('manualOrders');
             const manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
             combinedOrders = [...combinedOrders, ...manualOrders];
@@ -100,9 +77,14 @@ export function RecentOrders() {
             console.error("Failed to load manual orders:", error);
         }
 
-        // Sort by date (descending) and take the top 5
-        const sortedOrders = combinedOrders.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        const recentOrders = sortedOrders.slice(0, 5).map(mapToDeliveryOrder);
+        // Apply overrides
+        const ordersWithOverrides = combinedOrders.map(order => {
+          const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
+          return { ...order, ...storedOverrides };
+        });
+
+        const sortedOrders = ordersWithOverrides.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        const recentOrders = sortedOrders.slice(0, 5);
         setOrders(recentOrders);
         setLoading(false);
     }
@@ -110,12 +92,36 @@ export function RecentOrders() {
   }, []);
 
 
-  const handleFieldChange = (orderId: string, field: keyof DeliveryOrder, value: string) => {
+  const handleFieldChange = (orderId: string, field: keyof EditableOrder, value: string) => {
     setOrders(prevOrders =>
         prevOrders.map(order =>
             order.id === orderId ? { ...order, [field]: value } : order
         )
     );
+  };
+
+  const handleSave = (orderId: string) => {
+    const orderToSave = orders.find(o => o.id === orderId);
+    if (!orderToSave) return;
+    
+    if (orderToSave.id.startsWith('gid://') || orderToSave.id.match(/^\d+$/)) {
+      const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${orderId}`) || '{}');
+      const newOverrides = { ...storedOverrides, ...orderToSave };
+      localStorage.setItem(`order-override-${orderId}`, JSON.stringify(newOverrides));
+    } else {
+      const manualOrdersJSON = localStorage.getItem('manualOrders');
+      let manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
+      const orderIndex = manualOrders.findIndex(o => o.id === orderId);
+      if (orderIndex > -1) {
+        manualOrders[orderIndex] = orderToSave;
+        localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
+      }
+    }
+
+    toast({
+        title: "Changes Saved",
+        description: `Details for order ${orderToSave.orderId} have been updated.`,
+    });
   };
 
   return (
@@ -136,7 +142,7 @@ export function RecentOrders() {
             <TableRow>
               <TableHead>Order ID</TableHead>
               <TableHead>Customer</TableHead>
-              <TableHead>Address / Contact</TableHead>
+              <TableHead>Contact</TableHead>
               <TableHead>Tracking No.</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Est. Delivery</TableHead>
@@ -149,21 +155,20 @@ export function RecentOrders() {
                 <TableCell className="font-medium">{order.orderId}</TableCell>
                 <TableCell>{order.customerName}</TableCell>
                 <TableCell className="text-xs">
-                    <div>{order.customerAddress}</div>
-                    <div className="font-medium">{order.contactNo}</div>
+                    <div>{order.contactNo}</div>
                 </TableCell>
                 <TableCell>
                     <Input 
                         placeholder="Tracking No." 
                         className="w-40" 
-                        value={order.trackingNumber}
+                        value={order.trackingNumber || ''}
                         onChange={(e) => handleFieldChange(order.id, 'trackingNumber', e.target.value)}
                     />
                 </TableCell>
                  <TableCell>
                     <Select
-                        value={order.status}
-                        onValueChange={(value: OrderStatus) => handleFieldChange(order.id, 'status', value)}
+                        value={order.deliveryStatus || 'pending'}
+                        onValueChange={(value: OrderStatus) => handleFieldChange(order.id, 'deliveryStatus', value)}
                     >
                       <SelectTrigger className="w-[180px]">
                         <SelectValue placeholder="Select Status" />
@@ -181,11 +186,14 @@ export function RecentOrders() {
                      <Input 
                         type="date" 
                         className="w-40" 
-                        value={order.estDelivery}
+                        value={order.estDelivery || ''}
                         onChange={(e) => handleFieldChange(order.id, 'estDelivery', e.target.value)}
                      />
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="space-x-2">
+                    <Button variant="outline" size="icon" onClick={() => handleSave(order.id)}>
+                        <Save className="h-4 w-4" />
+                    </Button>
                     <Button variant="outline" size="sm">
                         <Send className="mr-2 h-4 w-4" />
                         Notify

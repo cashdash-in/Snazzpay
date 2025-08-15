@@ -15,14 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { EditableOrder } from '../orders/page';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-type CancellationOrder = {
-  id: string; // Internal unique ID
-  orderId: string;
-  customerName: string;
-  date: string;
-  reason: string;
-  status: 'Pending' | 'Processed' | 'Failed';
-};
+type CancellationStatus = 'Pending' | 'Processed' | 'Failed';
 
 function formatAddress(address: ShopifyOrder['shipping_address']): string {
     if (!address) return 'N/A';
@@ -30,59 +23,61 @@ function formatAddress(address: ShopifyOrder['shipping_address']): string {
     return parts.filter(Boolean).join(', ');
 }
 
-function mapToCancellationOrder(order: EditableOrder): CancellationOrder {
-    const cancellationState = JSON.parse(localStorage.getItem('cancellationState') || '{}');
-    const specificOrderState = cancellationState[order.id] || {};
+function mapShopifyToEditable(order: ShopifyOrder): EditableOrder {
     return {
-        id: order.id,
-        orderId: order.orderId,
-        customerName: order.customerName,
-        date: order.date,
-        reason: specificOrderState.reason || '',
-        status: specificOrderState.status || 'Pending',
+        id: order.id.toString(),
+        orderId: order.name,
+        customerName: `${order.customer?.first_name || ''} ${order.customer?.last_name || ''}`.trim(),
+        customerAddress: formatAddress(order.shipping_address),
+        pincode: order.shipping_address?.zip || 'N/A',
+        contactNo: order.customer?.phone || 'N/A',
+        productOrdered: order.line_items.map(item => item.title).join(', '),
+        quantity: order.line_items.reduce((sum, item) => sum + item.quantity, 0),
+        price: order.total_price,
+        paymentStatus: order.financial_status || 'Pending',
+        date: format(new Date(order.created_at), "yyyy-MM-dd"),
     };
 }
 
+
 export default function CancellationsPage() {
-  const [orders, setOrders] = useState<CancellationOrder[]>([]);
+  const [orders, setOrders] = useState<EditableOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
     async function fetchOrders() {
         setLoading(true);
-        let combinedOrders: EditableOrder[] = [];
         try {
             const shopifyOrders = await getOrders();
-            const shopifyEditableOrders = shopifyOrders.map(order => ({
-                id: order.id.toString(),
-                orderId: order.name,
-                customerName: `${order.customer?.first_name || ''} ${order.customer?.last_name || ''}`.trim(),
-                customerAddress: formatAddress(order.shipping_address),
-                pincode: order.shipping_address?.zip || 'N/A',
-                contactNo: order.customer?.phone || 'N/A',
-                productOrdered: order.line_items.map(item => item.title).join(', '),
-                quantity: order.line_items.reduce((sum, item) => sum + item.quantity, 0),
-                price: order.total_price,
-                paymentStatus: order.financial_status || 'Pending',
-                date: format(new Date(order.created_at), "yyyy-MM-dd"),
-            }));
-            combinedOrders = [...shopifyEditableOrders];
+            const shopifyEditableOrders = shopifyOrders.map(mapShopifyToEditable);
+
+            const manualOrdersJSON = localStorage.getItem('manualOrders');
+            const manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
+            
+            const combinedOrders = [...shopifyEditableOrders, ...manualOrders];
+            const finalOrders = combinedOrders.map(order => {
+                const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
+                return { ...order, ...storedOverrides };
+            });
+            setOrders(finalOrders);
         } catch (error) {
             console.error("Failed to fetch Shopify orders:", error);
+            const manualOrdersJSON = localStorage.getItem('manualOrders');
+            const manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
+             const finalOrders = manualOrders.map(order => {
+                const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
+                return { ...order, ...storedOverrides };
+            });
+            setOrders(finalOrders);
+        } finally {
+            setLoading(false);
         }
-
-        const manualOrdersJSON = localStorage.getItem('manualOrders');
-        const manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
-        
-        combinedOrders = [...combinedOrders, ...manualOrders];
-        setOrders(combinedOrders.map(mapToCancellationOrder));
-        setLoading(false);
     }
     fetchOrders();
   }, []);
 
-  const handleFieldChange = (orderId: string, field: keyof CancellationOrder, value: string) => {
+  const handleFieldChange = (orderId: string, field: keyof EditableOrder, value: string) => {
     setOrders(prevOrders => prevOrders.map(order =>
         order.id === orderId ? { ...order, [field]: value } : order
     ));
@@ -92,12 +87,21 @@ export default function CancellationsPage() {
     const orderToSave = orders.find(o => o.id === orderId);
     if (!orderToSave) return;
 
-    const cancellationState = JSON.parse(localStorage.getItem('cancellationState') || '{}');
-    cancellationState[orderId] = {
-        reason: orderToSave.reason,
-        status: orderToSave.status,
-    };
-    localStorage.setItem('cancellationState', JSON.stringify(cancellationState));
+    // Save logic is the same as orders page
+    if (orderToSave.id.startsWith('gid://') || orderToSave.id.match(/^\d+$/)) {
+      const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${orderId}`) || '{}');
+      const newOverrides = { ...storedOverrides, ...orderToSave };
+      localStorage.setItem(`order-override-${orderId}`, JSON.stringify(newOverrides));
+    } else {
+      const manualOrdersJSON = localStorage.getItem('manualOrders');
+      let manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
+      const orderIndex = manualOrders.findIndex(o => o.id === orderId);
+      if (orderIndex > -1) {
+        manualOrders[orderIndex] = orderToSave;
+        localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
+      }
+    }
+    
     toast({
         title: "Cancellation Info Saved",
         description: `Details for order ${orderToSave.orderId} have been updated.`,
@@ -105,10 +109,8 @@ export default function CancellationsPage() {
   };
 
   const handleRemove = (orderId: string) => {
-    const updatedOrders = orders.filter(order => order.id !== orderId);
-    setOrders(updatedOrders);
+    setOrders(prev => prev.filter(order => order.id !== orderId));
     
-    // Also remove from local storage if it's a manual order
     const manualOrdersJSON = localStorage.getItem('manualOrders');
     if (manualOrdersJSON) {
         let manualOrders: EditableOrder[] = JSON.parse(manualOrdersJSON);
@@ -116,9 +118,7 @@ export default function CancellationsPage() {
         localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
     }
     
-    const cancellationState = JSON.parse(localStorage.getItem('cancellationState') || '{}');
-    delete cancellationState[orderId];
-    localStorage.setItem('cancellationState', JSON.stringify(cancellationState));
+    localStorage.removeItem(`order-override-${orderId}`);
     
     toast({
         variant: 'destructive',
@@ -168,11 +168,11 @@ export default function CancellationsPage() {
                     <TableCell><Input value={order.orderId} onChange={(e) => handleFieldChange(order.id, 'orderId', e.target.value)} className="w-28" /></TableCell>
                     <TableCell><Input value={order.customerName} onChange={(e) => handleFieldChange(order.id, 'customerName', e.target.value)} className="w-40" /></TableCell>
                     <TableCell><Input type="date" value={order.date} onChange={(e) => handleFieldChange(order.id, 'date', e.target.value)} className="w-32" /></TableCell>
-                    <TableCell><Input value={order.reason} onChange={(e) => handleFieldChange(order.id, 'reason', e.target.value)} placeholder="e.g., Customer request" className="w-64" /></TableCell>
+                    <TableCell><Input value={order.cancellationReason || ''} onChange={(e) => handleFieldChange(order.id, 'cancellationReason', e.target.value)} placeholder="e.g., Customer request" className="w-64" /></TableCell>
                     <TableCell>
                         <Select
-                            value={order.status}
-                            onValueChange={(value: 'Pending' | 'Processed' | 'Failed') => handleFieldChange(order.id, 'status', value)}
+                            value={order.cancellationStatus || 'Pending'}
+                            onValueChange={(value: CancellationStatus) => handleFieldChange(order.id, 'cancellationStatus', value)}
                         >
                           <SelectTrigger className="w-[180px]">
                             <SelectValue placeholder="Select Status" />

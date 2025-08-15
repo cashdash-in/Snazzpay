@@ -25,6 +25,16 @@ export type EditableOrder = {
   price: string;
   paymentStatus: string;
   date: string;
+  // Fields from other tabs
+  trackingNumber?: string;
+  courierCompanyName?: string;
+  deliveryStatus?: 'pending' | 'dispatched' | 'out-for-delivery' | 'delivered' | 'failed';
+  estDelivery?: string;
+  cancellationReason?: string;
+  cancellationStatus?: 'Pending' | 'Processed' | 'Failed';
+  refundAmount?: string;
+  refundReason?: string;
+  refundStatus?: 'Pending' | 'Processed' | 'Failed';
 };
 
 function formatAddress(address: ShopifyOrder['shipping_address']): string {
@@ -78,14 +88,25 @@ export default function OrdersPage() {
             const shopifyEditableOrders = shopifyOrders.map(mapShopifyOrderToEditableOrder);
             
             const manualOrdersJSON = localStorage.getItem('manualOrders');
-            const manualOrders = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
+            const manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
+
+            // Combine and apply stored edits
+            const combinedOrders = [...shopifyEditableOrders, ...manualOrders];
+            const finalOrders = combinedOrders.map(order => {
+                const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
+                return { ...order, ...storedOverrides };
+            });
             
-            setOrders([...shopifyEditableOrders, ...manualOrders]);
+            setOrders(finalOrders);
         } catch (error) {
             console.error("Failed to fetch orders:", error);
             const manualOrdersJSON = localStorage.getItem('manualOrders');
             const manualOrders = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
-            setOrders(manualOrders);
+             const finalOrders = manualOrders.map(order => {
+                const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
+                return { ...order, ...storedOverrides };
+            });
+            setOrders(finalOrders);
         } finally {
             setLoading(false);
         }
@@ -101,11 +122,24 @@ export default function OrdersPage() {
   
   const handleSaveOrder = (orderId: string) => {
     const orderToSave = orders.find(o => o.id === orderId);
-    // Only manual orders (which don't have 'gid://' prefix) are saved to local storage
-    if (orderToSave && !orderToSave.id.startsWith('gid://')) {
-        const manualOrders = orders.filter(order => !order.id.startsWith('gid://'));
+    if (!orderToSave) return;
+
+    if (orderToSave.id.startsWith('gid://') || orderToSave.id.match(/^\d+$/)) {
+      // It's a Shopify order, save overrides
+      const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${orderId}`) || '{}');
+      const newOverrides = { ...storedOverrides, ...orderToSave };
+      localStorage.setItem(`order-override-${orderId}`, JSON.stringify(newOverrides));
+    } else {
+      // It's a manual order, find and update it in the manualOrders array
+      const manualOrdersJSON = localStorage.getItem('manualOrders');
+      let manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
+      const orderIndex = manualOrders.findIndex(o => o.id === orderId);
+      if (orderIndex > -1) {
+        manualOrders[orderIndex] = orderToSave;
         localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
+      }
     }
+
     toast({
         title: "Changes Saved",
         description: `Order ${orderToSave?.orderId} has been updated.`,
@@ -113,11 +147,19 @@ export default function OrdersPage() {
   };
 
   const handleRemoveOrder = (orderId: string) => {
-    const updatedOrders = orders.filter(order => order.id !== orderId);
-    setOrders(updatedOrders);
+    setOrders(prev => prev.filter(order => order.id !== orderId));
     
-    const manualOrders = updatedOrders.filter(order => !order.id.startsWith('gid://'));
-    localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
+    // Remove from manual storage if it exists there
+    const manualOrdersJSON = localStorage.getItem('manualOrders');
+    if(manualOrdersJSON) {
+        let manualOrders: EditableOrder[] = JSON.parse(manualOrdersJSON);
+        manualOrders = manualOrders.filter(o => o.id !== orderId);
+        localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
+    }
+    
+    // Remove any overrides
+    localStorage.removeItem(`order-override-${orderId}`);
+
     toast({
         variant: 'destructive',
         title: "Order Removed",
