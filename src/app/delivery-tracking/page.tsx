@@ -85,13 +85,22 @@ export default function DeliveryTrackingPage() {
                 order.id === orderId ? { ...order, [field]: value } : order
             )
         );
+
+        if (field === 'readyForDispatchDate' && value) {
+            const order = orders.find(o => o.id === orderId);
+            if (order && order.contactNo) {
+                const phoneNumber = order.contactNo.replace(/[^0-9]/g, '');
+                const message = encodeURIComponent(`Hi ${order.customerName}, your order #${order.orderId} is ready for dispatch! Please complete the payment authorization here: [Your Payment Link]`);
+                const whatsappUrl = `https://wa.me/${phoneNumber}?text=${message}`;
+                window.open(whatsappUrl, '_blank');
+            }
+        }
     };
 
     const handleSave = (orderId: string) => {
         const orderToSave = orders.find(o => o.id === orderId);
         if (!orderToSave) return;
         
-        // Save logic is the same as orders page
         if (orderToSave.id.startsWith('gid://') || orderToSave.id.match(/^\d+$/)) {
           const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${orderId}`) || '{}');
           const newOverrides = { ...storedOverrides, ...orderToSave };
