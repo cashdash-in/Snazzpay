@@ -12,6 +12,9 @@ import { Input } from "@/components/ui/input";
 import { Loader2, HelpCircle, AlertTriangle, User, Phone, Home, MapPin } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
+import { format } from 'date-fns';
+import type { EditableOrder } from '@/app/orders/page';
+
 
 interface SecureCodFormProps {
     razorpayKeyId: string | null;
@@ -116,7 +119,6 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         setError('');
 
         try {
-            // Step 1: Call our API. The backend now handles customer creation and mandate logic.
             const response = await fetch('/api/create-mandate-order', {
                 method: 'POST',
                 headers: {
@@ -139,7 +141,6 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
 
             const { order_id } = await response.json();
 
-            // Step 2: Open Razorpay checkout with just the order_id.
             const options = {
                 key: razorpayKeyId,
                 order_id: order_id,
@@ -162,8 +163,30 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                     };
                     
                     localStorage.setItem(`payment_info_${orderDetails.orderId}`, JSON.stringify(paymentInfo));
+
+                    // Create a new order in the app
+                    const newOrder: EditableOrder = {
+                        id: uuidv4(), // Give it a new unique internal ID
+                        orderId: orderDetails.orderId,
+                        customerName: customerDetails.name,
+                        customerAddress: customerDetails.address,
+                        pincode: customerDetails.pincode,
+                        contactNo: customerDetails.contact,
+                        productOrdered: orderDetails.productName,
+                        quantity: orderDetails.quantity,
+                        price: totalAmount.toFixed(2),
+                        paymentStatus: 'Authorized', // Set status to Authorized
+                        date: format(new Date(), 'yyyy-MM-dd'),
+                    };
+
+                    const existingOrders = JSON.parse(localStorage.getItem('manualOrders') || '[]');
+                    const updatedOrders = [...existingOrders, newOrder];
+                    localStorage.setItem('manualOrders', JSON.stringify(updatedOrders));
                     
                     setIsAuthorizing(false);
+
+                    // Optionally, redirect to a success page or the orders page
+                    // window.location.href = '/orders';
                 },
                 prefill: {
                     name: customerDetails.name,
@@ -333,3 +356,5 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         </>
     );
 }
+
+    
