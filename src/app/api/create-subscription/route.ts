@@ -16,7 +16,7 @@ export async function POST(request: Request) {
         // A unique plan is created for each request to avoid plan conflicts.
         const planOptions = {
             period: 'yearly' as const, // Mandates are typically long-term
-            interval: 10, // Recurring every 10 years (effectively a one-time mandate setup)
+            interval: 1, 
             item: {
                 name: `eMandate authorization for ${productName}`,
                 amount: 100, // Authorize for ₹1 (100 paise)
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
         // Step 2: Create a Subscription using the Plan
         const subscriptionOptions = {
             plan_id: plan.id,
-            total_count: 1, // This is for the initial authorization charge. The mandate itself is long-lived.
+            total_count: 36, // A long-term mandate (36 cycles of a yearly plan)
             quantity: 1,
             customer_notify: 0, // We will handle notifications
             notes: {
