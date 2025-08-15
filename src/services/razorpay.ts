@@ -55,7 +55,7 @@ async function razorpayFetch(endpoint: string, options: RequestInit = {}) {
     const keyId = typeof window !== 'undefined' ? localStorage.getItem('razorpay_key_id') : process.env.RAZORPAY_KEY_ID;
     const keySecret = typeof window !== 'undefined' ? localStorage.getItem('razorpay_key_secret') : process.env.RAZORPAY_KEY_SECRET;
 
-    if (!keyId || !keySecret) {
+    if (!keyId || !keySecret || keyId === 'rzp_test_xxxxxxxxxxxxxx') {
         throw new Error('Razorpay API keys are not configured.');
     }
 

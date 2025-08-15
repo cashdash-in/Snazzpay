@@ -4,7 +4,6 @@
 import { z } from 'zod';
 
 const SHOPIFY_STORE_URL = process.env.SHOPIFY_STORE_URL || "www.snazzify.co.in";
-const SHOPIFY_API_KEY = process.env.SHOPIFY_API_KEY || "shpat_xxxxxxxxxxxxxxxx";
 
 const LineItemSchema = z.object({
     id: z.number(),
@@ -40,21 +39,41 @@ const OrdersResponseSchema = z.object({
 
 export type Order = z.infer<typeof OrderSchema>;
 
+async function shopifyFetch(endpoint: string, options: RequestInit = {}) {
+    const storeUrl = typeof window !== 'undefined'
+        ? localStorage.getItem('shopify_store_url')
+        : process.env.SHOPIFY_STORE_URL;
+    
+    const apiKey = typeof window !== 'undefined'
+        ? localStorage.getItem('shopify_api_key')
+        : process.env.SHOPIFY_API_KEY;
+
+    if (!storeUrl || !apiKey || apiKey === 'shpat_xxxxxxxxxxxxxxxx') {
+        throw new Error('Shopify API keys are not configured.');
+    }
+    
+    const url = `https://${storeUrl}/admin/api/2023-10/${endpoint}`;
+
+    const response = await fetch(url, {
+        ...options,
+        headers: {
+            'X-Shopify-Access-Token': apiKey,
+            ...options.headers,
+        },
+        cache: 'no-store', // Ensure fresh data
+    });
+    
+    if (!response.ok) {
+        const errorBody = await response.text();
+        throw new Error(`Shopify API error: ${response.status} ${response.statusText} - ${errorBody}`);
+    }
+
+    return response.json();
+}
+
 export async function getOrders(): Promise<Order[]> {
     try {
-        const response = await fetch(`https://${SHOPIFY_STORE_URL}/admin/api/2023-10/orders.json?status=any`, {
-            headers: {
-                'X-Shopify-Access-Token': SHOPIFY_API_KEY,
-            },
-            cache: 'no-store', // Ensure fresh data
-        });
-
-        if (!response.ok) {
-            const errorBody = await response.text();
-            throw new Error(`Shopify API error: ${response.status} ${response.statusText} - ${errorBody}`);
-        }
-
-        const jsonResponse = await response.json();
+        const jsonResponse = await shopifyFetch('orders.json?status=any');
         const parsed = OrdersResponseSchema.safeParse(jsonResponse);
 
         if (!parsed.success) {
