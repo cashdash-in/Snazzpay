@@ -3,6 +3,9 @@
 
 import { z } from 'zod';
 
+// These keys would ideally be read from localStorage on the client and passed to server actions,
+// or be set as environment variables on the server. For this prototype, we'll use placeholder
+// values and the logic assumes they are set in the environment.
 const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || 'rzp_test_xxxxxxxxxxxxxx';
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || 'testsecret';
 
@@ -46,7 +49,17 @@ export type Customer = z.infer<typeof CustomerSchema>;
 
 async function razorpayFetch(endpoint: string, options: RequestInit = {}) {
     const url = `https://api.razorpay.com/v1/${endpoint}`;
-    const credentials = Buffer.from(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`).toString('base64');
+    
+    // In a real app, securely retrieve these keys. Here we simulate it.
+    // This server component can't access localStorage, so it falls back to env vars.
+    const keyId = typeof window !== 'undefined' ? localStorage.getItem('razorpay_key_id') : process.env.RAZORPAY_KEY_ID;
+    const keySecret = typeof window !== 'undefined' ? localStorage.getItem('razorpay_key_secret') : process.env.RAZORPAY_KEY_SECRET;
+
+    if (!keyId || !keySecret) {
+        throw new Error('Razorpay API keys are not configured.');
+    }
+
+    const credentials = Buffer.from(`${keyId}:${keySecret}`).toString('base64');
     
     const response = await fetch(url, {
         ...options,
@@ -68,33 +81,37 @@ async function razorpayFetch(endpoint: string, options: RequestInit = {}) {
 
 export async function createSubscriptionLink(maxAmount: number, description: string): Promise<{ success: boolean, url?: string, error?: string }> {
     try {
+        const planPayload = {
+             period: "yearly",
+             interval: 1,
+             item: {
+                 name: "Authorization for Secure COD",
+                 amount: 100, // 1 Rupee. This is a nominal amount for plan creation.
+                 currency: "INR",
+                 description: "eMandate for future charges."
+             }
+        };
+
+        const plan = await razorpayFetch('plans', {
+            method: 'POST',
+            body: JSON.stringify(planPayload),
+        });
+
         const subscriptionPayload = {
-            plan: {
-                period: "yearly",
-                interval: 1,
-                item: {
-                    name: "Secure COD Mandate",
-                    amount: 100, // Nominal amount for the plan, 1 Rupee.
-                    currency: "INR",
-                    description: "Authorization for Secure COD"
-                }
-            },
-            total_count: 1,
+            plan_id: plan.id,
+            total_count: 36, // Number of debits
             quantity: 1,
             customer_notify: 0,
             notes: {
                 description: `Secure COD for: ${description}`
             },
-            subscription_items: [
-                {
-                    item: {
-                        name: "eMandate for COD",
-                        amount: maxAmount, // This sets the max_amount on the mandate
-                        currency: "INR",
-                        description: `Authorization for ${description}`
-                    }
-                }
-            ]
+            auth_type: 'debit',
+            mandate: {
+                amount: maxAmount,
+                amount_rule: 'max',
+                frequency: 'as_presented',
+                debit_type: 'on_demand',
+            },
         };
 
         const jsonResponse = await razorpayFetch('subscriptions', {

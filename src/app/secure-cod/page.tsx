@@ -92,11 +92,11 @@ export default function SecureCodPage() {
                     description: result.error || 'Could not create mandate link. Please try again.',
                 });
             }
-        } catch (error) {
+        } catch (error: any) {
              toast({
                 variant: 'destructive',
                 title: 'Error',
-                description: 'An unexpected error occurred. Please try again.',
+                description: error.message || 'An unexpected error occurred. Please try again.',
             });
         } finally {
             setIsCreatingLink(false);
