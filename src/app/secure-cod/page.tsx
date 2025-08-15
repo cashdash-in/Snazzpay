@@ -158,7 +158,7 @@ export default function SecureCodPage() {
                         </Label>
                     </div>
                     <p className="text-xs text-muted-foreground text-center">
-                        By clicking the button below, you agree to authorize a temporary hold of ₹{totalAmount.toFixed(2)} on your card via Razorpay eMandate.
+                        By clicking the button below, you agree to authorize a temporary hold of ₹{totalAmount.toFixed(2)} on your card via Razorpay eMandate. This hold may be partially captured for a shipping fee if the order is canceled after dispatch.
                     </p>
                 </CardContent>
                 <CardFooter>

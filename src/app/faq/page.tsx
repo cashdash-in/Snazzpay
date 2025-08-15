@@ -22,8 +22,8 @@ const faqs = {
       answer: "The hold is automatically released within 24-48 hours after you have paid the delivery agent in cash and the delivery is marked as successful."
     },
     {
-      question: "What happens if I refuse the delivery?",
-      answer: "If you refuse the delivery for reasons other than product damage, or if you cancel the order after it has been shipped, we may capture the authorized amount to cover shipping and handling fees, as per our Terms and Conditions."
+      question: "What happens if I refuse the delivery or cancel after shipping?",
+      answer: "If you refuse the delivery for reasons other than product damage, or if you cancel the order after it has been shipped, we will capture a shipping and handling fee of Rs. 300 from the authorized amount, as per our Terms and Conditions."
     },
     {
       question: "Is this process secure?",
@@ -44,8 +44,8 @@ const faqs = {
       answer: "जब आप डिलीवरी एजेंट को नकद में भुगतान कर देते हैं और डिलीवरी को सफल के रूप में चिह्नित किया जाता है, तो होल्ड 24-48 घंटों के भीतर स्वचालित रूप से जारी कर दिया जाता है।"
     },
     {
-      question: "अगर मैं डिलीवरी लेने से मना कर दूं तो क्या होगा?",
-      answer: "यदि आप उत्पाद के क्षतिग्रस्त होने के अलावा अन्य कारणों से डिलीवरी से इनकार करते हैं, या यदि आप इसे शिप किए जाने के बाद ऑर्डर रद्द करते हैं, तो हम शिपिंग और हैंडलिंग शुल्क को कवर करने के लिए अधिकृत राशि को कैप्चर कर सकते हैं, जैसा कि हमारे नियमों और शर्तों में है।"
+      question: "अगर मैं डिलीवरी लेने से मना कर दूं या शिपिंग के बाद रद्द कर दूं तो क्या होगा?",
+      answer: "यदि आप उत्पाद के क्षतिग्रस्त होने के अलावा अन्य कारणों से डिलीवरी से इनकार करते हैं, या यदि आप इसे शिप किए जाने के बाद ऑर्डर रद्द करते हैं, तो हम शिपिंग और हैंडलिंग शुल्क के रूप में अधिकृत राशि में से 300 रुपये की कटौती करेंगे, जैसा कि हमारे नियमों और शर्तों में है।"
     },
     {
       question: "क्या यह प्रक्रिया सुरक्षित है?",
@@ -66,8 +66,8 @@ const faqs = {
       answer: "तुम्ही डिलिव्हरी एजंटला रोख पैसे दिल्यानंतर आणि डिलिव्हरी यशस्वी म्हणून चिन्हांकित झाल्यावर 24-48 तासांच्या आत होल्ड आपोआप रिलीज होते."
     },
     {
-      question: "मी डिलिव्हरी घेण्यास नकार दिल्यास काय होईल?",
-      answer: "तुम्ही उत्पादनाच्या नुकसानीव्यतिरिक्त इतर कारणांसाठी डिलिव्हरी नाकारल्यास, किंवा ऑर्डर पाठवल्यानंतर तुम्ही ती रद्द केल्यास, आम्ही आमच्या अटी व शर्तींनुसार शिपिंग आणि हँडलिंग शुल्क वसूल करण्यासाठी अधिकृत रक्कम कॅप्चर करू शकतो."
+      question: "मी डिलिव्हरी घेण्यास नकार दिल्यास किंवा शिपिंगनंतर रद्द केल्यास काय होईल?",
+      answer: "तुम्ही उत्पादनाच्या नुकसानीव्यतिरिक्त इतर कारणांसाठी डिलिव्हरी नाकारल्यास, किंवा ऑर्डर पाठवल्यानंतर तुम्ही ती रद्द केल्यास, आम्ही आमच्या अटी व शर्तींनुसार शिपिंग आणि हँडलिंग शुल्कासाठी अधिकृत रकमेतून ३०० रुपये वसूल करू."
     },
     {
       question: "ही प्रक्रिया सुरक्षित आहे का?",

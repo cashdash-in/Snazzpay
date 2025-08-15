@@ -41,7 +41,7 @@ export default function TermsAndConditionsPage() {
                            <ul className="list-disc pl-6 mt-2 space-y-1">
                                <li>You refuse to accept the delivery of the order for any reason other than product damage or incorrect item delivery.</li>
                                <li>You are not available to receive the order after multiple delivery attempts by our courier partner.</li>
-                               <li>You cancel the order after it has been shipped from our warehouse.</li>
+                               <li>You cancel the order after it has been shipped from our warehouse. In this case, a shipping and handling fee of Rs. 300 will be captured from the authorized amount.</li>
                            </ul>
                         </p>
 
