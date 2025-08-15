@@ -39,14 +39,20 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
     }
 
-    const productName = \`{{ product.title | url_encode }}\`;
-    const productPrice = {{ product.price | money_without_currency | replace: ',', '' }};
-    // Use the order name (e.g., #1001) as the order_id for tracking
-    const orderId = \`{{ order.name | url_encode }}\`; 
-    const baseUrl = '${url}';
+    try {
+      const productName = \`{{ product.title | url_encode }}\`;
+      const productPrice = {{ product.price | money_without_currency | replace: ',', '' }};
+      // Try to get the order name (e.g., #1001), fallback to product ID for unsaved orders
+      const orderId = \`{{ order.name | default: product.id | url_encode }}\`; 
+      const baseUrl = '${url}';
 
-    const finalUrl = baseUrl + '?amount=' + encodeURIComponent(productPrice) + '&name=' + productName + '&order_id=' + orderId;
-    secureCodLink.href = finalUrl;
+      const finalUrl = baseUrl + '?amount=' + encodeURIComponent(productPrice) + '&name=' + productName + '&order_id=' + orderId;
+      secureCodLink.href = finalUrl;
+    } catch (e) {
+        console.error("Secure COD Liquid Error: ", e);
+        // Fallback URL if liquid variables are not available
+        secureCodLink.href = '${url}';
+    }
 });
 </script>
 `;
@@ -82,7 +88,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <div className="space-y-2">
             <h3 className="text-lg font-semibold">How it works</h3>
             <p className="text-muted-foreground">
-              This code adds a "Buy now with Secure COD" button to your product pages. When clicked, it takes the customer to a secure page where they can confirm the quantity and authorize the payment.
+              This code adds a "Buy now with Secure COD" button to your product pages. When clicked, it takes the customer to a secure page where they can confirm the quantity and authorize the payment. It intelligently captures the order ID if available, or the product ID as a fallback.
             </p>
           </div>
         </CardContent>
@@ -90,3 +96,5 @@ document.addEventListener('DOMContentLoaded', function() {
     </AppShell>
   );
 }
+
+    

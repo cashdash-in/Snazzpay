@@ -52,7 +52,7 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         
         let initialAmount = 1;
         let initialName = 'Sample Product';
-        let initialOrderId = orderId || `manual_${uuidv4()}`;
+        let initialOrderId = orderId || `manual_${uuidv4().substring(0,6)}`;
 
         if (amountStr && name) {
             const baseAmount = parseFloat(amountStr);
@@ -166,7 +166,7 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
 
                     // Create a new order in the app
                     const newOrder: EditableOrder = {
-                        id: uuidv4(), // Give it a new unique internal ID
+                        id: `manual_${uuidv4()}`, // Give it a new unique internal ID
                         orderId: orderDetails.orderId,
                         customerName: customerDetails.name,
                         customerAddress: customerDetails.address,
@@ -185,8 +185,10 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                     
                     setIsAuthorizing(false);
 
-                    // Optionally, redirect to a success page or the orders page
-                    // window.location.href = '/orders';
+                    // Redirect to the orders page to see the new order
+                     setTimeout(() => {
+                        window.location.href = '/orders';
+                    }, 1000);
                 },
                 prefill: {
                     name: customerDetails.name,
@@ -218,7 +220,7 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
 
         } catch (e: any) {
             console.error("eMandate Error:", e);
-            setError(e.message);
+setError(e.message);
             toast({ variant: 'destructive', title: 'Authorization Error', description: e.message });
             setIsAuthorizing(false);
         }
@@ -356,5 +358,7 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         </>
     );
 }
+
+    
 
     

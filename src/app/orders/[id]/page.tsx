@@ -24,15 +24,38 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { getOrders, type Order as ShopifyOrder } from '@/services/shopify';
 
 type PaymentInfo = {
     paymentId: string;
-    orderId: string; // This is our internal order ID now
+    orderId: string; 
     razorpayOrderId: string;
     signature: string;
     status: string;
     authorizedAt: string;
 }
+
+function mapShopifyOrderToEditableOrder(shopifyOrder: ShopifyOrder): EditableOrder {
+    const customer = shopifyOrder.customer;
+    const customerName = customer ? `${customer.first_name || ''} ${customer.last_name || ''}`.trim() : 'N/A';
+    
+    const products = shopifyOrder.line_items.map(item => item.title).join(', ');
+
+    return {
+        id: shopifyOrder.id.toString(),
+        orderId: shopifyOrder.name,
+        customerName,
+        customerAddress: shopifyOrder.shipping_address ? `${shopifyOrder.shipping_address.address1}, ${shopifyOrder.shipping_address.city}` : 'N/A',
+        pincode: shopifyOrder.shipping_address?.zip || 'N/A',
+        contactNo: shopifyOrder.customer?.phone || 'N/A',
+        productOrdered: products,
+        quantity: shopifyOrder.line_items.reduce((sum, item) => sum + item.quantity, 0),
+        price: shopifyOrder.total_price,
+        paymentStatus: shopifyOrder.financial_status || 'Pending',
+        date: format(new Date(shopifyOrder.created_at), "yyyy-MM-dd"),
+    };
+}
+
 
 export default function OrderDetailPage() {
     const router = useRouter();
@@ -49,38 +72,52 @@ export default function OrderDetailPage() {
         if (!id) return;
         setLoading(true);
         
-        let foundOrder: EditableOrder | null = null;
-        
-        const manualOrdersJSON = localStorage.getItem('manualOrders');
-        const manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
-        const manualOrder = manualOrders.find(o => o.id === id);
+        async function loadOrder() {
+            let foundOrder: EditableOrder | null = null;
+            
+            // 1. Check manual orders from localStorage
+            const manualOrdersJSON = localStorage.getItem('manualOrders');
+            const manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
+            const manualOrder = manualOrders.find(o => o.id === id);
 
-        if (manualOrder) {
-            foundOrder = manualOrder;
-        }
-
-        const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${id}`) || '{}');
-
-        if (storedOverrides && Object.keys(storedOverrides).length > 0) {
-             if (foundOrder) {
-                 foundOrder = {...foundOrder, ...storedOverrides};
-             } else {
-                 // This case handles shopify orders that only exist as overrides
-                 foundOrder = storedOverrides as EditableOrder;
-             }
-        }
-        
-        setOrder(foundOrder);
-
-        // Check for payment info using the order's display ID (e.g., #1001)
-        if (foundOrder) {
-            const paymentInfoJSON = localStorage.getItem(`payment_info_${foundOrder.orderId}`);
-            if (paymentInfoJSON) {
-                setPaymentInfo(JSON.parse(paymentInfoJSON));
+            if (manualOrder) {
+                foundOrder = manualOrder;
+            } else {
+                // 2. If not in manual, check Shopify orders (assuming ID might be Shopify ID)
+                try {
+                    const shopifyOrders = await getOrders();
+                    const shopifyOrder = shopifyOrders.find(o => o.id.toString() === id);
+                    if (shopifyOrder) {
+                        foundOrder = mapShopifyOrderToEditableOrder(shopifyOrder);
+                    }
+                } catch (e) {
+                    console.error("Could not fetch Shopify orders", e);
+                }
             }
-        }
 
-        setLoading(false);
+            // 3. Apply any saved overrides
+            const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${id}`) || '{}');
+            if (foundOrder) {
+                foundOrder = {...foundOrder, ...storedOverrides};
+            } else if (Object.keys(storedOverrides).length > 0) {
+                // This handles the case where only overrides exist for a shopify order
+                 foundOrder = storedOverrides as EditableOrder;
+            }
+            
+            setOrder(foundOrder);
+
+            // 4. Check for payment info using the order's display ID (e.g., #1001)
+            if (foundOrder) {
+                const paymentInfoJSON = localStorage.getItem(`payment_info_${foundOrder.orderId}`);
+                if (paymentInfoJSON) {
+                    setPaymentInfo(JSON.parse(paymentInfoJSON));
+                }
+            }
+
+            setLoading(false);
+        }
+        
+        loadOrder();
 
     }, [id]);
 
@@ -97,7 +134,7 @@ export default function OrderDetailPage() {
     const handleSave = () => {
         if (!order) return;
 
-        if (order.id.startsWith('gid://') || order.id.match(/^\d+$/)) {
+        if (order.id.startsWith('gid://') || /^\d+$/.test(order.id)) {
           const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
           const newOverrides = { ...storedOverrides, ...order };
           localStorage.setItem(`order-override-${order.id}`, JSON.stringify(newOverrides));
@@ -136,9 +173,24 @@ export default function OrderDetailPage() {
                 throw new Error(result.error || 'Failed to charge mandate.');
             }
             
-            setOrder(prev => prev ? { ...prev, paymentStatus: 'Paid' } : null);
-            handleSave();
-            
+            const updatedOrder = { ...order, paymentStatus: 'Paid' };
+            setOrder(updatedOrder);
+
+            // Save the payment status change
+            if (updatedOrder.id.startsWith('gid://') || /^\d+$/.test(updatedOrder.id)) {
+                const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${updatedOrder.id}`) || '{}');
+                const newOverrides = { ...storedOverrides, paymentStatus: 'Paid' };
+                localStorage.setItem(`order-override-${updatedOrder.id}`, JSON.stringify(newOverrides));
+            } else {
+                 const manualOrdersJSON = localStorage.getItem('manualOrders');
+                let manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
+                const orderIndex = manualOrders.findIndex(o => o.id === updatedOrder.id);
+                if (orderIndex > -1) {
+                    manualOrders[orderIndex].paymentStatus = 'Paid';
+                    localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
+                }
+            }
+
             toast({
                 title: "Charge Successful!",
                 description: `Successfully charged ₹${order.price}. Transaction ID: ${result.transactionId}`,
@@ -393,3 +445,5 @@ export default function OrderDetailPage() {
         </AppShell>
     );
 }
+
+    
