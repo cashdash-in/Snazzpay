@@ -3,8 +3,11 @@
 
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 
 export default function SecureCodPage() {
@@ -15,6 +18,7 @@ export default function SecureCodPage() {
     });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [agreed, setAgreed] = useState(false);
 
     useEffect(() => {
         const amount = searchParams.get('amount');
@@ -80,12 +84,22 @@ export default function SecureCodPage() {
                             <span className="font-medium">₹{parseFloat(orderDetails.amount).toFixed(2)}</span>
                         </div>
                     </div>
+                     <div className="flex items-center space-x-2 pt-2">
+                        <Checkbox id="terms" checked={agreed} onCheckedChange={(checked) => setAgreed(checked as boolean)} />
+                        <Label htmlFor="terms" className="text-sm text-muted-foreground">
+                            I agree to the{" "}
+                            <Link href="/terms-and-conditions" target="_blank" className="underline text-primary">
+                                Terms and Conditions
+                            </Link>
+                            .
+                        </Label>
+                    </div>
                     <p className="text-xs text-muted-foreground text-center">
                         By clicking the button below, you agree to authorize a temporary hold of ₹{parseFloat(orderDetails.amount).toFixed(2)} on your card via Razorpay eMandate.
                     </p>
                 </CardContent>
                 <CardFooter>
-                    <Button className="w-full" onClick={handlePayment}>
+                    <Button className="w-full" onClick={handlePayment} disabled={!agreed}>
                         Authorize with Razorpay
                     </Button>
                 </CardFooter>
