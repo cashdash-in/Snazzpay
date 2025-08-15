@@ -24,14 +24,12 @@ async function razorpayFetch(endpoint: string, payload: object) {
     const url = `https://api.razorpay.com/v1/${endpoint}`;
     
     const body = JSON.stringify(payload);
-    const bodyBuffer = Buffer.from(body, 'utf-8');
 
     const response = await fetch(url, {
         method: 'POST',
         headers: {
             'Authorization': `Basic ${credentials}`,
             'Content-Type': 'application/json',
-            'Content-Length': bodyBuffer.length.toString(),
         },
         body: body,
         cache: 'no-store',
@@ -84,9 +82,10 @@ export async function createSubscriptionLink(maxAmount: number, description: str
                 description: `Mandate for ${description}`,
                 amount: `Up to ₹${maxAmount.toFixed(2)}`
             },
-            // The auth amount is part of the subscription, not the plan
             auth_type: 'debit' as const,
-            authorization_amount: maxAmount * 100,
+            // The auth amount is part of the subscription, not the plan
+            // The amount is in paise, so multiply by 100
+            authorization_amount: Math.round(maxAmount * 100),
         };
 
         const response = await razorpayFetch('subscriptions', subscriptionPayload);
