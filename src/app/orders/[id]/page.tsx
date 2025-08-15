@@ -200,6 +200,10 @@ export default function OrderDetailPage() {
                             <Input id="trackingNumber" value={order.trackingNumber || ''} onChange={(e) => handleInputChange('trackingNumber', e.target.value)} />
                         </div>
                          <div className="space-y-2">
+                            <Label htmlFor="readyForDispatchDate">Ready For Dispatch</Label>
+                            <Input id="readyForDispatchDate" type="date" value={order.readyForDispatchDate || ''} onChange={(e) => handleInputChange('readyForDispatchDate', e.target.value)} />
+                        </div>
+                         <div className="space-y-2">
                             <Label htmlFor="estDelivery">Est. Delivery Date</Label>
                             <Input id="estDelivery" type="date" value={order.estDelivery || ''} onChange={(e) => handleInputChange('estDelivery', e.target.value)} />
                         </div>

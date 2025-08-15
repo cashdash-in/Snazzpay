@@ -165,8 +165,9 @@ export default function DeliveryTrackingPage() {
                     <TableHead>Contact</TableHead>
                     <TableHead>Courier Company</TableHead>
                     <TableHead>Tracking No.</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>Ready for Dispatch</TableHead>
                     <TableHead>Est. Delivery</TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead className="text-center w-[200px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -226,7 +227,23 @@ export default function DeliveryTrackingPage() {
                             onChange={(e) => handleFieldChange(order.id, 'trackingNumber', e.target.value)}
                         />
                       </TableCell>
+                       <TableCell>
+                         <Input 
+                            type="date" 
+                            className="w-40" 
+                            value={order.readyForDispatchDate || ''}
+                            onChange={(e) => handleFieldChange(order.id, 'readyForDispatchDate', e.target.value)}
+                         />
+                      </TableCell>
                       <TableCell>
+                         <Input 
+                            type="date" 
+                            className="w-40" 
+                            value={order.estDelivery || ''}
+                            onChange={(e) => handleFieldChange(order.id, 'estDelivery', e.target.value)}
+                         />
+                      </TableCell>
+                       <TableCell>
                         <Select
                             value={order.deliveryStatus || 'pending'}
                             onValueChange={(value: OrderStatus) => handleFieldChange(order.id, 'deliveryStatus', value)}
@@ -242,14 +259,6 @@ export default function DeliveryTrackingPage() {
                             <SelectItem value="failed">Delivery Failed</SelectItem>
                           </SelectContent>
                         </Select>
-                      </TableCell>
-                      <TableCell>
-                         <Input 
-                            type="date" 
-                            className="w-40" 
-                            value={order.estDelivery || ''}
-                            onChange={(e) => handleFieldChange(order.id, 'estDelivery', e.target.value)}
-                         />
                       </TableCell>
                       <TableCell className="text-center space-x-2">
                         <Button variant="outline" size="sm">

@@ -30,6 +30,7 @@ export type EditableOrder = {
   courierCompanyName?: string;
   deliveryStatus?: 'pending' | 'dispatched' | 'out-for-delivery' | 'delivered' | 'failed';
   estDelivery?: string;
+  readyForDispatchDate?: string;
   cancellationReason?: string;
   cancellationStatus?: 'Pending' | 'Processed' | 'Failed';
   refundAmount?: string;
