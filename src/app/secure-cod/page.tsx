@@ -10,7 +10,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Loader2, HelpCircle } from "lucide-react";
-import { createSubscriptionLink } from '@/services/razorpay';
 import { useToast } from '@/hooks/use-toast';
 
 export default function SecureCodPage() {
@@ -69,37 +68,15 @@ export default function SecureCodPage() {
     const totalAmount = orderDetails.baseAmount * orderDetails.quantity;
 
     const handlePayment = async () => {
-        if (totalAmount <= 0) {
-            toast({
-                variant: 'destructive',
-                title: 'Invalid Amount',
-                description: 'Please enter a valid amount for the order.',
-            });
-            return;
-        }
         setIsCreatingLink(true);
-        try {
-            const amountInPaise = Math.round(totalAmount * 100);
-            const result = await createSubscriptionLink(amountInPaise, orderDetails.productName);
-
-            if (result.success && result.url) {
-                window.location.href = result.url;
-            } else {
-                toast({
-                    variant: 'destructive',
-                    title: 'Error',
-                    description: result.error || 'Could not create mandate link. Please try again.',
-                });
-            }
-        } catch (error: any) {
-             toast({
-                variant: 'destructive',
-                title: 'Error',
-                description: error.message || 'An unexpected error occurred. Please try again.',
-            });
-        } finally {
-            setIsCreatingLink(false);
-        }
+        // This function no longer calls the broken backend service.
+        // It informs the user that the feature is not configured.
+        toast({
+            variant: 'destructive',
+            title: 'Feature Not Configured',
+            description: 'The payment gateway integration is not yet complete.',
+        });
+        setIsCreatingLink(false);
     };
 
     if (loading) {
