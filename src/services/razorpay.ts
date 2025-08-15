@@ -74,24 +74,17 @@ async function razorpayFetch(endpoint: string, options: RequestInit = {}) {
 
 export async function createSubscriptionLink(maxAmount: number, description: string): Promise<{ success: boolean, url?: string, error?: string }> {
     try {
-        const planPayload = {
-             period: "yearly",
-             interval: 1,
-             item: {
-                 name: "Authorization for Secure COD",
-                 amount: 100, // 1 Rupee. This is a nominal amount for plan creation.
-                 currency: "INR",
-                 description: "eMandate for future charges."
-             }
-        };
-
-        const plan = await razorpayFetch('plans', {
-            method: 'POST',
-            body: JSON.stringify(planPayload),
-        });
-
         const subscriptionPayload = {
-            plan_id: plan.id,
+            plan: {
+                 period: "yearly",
+                 interval: 1,
+                 item: {
+                     name: "Authorization for Secure COD",
+                     amount: 100, 
+                     currency: "INR",
+                     description: "eMandate for future charges."
+                 }
+            },
             total_count: 36, // Number of debits
             quantity: 1,
             customer_notify: 0,
