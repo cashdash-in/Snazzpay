@@ -42,7 +42,7 @@ document.addEventListener('DOMContentLoaded', function() {
     try {
       const productName = \`{{ product.title | url_encode }}\`;
       const productPrice = {{ product.price | money_without_currency | replace: ',', '' }};
-      // Try to get the order name (e.g., #1001), fallback to product ID for unsaved orders
+      // Use the Shopify order name/number (e.g. #1001) as the unique ID
       const orderId = \`{{ order.name | default: product.id | url_encode }}\`; 
       const baseUrl = '${url}';
 

@@ -166,7 +166,7 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
 
                     // Create a new order in the app
                     const newOrder: EditableOrder = {
-                        id: `manual_${uuidv4()}`, // Give it a new unique internal ID
+                        id: orderDetails.orderId.startsWith('manual_') ? orderDetails.orderId : `manual_${orderDetails.orderId.replace('#','')}`, 
                         orderId: orderDetails.orderId,
                         customerName: customerDetails.name,
                         customerAddress: customerDetails.address,

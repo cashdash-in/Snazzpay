@@ -82,15 +82,17 @@ export default function MandatesPage() {
           return { ...order, ...storedOverrides };
         });
 
-        const mandates: Mandate[] = ordersWithOverrides.map(order => ({
-            orderId: order.orderId,
-            orderLink: `/orders/${order.id}`,
-            customerName: order.customerName,
-            amount: order.price,
-            status: mapPaymentStatusToMandateStatus(order.paymentStatus),
-            createdAt: order.date,
-            nextBilling: 'N/A' // This data isn't available on the order
-        }));
+        const mandates: Mandate[] = ordersWithOverrides
+            .filter(order => order.paymentStatus.toLowerCase() === 'authorized' || order.paymentStatus.toLowerCase() === 'paid')
+            .map(order => ({
+                orderId: order.orderId,
+                orderLink: `/orders/${order.id}`,
+                customerName: order.customerName,
+                amount: order.price,
+                status: mapPaymentStatusToMandateStatus(order.paymentStatus),
+                createdAt: order.date,
+                nextBilling: 'N/A' // This data isn't available on the order
+            }));
 
         setAllMandates(mandates);
         setLoading(false);
@@ -105,7 +107,7 @@ export default function MandatesPage() {
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
               <CardTitle>Mandate Management</CardTitle>
-              <CardDescription>View status of all order payment authorizations. Status is derived from the order's payment status.</CardDescription>
+              <CardDescription>View status of all order payment authorizations. Only orders with 'Authorized' or 'Paid' status are shown.</CardDescription>
             </div>
           </div>
         </CardHeader>

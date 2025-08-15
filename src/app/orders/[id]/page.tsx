@@ -96,12 +96,9 @@ export default function OrderDetailPage() {
             }
 
             // 3. Apply any saved overrides
-            const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${id}`) || '{}');
             if (foundOrder) {
-                foundOrder = {...foundOrder, ...storedOverrides};
-            } else if (Object.keys(storedOverrides).length > 0) {
-                // This handles the case where only overrides exist for a shopify order
-                 foundOrder = storedOverrides as EditableOrder;
+                 const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${foundOrder.id}`) || '{}');
+                 foundOrder = {...foundOrder, ...storedOverrides};
             }
             
             setOrder(foundOrder);
