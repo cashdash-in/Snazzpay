@@ -52,6 +52,7 @@ export default function OrderDetailPage() {
              if (foundOrder) {
                  foundOrder = {...foundOrder, ...storedOverrides};
              } else {
+                 // This case handles shopify orders that only exist as overrides
                  foundOrder = storedOverrides as EditableOrder;
              }
         }
@@ -64,6 +65,11 @@ export default function OrderDetailPage() {
             if (paymentInfoJSON) {
                 setPaymentInfo(JSON.parse(paymentInfoJSON));
             }
+        } else {
+             // Fallback for Shopify orders that might not be in the override yet.
+             // We don't have the full order data, but we can construct the key if we know the orderId pattern.
+             // This is brittle. A better solution would be to pass the orderId in the URL.
+             // For now, let's assume we can't find it if the order isn't found.
         }
 
         setLoading(false);
