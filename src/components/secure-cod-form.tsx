@@ -155,18 +155,18 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                     
                     const paymentInfo = {
                         paymentId: response.razorpay_payment_id,
-                        orderId: orderDetails.orderId,
+                        orderId: orderDetails.orderId, // The crucial ID, e.g., "#1001"
                         razorpayOrderId: response.razorpay_order_id,
                         signature: response.razorpay_signature,
                         status: 'authorized',
                         authorizedAt: new Date().toISOString()
                     };
                     
+                    // Use the human-readable order ID to save payment info
                     localStorage.setItem(`payment_info_${orderDetails.orderId}`, JSON.stringify(paymentInfo));
 
-                    // Create a new order in the app
                     const newOrder: EditableOrder = {
-                        id: orderDetails.orderId.startsWith('manual_') ? orderDetails.orderId : `manual_${orderDetails.orderId.replace('#','')}`, 
+                        id: orderDetails.orderId,
                         orderId: orderDetails.orderId,
                         customerName: customerDetails.name,
                         customerAddress: customerDetails.address,
@@ -175,18 +175,32 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                         productOrdered: orderDetails.productName,
                         quantity: orderDetails.quantity,
                         price: totalAmount.toFixed(2),
-                        paymentStatus: 'Authorized', // Set status to Authorized
+                        paymentStatus: 'Authorized',
                         date: format(new Date(), 'yyyy-MM-dd'),
                     };
 
                     const existingOrders = JSON.parse(localStorage.getItem('manualOrders') || '[]');
-                    const updatedOrders = [...existingOrders, newOrder];
-                    localStorage.setItem('manualOrders', JSON.stringify(updatedOrders));
+                    
+                    // Check if an order with this ID already exists to avoid duplicates
+                    const orderExists = existingOrders.some((o: EditableOrder) => o.id === newOrder.id);
+
+                    if (!orderExists) {
+                        const updatedOrders = [...existingOrders, newOrder];
+                        localStorage.setItem('manualOrders', JSON.stringify(updatedOrders));
+                    } else {
+                        // If order exists, just update its status
+                         const updatedOrders = existingOrders.map((o: EditableOrder) => {
+                            if (o.id === newOrder.id) {
+                                return { ...o, paymentStatus: 'Authorized' };
+                            }
+                            return o;
+                        });
+                        localStorage.setItem('manualOrders', JSON.stringify(updatedOrders));
+                    }
                     
                     setIsAuthorizing(false);
 
-                    // Redirect to the orders page to see the new order
-                     setTimeout(() => {
+                    setTimeout(() => {
                         window.location.href = '/orders';
                     }, 1000);
                 },
@@ -220,11 +234,12 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
 
         } catch (e: any) {
             console.error("eMandate Error:", e);
-setError(e.message);
+            setError(e.message);
             toast({ variant: 'destructive', title: 'Authorization Error', description: e.message });
             setIsAuthorizing(false);
         }
     };
+
 
     if (loading) {
         return (
@@ -358,7 +373,3 @@ setError(e.message);
         </>
     );
 }
-
-    
-
-    

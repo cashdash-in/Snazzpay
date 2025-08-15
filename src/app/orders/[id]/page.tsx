@@ -74,20 +74,22 @@ export default function OrderDetailPage() {
         
         async function loadOrder() {
             let foundOrder: EditableOrder | null = null;
+            let shopifyId: string | null = null;
             
-            // 1. Check manual orders from localStorage
-            const manualOrdersJSON = localStorage.getItem('manualOrders');
-            const manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
-            const manualOrder = manualOrders.find(o => o.id === id);
+            // The `id` from the URL can be either a Shopify GID, a numeric Shopify ID, or a manual UUID.
+            // We need to handle all cases.
+            if (id.startsWith('gid://')) {
+                shopifyId = id;
+            } else if (!isNaN(Number(id))) {
+                 shopifyId = `gid://shopify/Order/${id}`;
+            }
 
-            if (manualOrder) {
-                foundOrder = manualOrder;
-            } else {
-                // 2. If not in manual, check Shopify orders (assuming ID might be Shopify ID)
+            // 1. Check Shopify first if we have a potential ID
+            if (shopifyId) {
                 try {
                     const shopifyOrders = await getOrders();
-                    const shopifyOrder = shopifyOrders.find(o => o.id.toString() === id);
-                    if (shopifyOrder) {
+                    const shopifyOrder = shopifyOrders.find(o => o.id.toString() === id.replace('gid://shopify/Order/', ''));
+                     if (shopifyOrder) {
                         foundOrder = mapShopifyOrderToEditableOrder(shopifyOrder);
                     }
                 } catch (e) {
@@ -95,7 +97,18 @@ export default function OrderDetailPage() {
                 }
             }
 
-            // 3. Apply any saved overrides
+            // 2. If not found in Shopify, check manual orders from localStorage
+            if (!foundOrder) {
+                const manualOrdersJSON = localStorage.getItem('manualOrders');
+                const manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
+                const manualOrder = manualOrders.find(o => o.id === id);
+                if (manualOrder) {
+                    foundOrder = manualOrder;
+                }
+            }
+            
+
+            // 3. Apply any saved overrides from localStorage
             if (foundOrder) {
                  const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${foundOrder.id}`) || '{}');
                  foundOrder = {...foundOrder, ...storedOverrides};
@@ -442,5 +455,3 @@ export default function OrderDetailPage() {
         </AppShell>
     );
 }
-
-    
