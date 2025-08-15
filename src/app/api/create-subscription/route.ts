@@ -22,30 +22,14 @@ export async function POST(req: NextRequest) {
     if (!totalAmount || typeof totalAmount !== 'number' || totalAmount <= 0) {
       return NextResponse.json({ error: 'Invalid total amount provided.' }, { status: 400 });
     }
-
-    const planOptions = {
-      period: 'yearly' as const,
-      interval: 10,
-      item: {
-        name: 'SnazzPay On-Demand Mandate Plan',
-        amount: 100, 
-        currency: 'INR',
-        description: 'Plan for authorizing future on-demand payments.',
-      },
-       notes: {
-        plan_id: `plan_${uuidv4()}`
-      }
-    };
-
-    const plan = await razorpay.plans.create(planOptions);
-
-    if (!plan) {
-      return NextResponse.json({ error: 'Failed to create Razorpay plan.' }, { status: 500 });
-    }
+    
+    // Use a single, pre-created plan for all on-demand subscriptions.
+    // This plan should be created once in your Razorpay dashboard or via the create-plan API.
+    const planId = 'plan_EMandateSnazzPay';
 
     const subscriptionOptions = {
-      plan_id: plan.id,
-      total_count: 1, 
+      plan_id: planId,
+      total_count: 120, // Authorize for 10 years (12 * 10)
       quantity: 1,
       customer_notify: 0,
       authorization_amount: totalAmount * 100, // Amount in paise
@@ -64,7 +48,6 @@ export async function POST(req: NextRequest) {
 
   } catch (error: any) {
     console.error('Razorpay API Error:', error);
-    // Correctly extract error message from Razorpay's SDK error object
     const errorMessage = error.description || error.message || 'An internal server error occurred.';
     return NextResponse.json({ error: `Failed to create Razorpay subscription: ${errorMessage}` }, { status: 500 });
   }
