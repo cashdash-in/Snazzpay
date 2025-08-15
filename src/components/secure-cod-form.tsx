@@ -12,10 +12,14 @@ import { Input } from "@/components/ui/input";
 import { Loader2, HelpCircle, AlertTriangle } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
+import { createRazorpaySubscription } from '@/app/actions';
 
 interface SecureCodFormProps {
     razorpayKeyId: string | null;
 }
+
+// IMPORTANT: This plan must be created in your Razorpay Dashboard with Amount=0 and the desired frequency.
+const RAZORPAY_PLAN_ID = 'plan_EMandateSnazzPay';
 
 export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
     const searchParams = useSearchParams();
@@ -26,12 +30,13 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         quantity: 1,
         orderId: ''
     });
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [isCreatingLink, setIsCreatingLink] = useState(false);
     const [error, setError] = useState('');
     const [agreed, setAgreed] = useState(false);
 
     useEffect(() => {
+        setLoading(true);
         if (!razorpayKeyId) {
             setError('Razorpay Key ID is not configured on the server.');
         }
@@ -48,7 +53,7 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
             if (!isNaN(baseAmount)) {
                 initialAmount = baseAmount;
                 initialName = name;
-                initialOrderId = `prod_${name.replace(/\s+/g, '_')}`;
+                initialOrderId = `prod_${name.replace(/\s+/g, '_').toLowerCase()}_${uuidv4().substring(0, 4)}`;
             } else {
                  setError('Invalid product price received.');
             }
@@ -66,6 +71,7 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         };
 
         setOrderDetails(currentOrderDetails);
+        setLoading(false);
         
     }, [searchParams, razorpayKeyId]);
 
@@ -93,72 +99,89 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         }
         if (!razorpayKeyId) {
             toast({ variant: 'destructive', title: 'Configuration Error', description: 'Razorpay Key ID is not configured.' });
+            setError('Razorpay Key ID is not configured.');
             return;
         }
         if (!(window as any).Razorpay) {
-            toast({ variant: 'destructive', title: 'SDK Error', description: 'Razorpay Checkout SDK failed to load. Please check your internet connection and try again.' });
+            toast({ variant: 'destructive', title: 'SDK Error', description: 'Razorpay Checkout SDK failed to load.' });
             return;
         }
         
         setIsCreatingLink(true);
-
-        const options = {
-            key: razorpayKeyId,
-            amount: totalAmount * 100, // amount in the smallest currency unit
-            currency: "INR",
-            name: "Snazzify Secure COD",
-            description: "Test Transaction for " + orderDetails.productName,
-            order_id: '', 
-            handler: function (response: any){
-                toast({
-                    title: 'Authorization Successful!',
-                    description: `Payment ID: ${response.razorpay_payment_id}`,
-                    variant: 'default'
-                });
-                
-                const paymentInfo = {
-                    paymentId: response.razorpay_payment_id,
-                    orderId: orderDetails.orderId,
-                    signature: response.razorpay_signature,
-                    status: 'authorized',
-                    authorizedAt: new Date().toISOString()
-                };
-
-                localStorage.setItem(`payment_info_${orderDetails.orderId}`, JSON.stringify(paymentInfo));
-                
-                setIsCreatingLink(false);
-            },
-            prefill: {
-                name: "Customer Name",
-                email: "customer@example.com",
-                contact: "9999999999"
-            },
-            notes: {
-                "address": "Customer Address",
-                "product": orderDetails.productName,
-                "order_id": orderDetails.orderId,
-            },
-            theme: {
-                color: "#5a31f4"
-            },
-            modal: {
-                ondismiss: function() {
-                    setIsCreatingLink(false);
-                     toast({
-                        variant: 'destructive',
-                        title: 'Authorization Cancelled',
-                        description: 'The authorization process was cancelled.',
-                    });
-                }
-            }
-        };
+        setError('');
 
         try {
+            // Step 1: Create a subscription on the server
+            const subscriptionResult = await createRazorpaySubscription({
+                plan_id: RAZORPAY_PLAN_ID,
+                total_count: 120, // 10 years for a monthly plan
+                quantity: 1,
+                customer_notify: 0,
+                notes: {
+                    order_id: orderDetails.orderId,
+                    product_name: orderDetails.productName,
+                }
+            });
+
+            if (subscriptionResult.error || !subscriptionResult.subscription_id) {
+                throw new Error(subscriptionResult.error || 'Failed to get subscription ID.');
+            }
+
+            // Step 2: Open Razorpay Checkout with the subscription ID
+            const options = {
+                key: razorpayKeyId,
+                subscription_id: subscriptionResult.subscription_id,
+                name: "Snazzify Secure COD",
+                description: `eMandate for ${orderDetails.productName}`,
+                handler: function (response: any){
+                    toast({
+                        title: 'Authorization Successful!',
+                        description: `Payment ID for authorization: ${response.razorpay_payment_id}`,
+                    });
+                    
+                    const paymentInfo = {
+                        paymentId: response.razorpay_payment_id,
+                        orderId: orderDetails.orderId,
+                        subscriptionId: subscriptionResult.subscription_id,
+                        signature: response.razorpay_signature,
+                        status: 'authorized',
+                        authorizedAt: new Date().toISOString()
+                    };
+
+                    localStorage.setItem(`payment_info_${orderDetails.orderId}`, JSON.stringify(paymentInfo));
+                    setIsCreatingLink(false);
+                },
+                prefill: {
+                    name: "Customer Name",
+                    email: "customer@example.com",
+                    contact: "9999999999"
+                },
+                notes: {
+                    "address": "Customer Address",
+                    "product": orderDetails.productName,
+                    "order_id": orderDetails.orderId,
+                },
+                theme: {
+                    color: "#5a31f4"
+                },
+                modal: {
+                    ondismiss: function() {
+                        setIsCreatingLink(false);
+                         toast({
+                            variant: 'destructive',
+                            title: 'Authorization Cancelled',
+                        });
+                    }
+                }
+            };
+        
             const rzp = new (window as any).Razorpay(options);
             rzp.open();
-        } catch(e) {
-            console.error("Razorpay SDK Error:", e);
-            toast({ variant: 'destructive', title: 'SDK Error', description: 'Could not initialize Razorpay Checkout. Please check the console.' });
+
+        } catch (e: any) {
+            console.error("eMandate process error:", e);
+            setError(e.message || 'An unexpected error occurred.');
+            toast({ variant: 'destructive', title: 'Error', description: e.message || 'Could not set up eMandate.' });
             setIsCreatingLink(false);
         }
     };
@@ -173,7 +196,7 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
 
     if (error) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
+            <div className="flex items-center justify-center min-h-screen bg-transparent p-4">
                 <Card className="w-full max-w-md shadow-lg">
                     <CardHeader className="text-center">
                         <AlertTriangle className="mx-auto h-10 w-10 text-destructive" />
