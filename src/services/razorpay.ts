@@ -6,10 +6,15 @@ import { z } from 'zod';
 const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID;
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
 
-const PaymentLinkResponseSchema = z.object({
+const PlanResponseSchema = z.object({
+    id: z.string(),
+});
+
+const SubscriptionResponseSchema = z.object({
     id: z.string(),
     short_url: z.string(),
 });
+
 
 async function razorpayFetch(endpoint: string, options: RequestInit) {
     if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
@@ -37,51 +42,66 @@ async function razorpayFetch(endpoint: string, options: RequestInit) {
     return jsonResponse;
 }
 
+// Step 1: Create a long-term, nominal plan to act as a template for the mandate.
+async function createPlan(): Promise<string> {
+    const planPayload = {
+        period: "yearly",
+        interval: 10, // A long-running mandate (10 years)
+        item: {
+            name: "SnazzPay SecureCOD Mandate Plan",
+            amount: 100, // Mandate verification charge (Re. 1)
+            currency: "INR",
+            description: "Plan for authorizing future COD payments."
+        }
+    };
 
+    const response = await razorpayFetch('plans', {
+        method: 'POST',
+        body: JSON.stringify(planPayload),
+    });
+
+    const parsed = PlanResponseSchema.safeParse(response);
+    if (!parsed.success) {
+        console.error("Failed to parse Razorpay Plan response:", parsed.error.flatten());
+        throw new Error("Could not create mandate plan due to unexpected response.");
+    }
+    return parsed.data.id;
+}
+
+
+// Step 2: Create a subscription using the plan and set the authorization amount.
 export async function createSubscriptionLink(maxAmount: number, description: string): Promise<{ success: boolean, url?: string, error?: string }> {
     try {
-       // This is the corrected payload, containing only the fields required for creating
-       // a payment link with a subscription registration.
-       const payload = {
-            amount: 100, // Mandate verification charge (e.g., Re. 1)
-            currency: "INR",
-            description: `Mandate for ${description}`,
-            subscription_registration: {
-                "first_payment_amount": 100, // Must match the 'amount' field
-                "max_amount": maxAmount * 100, // The actual maximum chargeable amount
-                "total_count": 100, // A large number for on-demand charges
-                "period": "yearly",
-                "interval": 10, // A long-running mandate (10 years)
+        const planId = await createPlan();
+
+        const subscriptionPayload = {
+            plan_id: planId,
+            total_count: 1, // This subscription is for a single authorization cycle.
+            quantity: 1,
+            customer_notify: 1,
+             notes: {
+                description: `Mandate for ${description}`,
+                amount: `Up to ₹${maxAmount.toFixed(2)}`
             },
-            customer: {
-                // You can prefill customer details here if available
-            },
-            notify: {
-                sms: true,
-                email: true
-            },
-            notes: {
-                policy_name: "SnazzPay SecureCOD"
-            },
-            callback_url: "https://snazzify.co.in/", // Your post-payment redirect URL
-            callback_method: "get"
+            // The auth amount is part of the subscription, not the plan
+            authorization_amount: maxAmount * 100, 
         };
 
-        const response = await razorpayFetch('payment_links', {
+        const response = await razorpayFetch('subscriptions', {
             method: 'POST',
-            body: JSON.stringify(payload),
+            body: JSON.stringify(subscriptionPayload),
         });
 
-        const parsedResponse = PaymentLinkResponseSchema.safeParse(response);
+        const parsedResponse = SubscriptionResponseSchema.safeParse(response);
          if (!parsedResponse.success) {
-            console.error("Failed to parse Razorpay Payment Link response:", parsedResponse.error.flatten());
+            console.error("Failed to parse Razorpay Subscription response:", parsedResponse.error.flatten());
             return { success: false, error: "Could not create mandate link due to unexpected response from Razorpay." };
         }
 
         return { success: true, url: parsedResponse.data.short_url };
 
     } catch (error: any) {
-        console.error("Error creating Razorpay payment link:", error);
+        console.error("Error creating Razorpay subscription link:", error);
         return { success: false, error: error.message || "An unexpected error occurred while creating the mandate link." };
     }
 }
