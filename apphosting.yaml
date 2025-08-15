@@ -5,3 +5,10 @@ runConfig:
   # Increase this value if you'd like to automatically spin up
   # more instances in response to increased traffic.
   maxInstances: 1
+  # To keep your app secure, we recommend using Secret Manager to manage secrets.
+  # https://firebase.google.com/docs/app-hosting/configure#manage-secrets
+  environmentVariables:
+    RAZORPAY_KEY_ID: "YOUR_RAZORPAY_KEY_ID"
+    RAZORPAY_KEY_SECRET: "YOUR_RAZORPAY_KEY_SECRET"
+    SHOPIFY_STORE_URL: "your-store.myshopify.com"
+    SHOPIFY_API_KEY: "shpat_your_shopify_admin_api_access_token"
