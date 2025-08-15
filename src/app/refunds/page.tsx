@@ -21,6 +21,7 @@ type RefundOrder = {
   customerName: string;
   originalAmount: string;
   refundAmount: string;
+  reason: string;
   status: 'Pending' | 'Processed' | 'Failed';
   date: string;
 };
@@ -40,6 +41,7 @@ function mapToRefundOrder(order: EditableOrder): RefundOrder {
         customerName: order.customerName,
         originalAmount: order.price,
         refundAmount: specificOrderState.refundAmount || '',
+        reason: specificOrderState.reason || '',
         status: specificOrderState.status || 'Pending',
         date: order.date,
     };
@@ -97,6 +99,7 @@ export default function RefundsPage() {
     const refundState = JSON.parse(localStorage.getItem('refundState') || '{}');
     refundState[orderId] = {
         refundAmount: orderToSave.refundAmount,
+        reason: orderToSave.reason,
         status: orderToSave.status,
     };
     localStorage.setItem('refundState', JSON.stringify(refundState));
@@ -136,7 +139,7 @@ export default function RefundsPage() {
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
                 <CardTitle>Refund Management</CardTitle>
-                <CardDescription>View and manage all order refunds.</CardDescription>
+                <CardDescription>View and manage all order refunds. Note: For post-dispatch cancellations, capture Rs. 300 from the mandate.</CardDescription>
             </div>
             <Link href="/orders/new" passHref>
               <Button>
@@ -161,6 +164,7 @@ export default function RefundsPage() {
                   <TableHead>Date</TableHead>
                   <TableHead>Original Amount</TableHead>
                   <TableHead>Refund Amount</TableHead>
+                  <TableHead>Reason for Refund</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-center">Actions</TableHead>
                 </TableRow>
@@ -172,7 +176,8 @@ export default function RefundsPage() {
                     <TableCell><Input value={order.customerName} onChange={(e) => handleFieldChange(order.id, 'customerName', e.target.value)} className="w-40" /></TableCell>
                     <TableCell><Input type="date" value={order.date} onChange={(e) => handleFieldChange(order.id, 'date', e.target.value)} className="w-32" /></TableCell>
                     <TableCell><Input value={order.originalAmount} onChange={(e) => handleFieldChange(order.id, 'originalAmount', e.target.value)} className="w-32" /></TableCell>
-                    <TableCell><Input value={order.refundAmount} onChange={(e) => handleFieldChange(order.id, 'refundAmount', e.target.value)} placeholder="Enter amount" className="w-32" /></TableCell>
+                    <TableCell><Input value={order.refundAmount} onChange={(e) => handleFieldChange(order.id, 'refundAmount', e.target.value)} placeholder="Amount (less Rs. 300?)" className="w-36" /></TableCell>
+                    <TableCell><Input value={order.reason} onChange={(e) => handleFieldChange(order.id, 'reason', e.target.value)} placeholder="e.g., Post-dispatch cancellation" className="w-48" /></TableCell>
                     <TableCell>
                         <Select
                             value={order.status}
