@@ -116,7 +116,7 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         setError('');
 
         try {
-            // Step 1: Call our own API to create a mandate order on the server
+            // Step 1: Call our own API to create a simple order on the server
             const response = await fetch('/api/create-mandate-order', {
                 method: 'POST',
                 headers: {
@@ -137,15 +137,18 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                 throw new Error(errorData.error || 'Failed to create mandate order.');
             }
 
-            const { order_id, amount } = await response.json();
+            const { order_id } = await response.json();
 
-            // Step 2: Open Razorpay checkout with the order_id
+            // Step 2: Open Razorpay checkout with the order_id AND the mandate token logic
             const options = {
                 key: razorpayKeyId,
-                amount: amount, // The ₹1 amount from the server
                 order_id: order_id,
                 name: "Snazzify Secure COD",
                 description: `Authorize eMandate for ${orderDetails.productName}`,
+                // --- Mandate logic is now here, on the client ---
+                token: {
+                    "max_amount": totalAmount * 100, // Full product price in paise for the mandate
+                },
                 handler: function (response: any){
                     toast({
                         title: 'Authorization Successful!',
@@ -166,6 +169,8 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                     localStorage.setItem(`payment_info_${orderDetails.orderId}`, JSON.stringify(paymentInfo));
                     
                     setIsAuthorizing(false);
+                    // Optionally, redirect to a success page
+                    // window.location.href = '/thank-you';
                 },
                 prefill: {
                     name: customerDetails.name,

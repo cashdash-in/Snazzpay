@@ -28,37 +28,31 @@ export async function POST(request: Request) {
         const { amount, productName, customerName, customerContact, customerAddress, customerPincode } = await request.json();
         console.log(`Received request to create mandate for product: ${productName}, amount: ${amount}`);
 
-        // Step 1 (REMOVED): No longer creating customer on the backend.
-        // This will be handled by Razorpay checkout based on prefill data.
-
-        // Step 2: Create the Order
+        // The backend now ONLY creates a simple order for the authorization fee (Rs. 1)
+        // The mandate creation logic (the 'token' object) is now handled on the client-side.
         const orderOptions = {
             amount: 100, // Correctly set to 100 paise (₹1) for authorization
             currency: 'INR',
             receipt: `rcpt_cod_${uuidv4().substring(0,8)}`,
-            payment_capture: false,
-            // customer_id is no longer passed here
+            payment_capture: true, // This can be true, as it's just for the Rs. 1 auth
             notes: {
                 product: productName,
-                original_amount: amount,
-                type: "secure_cod_mandate",
+                original_amount: amount, // Keep track of the original amount
+                type: "secure_cod_mandate_auth",
                 customerName,
                 customerContact,
                 customerAddress,
                 customerPincode
             },
-            // This token object is crucial for creating an eMandate
-            token: {
-                "max_amount": amount * 100, // The full product price in paise for the mandate
-            }
+            // The 'token' object is REMOVED from the backend call.
         };
 
         console.log("Creating Razorpay order with options:", JSON.stringify(orderOptions, null, 2));
         const order = await razorpay.orders.create(orderOptions);
         console.log("Successfully created Razorpay order:", order);
 
-        // We don't have a customer_id to return anymore, which is fine.
-        return NextResponse.json({ order_id: order.id, amount: order.amount });
+        // Return the order_id. The frontend will use this to open checkout.
+        return NextResponse.json({ order_id: order.id });
 
     } catch (error: any) {
         // --- Enhanced Error Logging ---
