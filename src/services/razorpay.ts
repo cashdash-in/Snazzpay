@@ -40,34 +40,31 @@ async function razorpayFetch(endpoint: string, options: RequestInit) {
 
 export async function createSubscriptionLink(maxAmount: number, description: string): Promise<{ success: boolean, url?: string, error?: string }> {
     try {
+       // This is the corrected payload, containing only the fields required for creating
+       // a payment link with a subscription registration.
        const payload = {
-            amount: 100, // Mandate verification is Re. 1
+            amount: 100, // Mandate verification charge (e.g., Re. 1)
             currency: "INR",
-            accept_partial: false,
             description: `Mandate for ${description}`,
+            subscription_registration: {
+                "first_payment_amount": 100, // Must match the 'amount' field
+                "max_amount": maxAmount * 100, // The actual maximum chargeable amount
+                "total_count": 100, // A large number for on-demand charges
+                "period": "yearly",
+                "interval": 10, // A long-running mandate (10 years)
+            },
             customer: {
-                // You can prefill customer details here if you have them
-                // name: "Gaurav Kumar",
-                // email: "gaurav.kumar@example.com",
-                // contact: "+919000090000"
+                // You can prefill customer details here if available
             },
             notify: {
                 sms: true,
                 email: true
             },
-            reminder_enable: true,
             notes: {
                 policy_name: "SnazzPay SecureCOD"
             },
             callback_url: "https://snazzify.co.in/", // Your post-payment redirect URL
-            callback_method: "get",
-            subscription_registration: {
-                "first_payment_amount": 100, // Re. 1 to authorize
-                "max_amount": maxAmount * 100, // The maximum amount that can be charged
-                "total_count": 100, // A large number for on-demand charges
-                "period": "yearly",
-                "interval": 10, // Make it a long-running mandate
-            }
+            callback_method: "get"
         };
 
         const response = await razorpayFetch('payment_links', {
