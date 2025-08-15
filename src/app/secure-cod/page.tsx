@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -12,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Loader2, HelpCircle, AlertTriangle } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
+import { createSubscription } from '../actions';
 
 export default function SecureCodPage() {
     const searchParams = useSearchParams();
@@ -56,31 +56,24 @@ export default function SecureCodPage() {
 
         setOrderDetails(currentOrderDetails);
         
-        async function createSubscription() {
+        async function getSubscription() {
             setLoading(true);
             try {
-                // The body is now empty as the server doesn't need the amount.
-                const res = await fetch('/api/create-subscription', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                });
-
-                const data = await res.json();
-                if (!res.ok) {
-                    throw new Error(data.error || 'Failed to create subscription.');
+                const result = await createSubscription();
+                if (result.error) {
+                    throw new Error(result.error);
                 }
-                
-                setSubscriptionId(data.subscription_id);
+                setSubscriptionId(result.subscription_id!);
             } catch (err: any) {
                 console.error(err);
-                setError(err.message);
+                setError(err.message || 'An unexpected error occurred.');
                 toast({ variant: 'destructive', title: 'Error', description: err.message });
             } finally {
                 setLoading(false);
             }
         }
 
-        createSubscription();
+        getSubscription();
         
     }, [searchParams, toast]);
 
