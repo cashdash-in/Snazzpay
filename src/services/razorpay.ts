@@ -33,14 +33,15 @@ export async function createSubscriptionLink(maxAmount: number, description: str
 
         const credentials = Buffer.from(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`).toString('base64');
         
+        // Step 1: Create a Plan
         const planPayload = {
             period: "yearly",
             interval: 1,
             item: {
                 name: `Annual Mandate for ${description}`,
-                amount: 100, // Nominal amount, actual charge is up to maxAmount
+                amount: 100, // Nominal amount (e.g., 1 INR), actual charge is up to maxAmount
                 currency: "INR",
-                description: "Authorization for variable charges"
+                description: "Authorization for variable charges as per terms."
             }
         };
 
@@ -57,20 +58,25 @@ export async function createSubscriptionLink(maxAmount: number, description: str
         const planData = await planResponse.json();
 
         if (!planResponse.ok) {
+            console.error("Razorpay Plan API Error:", planData);
             throw new Error(planData?.error?.description || 'Failed to create Razorpay plan');
         }
+        
+        const planId = planData.id;
 
+        // Step 2: Create a Subscription using the Plan ID
         const subscriptionPayload = {
-            plan_id: planData.id,
-            total_count: 120, // 10 years
+            plan_id: planId,
+            total_count: 120, // Authorize for 10 years (120 months if period were monthly)
             quantity: 1,
             customer_notify: 1,
             notes: {
                 purpose: "Secure COD Mandate",
                 description: description
             },
-            authorization_amount: maxAmount, // THIS IS THE KEY PART
-            payment_capture: 0, // We capture manually later, not on authorization
+            // The authorization_amount is the maximum amount that can be charged on this mandate.
+            // This is the key part for creating a mandate with a spending limit.
+            authorization_amount: maxAmount, 
         };
 
         const subResponse = await fetch('https://api.razorpay.com/v1/subscriptions', {
@@ -86,6 +92,7 @@ export async function createSubscriptionLink(maxAmount: number, description: str
         const jsonResponse = await subResponse.json();
 
         if (!subResponse.ok) {
+            console.error("Razorpay Subscription API Error:", jsonResponse);
             throw new Error(jsonResponse?.error?.description || 'Failed to create Razorpay subscription');
         }
 
