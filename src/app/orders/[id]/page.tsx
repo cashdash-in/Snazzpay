@@ -68,7 +68,6 @@ export default function OrderDetailPage() {
         } else {
              // Fallback for Shopify orders that might not be in the override yet.
              // We don't have the full order data, but we can construct the key if we know the orderId pattern.
-             // This is brittle. A better solution would be to pass the orderId in the URL.
              // For now, let's assume we can't find it if the order isn't found.
         }
 
@@ -324,5 +323,3 @@ export default function OrderDetailPage() {
         </AppShell>
     );
 }
-
-    
