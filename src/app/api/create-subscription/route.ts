@@ -42,6 +42,10 @@ export async function POST(req: NextRequest) {
 
     const plan = await razorpay.plans.create(planOptions);
 
+    if (!plan) {
+      return NextResponse.json({ error: 'Failed to create Razorpay plan.' }, { status: 500 });
+    }
+
     // Step 2: Create a Subscription
     // Link the subscription to the plan and set the total charge limit.
     const subscriptionOptions = {
@@ -57,6 +61,10 @@ export async function POST(req: NextRequest) {
     };
 
     const subscription = await razorpay.subscriptions.create(subscriptionOptions);
+
+    if (!subscription) {
+        return NextResponse.json({ error: 'Failed to create Razorpay subscription object.' }, { status: 500 });
+    }
 
     return NextResponse.json({ subscription_id: subscription.id });
 
