@@ -92,9 +92,7 @@ export async function createSubscriptionLink(maxAmount: number, description: str
             notes: {
                 description: `Secure COD Authorization for: ${description}`
             },
-            auth_type: "netbanking", // specify auth type
             // The max_amount for the mandate is set in the subscription itself
-            payment_capture: 0, // This is important, we only authorize, not capture.
             authorization_amount: maxAmount // Set the max amount for the mandate
         };
         
@@ -119,14 +117,15 @@ export async function createSubscriptionLink(maxAmount: number, description: str
 
 export async function getMandates(): Promise<Mandate[]> {
     try {
-        const jsonResponse = await razorpayFetch(`subscriptions`);
+        // This endpoint should be /mandates, not /subscriptions to fetch mandates.
+        const jsonResponse = await razorpayFetch(`mandates`);
         const parsed = MandatesResponseSchema.safeParse(jsonResponse);
 
         if (!parsed.success) {
             console.error("Failed to parse Razorpay mandates response:", parsed.error);
             return [];
         }
-        return []; 
+        return parsed.data.items; 
     } catch (error) {
         console.error("Error fetching Razorpay mandates:", error);
         return [];
