@@ -13,9 +13,11 @@ import Link from 'next/link';
 import { format } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
 
 export default function NewOrderPage() {
     const router = useRouter();
+    const { toast } = useToast();
     const [order, setOrder] = useState({
         orderId: '',
         customerName: '',
@@ -44,16 +46,15 @@ export default function NewOrderPage() {
             id: uuidv4(), // Assign a unique ID for React keys and local storage
         };
         
-        // Retrieve existing manual orders from local storage
         const existingOrders = JSON.parse(localStorage.getItem('manualOrders') || '[]');
-        
-        // Add the new order
         const updatedOrders = [...existingOrders, newOrder];
-        
-        // Save back to local storage
         localStorage.setItem('manualOrders', JSON.stringify(updatedOrders));
 
-        console.log("Saving order:", newOrder);
+        toast({
+            title: "Order Created",
+            description: "The new order has been saved successfully.",
+        });
+
         router.push('/orders');
     };
 

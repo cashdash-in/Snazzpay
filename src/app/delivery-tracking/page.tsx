@@ -8,11 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useEffect } from "react";
-import { Send, Trash2, PlusCircle } from "lucide-react";
+import { Send, Trash2, PlusCircle, Save } from "lucide-react";
 import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
-import { v4 as uuidv4 } from 'uuid';
+import { useToast } from "@/hooks/use-toast";
 import type { EditableOrder } from '../orders/page';
 
 
@@ -38,6 +38,9 @@ function formatAddress(address: ShopifyOrder['shipping_address']): string {
 }
 
 function mapToDeliveryOrder(order: EditableOrder): DeliveryOrder {
+    const deliveryState = JSON.parse(localStorage.getItem('deliveryState') || '{}');
+    const specificOrderState = deliveryState[order.id] || {};
+
     return {
         id: order.id.toString(),
         orderId: order.orderId,
@@ -45,10 +48,10 @@ function mapToDeliveryOrder(order: EditableOrder): DeliveryOrder {
         customerAddress: order.customerAddress,
         pincode: order.pincode,
         contactNo: order.contactNo,
-        trackingNumber: '', // Default value
-        courierCompanyName: '', // Default value
-        status: 'pending', // Default value
-        estDelivery: '', // Default value
+        trackingNumber: specificOrderState.trackingNumber || '',
+        courierCompanyName: specificOrderState.courierCompanyName || '',
+        status: specificOrderState.status || 'pending',
+        estDelivery: specificOrderState.estDelivery || '',
     };
 }
 
@@ -56,12 +59,12 @@ function mapToDeliveryOrder(order: EditableOrder): DeliveryOrder {
 export default function DeliveryTrackingPage() {
     const [orders, setOrders] = useState<DeliveryOrder[]>([]);
     const [loading, setLoading] = useState(true);
+    const { toast } = useToast();
 
     useEffect(() => {
         async function fetchAndSetOrders() {
             setLoading(true);
             try {
-                // Fetch from Shopify
                 const shopifyOrders = await getOrders();
                 const shopifyEditableOrders = shopifyOrders.map(order => ({
                     id: order.id.toString(),
@@ -70,10 +73,9 @@ export default function DeliveryTrackingPage() {
                     customerAddress: formatAddress(order.shipping_address),
                     pincode: order.shipping_address?.zip || 'N/A',
                     contactNo: order.customer?.phone || 'N/A',
-                    productOrdered: '', quantity: 0, price: '', paymentStatus: '', date: '' // Fields not needed here
+                    productOrdered: '', quantity: 0, price: '', paymentStatus: '', date: ''
                 }));
 
-                // Fetch from LocalStorage
                 const manualOrdersJSON = localStorage.getItem('manualOrders');
                 const manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
                 
@@ -100,19 +102,45 @@ export default function DeliveryTrackingPage() {
             )
         );
     };
+
+    const handleSaveDeliveryInfo = (orderId: string) => {
+        const orderToSave = orders.find(o => o.id === orderId);
+        if (!orderToSave) return;
+
+        const deliveryState = JSON.parse(localStorage.getItem('deliveryState') || '{}');
+        deliveryState[orderId] = {
+            trackingNumber: orderToSave.trackingNumber,
+            courierCompanyName: orderToSave.courierCompanyName,
+            status: orderToSave.status,
+            estDelivery: orderToSave.estDelivery,
+        };
+        localStorage.setItem('deliveryState', JSON.stringify(deliveryState));
+        toast({
+            title: "Delivery Info Saved",
+            description: `Details for order ${orderToSave.orderId} have been updated.`,
+        });
+    };
     
     const handleRemoveOrder = (orderId: string) => {
         const updatedOrders = orders.filter(order => order.id !== orderId);
         setOrders(updatedOrders);
         
-        // This is complex because we need to update the source of truth in localStorage
-        // For simplicity, we assume we only remove manual orders this way.
         const manualOrdersJSON = localStorage.getItem('manualOrders');
         if(manualOrdersJSON) {
             const manualOrders: EditableOrder[] = JSON.parse(manualOrdersJSON);
             const updatedManualOrders = manualOrders.filter(o => o.id !== orderId);
             localStorage.setItem('manualOrders', JSON.stringify(updatedManualOrders));
         }
+
+        const deliveryState = JSON.parse(localStorage.getItem('deliveryState') || '{}');
+        delete deliveryState[orderId];
+        localStorage.setItem('deliveryState', JSON.stringify(deliveryState));
+
+        toast({
+            variant: 'destructive',
+            title: "Order Removed",
+            description: "The order has been removed from delivery tracking.",
+        });
     };
 
   return (
@@ -242,6 +270,9 @@ export default function DeliveryTrackingPage() {
                         <Button variant="outline" size="sm">
                           <Send className="mr-2 h-4 w-4" />
                           Notify
+                        </Button>
+                        <Button variant="outline" size="icon" onClick={() => handleSaveDeliveryInfo(order.id)}>
+                            <Save className="h-4 w-4" />
                         </Button>
                         <Button variant="destructive" size="icon" onClick={() => handleRemoveOrder(order.id)}>
                             <Trash2 className="h-4 w-4" />

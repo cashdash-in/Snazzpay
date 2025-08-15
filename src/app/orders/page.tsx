@@ -9,9 +9,9 @@ import { Button } from "@/components/ui/button";
 import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import { format } from "date-fns";
 import { useState, useEffect } from "react";
-import { Loader2, PlusCircle, Trash2 } from "lucide-react";
+import { Loader2, PlusCircle, Trash2, Save } from "lucide-react";
 import Link from "next/link";
-import { v4 as uuidv4 } from 'uuid';
+import { useToast } from "@/hooks/use-toast";
 
 export type EditableOrder = {
   id: string; // Internal unique ID for React key
@@ -68,6 +68,7 @@ function mapShopifyOrderToEditableOrder(shopifyOrder: ShopifyOrder): EditableOrd
 export default function OrdersPage() {
   const [orders, setOrders] = useState<EditableOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
     async function fetchOrders() {
@@ -82,7 +83,6 @@ export default function OrdersPage() {
             setOrders([...shopifyEditableOrders, ...manualOrders]);
         } catch (error) {
             console.error("Failed to fetch orders:", error);
-            // Load manual orders even if Shopify fetch fails
             const manualOrdersJSON = localStorage.getItem('manualOrders');
             const manualOrders = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
             setOrders(manualOrders);
@@ -94,23 +94,35 @@ export default function OrdersPage() {
   }, []);
 
   const handleFieldChange = (orderId: string, field: keyof EditableOrder, value: string | number) => {
-    const updatedOrders = orders.map(order =>
+    setOrders(prevOrders => prevOrders.map(order =>
         order.id === orderId ? { ...order, [field]: value } : order
-    );
-    setOrders(updatedOrders);
-    
-    // Update local storage for manual orders
-    const manualOrders = updatedOrders.filter(order => !order.id.startsWith('gid://')); // Differentiate Shopify from manual
-    localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
+    ));
+  };
+  
+  const handleSaveOrder = (orderId: string) => {
+    const orderToSave = orders.find(o => o.id === orderId);
+    // Only manual orders (which don't have 'gid://' prefix) are saved to local storage
+    if (orderToSave && !orderToSave.id.startsWith('gid://')) {
+        const manualOrders = orders.filter(order => !order.id.startsWith('gid://'));
+        localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
+    }
+    toast({
+        title: "Changes Saved",
+        description: `Order ${orderToSave?.orderId} has been updated.`,
+    });
   };
 
   const handleRemoveOrder = (orderId: string) => {
     const updatedOrders = orders.filter(order => order.id !== orderId);
     setOrders(updatedOrders);
     
-    // Update local storage for manual orders
     const manualOrders = updatedOrders.filter(order => !order.id.startsWith('gid://'));
     localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
+    toast({
+        variant: 'destructive',
+        title: "Order Removed",
+        description: "The order has been removed.",
+    });
   };
 
 
@@ -121,7 +133,7 @@ export default function OrdersPage() {
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
                 <CardTitle>All Orders</CardTitle>
-                <CardDescription>View and manage all orders from your Shopify store. All fields are manually editable.</CardDescription>
+                <CardDescription>View and manage all orders. All fields are manually editable.</CardDescription>
             </div>
             <Link href="/orders/new" passHref>
               <Button>
@@ -167,7 +179,10 @@ export default function OrdersPage() {
                     <TableCell><Input value={order.price} onChange={(e) => handleFieldChange(order.id, 'price', e.target.value)} className="w-24" /></TableCell>
                     <TableCell><Input value={order.paymentStatus} onChange={(e) => handleFieldChange(order.id, 'paymentStatus', e.target.value)} className="w-32" /></TableCell>
                     <TableCell><Input type="date" value={order.date} onChange={(e) => handleFieldChange(order.id, 'date', e.target.value)} className="w-32" /></TableCell>
-                    <TableCell className="text-center">
+                    <TableCell className="text-center space-x-2">
+                        <Button variant="outline" size="icon" onClick={() => handleSaveOrder(order.id)}>
+                            <Save className="h-4 w-4" />
+                        </Button>
                         <Button variant="destructive" size="icon" onClick={() => handleRemoveOrder(order.id)}>
                             <Trash2 className="h-4 w-4" />
                         </Button>
