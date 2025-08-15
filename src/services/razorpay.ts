@@ -47,8 +47,8 @@ export type Customer = z.infer<typeof CustomerSchema>;
 async function razorpayFetch(endpoint: string, options: RequestInit = {}) {
     const url = `https://api.razorpay.com/v1/${endpoint}`;
     
-    if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET || RAZORPAY_KEY_ID === 'rzp_test_xxxxxxxxxxxxxx') {
-        console.error('Razorpay API keys are not configured on the server. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables in .env file.');
+    if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
+        console.error('Razorpay API keys are not configured on the server. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables.');
         throw new Error('Razorpay API keys are not configured on the server.');
     }
 
@@ -85,11 +85,17 @@ export async function createSubscriptionLink(maxAmount: number, description: str
         });
 
         const orderPayload = {
-            amount: maxAmount,
+            amount: 100, // Verification amount of Re. 1
             currency: 'INR',
             payment_capture: 1,
             notes: {
                 description: `Secure COD Authorization for: ${description}`
+            },
+            method: "emandate",
+            token: {
+                auth_type: 'netbanking',
+                max_amount: maxAmount,
+                expire_at: Math.floor(Date.now() / 1000) + (3600 * 24 * 365 * 10), // 10 years from now
             }
         };
 
@@ -99,19 +105,12 @@ export async function createSubscriptionLink(maxAmount: number, description: str
         });
 
         const paymentLinkPayload = {
-            amount: maxAmount,
+            amount: 100, // Verification amount
             currency: "INR",
             description: `eMandate for ${description}`,
             customer: {
                 name: customer.name,
                 email: customer.email,
-            },
-            upi_qr: false,
-            first_payment_min_amount: 100, // Rs 1 verification charge
-            subscription_registration: {
-                method: "emandate",
-                max_amount: maxAmount,
-                frequency: "as_presented",
             },
             notes: {
                 orderId: order.id,
@@ -120,7 +119,7 @@ export async function createSubscriptionLink(maxAmount: number, description: str
             callback_method: "get"
         };
         
-        const jsonResponse = await razorpayFetch('payment_links', {
+        const jsonResponse = await razorpayFetch(`orders/${order.id}/payment_links`, {
             method: 'POST',
             body: JSON.stringify(paymentLinkPayload),
         });
