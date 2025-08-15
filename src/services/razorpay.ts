@@ -3,11 +3,9 @@
 
 import { z } from 'zod';
 
-// These keys would ideally be read from localStorage on the client and passed to server actions,
-// or be set as environment variables on the server. For this prototype, we'll use placeholder
-// values and the logic assumes they are set in the environment.
-const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || 'rzp_test_xxxxxxxxxxxxxx';
-const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || 'testsecret';
+// These keys MUST be set as environment variables on the server.
+const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID;
+const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
 
 const MandateSchema = z.object({
     id: z.string(),
@@ -50,16 +48,11 @@ export type Customer = z.infer<typeof CustomerSchema>;
 async function razorpayFetch(endpoint: string, options: RequestInit = {}) {
     const url = `https://api.razorpay.com/v1/${endpoint}`;
     
-    // In a real app, securely retrieve these keys. Here we simulate it.
-    // This server component can't access localStorage, so it falls back to env vars.
-    const keyId = typeof window !== 'undefined' ? localStorage.getItem('razorpay_key_id') : process.env.RAZORPAY_KEY_ID;
-    const keySecret = typeof window !== 'undefined' ? localStorage.getItem('razorpay_key_secret') : process.env.RAZORPAY_KEY_SECRET;
-
-    if (!keyId || !keySecret || keyId === 'rzp_test_xxxxxxxxxxxxxx') {
-        throw new Error('Razorpay API keys are not configured.');
+    if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET || RAZORPAY_KEY_ID === 'rzp_test_xxxxxxxxxxxxxx') {
+        throw new Error('Razorpay API keys are not configured on the server. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables.');
     }
 
-    const credentials = Buffer.from(`${keyId}:${keySecret}`).toString('base64');
+    const credentials = Buffer.from(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`).toString('base64');
     
     const response = await fetch(url, {
         ...options,

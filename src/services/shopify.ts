@@ -3,7 +3,10 @@
 
 import { z } from 'zod';
 
-const SHOPIFY_STORE_URL = process.env.SHOPIFY_STORE_URL || "www.snazzify.co.in";
+// These keys MUST be set as environment variables on the server.
+const SHOPIFY_STORE_URL = process.env.SHOPIFY_STORE_URL;
+const SHOPIFY_API_KEY = process.env.SHOPIFY_API_KEY;
+
 
 const LineItemSchema = z.object({
     id: z.number(),
@@ -40,24 +43,16 @@ const OrdersResponseSchema = z.object({
 export type Order = z.infer<typeof OrderSchema>;
 
 async function shopifyFetch(endpoint: string, options: RequestInit = {}) {
-    const storeUrl = typeof window !== 'undefined'
-        ? localStorage.getItem('shopify_store_url')
-        : process.env.SHOPIFY_STORE_URL;
-    
-    const apiKey = typeof window !== 'undefined'
-        ? localStorage.getItem('shopify_api_key')
-        : process.env.SHOPIFY_API_KEY;
-
-    if (!storeUrl || !apiKey || apiKey === 'shpat_xxxxxxxxxxxxxxxx') {
-        throw new Error('Shopify API keys are not configured.');
+    if (!SHOPIFY_STORE_URL || !SHOPIFY_API_KEY || SHOPIFY_API_KEY === 'shpat_xxxxxxxxxxxxxxxx') {
+        throw new Error('Shopify API keys are not configured on the server. Please set SHOPIFY_STORE_URL and SHOPIFY_API_KEY environment variables.');
     }
     
-    const url = `https://${storeUrl}/admin/api/2023-10/${endpoint}`;
+    const url = `https://${SHOPIFY_STORE_URL}/admin/api/2023-10/${endpoint}`;
 
     const response = await fetch(url, {
         ...options,
         headers: {
-            'X-Shopify-Access-Token': apiKey,
+            'X-Shopify-Access-Token': SHOPIFY_API_KEY,
             ...options.headers,
         },
         cache: 'no-store', // Ensure fresh data

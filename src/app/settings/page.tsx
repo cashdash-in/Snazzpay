@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Terminal } from "lucide-react";
 
 export default function SettingsPage() {
   const { toast } = useToast();
@@ -16,7 +18,7 @@ export default function SettingsPage() {
   const [shopifySettings, setShopifySettings] = useState({ storeUrl: '', apiKey: '', apiSecret: '' });
 
   useEffect(() => {
-    // Load saved settings from localStorage
+    // Load saved settings from localStorage for display purposes
     const savedRazorpayKeyId = localStorage.getItem('razorpay_key_id');
     const savedRazorpayKeySecret = localStorage.getItem('razorpay_key_secret');
     if (savedRazorpayKeyId) {
@@ -52,8 +54,8 @@ export default function SettingsPage() {
     localStorage.setItem('razorpay_key_id', razorpaySettings.keyId);
     localStorage.setItem('razorpay_key_secret', razorpaySettings.keySecret);
     toast({
-      title: "Settings Saved",
-      description: "Your Razorpay settings have been updated.",
+      title: "Settings Saved to Browser",
+      description: "Your Razorpay settings have been saved in this browser. NOTE: For server-side operations to work, you must also set these as environment variables.",
     });
   };
 
@@ -62,8 +64,8 @@ export default function SettingsPage() {
     localStorage.setItem('shopify_api_key', shopifySettings.apiKey);
     localStorage.setItem('shopify_api_secret', shopifySettings.apiSecret);
     toast({
-      title: "Settings Saved",
-      description: "Your Shopify settings have been updated.",
+      title: "Settings Saved to Browser",
+      description: "Your Shopify settings have been saved in this browser. NOTE: For server-side operations to work, you must also set these as environment variables.",
     });
   };
 
@@ -83,6 +85,17 @@ export default function SettingsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+               <Alert>
+                <Terminal className="h-4 w-4" />
+                <AlertTitle>Action Required!</AlertTitle>
+                <AlertDescription>
+                  For Razorpay integration to work, you must set your keys as environment variables in this tool. The fields below save to your browser but will not be used for server requests.
+                  <ul className="list-disc pl-5 mt-2">
+                    <li><span className="font-mono text-xs">RAZORPAY_KEY_ID</span></li>
+                    <li><span className="font-mono text-xs">RAZORPAY_KEY_SECRET</span></li>
+                  </ul>
+                </AlertDescription>
+              </Alert>
               <div className="space-y-2">
                 <Label htmlFor="razorpay-key-id">Key ID</Label>
                 <Input 
@@ -106,7 +119,7 @@ export default function SettingsPage() {
               </div>
             </CardContent>
             <CardFooter>
-              <Button onClick={handleSaveRazorpay}>Save Razorpay Settings</Button>
+              <Button onClick={handleSaveRazorpay}>Save Razorpay Settings to Browser</Button>
             </CardFooter>
           </Card>
         </TabsContent>
@@ -119,6 +132,17 @@ export default function SettingsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <Alert>
+                <Terminal className="h-4 w-4" />
+                <AlertTitle>Action Required!</AlertTitle>
+                <AlertDescription>
+                  For Shopify integration to work, you must set your store details as environment variables.
+                  <ul className="list-disc pl-5 mt-2">
+                    <li><span className="font-mono text-xs">SHOPIFY_STORE_URL</span> (e.g., your-store.myshopify.com)</li>
+                    <li><span className="font-mono text-xs">SHOPIFY_API_KEY</span> (Your Admin API access token)</li>
+                  </ul>
+                </AlertDescription>
+              </Alert>
               <div className="space-y-2">
                 <Label htmlFor="shopify-store-url">Store URL</Label>
                 <Input 
@@ -153,7 +177,7 @@ export default function SettingsPage() {
               </div>
             </CardContent>
             <CardFooter>
-              <Button onClick={handleSaveShopify}>Save Shopify Settings</Button>
+              <Button onClick={handleSaveShopify}>Save Shopify Settings to Browser</Button>
             </CardFooter>
           </Card>
         </TabsContent>
