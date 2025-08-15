@@ -10,7 +10,7 @@ import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import { format } from "date-fns";
 import { useState, useEffect } from "react";
 import { Loader2, PlusCircle, Trash2 } from "lucide-react";
-import { v4 as uuidv4 } from 'uuid';
+import Link from "next/link";
 
 type EditableOrder = {
   id: string; // Internal unique ID for React key
@@ -92,23 +92,6 @@ export default function OrdersPage() {
     );
   };
 
-  const handleAddOrder = () => {
-    const newOrder: EditableOrder = {
-        id: uuidv4(),
-        orderId: '',
-        customerName: '',
-        customerAddress: '',
-        pincode: '',
-        contactNo: '',
-        productOrdered: '',
-        quantity: 1,
-        price: '0.00',
-        paymentStatus: 'Pending',
-        date: format(new Date(), 'yyyy-MM-dd'),
-    };
-    setOrders(prevOrders => [newOrder, ...prevOrders]);
-  };
-
   const handleRemoveOrder = (orderId: string) => {
     setOrders(prevOrders => prevOrders.filter(order => order.id !== orderId));
   };
@@ -123,10 +106,12 @@ export default function OrdersPage() {
                 <CardTitle>All Orders</CardTitle>
                 <CardDescription>View and manage all orders from your Shopify store. All fields are manually editable.</CardDescription>
             </div>
-            <Button onClick={handleAddOrder}>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Add Order
-            </Button>
+            <Link href="/orders/new" passHref>
+              <Button>
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Add Order
+              </Button>
+            </Link>
           </div>
         </CardHeader>
         <CardContent>

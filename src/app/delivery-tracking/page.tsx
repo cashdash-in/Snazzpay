@@ -11,7 +11,7 @@ import { useState, useEffect } from "react";
 import { Send, Trash2, PlusCircle } from "lucide-react";
 import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import { Loader2 } from "lucide-react";
-import { v4 as uuidv4 } from 'uuid';
+import Link from "next/link";
 
 
 type OrderStatus = 'pending' | 'dispatched' | 'out-for-delivery' | 'delivered' | 'failed';
@@ -86,23 +86,6 @@ export default function DeliveryTrackingPage() {
         setOrders(prevOrders => prevOrders.filter(order => order.id !== orderId));
     };
 
-    const handleAddOrder = () => {
-        const newOrder: EditableOrder = {
-            id: uuidv4(),
-            orderId: '',
-            customerName: '',
-            customerAddress: '',
-            pincode: '',
-            contactNo: '',
-            trackingNumber: '',
-            courierCompanyName: '',
-            status: 'pending',
-            estDelivery: '',
-        };
-        setOrders(prevOrders => [newOrder, ...prevOrders]);
-    };
-
-
   return (
     <AppShell title="Delivery Tracking">
       <Card>
@@ -112,10 +95,12 @@ export default function DeliveryTrackingPage() {
                     <CardTitle>Delivery Management</CardTitle>
                     <CardDescription>Manage dispatch details and delivery status for your Shopify orders. All fields are manually editable.</CardDescription>
                 </div>
-                <Button onClick={handleAddOrder}>
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Add Order
-                </Button>
+                <Link href="/orders/new" passHref>
+                    <Button>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Add Order
+                    </Button>
+                </Link>
           </div>
         </CardHeader>
         <CardContent>
