@@ -12,15 +12,10 @@ import { Input } from "@/components/ui/input";
 import { Loader2, HelpCircle, AlertTriangle } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
-import { createRazorpaySubscription } from '@/app/actions';
 
 interface SecureCodFormProps {
     razorpayKeyId: string | null;
 }
-
-// IMPORTANT: This plan must be created in your Razorpay Dashboard.
-// It should be a plan with a monthly billing frequency and an amount of 0.
-const RAZORPAY_PLAN_ID = 'plan_EMandateSnazzPay'; 
 
 export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
     const searchParams = useSearchParams();
@@ -98,8 +93,8 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
             return;
         }
         if (!razorpayKeyId) {
-            toast({ variant: 'destructive', title: 'Configuration Error', description: 'Razorpay Key ID is not configured.' });
             setError('Razorpay Key ID is not configured on the server.');
+            toast({ variant: 'destructive', title: 'Configuration Error', description: 'Razorpay Key ID is not configured.' });
             return;
         }
         if (!(window as any).Razorpay) {
@@ -108,81 +103,65 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         }
         
         setIsCreatingLink(true);
-        setError('');
+
+        const options = {
+            key: razorpayKeyId,
+            amount: totalAmount * 100, // amount in the smallest currency unit
+            currency: "INR",
+            name: "Snazzify Secure COD",
+            description: "Test Transaction for " + orderDetails.productName,
+            order_id: '', // Not creating a server-side order for this simple flow
+            handler: function (response: any){
+                toast({
+                    title: 'Authorization Successful!',
+                    description: `Payment ID: ${response.razorpay_payment_id}`,
+                    variant: 'default'
+                });
+                
+                const paymentInfo = {
+                    paymentId: response.razorpay_payment_id,
+                    orderId: orderDetails.orderId,
+                    signature: response.razorpay_signature,
+                    status: 'authorized',
+                    authorizedAt: new Date().toISOString()
+                };
+
+                localStorage.setItem(`payment_info_${orderDetails.orderId}`, JSON.stringify(paymentInfo));
+                
+                setIsCreatingLink(false);
+
+            },
+            prefill: {
+                name: "Customer Name",
+                email: "customer@example.com",
+                contact: "9999999999"
+            },
+            notes: {
+                "address": "Customer Address",
+                "product": orderDetails.productName,
+                "order_id": orderDetails.orderId,
+            },
+            theme: {
+                color: "#5a31f4"
+            },
+            modal: {
+                ondismiss: function() {
+                    setIsCreatingLink(false);
+                     toast({
+                        variant: 'destructive',
+                        title: 'Authorization Cancelled',
+                        description: 'The authorization process was cancelled.',
+                    });
+                }
+            }
+        };
 
         try {
-            // Step 1: Create a subscription on the server
-            const subscriptionResult = await createRazorpaySubscription({
-                plan_id: RAZORPAY_PLAN_ID,
-                total_count: 120, // 10 years for a monthly plan
-                quantity: 1,
-                customer_notify: 0,
-                notes: {
-                    order_id: orderDetails.orderId,
-                    product_name: orderDetails.productName,
-                    amount: totalAmount.toFixed(2),
-                }
-            });
-
-            if (subscriptionResult.error || !subscriptionResult.subscription_id) {
-                throw new Error(subscriptionResult.error || 'Failed to get subscription ID.');
-            }
-
-            // Step 2: Open Razorpay Checkout with the subscription ID
-            const options = {
-                key: razorpayKeyId,
-                subscription_id: subscriptionResult.subscription_id,
-                name: "Snazzify Secure COD",
-                description: `eMandate for ${orderDetails.productName}`,
-                handler: function (response: any){
-                    toast({
-                        title: 'Authorization Successful!',
-                        description: `Payment ID for authorization: ${response.razorpay_payment_id}`,
-                    });
-                    
-                    const paymentInfo = {
-                        paymentId: response.razorpay_payment_id,
-                        orderId: orderDetails.orderId,
-                        subscriptionId: subscriptionResult.subscription_id,
-                        signature: response.razorpay_signature,
-                        status: 'authorized',
-                        authorizedAt: new Date().toISOString()
-                    };
-
-                    localStorage.setItem(`payment_info_${orderDetails.orderId}`, JSON.stringify(paymentInfo));
-                    setIsCreatingLink(false);
-                },
-                prefill: {
-                    name: "Customer Name",
-                    email: "customer@example.com",
-                    contact: "9999999999"
-                },
-                notes: {
-                    "address": "Customer Address",
-                    "product": orderDetails.productName,
-                    "order_id": orderDetails.orderId,
-                },
-                theme: {
-                    color: "#5a31f4"
-                },
-                modal: {
-                    ondismiss: function() {
-                        setIsCreatingLink(false);
-                         toast({
-                            variant: 'destructive',
-                            title: 'Authorization Cancelled',
-                        });
-                    }
-                }
-            };
-        
             const rzp = new (window as any).Razorpay(options);
             rzp.open();
-
-        } catch (e: any) {
-            console.error("eMandate process error:", e);
-            setError(e.message || 'An unexpected error occurred.');
-            toast({ variant: 'destructive', title: 'Error', description: e.message || 'Could not set up eMandate.' });
+        } catch(e) {
+            console.error("Razorpay SDK Error:", e);
+            toast({ variant: 'destructive', title: 'SDK Error', description: 'Could not initialize Razorpay Checkout. Please check the console.' });
             setIsCreatingLink(false);
         }
     };
@@ -208,7 +187,7 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                         <div className="mt-4 bg-destructive/10 p-3 rounded-md text-center text-destructive text-sm font-mono">
                             {error}
                         </div>
-                         <p className="text-center text-muted-foreground text-xs mt-4">Please check your Razorpay API keys in the settings and ensure they are correct. You may also need to create a 0-value Plan in your Razorpay dashboard with ID: {RAZORPAY_PLAN_ID}</p>
+                         <p className="text-center text-muted-foreground text-xs mt-4">Please check your Razorpay API keys in the settings and ensure they are correct.</p>
                     </CardContent>
                 </Card>
             </div>
