@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useEffect } from "react";
 import { Send, Trash2 } from "lucide-react";
-import { v4 as uuidv4 } from 'uuid';
 import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import { Loader2 } from "lucide-react";
 
@@ -24,6 +23,7 @@ type EditableOrder = {
   pincode: string;
   contactNo: string;
   trackingNumber: string;
+  courierCompanyName: string;
   status: OrderStatus;
   estDelivery: string;
 };
@@ -46,6 +46,7 @@ function mapShopifyOrderToEditableOrder(order: ShopifyOrder): EditableOrder {
         pincode: order.shipping_address?.zip || 'N/A',
         contactNo: customer?.phone || 'N/A',
         trackingNumber: '',
+        courierCompanyName: '',
         status: 'pending',
         estDelivery: '',
     };
@@ -59,10 +60,15 @@ export default function DeliveryTrackingPage() {
     useEffect(() => {
         async function fetchAndSetOrders() {
             setLoading(true);
-            const shopifyOrders = await getOrders();
-            const editableOrders = shopifyOrders.map(mapShopifyOrderToEditableOrder);
-            setOrders(editableOrders);
-            setLoading(false);
+            try {
+                const shopifyOrders = await getOrders();
+                const editableOrders = shopifyOrders.map(mapShopifyOrderToEditableOrder);
+                setOrders(editableOrders);
+            } catch (error) {
+                console.error("Failed to fetch orders:", error);
+            } finally {
+                setLoading(false);
+            }
         }
         fetchAndSetOrders();
     }, []);
@@ -101,6 +107,7 @@ export default function DeliveryTrackingPage() {
                 <TableHead>Address</TableHead>
                 <TableHead>Pincode</TableHead>
                 <TableHead>Contact</TableHead>
+                <TableHead>Courier Company</TableHead>
                 <TableHead>Tracking No.</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Est. Delivery</TableHead>
@@ -115,6 +122,14 @@ export default function DeliveryTrackingPage() {
                   <TableCell className="text-xs max-w-xs truncate">{order.customerAddress}</TableCell>
                   <TableCell>{order.pincode}</TableCell>
                   <TableCell>{order.contactNo}</TableCell>
+                  <TableCell>
+                    <Input 
+                        placeholder="Courier Name" 
+                        className="w-40" 
+                        value={order.courierCompanyName}
+                        onChange={(e) => handleFieldChange(order.id, 'courierCompanyName', e.target.value)}
+                    />
+                  </TableCell>
                   <TableCell>
                     <Input 
                         placeholder="Enter Tracking No." 
