@@ -78,7 +78,7 @@ export async function createSubscriptionLink(maxAmount: number, description: str
             total_count: 1, // This subscription is for a single authorization cycle.
             quantity: 1,
             customer_notify: 1,
-             notes: {
+            notes: {
                 description: `Mandate for ${description}`,
                 amount: `Up to ₹${maxAmount.toFixed(2)}`
             },
