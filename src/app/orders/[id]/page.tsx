@@ -74,8 +74,7 @@ export default function OrderDetailPage() {
         
         async function loadOrder() {
             let foundOrder: EditableOrder | null = null;
-            const decodedOrderId = decodeURIComponent(orderIdParam);
-
+            
             // 1. Fetch all orders (Shopify and Manual)
             let allOrders: EditableOrder[] = [];
              try {
@@ -89,8 +88,8 @@ export default function OrderDetailPage() {
                 allOrders = allOrders.concat(JSON.parse(manualOrdersJSON));
             }
             
-            // 2. Find the correct order by matching the `orderId` (e.g., "#1001")
-            foundOrder = allOrders.find(o => o.orderId === decodedOrderId) || null;
+            // 2. Find the correct order by matching the internal `id`
+            foundOrder = allOrders.find(o => o.id === orderIdParam) || null;
 
             // 3. Apply any saved overrides from localStorage using the internal ID
             if (foundOrder) {

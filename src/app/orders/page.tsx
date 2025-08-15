@@ -213,7 +213,7 @@ export default function OrdersPage() {
                 {orders.map((order) => (
                   <TableRow key={order.id}>
                     <TableCell>
-                        <Link href={`/orders/${encodeURIComponent(order.orderId)}`} passHref>
+                        <Link href={`/orders/${order.id}`} passHref>
                             <span className="font-medium text-primary hover:underline cursor-pointer">{order.orderId}</span>
                         </Link>
                     </TableCell>
