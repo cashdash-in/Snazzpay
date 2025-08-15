@@ -236,7 +236,7 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                 <Card className="w-full max-w-md shadow-lg">
                     <CardHeader className="text-center">
                         <CardTitle>Secure Your Order</CardTitle>
-                        <CardDescription>Confirm your order by authorizing the payment. Your account will only be auto-debited for the full amount once the order is dispatched.</CardDescription>
+                        <CardDescription>Confirm your order by authorizing the payment and show your intent by paying only Rs 1.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                          <div className="space-y-3">
