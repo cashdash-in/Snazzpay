@@ -6,7 +6,7 @@ import { z } from 'zod';
 const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID;
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
 
-const SubscriptionResponseSchema = z.object({
+const PaymentLinkResponseSchema = z.object({
     id: z.string(),
     short_url: z.string(),
 });
@@ -19,70 +19,53 @@ export async function createSubscriptionLink(maxAmount: number, description: str
 
         const credentials = Buffer.from(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`).toString('base64');
         
-        // Step 1: Create a Plan
-        const planPayload = {
-            period: "yearly",
-            interval: 1,
-            item: {
-                name: `Annual Mandate for ${description}`,
-                amount: 100, // Nominal amount (e.g., 1 INR), actual charge is up to maxAmount
-                currency: "INR",
-                description: "Authorization for variable charges as per terms."
-            }
-        };
+        const now = Math.floor(Date.now() / 1000);
+        const expireBy = now + (10 * 60); // Link expires in 10 minutes
 
-        const planResponse = await fetch('https://api.razorpay.com/v1/plans', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Basic ${credentials}`,
-                'Content-Type': 'application/json',
+        const paymentLinkPayload = {
+            amount: 100, // Mandate registration is for Re. 1
+            currency: "INR",
+            description: `Mandate for: ${description}`,
+            expire_by: expireBy,
+            customer: {
+                name: "Secure COD Customer",
+                email: "secure.cod@example.com",
+                contact: "+919000090000"
             },
-            body: JSON.stringify(planPayload),
-            cache: 'no-store',
-        });
-        
-        const planData = await planResponse.json();
-
-        if (!planResponse.ok) {
-            console.error("Razorpay Plan API Error:", planData);
-            throw new Error(planData?.error?.description || 'Failed to create Razorpay plan');
-        }
-        
-        const planId = planData.id;
-
-        // Step 2: Create a Subscription using the Plan ID
-        const subscriptionPayload = {
-            plan_id: planId,
-            total_count: 120, // Authorize for 10 years 
-            quantity: 1,
-            customer_notify: 1,
+            subscription_registration: {
+                method: "card",
+                max_amount: maxAmount, // The actual maximum amount for future charges
+                total_count: 120, // Authorize for 10 years (12 * 10)
+            },
+            upi_qr: 1, // Required parameter
             notes: {
-                purpose: "Secure COD Mandate",
-                description: description
+                policy_name: "Secure COD Mandate"
             },
-            authorization_amount: maxAmount, 
+            callback_url: "https://snazzify.co.in/payment-success",
+            callback_method: "get"
         };
+        
 
-        const subResponse = await fetch('https://api.razorpay.com/v1/subscriptions', {
+        const response = await fetch('https://api.razorpay.com/v1/payment_links', {
             method: 'POST',
             headers: {
                 'Authorization': `Basic ${credentials}`,
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify(subscriptionPayload),
+            body: JSON.stringify(paymentLinkPayload),
             cache: 'no-store',
         });
         
-        const jsonResponse = await subResponse.json();
+        const jsonResponse = await response.json();
 
-        if (!subResponse.ok) {
-            console.error("Razorpay Subscription API Error:", jsonResponse);
-            throw new Error(jsonResponse?.error?.description || 'Failed to create Razorpay subscription');
+        if (!response.ok) {
+            console.error("Razorpay Payment Link API Error:", jsonResponse);
+            throw new Error(jsonResponse?.error?.description || 'Failed to create Razorpay payment link');
         }
 
-        const parsed = SubscriptionResponseSchema.safeParse(jsonResponse);
+        const parsed = PaymentLinkResponseSchema.safeParse(jsonResponse);
         if (!parsed.success) {
-            console.error("Failed to parse Razorpay subscription response:", parsed.error.flatten());
+            console.error("Failed to parse Razorpay payment link response:", parsed.error.flatten());
             return { success: false, error: "Could not create mandate link due to unexpected response from Razorpay." };
         }
 
