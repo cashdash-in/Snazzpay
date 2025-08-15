@@ -27,16 +27,17 @@ export default function SecureCodPage() {
     const [agreed, setAgreed] = useState(false);
 
     useEffect(() => {
-        const amount = searchParams.get('amount');
+        const amountStr = searchParams.get('amount');
         const name = searchParams.get('name');
         
-        if (!amount || !name) {
-            setError('Missing product details. This page should be accessed from your Shopify store product page.');
+        if (!amountStr || !name) {
+            // Allow manual entry if params are missing
+            setOrderDetails({ productName: '', baseAmount: 0, quantity: 1});
             setLoading(false);
             return;
         }
 
-        const baseAmount = parseFloat(amount);
+        const baseAmount = parseFloat(amountStr);
         if (isNaN(baseAmount)) {
             setError('Invalid product price received.');
             setLoading(false);
@@ -58,10 +59,25 @@ export default function SecureCodPage() {
             quantity: isNaN(quantity) || quantity < 1 ? 1 : quantity
         }));
     };
+    
+    const handleDetailChange = (field: 'productName' | 'baseAmount', value: string) => {
+        setOrderDetails(prev => ({
+            ...prev,
+            [field]: field === 'baseAmount' ? parseFloat(value) || 0 : value,
+        }))
+    }
 
     const totalAmount = orderDetails.baseAmount * orderDetails.quantity;
 
     const handlePayment = async () => {
+        if (totalAmount <= 0) {
+            toast({
+                variant: 'destructive',
+                title: 'Invalid Amount',
+                description: 'Please enter a valid amount for the order.',
+            });
+            return;
+        }
         setIsCreatingLink(true);
         try {
             const amountInPaise = Math.round(totalAmount * 100);
@@ -120,8 +136,25 @@ export default function SecureCodPage() {
                 <CardContent className="space-y-4">
                     <div className="border rounded-lg p-4 space-y-3">
                         <div className="flex justify-between items-center">
-                            <span className="text-muted-foreground">Product:</span>
-                            <span className="font-medium text-right">{orderDetails.productName}</span>
+                            <Label htmlFor='productName' className="text-muted-foreground">Product/Order:</Label>
+                            <Input 
+                                id="productName"
+                                value={orderDetails.productName}
+                                onChange={(e) => handleDetailChange('productName', e.target.value)}
+                                className="w-48 text-right"
+                                placeholder="e.g. Order #1001"
+                            />
+                        </div>
+                         <div className="flex justify-between items-center">
+                            <Label htmlFor='baseAmount' className="text-muted-foreground">Amount:</Label>
+                             <Input 
+                                id="baseAmount"
+                                type="number"
+                                value={orderDetails.baseAmount}
+                                onChange={(e) => handleDetailChange('baseAmount', e.target.value)}
+                                className="w-32 text-right"
+                                placeholder="0.00"
+                            />
                         </div>
                         <div className="flex justify-between items-center">
                             <Label htmlFor="quantity" className="text-muted-foreground">Quantity:</Label>

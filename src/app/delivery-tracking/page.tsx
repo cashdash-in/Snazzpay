@@ -80,17 +80,18 @@ export default function DeliveryTrackingPage() {
     }, []);
 
     const handleFieldChange = (orderId: string, field: keyof EditableOrder, value: string) => {
-        setOrders(prevOrders =>
-            prevOrders.map(order =>
-                order.id === orderId ? { ...order, [field]: value } : order
-            )
+        const updatedOrders = orders.map(order =>
+            order.id === orderId ? { ...order, [field]: value } : order
         );
+        setOrders(updatedOrders);
 
         if (field === 'readyForDispatchDate' && value) {
-            const order = orders.find(o => o.id === orderId);
+            const order = updatedOrders.find(o => o.id === orderId);
             if (order && order.contactNo) {
                 const phoneNumber = order.contactNo.replace(/[^0-9]/g, '');
-                const message = encodeURIComponent(`Hi ${order.customerName}, your order #${order.orderId} is ready for dispatch! Please complete the payment authorization here: [Your Payment Link]`);
+                // Construct the secure COD URL with order details
+                const secureCodUrl = `${window.location.origin}/secure-cod?amount=${encodeURIComponent(order.price)}&name=${encodeURIComponent(`Order ${order.orderId}`)}`;
+                const message = encodeURIComponent(`Hi ${order.customerName}, your order #${order.orderId} is ready for dispatch! Please complete the payment authorization here: ${secureCodUrl}`);
                 const whatsappUrl = `https://wa.me/${phoneNumber}?text=${message}`;
                 window.open(whatsappUrl, '_blank');
             }
