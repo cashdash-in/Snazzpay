@@ -40,7 +40,7 @@ export async function POST(request: Request) {
 
         // Step 2: Create the Order with the customer_id
         const orderOptions = {
-            amount: 100, // 100 paise = ₹1 for authorization
+            amount: 100, // Correctly set to 100 paise (₹1) for authorization
             currency: 'INR',
             receipt: `rcpt_cod_${uuidv4().substring(0,8)}`,
             payment_capture: false,
@@ -52,7 +52,7 @@ export async function POST(request: Request) {
             },
             // This token object is crucial for creating an eMandate
             token: {
-                "max_amount": amount * 100, // The full product price in paise
+                "max_amount": amount * 100, // The full product price in paise for the mandate
             }
         };
 
