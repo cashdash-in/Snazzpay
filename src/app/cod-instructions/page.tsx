@@ -7,15 +7,12 @@ import { CodeBlock } from "@/components/code-block";
 import { useEffect, useState } from 'react';
 
 export default function CodInstructionsPage() {
-    const [iframeUrl, setIframeUrl] = useState('');
     const [embedCode, setEmbedCode] = useState('');
-    const [infoUrl, setInfoUrl] = useState('');
 
     useEffect(() => {
         const origin = typeof window !== 'undefined' ? window.location.origin : '';
         const url = `${origin}/secure-cod`;
         const secureCodInfoUrl = `${origin}/secure-cod-info`;
-        setInfoUrl(secureCodInfoUrl);
 
         const code = `<div style="margin-top: 15px; width: 100%;">
   <a id="secure-cod-link" href="#" target="_blank" style="text-decoration: none; display: block; width: 100%;">
@@ -36,10 +33,9 @@ export default function CodInstructionsPage() {
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const secureCodLink = document.getElementById('secure-cod-link');
-    const productForm = document.querySelector('form[action^="/cart/add"]');
-
-    if (!productForm || !secureCodLink) {
-        console.error('Secure COD: Could not find product form or link element.');
+    
+    if (!secureCodLink) {
+        console.error('Secure COD: Could not find link element.');
         return;
     }
 
@@ -47,31 +43,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const productPrice = {{ product.price | money_without_currency | replace: ',', '' }};
     const baseUrl = '${url}';
 
-    function updateCodLink() {
-        const quantityInput = productForm.querySelector('input[name="quantity"], select[name="quantity"]');
-        const quantity = quantityInput ? parseInt(quantityInput.value, 10) : 1;
-
-        if (isNaN(productPrice) || isNaN(quantity)) {
-            console.error('Secure COD: Could not determine product price or quantity.');
-            return;
-        }
-
-        const totalAmount = (productPrice * quantity).toFixed(2);
-        const finalUrl = baseUrl + '?amount=' + encodeURIComponent(totalAmount) + '&name=' + productName;
-        secureCodLink.href = finalUrl;
-    }
-
-    // Initial update
-    updateCodLink();
-
-    // Listen for changes on the form.
-    // This is simpler and more reliable than MutationObserver for this case.
-    productForm.addEventListener('change', updateCodLink);
-    productForm.addEventListener('keyup', function(event) {
-      if (event.target.name === 'quantity') {
-        updateCodLink();
-      }
-    });
+    const finalUrl = baseUrl + '?amount=' + encodeURIComponent(productPrice) + '&name=' + productName;
+    secureCodLink.href = finalUrl;
 });
 </script>
 `;
@@ -85,7 +58,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <CardHeader>
           <CardTitle>Embed Secure COD on Product Page</CardTitle>
           <CardDescription>
-            Follow these steps to add the Secure COD button to your Shopify store's product page. This code will now handle quantity changes.
+            Follow these steps to add the Secure COD button to your Shopify store's product page.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -107,7 +80,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <div className="space-y-2">
             <h3 className="text-lg font-semibold">How it works</h3>
             <p className="text-muted-foreground">
-              This code adds a "Secure COD" button to your product pages. A small script is included to detect changes in the product quantity selector. It automatically calculates the total price and updates the authorization link, ensuring the correct amount is used for the eMandate.
+              This code adds a "Buy now with Secure COD" button to your product pages. When clicked, it takes the customer to a secure page where they can confirm the quantity and authorize the payment.
             </p>
           </div>
         </CardContent>

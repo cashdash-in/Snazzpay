@@ -8,6 +8,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
 import { createSubscriptionLink } from '@/services/razorpay';
 import { useToast } from '@/hooks/use-toast';
@@ -17,7 +18,8 @@ export default function SecureCodPage() {
     const { toast } = useToast();
     const [orderDetails, setOrderDetails] = useState({
         productName: '',
-        amount: '0',
+        baseAmount: 0,
+        quantity: 1,
     });
     const [loading, setLoading] = useState(true);
     const [isCreatingLink, setIsCreatingLink] = useState(false);
@@ -34,17 +36,35 @@ export default function SecureCodPage() {
             return;
         }
 
+        const baseAmount = parseFloat(amount);
+        if (isNaN(baseAmount)) {
+            setError('Invalid product price received.');
+            setLoading(false);
+            return;
+        }
+
         setOrderDetails({
             productName: name,
-            amount: amount,
+            baseAmount: baseAmount,
+            quantity: 1,
         });
         setLoading(false);
     }, [searchParams]);
 
+    const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const quantity = parseInt(e.target.value, 10);
+        setOrderDetails(prev => ({
+            ...prev,
+            quantity: isNaN(quantity) || quantity < 1 ? 1 : quantity
+        }));
+    };
+
+    const totalAmount = orderDetails.baseAmount * orderDetails.quantity;
+
     const handlePayment = async () => {
         setIsCreatingLink(true);
         try {
-            const amountInPaise = Math.round(parseFloat(orderDetails.amount) * 100);
+            const amountInPaise = Math.round(totalAmount * 100);
             const result = await createSubscriptionLink(amountInPaise, orderDetails.productName);
 
             if (result.success && result.url) {
@@ -95,17 +115,28 @@ export default function SecureCodPage() {
             <Card className="w-full max-w-md shadow-lg">
                 <CardHeader className="text-center">
                     <CardTitle>Secure Your COD Order</CardTitle>
-                    <CardDescription>Authorize a hold on your card. You will only be charged if you refuse delivery.</CardDescription>
+                    <CardDescription>Confirm your order details and authorize a hold on your card. You will only be charged if you refuse delivery.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="border rounded-lg p-4 space-y-2">
-                        <div className="flex justify-between">
+                    <div className="border rounded-lg p-4 space-y-3">
+                        <div className="flex justify-between items-center">
                             <span className="text-muted-foreground">Product:</span>
-                            <span className="font-medium">{orderDetails.productName}</span>
+                            <span className="font-medium text-right">{orderDetails.productName}</span>
                         </div>
-                        <div className="flex justify-between">
-                            <span className="text-muted-foreground">Amount:</span>
-                            <span className="font-medium">₹{parseFloat(orderDetails.amount).toFixed(2)}</span>
+                        <div className="flex justify-between items-center">
+                            <Label htmlFor="quantity" className="text-muted-foreground">Quantity:</Label>
+                            <Input 
+                                id="quantity"
+                                type="number"
+                                value={orderDetails.quantity}
+                                onChange={handleQuantityChange}
+                                className="w-20 text-center"
+                                min="1"
+                            />
+                        </div>
+                        <div className="flex justify-between items-center text-lg">
+                            <span className="text-muted-foreground">Total Amount:</span>
+                            <span className="font-bold">₹{totalAmount.toFixed(2)}</span>
                         </div>
                     </div>
                      <div className="flex items-center space-x-2 pt-2">
@@ -119,7 +150,7 @@ export default function SecureCodPage() {
                         </Label>
                     </div>
                     <p className="text-xs text-muted-foreground text-center">
-                        By clicking the button below, you agree to authorize a temporary hold of ₹{parseFloat(orderDetails.amount).toFixed(2)} on your card via Razorpay eMandate.
+                        By clicking the button below, you agree to authorize a temporary hold of ₹{totalAmount.toFixed(2)} on your card via Razorpay eMandate.
                     </p>
                 </CardContent>
                 <CardFooter>
