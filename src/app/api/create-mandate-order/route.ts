@@ -52,8 +52,6 @@ export async function POST(request: Request) {
             },
             // This token object is crucial for creating an eMandate
             token: {
-                "callback_url": "https://example.com/callback", // A dummy URL is fine
-                "callback_method": "get" as const,
                 "max_amount": amount * 100, // The full product price in paise
             }
         };
