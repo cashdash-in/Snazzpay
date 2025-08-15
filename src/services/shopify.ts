@@ -15,6 +15,14 @@ const OrderSchema = z.object({
     customer: z.object({
         first_name: z.string().nullable(),
         last_name: z.string().nullable(),
+        phone: z.string().nullable(),
+    }).nullable(),
+    shipping_address: z.object({
+        address1: z.string().nullable(),
+        city: z.string().nullable(),
+        zip: z.string().nullable(),
+        province: z.string().nullable(),
+        country: z.string().nullable(),
     }).nullable(),
 });
 

@@ -2,52 +2,81 @@
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useState } from "react";
-import { Send, PlusCircle, Trash2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Send, Trash2 } from "lucide-react";
 import { v4 as uuidv4 } from 'uuid';
+import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
+import { Loader2 } from "lucide-react";
+
 
 type OrderStatus = 'pending' | 'dispatched' | 'out-for-delivery' | 'delivered' | 'failed';
 
 type EditableOrder = {
-  id: string; // Internal ID for React keys
+  id: string;
   orderId: string;
   customerName: string;
+  customerAddress: string;
+  pincode: string;
+  contactNo: string;
   trackingNumber: string;
   status: OrderStatus;
   estDelivery: string;
 };
 
-const createEmptyOrder = (): EditableOrder => ({
-    id: uuidv4(),
-    orderId: '',
-    customerName: '',
-    trackingNumber: '',
-    status: 'pending',
-    estDelivery: '',
-});
+function formatAddress(address: ShopifyOrder['shipping_address']): string {
+    if (!address) return 'N/A';
+    const parts = [address.address1, address.city, address.province, address.country, address.zip];
+    return parts.filter(Boolean).join(', ');
+}
+
+function mapShopifyOrderToEditableOrder(order: ShopifyOrder): EditableOrder {
+    const customer = order.customer;
+    const customerName = customer ? `${customer.first_name || ''} ${customer.last_name || ''}`.trim() : 'N/A';
+    
+    return {
+        id: order.id.toString(),
+        orderId: order.name,
+        customerName: customerName,
+        customerAddress: formatAddress(order.shipping_address),
+        pincode: order.shipping_address?.zip || 'N/A',
+        contactNo: customer?.phone || 'N/A',
+        trackingNumber: '',
+        status: 'pending',
+        estDelivery: '',
+    };
+}
+
 
 export default function DeliveryTrackingPage() {
     const [orders, setOrders] = useState<EditableOrder[]>([]);
+    const [loading, setLoading] = useState(true);
 
-    const handleFieldChange = (internalId: string, field: keyof EditableOrder, value: string) => {
+    useEffect(() => {
+        async function fetchAndSetOrders() {
+            setLoading(true);
+            const shopifyOrders = await getOrders();
+            const editableOrders = shopifyOrders.map(mapShopifyOrderToEditableOrder);
+            setOrders(editableOrders);
+            setLoading(false);
+        }
+        fetchAndSetOrders();
+    }, []);
+
+    const handleFieldChange = (orderId: string, field: keyof EditableOrder, value: string) => {
         setOrders(prevOrders =>
             prevOrders.map(order =>
-                order.id === internalId ? { ...order, [field]: value } : order
+                order.id === orderId ? { ...order, [field]: value } : order
             )
         );
     };
-
-    const handleAddNewOrder = () => {
-        setOrders(prevOrders => [...prevOrders, createEmptyOrder()]);
-    };
     
-    const handleRemoveOrder = (internalId: string) => {
-        setOrders(prevOrders => prevOrders.filter(order => order.id !== internalId));
+    const handleRemoveOrder = (orderId: string) => {
+        setOrders(prevOrders => prevOrders.filter(order => order.id !== orderId));
     }
 
 
@@ -56,14 +85,22 @@ export default function DeliveryTrackingPage() {
       <Card>
         <CardHeader>
           <CardTitle>Delivery Management</CardTitle>
-          <CardDescription>Manually add and manage your orders, update dispatch details, and track delivery status.</CardDescription>
+          <CardDescription>Manage dispatch details and delivery status for your Shopify orders.</CardDescription>
         </CardHeader>
         <CardContent>
+            {loading ? (
+                 <div className="flex justify-center items-center h-64">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+            ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[150px]">Order ID</TableHead>
+                <TableHead>Order ID</TableHead>
                 <TableHead>Customer</TableHead>
+                <TableHead>Address</TableHead>
+                <TableHead>Pincode</TableHead>
+                <TableHead>Contact</TableHead>
                 <TableHead>Tracking No.</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Est. Delivery</TableHead>
@@ -73,20 +110,11 @@ export default function DeliveryTrackingPage() {
             <TableBody>
               {orders.map((order) => (
                 <TableRow key={order.id}>
-                  <TableCell>
-                      <Input 
-                        placeholder="e.g., #1001"
-                        value={order.orderId}
-                        onChange={(e) => handleFieldChange(order.id, 'orderId', e.target.value)}
-                      />
-                  </TableCell>
-                   <TableCell>
-                      <Input 
-                        placeholder="Customer Name"
-                        value={order.customerName}
-                        onChange={(e) => handleFieldChange(order.id, 'customerName', e.target.value)}
-                      />
-                  </TableCell>
+                  <TableCell className="font-medium">{order.orderId}</TableCell>
+                  <TableCell>{order.customerName}</TableCell>
+                  <TableCell className="text-xs max-w-xs truncate">{order.customerAddress}</TableCell>
+                  <TableCell>{order.pincode}</TableCell>
+                  <TableCell>{order.contactNo}</TableCell>
                   <TableCell>
                     <Input 
                         placeholder="Enter Tracking No." 
@@ -133,13 +161,8 @@ export default function DeliveryTrackingPage() {
               ))}
             </TableBody>
           </Table>
+          )}
         </CardContent>
-        <CardFooter className="justify-start border-t pt-6">
-            <Button onClick={handleAddNewOrder}>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Add New Order
-            </Button>
-        </CardFooter>
       </Card>
     </AppShell>
   );
