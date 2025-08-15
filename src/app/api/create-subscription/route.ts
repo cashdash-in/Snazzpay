@@ -27,11 +27,9 @@ export async function POST(req: NextRequest) {
 
     const subscriptionOptions = {
       plan_id: planId,
-      total_count: 120, // Authorize for 10 years (12 * 10)
+      total_count: 120, // Authorize for 10 years (12 * 10 on a yearly plan)
       quantity: 1,
       customer_notify: 0,
-      // REMOVED: authorization_amount is not used for this type of on-demand mandate.
-      // Its presence was causing the API error.
       notes: {
         order_purpose: 'On-demand payment authorization for COD',
       },
