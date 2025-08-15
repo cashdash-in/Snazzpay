@@ -9,11 +9,15 @@ import { useEffect, useState } from 'react';
 export default function CodInstructionsPage() {
     const [iframeUrl, setIframeUrl] = useState('');
     const [embedCode, setEmbedCode] = useState('');
+    const [infoUrl, setInfoUrl] = useState('');
 
     useEffect(() => {
         const origin = typeof window !== 'undefined' ? window.location.origin : '';
         const url = `${origin}/secure-cod?amount={{ product.price | money_without_currency | url_encode }}&name={{ product.title | url_encode }}`;
         setIframeUrl(url);
+
+        const secureCodInfoUrl = `${origin}/secure-cod-info`;
+        setInfoUrl(secureCodInfoUrl);
 
         const code = `<div style="margin-top: 15px; width: 100%;">
   <a href="${url}" target="_blank" style="text-decoration: none; display: block; width: 100%;">
@@ -26,6 +30,9 @@ export default function CodInstructionsPage() {
       Secure COD
     </button>
   </a>
+  <div style="text-align: center; margin-top: 8px; font-size: 12px;">
+    <a href="${secureCodInfoUrl}" target="_blank" style="color: #5a31f4; text-decoration: underline;">What is this?</a>
+  </div>
 </div>`;
         setEmbedCode(code);
     }, []);
