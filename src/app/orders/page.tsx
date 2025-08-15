@@ -11,8 +11,9 @@ import { format } from "date-fns";
 import { useState, useEffect } from "react";
 import { Loader2, PlusCircle, Trash2 } from "lucide-react";
 import Link from "next/link";
+import { v4 as uuidv4 } from 'uuid';
 
-type EditableOrder = {
+export type EditableOrder = {
   id: string; // Internal unique ID for React key
   orderId: string;
   customerName: string;
@@ -73,10 +74,18 @@ export default function OrdersPage() {
         setLoading(true);
         try {
             const shopifyOrders = await getOrders();
-            const editableOrders = shopifyOrders.map(mapShopifyOrderToEditableOrder);
-            setOrders(editableOrders);
+            const shopifyEditableOrders = shopifyOrders.map(mapShopifyOrderToEditableOrder);
+            
+            const manualOrdersJSON = localStorage.getItem('manualOrders');
+            const manualOrders = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
+            
+            setOrders([...shopifyEditableOrders, ...manualOrders]);
         } catch (error) {
             console.error("Failed to fetch orders:", error);
+            // Load manual orders even if Shopify fetch fails
+            const manualOrdersJSON = localStorage.getItem('manualOrders');
+            const manualOrders = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
+            setOrders(manualOrders);
         } finally {
             setLoading(false);
         }
@@ -85,15 +94,23 @@ export default function OrdersPage() {
   }, []);
 
   const handleFieldChange = (orderId: string, field: keyof EditableOrder, value: string | number) => {
-    setOrders(prevOrders =>
-        prevOrders.map(order =>
-            order.id === orderId ? { ...order, [field]: value } : order
-        )
+    const updatedOrders = orders.map(order =>
+        order.id === orderId ? { ...order, [field]: value } : order
     );
+    setOrders(updatedOrders);
+    
+    // Update local storage for manual orders
+    const manualOrders = updatedOrders.filter(order => !order.id.startsWith('gid://')); // Differentiate Shopify from manual
+    localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
   };
 
   const handleRemoveOrder = (orderId: string) => {
-    setOrders(prevOrders => prevOrders.filter(order => order.id !== orderId));
+    const updatedOrders = orders.filter(order => order.id !== orderId);
+    setOrders(updatedOrders);
+    
+    // Update local storage for manual orders
+    const manualOrders = updatedOrders.filter(order => !order.id.startsWith('gid://'));
+    localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
   };
 
 

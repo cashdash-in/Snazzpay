@@ -26,12 +26,11 @@ import { Send, Loader2 } from "lucide-react";
 
 type OrderStatus = 'pending' | 'dispatched' | 'out-for-delivery' | 'delivered' | 'failed';
 
-type EditableOrder = {
+type DeliveryOrder = {
   id: string;
   orderId: string;
   customerName: string;
   customerAddress: string;
-  pincode: string;
   contactNo: string;
   trackingNumber: string;
   status: OrderStatus;
@@ -44,7 +43,7 @@ function formatAddress(address: ShopifyOrder['shipping_address']): string {
     return parts.filter(Boolean).join(', ');
 }
 
-function mapShopifyOrderToEditableOrder(order: ShopifyOrder): EditableOrder {
+function mapShopifyOrderToDeliveryOrder(order: ShopifyOrder): DeliveryOrder {
     const customer = order.customer;
     const customerName = customer ? `${customer.first_name || ''} ${customer.last_name || ''}`.trim() : 'N/A';
     
@@ -53,7 +52,6 @@ function mapShopifyOrderToEditableOrder(order: ShopifyOrder): EditableOrder {
         orderId: order.name,
         customerName: customerName,
         customerAddress: formatAddress(order.shipping_address),
-        pincode: order.shipping_address?.zip || 'N/A',
         contactNo: customer?.phone || 'N/A',
         trackingNumber: '',
         status: 'pending',
@@ -63,21 +61,26 @@ function mapShopifyOrderToEditableOrder(order: ShopifyOrder): EditableOrder {
 
 
 export function RecentOrders() {
-  const [orders, setOrders] = useState<EditableOrder[]>([]);
+  const [orders, setOrders] = useState<DeliveryOrder[]>([]);
   const [loading, setLoading] = useState(true);
   
   useEffect(() => {
     async function fetchOrders() {
         setLoading(true);
-        const shopifyOrders = await getOrders();
-        const recentOrders = shopifyOrders.slice(0, 5).map(mapShopifyOrderToEditableOrder);
-        setOrders(recentOrders);
-        setLoading(false);
+        try {
+            const shopifyOrders = await getOrders();
+            const recentOrders = shopifyOrders.slice(0, 5).map(mapShopifyOrderToDeliveryOrder);
+            setOrders(recentOrders);
+        } catch(e) {
+            console.error(e)
+        } finally {
+            setLoading(false);
+        }
     }
     fetchOrders();
   }, []);
 
-  const handleFieldChange = (orderId: string, field: keyof EditableOrder, value: string) => {
+  const handleFieldChange = (orderId: string, field: keyof DeliveryOrder, value: string) => {
     setOrders(prevOrders =>
         prevOrders.map(order =>
             order.id === orderId ? { ...order, [field]: value } : order
@@ -97,6 +100,7 @@ export function RecentOrders() {
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
         ) : (
+        <div className="overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -161,6 +165,7 @@ export function RecentOrders() {
             ))}
           </TableBody>
         </Table>
+        </div>
         )}
       </CardContent>
     </Card>

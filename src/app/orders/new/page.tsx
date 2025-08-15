@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { format } from 'date-fns';
+import { v4 as uuidv4 } from 'uuid';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function NewOrderPage() {
     const router = useRouter();
@@ -31,11 +33,27 @@ export default function NewOrderPage() {
         const { id, value } = e.target;
         setOrder(prev => ({ ...prev, [id]: value }));
     };
+
+    const handleSelectChange = (value: string) => {
+        setOrder(prev => ({ ...prev, paymentStatus: value }));
+    };
     
     const handleSave = () => {
-        // Here you would typically save the order to your database.
-        // For now, we'll just log it and navigate back.
-        console.log("Saving order:", order);
+        const newOrder = {
+            ...order,
+            id: uuidv4(), // Assign a unique ID for React keys and local storage
+        };
+        
+        // Retrieve existing manual orders from local storage
+        const existingOrders = JSON.parse(localStorage.getItem('manualOrders') || '[]');
+        
+        // Add the new order
+        const updatedOrders = [...existingOrders, newOrder];
+        
+        // Save back to local storage
+        localStorage.setItem('manualOrders', JSON.stringify(updatedOrders));
+
+        console.log("Saving order:", newOrder);
         router.push('/orders');
     };
 
@@ -84,7 +102,7 @@ export default function NewOrderPage() {
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="quantity">Quantity</Label>
-                        <Input id="quantity" type="number" value={order.quantity} onChange={handleInputChange} />
+                        <Input id="quantity" type="number" value={order.quantity} onChange={handleInputChange} min="1" />
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="price">Price</Label>
@@ -92,7 +110,19 @@ export default function NewOrderPage() {
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="paymentStatus">Payment Status</Label>
-                        <Input id="paymentStatus" value={order.paymentStatus} onChange={handleInputChange} />
+                        <Select value={order.paymentStatus} onValueChange={handleSelectChange}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Pending">Pending</SelectItem>
+                            <SelectItem value="Paid">Paid</SelectItem>
+                            <SelectItem value="Refunded">Refunded</SelectItem>
+                            <SelectItem value="Authorized">Authorized</SelectItem>
+                            <SelectItem value="Partially Paid">Partially Paid</SelectItem>
+                            <SelectItem value="Voided">Voided</SelectItem>
+                          </SelectContent>
+                        </Select>
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="date">Date</Label>

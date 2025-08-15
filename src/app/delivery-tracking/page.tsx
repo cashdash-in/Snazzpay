@@ -12,11 +12,13 @@ import { Send, Trash2, PlusCircle } from "lucide-react";
 import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
+import { v4 as uuidv4 } from 'uuid';
+import type { EditableOrder } from '../orders/page';
 
 
 type OrderStatus = 'pending' | 'dispatched' | 'out-for-delivery' | 'delivered' | 'failed';
 
-type EditableOrder = {
+type DeliveryOrder = {
   id: string;
   orderId: string;
   customerName: string;
@@ -35,38 +37,55 @@ function formatAddress(address: ShopifyOrder['shipping_address']): string {
     return parts.filter(Boolean).join(', ');
 }
 
-function mapShopifyOrderToEditableOrder(order: ShopifyOrder): EditableOrder {
-    const customer = order.customer;
-    const customerName = customer ? `${customer.first_name || ''} ${customer.last_name || ''}`.trim() : 'N/A';
-    
+function mapToDeliveryOrder(order: EditableOrder): DeliveryOrder {
     return {
         id: order.id.toString(),
-        orderId: order.name,
-        customerName: customerName,
-        customerAddress: formatAddress(order.shipping_address),
-        pincode: order.shipping_address?.zip || 'N/A',
-        contactNo: order.customer?.phone || 'N/A',
-        trackingNumber: '',
-        courierCompanyName: '',
-        status: 'pending',
-        estDelivery: '',
+        orderId: order.orderId,
+        customerName: order.customerName,
+        customerAddress: order.customerAddress,
+        pincode: order.pincode,
+        contactNo: order.contactNo,
+        trackingNumber: '', // Default value
+        courierCompanyName: '', // Default value
+        status: 'pending', // Default value
+        estDelivery: '', // Default value
     };
 }
 
 
 export default function DeliveryTrackingPage() {
-    const [orders, setOrders] = useState<EditableOrder[]>([]);
+    const [orders, setOrders] = useState<DeliveryOrder[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         async function fetchAndSetOrders() {
             setLoading(true);
             try {
+                // Fetch from Shopify
                 const shopifyOrders = await getOrders();
-                const editableOrders = shopifyOrders.map(mapShopifyOrderToEditableOrder);
-                setOrders(editableOrders);
+                const shopifyEditableOrders = shopifyOrders.map(order => ({
+                    id: order.id.toString(),
+                    orderId: order.name,
+                    customerName: `${order.customer?.first_name || ''} ${order.customer?.last_name || ''}`.trim(),
+                    customerAddress: formatAddress(order.shipping_address),
+                    pincode: order.shipping_address?.zip || 'N/A',
+                    contactNo: order.customer?.phone || 'N/A',
+                    productOrdered: '', quantity: 0, price: '', paymentStatus: '', date: '' // Fields not needed here
+                }));
+
+                // Fetch from LocalStorage
+                const manualOrdersJSON = localStorage.getItem('manualOrders');
+                const manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
+                
+                const combinedOrders = [...shopifyEditableOrders, ...manualOrders];
+                const deliveryOrders = combinedOrders.map(mapToDeliveryOrder);
+                setOrders(deliveryOrders);
+
             } catch (error) {
                 console.error("Failed to fetch orders:", error);
+                 const manualOrdersJSON = localStorage.getItem('manualOrders');
+                const manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
+                setOrders(manualOrders.map(mapToDeliveryOrder));
             } finally {
                 setLoading(false);
             }
@@ -74,7 +93,7 @@ export default function DeliveryTrackingPage() {
         fetchAndSetOrders();
     }, []);
 
-    const handleFieldChange = (orderId: string, field: keyof EditableOrder, value: string) => {
+    const handleFieldChange = (orderId: string, field: keyof DeliveryOrder, value: string) => {
         setOrders(prevOrders =>
             prevOrders.map(order =>
                 order.id === orderId ? { ...order, [field]: value } : order
@@ -83,7 +102,17 @@ export default function DeliveryTrackingPage() {
     };
     
     const handleRemoveOrder = (orderId: string) => {
-        setOrders(prevOrders => prevOrders.filter(order => order.id !== orderId));
+        const updatedOrders = orders.filter(order => order.id !== orderId);
+        setOrders(updatedOrders);
+        
+        // This is complex because we need to update the source of truth in localStorage
+        // For simplicity, we assume we only remove manual orders this way.
+        const manualOrdersJSON = localStorage.getItem('manualOrders');
+        if(manualOrdersJSON) {
+            const manualOrders: EditableOrder[] = JSON.parse(manualOrdersJSON);
+            const updatedManualOrders = manualOrders.filter(o => o.id !== orderId);
+            localStorage.setItem('manualOrders', JSON.stringify(updatedManualOrders));
+        }
     };
 
   return (
@@ -93,7 +122,7 @@ export default function DeliveryTrackingPage() {
             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                 <div>
                     <CardTitle>Delivery Management</CardTitle>
-                    <CardDescription>Manage dispatch details and delivery status for your Shopify orders. All fields are manually editable.</CardDescription>
+                    <CardDescription>Manage dispatch details and delivery status. All fields are manually editable.</CardDescription>
                 </div>
                 <Link href="/orders/new" passHref>
                     <Button>
