@@ -133,7 +133,7 @@ export default function RefundsPage() {
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
                 <CardTitle>Refund Management</CardTitle>
-                <CardDescription>View and manage all order refunds. Note: For post-dispatch cancellations, capture Rs. 300 from the mandate.</CardDescription>
+                <CardDescription>View and manage all order refunds. Click an Order ID to see full details. Note: For post-dispatch cancellations, capture Rs. 300 from the mandate.</CardDescription>
             </div>
             <Link href="/orders/new" passHref>
               <Button>
@@ -166,7 +166,11 @@ export default function RefundsPage() {
               <TableBody>
                 {orders.map((order) => (
                   <TableRow key={order.id}>
-                    <TableCell><Input value={order.orderId} onChange={(e) => handleFieldChange(order.id, 'orderId', e.target.value)} className="w-28" /></TableCell>
+                    <TableCell>
+                        <Link href={`/orders/${order.id}`} passHref>
+                            <span className="font-medium text-primary hover:underline cursor-pointer">{order.orderId}</span>
+                        </Link>
+                    </TableCell>
                     <TableCell><Input value={order.customerName} onChange={(e) => handleFieldChange(order.id, 'customerName', e.target.value)} className="w-40" /></TableCell>
                     <TableCell><Input type="date" value={order.date} onChange={(e) => handleFieldChange(order.id, 'date', e.target.value)} className="w-32" /></TableCell>
                     <TableCell><Input value={order.price} onChange={(e) => handleFieldChange(order.id, 'price', e.target.value)} className="w-32" /></TableCell>

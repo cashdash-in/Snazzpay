@@ -1,0 +1,281 @@
+
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { AppShell } from "@/components/layout/app-shell";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft, Loader2, Save } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import type { EditableOrder } from '../page';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+export default function OrderDetailPage() {
+    const router = useRouter();
+    const params = useParams();
+    const { toast } = useToast();
+    const id = params.id as string;
+    
+    const [order, setOrder] = useState<EditableOrder | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        if (!id) return;
+        setLoading(true);
+        // We need to find the order from either manual orders or shopify orders (which might just be an ID)
+        // Since all data is now stored via overrides or in manualOrders, we can construct the full order object.
+        
+        let foundOrder: EditableOrder | null = null;
+        
+        // Check manual orders first
+        const manualOrdersJSON = localStorage.getItem('manualOrders');
+        const manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
+        const manualOrder = manualOrders.find(o => o.id === id);
+
+        if (manualOrder) {
+            foundOrder = manualOrder;
+        }
+
+        // If not a manual order, it must be a Shopify order. We reconstruct it from stored data.
+        // For this app, we assume if it's not in manualOrders, we can get its base data from an override.
+        const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${id}`) || '{}');
+
+        if (storedOverrides && Object.keys(storedOverrides).length > 0) {
+             if (foundOrder) {
+                 foundOrder = {...foundOrder, ...storedOverrides};
+             } else {
+                 foundOrder = storedOverrides as EditableOrder;
+             }
+        } else if (!foundOrder) {
+            // This case is tricky without a DB. We'll show a not found message.
+            // A real app would fetch the order by ID from Shopify/DB here.
+        }
+        
+        setOrder(foundOrder);
+        setLoading(false);
+
+    }, [id]);
+
+    const handleInputChange = (field: keyof EditableOrder, value: string | number) => {
+        if (!order) return;
+        setOrder(prev => prev ? { ...prev, [field]: value } : null);
+    };
+
+    const handleSelectChange = (field: keyof EditableOrder, value: string) => {
+        if (!order) return;
+        setOrder(prev => prev ? { ...prev, [field]: value } : null);
+    };
+    
+    const handleSave = () => {
+        if (!order) return;
+
+        if (order.id.startsWith('gid://') || order.id.match(/^\d+$/)) {
+          const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
+          const newOverrides = { ...storedOverrides, ...order };
+          localStorage.setItem(`order-override-${order.id}`, JSON.stringify(newOverrides));
+        } else {
+          const manualOrdersJSON = localStorage.getItem('manualOrders');
+          let manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
+          const orderIndex = manualOrders.findIndex(o => o.id === order.id);
+          if (orderIndex > -1) {
+            manualOrders[orderIndex] = order;
+            localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
+          }
+        }
+
+        toast({
+            title: "Order Saved",
+            description: `Details for order ${order.orderId} have been updated successfully.`,
+        });
+    };
+
+    if (loading) {
+        return (
+            <AppShell title="Loading Order...">
+                <div className="flex justify-center items-center h-64">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+            </AppShell>
+        );
+    }
+    
+    if (!order) {
+        return (
+            <AppShell title="Order Not Found">
+                 <Card>
+                    <CardHeader>
+                        <Button variant="outline" size="sm" onClick={() => router.back()} className="w-fit">
+                            <ArrowLeft className="mr-2 h-4 w-4" />
+                            Back
+                        </Button>
+                        <CardTitle>Order Not Found</CardTitle>
+                        <CardDescription>The requested order could not be found. It may not exist or is not yet synced.</CardDescription>
+                    </CardHeader>
+                </Card>
+            </AppShell>
+        );
+    }
+
+    return (
+        <AppShell title={`Order ${order.orderId}`}>
+            <div className="space-y-6">
+                 <div className="flex items-center justify-between">
+                    <div className='flex items-center gap-4'>
+                        <Button variant="outline" size="icon" onClick={() => router.back()}>
+                            <ArrowLeft className="h-4 w-4" />
+                        </Button>
+                        <div>
+                            <h2 className="text-2xl font-bold tracking-tight">Order Details</h2>
+                            <p className="text-muted-foreground">Editing order {order.orderId}. Click save when you're done.</p>
+                        </div>
+                    </div>
+                    <Button onClick={handleSave}>
+                        <Save className="mr-2 h-4 w-4" />
+                        Save Changes
+                    </Button>
+                </div>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Core Information</CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="space-y-2">
+                            <Label htmlFor="orderId">Order ID</Label>
+                            <Input id="orderId" value={order.orderId} onChange={(e) => handleInputChange('orderId', e.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="customerName">Customer Name</Label>
+                            <Input id="customerName" value={order.customerName} onChange={(e) => handleInputChange('customerName', e.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="contactNo">Contact No.</Label>
+                            <Input id="contactNo" value={order.contactNo} onChange={(e) => handleInputChange('contactNo', e.target.value)} />
+                        </div>
+                         <div className="space-y-2 md:col-span-2">
+                            <Label htmlFor="customerAddress">Address</Label>
+                            <Input id="customerAddress" value={order.customerAddress} onChange={(e) => handleInputChange('customerAddress', e.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="pincode">Pincode</Label>
+                            <Input id="pincode" value={order.pincode} onChange={(e) => handleInputChange('pincode', e.target.value)} />
+                        </div>
+                        <div className="space-y-2 md:col-span-3">
+                            <Label htmlFor="productOrdered">Product(s)</Label>
+                            <Input id="productOrdered" value={order.productOrdered} onChange={(e) => handleInputChange('productOrdered', e.target.value)} />
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="quantity">Quantity</Label>
+                            <Input id="quantity" type="number" value={order.quantity} onChange={(e) => handleInputChange('quantity', parseInt(e.target.value, 10))} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="price">Price</Label>
+                            <Input id="price" value={order.price} onChange={(e) => handleInputChange('price', e.target.value)} />
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="date">Date</Label>
+                            <Input id="date" type="date" value={order.date} onChange={(e) => handleInputChange('date', e.target.value)} />
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="paymentStatus">Payment Status</Label>
+                            <Input id="paymentStatus" value={order.paymentStatus} onChange={(e) => handleInputChange('paymentStatus', e.target.value)} />
+                        </div>
+                    </CardContent>
+                </Card>
+
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Delivery Tracking</CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="space-y-2">
+                            <Label htmlFor="courierCompanyName">Courier Company</Label>
+                            <Input id="courierCompanyName" value={order.courierCompanyName || ''} onChange={(e) => handleInputChange('courierCompanyName', e.target.value)} />
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="trackingNumber">Tracking No.</Label>
+                            <Input id="trackingNumber" value={order.trackingNumber || ''} onChange={(e) => handleInputChange('trackingNumber', e.target.value)} />
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="estDelivery">Est. Delivery Date</Label>
+                            <Input id="estDelivery" type="date" value={order.estDelivery || ''} onChange={(e) => handleInputChange('estDelivery', e.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="deliveryStatus">Delivery Status</Label>
+                            <Select value={order.deliveryStatus || 'pending'} onValueChange={(value) => handleSelectChange('deliveryStatus', value)}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select Status" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="pending">Pending</SelectItem>
+                                <SelectItem value="dispatched">Dispatched</SelectItem>
+                                <SelectItem value="out-for-delivery">Out for Delivery</SelectItem>
+                                <SelectItem value="delivered">Delivered</SelectItem>
+                                <SelectItem value="failed">Delivery Failed</SelectItem>
+                              </SelectContent>
+                            </Select>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Cancellation</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                             <div className="space-y-2">
+                                <Label htmlFor="cancellationReason">Reason for Cancellation</Label>
+                                <Input id="cancellationReason" value={order.cancellationReason || ''} onChange={(e) => handleInputChange('cancellationReason', e.target.value)} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="cancellationStatus">Cancellation Status</Label>
+                                <Select value={order.cancellationStatus || 'Pending'} onValueChange={(value) => handleSelectChange('cancellationStatus', value)}>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select Status" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="Pending">Pending</SelectItem>
+                                    <SelectItem value="Processed">Processed</SelectItem>
+                                    <SelectItem value="Failed">Failed</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                            </div>
+                        </CardContent>
+                    </Card>
+                     <Card>
+                        <CardHeader>
+                            <CardTitle>Refund</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                              <div className="space-y-2">
+                                <Label htmlFor="refundAmount">Refund Amount</Label>
+                                <Input id="refundAmount" value={order.refundAmount || ''} onChange={(e) => handleInputChange('refundAmount', e.target.value)} />
+                            </div>
+                             <div className="space-y-2">
+                                <Label htmlFor="refundReason">Reason for Refund</Label>
+                                <Input id="refundReason" value={order.refundReason || ''} onChange={(e) => handleInputChange('refundReason', e.target.value)} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="refundStatus">Refund Status</Label>
+                                <Select value={order.refundStatus || 'Pending'} onValueChange={(value) => handleSelectChange('refundStatus', value)}>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select Status" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="Pending">Pending</SelectItem>
+                                    <SelectItem value="Processed">Processed</SelectItem>
+                                    <SelectItem value="Failed">Failed</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
+        </AppShell>
+    );
+}

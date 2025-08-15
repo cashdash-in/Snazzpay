@@ -138,7 +138,7 @@ export default function DeliveryTrackingPage() {
             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                 <div>
                     <CardTitle>Delivery Management</CardTitle>
-                    <CardDescription>Manage dispatch details and delivery status. All fields are manually editable.</CardDescription>
+                    <CardDescription>Manage dispatch details and delivery status. Click an Order ID to see full details.</CardDescription>
                 </div>
                 <Link href="/orders/new" passHref>
                     <Button>
@@ -174,12 +174,9 @@ export default function DeliveryTrackingPage() {
                   {orders.map((order) => (
                     <TableRow key={order.id}>
                       <TableCell>
-                        <Input
-                            value={order.orderId}
-                            onChange={(e) => handleFieldChange(order.id, 'orderId', e.target.value)}
-                            className="w-28"
-                            placeholder="e.g. #1001"
-                        />
+                        <Link href={`/orders/${order.id}`} passHref>
+                            <span className="font-medium text-primary hover:underline cursor-pointer">{order.orderId}</span>
+                        </Link>
                       </TableCell>
                       <TableCell>
                          <Input

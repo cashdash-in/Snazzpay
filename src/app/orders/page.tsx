@@ -175,7 +175,7 @@ export default function OrdersPage() {
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
                 <CardTitle>All Orders</CardTitle>
-                <CardDescription>View and manage all orders. All fields are manually editable.</CardDescription>
+                <CardDescription>View and manage all orders. Click an Order ID to see full details.</CardDescription>
             </div>
             <Link href="/orders/new" passHref>
               <Button>
@@ -211,7 +211,11 @@ export default function OrdersPage() {
               <TableBody>
                 {orders.map((order) => (
                   <TableRow key={order.id}>
-                    <TableCell><Input value={order.orderId} onChange={(e) => handleFieldChange(order.id, 'orderId', e.target.value)} className="w-28" /></TableCell>
+                    <TableCell>
+                        <Link href={`/orders/${order.id}`} passHref>
+                            <span className="font-medium text-primary hover:underline cursor-pointer">{order.orderId}</span>
+                        </Link>
+                    </TableCell>
                     <TableCell><Input value={order.customerName} onChange={(e) => handleFieldChange(order.id, 'customerName', e.target.value)} className="w-40" /></TableCell>
                     <TableCell><Input value={order.customerAddress} onChange={(e) => handleFieldChange(order.id, 'customerAddress', e.target.value)} className="w-48 text-xs" /></TableCell>
                     <TableCell><Input value={order.pincode} onChange={(e) => handleFieldChange(order.id, 'pincode', e.target.value)} className="w-24" /></TableCell>

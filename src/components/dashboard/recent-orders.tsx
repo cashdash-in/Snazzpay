@@ -25,6 +25,7 @@ import { Send, Loader2, Save } from "lucide-react";
 import type { EditableOrder } from "@/app/orders/page";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import Link from 'next/link';
 
 
 type OrderStatus = 'pending' | 'dispatched' | 'out-for-delivery' | 'delivered' | 'failed';
@@ -128,7 +129,7 @@ export function RecentOrders() {
     <Card>
       <CardHeader>
         <CardTitle>Recent Orders Dashboard</CardTitle>
-        <CardDescription>Quickly update tracking for your 5 most recent orders.</CardDescription>
+        <CardDescription>Quickly update tracking for your 5 most recent orders. Click an Order ID to see full details.</CardDescription>
       </CardHeader>
       <CardContent>
         {loading ? (
@@ -152,7 +153,11 @@ export function RecentOrders() {
           <TableBody>
             {orders.map((order) => (
               <TableRow key={order.id}>
-                <TableCell className="font-medium">{order.orderId}</TableCell>
+                <TableCell>
+                  <Link href={`/orders/${order.id}`} passHref>
+                    <span className="font-medium text-primary hover:underline cursor-pointer">{order.orderId}</span>
+                  </Link>
+                </TableCell>
                 <TableCell>{order.customerName}</TableCell>
                 <TableCell className="text-xs">
                     <div>{order.contactNo}</div>
