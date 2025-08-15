@@ -49,11 +49,23 @@ export default function TermsAndConditionsPage() {
                         <p>
                            It is your responsibility to ensure you have sufficient funds in your account for the pre-authorization. You are also responsible for being available to receive the delivery and paying the full amount in cash at the time of delivery.
                         </p>
-                         <h3 className="font-semibold text-lg text-foreground">6. Limitation of Liability</h3>
+
+                        <h3 className="font-semibold text-lg text-foreground">6. Refund Policy</h3>
+                        <p>
+                            The pre-authorized amount captured under the conditions outlined in Section 4 serves to cover processing, shipping, and handling fees for failed deliveries and is therefore non-refundable. This does not affect your rights regarding refunds for the product itself as per our standard company refund policy, which applies in cases of defective or incorrect items. If you pay for your order via cash on delivery, the authorization is simply released and no refund is necessary.
+                        </p>
+
+                        <h3 className="font-semibold text-lg text-foreground">7. Delivery Policy</h3>
+                        <p>
+                           We will process and ship your order according to our standard delivery timelines. Our courier partners will make several attempts to deliver your order to the address provided. If you are unavailable to receive the order, it may be returned to us, which could result in the capture of your pre-authorized amount. It is your responsibility to provide an accurate delivery address and be present to receive the order.
+                        </p>
+
+                         <h3 className="font-semibold text-lg text-foreground">8. Limitation of Liability</h3>
                         <p>
                            Snazzify shall not be liable for any issues arising from the eMandate process that are not directly within our control, including but not limited to, actions by Razorpay or your bank. Our liability is limited to the value of the order.
                         </p>
-                        <h3 className="font-semibold text-lg text-foreground">7. Changes to Terms</h3>
+
+                        <h3 className="font-semibold text-lg text-foreground">9. Changes to Terms</h3>
                         <p>
                            We reserve the right to modify these terms and conditions at any time. We will notify you of any changes by posting the new terms on this page.
                         </p>
@@ -67,4 +79,3 @@ export default function TermsAndConditionsPage() {
         </div>
     );
 }
-
