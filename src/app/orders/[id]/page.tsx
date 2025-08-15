@@ -61,7 +61,7 @@ export default function OrderDetailPage() {
     const router = useRouter();
     const params = useParams();
     const { toast } = useToast();
-    const id = params.id as string;
+    const orderIdParam = params.id as string;
     
     const [order, setOrder] = useState<EditableOrder | null>(null);
     const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null);
@@ -69,46 +69,30 @@ export default function OrderDetailPage() {
     const [isCharging, setIsCharging] = useState(false);
 
     useEffect(() => {
-        if (!id) return;
+        if (!orderIdParam) return;
         setLoading(true);
         
         async function loadOrder() {
             let foundOrder: EditableOrder | null = null;
-            let shopifyId: string | null = null;
-            
-            // The `id` from the URL can be either a Shopify GID, a numeric Shopify ID, or a manual UUID.
-            // We need to handle all cases.
-            if (id.startsWith('gid://')) {
-                shopifyId = id;
-            } else if (!isNaN(Number(id))) {
-                 shopifyId = `gid://shopify/Order/${id}`;
-            }
+            const decodedOrderId = decodeURIComponent(orderIdParam);
 
-            // 1. Check Shopify first if we have a potential ID
-            if (shopifyId) {
-                try {
-                    const shopifyOrders = await getOrders();
-                    const shopifyOrder = shopifyOrders.find(o => o.id.toString() === id.replace('gid://shopify/Order/', ''));
-                     if (shopifyOrder) {
-                        foundOrder = mapShopifyOrderToEditableOrder(shopifyOrder);
-                    }
-                } catch (e) {
-                    console.error("Could not fetch Shopify orders", e);
-                }
+            // 1. Fetch all orders (Shopify and Manual)
+            let allOrders: EditableOrder[] = [];
+             try {
+                const shopifyOrders = await getOrders();
+                allOrders = allOrders.concat(shopifyOrders.map(mapShopifyOrderToEditableOrder));
+            } catch (e) {
+                console.error("Could not fetch Shopify orders", e);
             }
-
-            // 2. If not found in Shopify, check manual orders from localStorage
-            if (!foundOrder) {
-                const manualOrdersJSON = localStorage.getItem('manualOrders');
-                const manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
-                const manualOrder = manualOrders.find(o => o.id === id);
-                if (manualOrder) {
-                    foundOrder = manualOrder;
-                }
+            const manualOrdersJSON = localStorage.getItem('manualOrders');
+            if (manualOrdersJSON) {
+                allOrders = allOrders.concat(JSON.parse(manualOrdersJSON));
             }
             
+            // 2. Find the correct order by matching the `orderId` (e.g., "#1001")
+            foundOrder = allOrders.find(o => o.orderId === decodedOrderId) || null;
 
-            // 3. Apply any saved overrides from localStorage
+            // 3. Apply any saved overrides from localStorage using the internal ID
             if (foundOrder) {
                  const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${foundOrder.id}`) || '{}');
                  foundOrder = {...foundOrder, ...storedOverrides};
@@ -129,7 +113,7 @@ export default function OrderDetailPage() {
         
         loadOrder();
 
-    }, [id]);
+    }, [orderIdParam]);
 
     const handleInputChange = (field: keyof EditableOrder, value: string | number) => {
         if (!order) return;
@@ -144,6 +128,7 @@ export default function OrderDetailPage() {
     const handleSave = () => {
         if (!order) return;
 
+        // Use the internal `id` for saving, not the display `orderId`
         if (order.id.startsWith('gid://') || /^\d+$/.test(order.id)) {
           const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
           const newOverrides = { ...storedOverrides, ...order };
@@ -186,7 +171,7 @@ export default function OrderDetailPage() {
             const updatedOrder = { ...order, paymentStatus: 'Paid' };
             setOrder(updatedOrder);
 
-            // Save the payment status change
+            // Save the payment status change using the internal id
             if (updatedOrder.id.startsWith('gid://') || /^\d+$/.test(updatedOrder.id)) {
                 const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${updatedOrder.id}`) || '{}');
                 const newOverrides = { ...storedOverrides, paymentStatus: 'Paid' };

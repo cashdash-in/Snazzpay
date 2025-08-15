@@ -166,7 +166,8 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                     localStorage.setItem(`payment_info_${orderDetails.orderId}`, JSON.stringify(paymentInfo));
 
                     const newOrder: EditableOrder = {
-                        id: orderDetails.orderId,
+                        // Use a new UUID for the internal `id` to guarantee uniqueness in our list
+                        id: uuidv4(), 
                         orderId: orderDetails.orderId,
                         customerName: customerDetails.name,
                         customerAddress: customerDetails.address,
@@ -181,17 +182,20 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
 
                     const existingOrders = JSON.parse(localStorage.getItem('manualOrders') || '[]');
                     
-                    // Check if an order with this ID already exists to avoid duplicates
-                    const orderExists = existingOrders.some((o: EditableOrder) => o.id === newOrder.id);
+                    // Check if an order with this display orderId already exists to avoid duplicates
+                    const orderExists = existingOrders.some((o: EditableOrder) => o.orderId === newOrder.orderId);
 
                     if (!orderExists) {
                         const updatedOrders = [...existingOrders, newOrder];
                         localStorage.setItem('manualOrders', JSON.stringify(updatedOrders));
                     } else {
-                        // If order exists, just update its status
+                        // If order exists, just update its status and other details
                          const updatedOrders = existingOrders.map((o: EditableOrder) => {
-                            if (o.id === newOrder.id) {
-                                return { ...o, paymentStatus: 'Authorized' };
+                            if (o.orderId === newOrder.orderId) {
+                                // Save authorization status to the order itself
+                                const newOverrides = { ...o, paymentStatus: 'Authorized' };
+                                localStorage.setItem(`order-override-${o.id}`, JSON.stringify(newOverrides));
+                                return newOverrides;
                             }
                             return o;
                         });
@@ -201,6 +205,7 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                     setIsAuthorizing(false);
 
                     setTimeout(() => {
+                        // Redirect to the orders page so the user can see the new entry
                         window.location.href = '/orders';
                     }, 1000);
                 },
