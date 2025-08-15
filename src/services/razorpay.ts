@@ -76,14 +76,6 @@ async function razorpayFetch(endpoint: string, options: RequestInit = {}) {
 
 export async function createSubscriptionLink(maxAmount: number, description: string): Promise<{ success: boolean, url?: string, error?: string }> {
     try {
-        const customer = await razorpayFetch('customers', {
-            method: 'POST',
-            body: JSON.stringify({
-                name: "Secure COD Customer",
-                email: "secure.cod@example.com", // Generic email
-            })
-        });
-
         const orderPayload = {
             amount: 100, // Verification amount of Re. 1
             currency: 'INR',
@@ -109,8 +101,8 @@ export async function createSubscriptionLink(maxAmount: number, description: str
             currency: "INR",
             description: `eMandate for ${description}`,
             customer: {
-                name: customer.name,
-                email: customer.email,
+                name: "Secure COD Customer",
+                email: "secure.cod@example.com",
             },
             notes: {
                 orderId: order.id,
