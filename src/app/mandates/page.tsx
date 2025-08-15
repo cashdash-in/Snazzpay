@@ -4,82 +4,98 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { MandateStatus } from "@/components/mandate-status";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { FileDown, Search } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuCheckboxItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
-import { getMandates, getCustomer, type Mandate as RazorpayMandate } from "@/services/razorpay";
+import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import { format } from "date-fns";
 import { useEffect, useState } from "react";
+import type { EditableOrder } from "../orders/page";
+import { Loader2 } from "lucide-react";
+import Link from 'next/link';
 
 type Mandate = {
-  mandateId: string;
+  orderId: string;
+  orderLink: string;
   customerName: string;
-  amount: number;
+  amount: string;
   status: 'active' | 'pending' | 'failed' | 'completed' | 'halted' | 'cancelled' | 'created';
   createdAt: string;
   nextBilling: string;
 };
 
-
-function mapRazorpayMandate(mandate: RazorpayMandate, customerName: string): Mandate {
-    let status: Mandate['status'] = 'pending';
-    // Mapping Razorpay status to our app's status
-    switch (mandate.status) {
-        case 'active':
-            status = 'active';
-            break;
+// Map payment status from order to a mandate status
+function mapPaymentStatusToMandateStatus(paymentStatus: string): Mandate['status'] {
+    switch (paymentStatus.toLowerCase()) {
+        case 'authorized':
+            return 'active';
+        case 'paid':
+            return 'completed';
         case 'pending':
-            status = 'pending';
-            break;
-        case 'completed':
-            status = 'completed';
-            break;
-        case 'halted':
-            status = 'halted';
-            break;
-        case 'cancelled':
-            status = 'cancelled';
-            break;
-        case 'created':
-            status = 'created';
-            break;
-        case 'failed':
-            status = 'failed';
-            break;
+            return 'pending';
+        case 'voided':
+            return 'cancelled';
+        case 'refunded':
+            return 'halted';
+        default:
+            return 'created';
     }
-
-    return {
-        mandateId: mandate.id,
-        customerName: customerName,
-        amount: mandate.max_amount / 100, // Assuming amount is in paise
-        status: status,
-        createdAt: format(new Date(mandate.created_at * 1000), "yyyy-MM-dd"),
-        nextBilling: mandate.next_debit_date ? format(new Date(mandate.next_debit_date * 1000), "yyyy-MM-dd") : 'N/A',
-    };
 }
 
 
 export default function MandatesPage() {
   const [allMandates, setAllMandates] = useState<Mandate[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchMandates() {
-        const razorpayMandates = await getMandates();
-        const mandates = await Promise.all(razorpayMandates.map(async (mandate) => {
-            const customer = await getCustomer(mandate.customer_id);
-            return mapRazorpayMandate(mandate, customer?.name || 'Unknown Customer');
+    async function fetchOrders() {
+        setLoading(true);
+        let combinedOrders: EditableOrder[] = [];
+        try {
+            const shopifyOrders = await getOrders();
+            const shopifyEditableOrders: EditableOrder[] = shopifyOrders.map(o => ({
+                id: o.id.toString(),
+                orderId: o.name,
+                customerName: `${o.customer?.first_name || ''} ${o.customer?.last_name || ''}`.trim(),
+                customerAddress: '',
+                pincode: '',
+                contactNo: o.customer?.phone || 'N/A',
+                productOrdered: o.line_items.map(item => item.title).join(', '),
+                quantity: o.line_items.reduce((sum, item) => sum + item.quantity, 0),
+                price: o.total_price,
+                paymentStatus: o.financial_status || 'pending',
+                date: format(new Date(o.created_at), "yyyy-MM-dd"),
+            }));
+            combinedOrders = [...shopifyEditableOrders];
+        } catch (error) {
+            console.error("Failed to fetch Shopify orders:", error);
+        }
+
+        try {
+            const manualOrdersJSON = localStorage.getItem('manualOrders');
+            const manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
+            combinedOrders = [...combinedOrders, ...manualOrders];
+        } catch (error) {
+            console.error("Failed to load manual orders:", error);
+        }
+
+        // Apply overrides
+        const ordersWithOverrides = combinedOrders.map(order => {
+          const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
+          return { ...order, ...storedOverrides };
+        });
+
+        const mandates: Mandate[] = ordersWithOverrides.map(order => ({
+            orderId: order.orderId,
+            orderLink: `/orders/${order.id}`,
+            customerName: order.customerName,
+            amount: order.price,
+            status: mapPaymentStatusToMandateStatus(order.paymentStatus),
+            createdAt: order.date,
+            nextBilling: 'N/A' // This data isn't available on the order
         }));
+
         setAllMandates(mandates);
+        setLoading(false);
     }
-    fetchMandates();
+    fetchOrders();
   }, []);
 
   return (
@@ -89,38 +105,20 @@ export default function MandatesPage() {
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
               <CardTitle>Mandate Management</CardTitle>
-              <CardDescription>View, search, and manage all your customer mandates.</CardDescription>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Search mandates..." className="pl-8" />
-              </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline">Filter Status</Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>Status</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuCheckboxItem checked>Active</DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem>Pending</DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem>Failed</DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem>Completed</DropdownMenuCheckboxItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <Button variant="outline">
-                <FileDown className="mr-2 h-4 w-4" />
-                Export
-              </Button>
+              <CardDescription>View status of all order payment authorizations. Status is derived from the order's payment status.</CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent>
+          {loading ? (
+             <div className="flex justify-center items-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Mandate ID</TableHead>
+                <TableHead>Order ID</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Max Amount</TableHead>
                 <TableHead className="text-center">Status</TableHead>
@@ -130,10 +128,14 @@ export default function MandatesPage() {
             </TableHeader>
             <TableBody>
               {allMandates.map((mandate) => (
-                <TableRow key={mandate.mandateId}>
-                  <TableCell className="font-mono text-xs">{mandate.mandateId}</TableCell>
+                <TableRow key={mandate.orderId}>
+                  <TableCell>
+                      <Link href={mandate.orderLink} passHref>
+                          <span className="font-medium text-primary hover:underline cursor-pointer">{mandate.orderId}</span>
+                      </Link>
+                  </TableCell>
                   <TableCell>{mandate.customerName}</TableCell>
-                  <TableCell>₹{mandate.amount.toFixed(2)}</TableCell>
+                  <TableCell>₹{mandate.amount}</TableCell>
                   <TableCell className="text-center">
                     <MandateStatus status={mandate.status} />
                   </TableCell>
@@ -143,6 +145,7 @@ export default function MandatesPage() {
               ))}
             </TableBody>
           </Table>
+          )}
         </CardContent>
       </Card>
     </AppShell>
