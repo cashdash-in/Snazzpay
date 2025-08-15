@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import Script from 'next/script';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -11,8 +12,10 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Loader2, HelpCircle } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
-import { createSubscriptionLink } from '@/services/razorpay';
 
+// NOTE: It is safe to expose the Razorpay Key ID on the client side.
+// It is used to initialize the Razorpay Checkout.
+const RAZORPAY_KEY_ID = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_live_R5cgT6cx4nfFJd";
 
 export default function SecureCodPage() {
     const searchParams = useSearchParams();
@@ -79,26 +82,72 @@ export default function SecureCodPage() {
             return;
         }
 
-        setIsCreatingLink(true);
-        try {
-            const result = await createSubscriptionLink(totalAmount, orderDetails.productName);
-
-            if (result.success && result.url) {
-                window.location.href = result.url;
-            } else {
-                toast({
-                    variant: 'destructive',
-                    title: 'Failed to Create Mandate Link',
-                    description: result.error || 'An unknown error occurred. Please try again.',
-                });
-            }
-        } catch (error: any) {
-             toast({
+        if (!RAZORPAY_KEY_ID) {
+            toast({
                 variant: 'destructive',
-                title: 'Error',
-                description: error.message || 'An unexpected error occurred.',
+                title: 'Configuration Error',
+                description: 'Razorpay Key ID is not configured.',
             });
-        } finally {
+            return;
+        }
+        
+        setIsCreatingLink(true);
+
+        const options = {
+            key: RAZORPAY_KEY_ID,
+            amount: totalAmount * 100, // amount in the smallest currency unit
+            currency: "INR",
+            name: "Snazzify Secure COD",
+            description: `Mandate for ${orderDetails.productName}`,
+            // This is the key part for creating a mandate
+            recurring: "initial",
+            notes: {
+                "name": orderDetails.productName,
+                "quantity": orderDetails.quantity.toString(),
+            },
+            callback_url: `${window.location.origin}/payment-success`, // Redirect URL after payment
+            handler: function (response: any){
+                // This function is called when the payment is successful.
+                // You can handle the success response here, e.g., save the payment ID.
+                toast({
+                    title: 'Authorization Successful!',
+                    description: `Payment ID: ${response.razorpay_payment_id}`,
+                });
+                // Redirect or update UI
+                window.location.href = `/payment-success?payment_id=${response.razorpay_payment_id}`;
+            },
+            prefill: {
+                // You can prefill customer details here if you have them
+                name: "Customer Name",
+                email: "customer@example.com",
+                contact: "9999999999"
+            },
+            theme: {
+                color: "#5a31f4"
+            },
+             modal: {
+                ondismiss: function() {
+                    setIsCreatingLink(false);
+                     toast({
+                        variant: 'destructive',
+                        title: 'Authorization Cancelled',
+                        description: 'The authorization process was cancelled.',
+                    });
+                }
+            }
+        };
+
+        try {
+            // @ts-ignore
+            const rzp = new window.Razorpay(options);
+            rzp.open();
+        } catch(e) {
+            console.error("Razorpay SDK Error:", e);
+            toast({
+                variant: 'destructive',
+                title: 'SDK Error',
+                description: 'Could not initialize Razorpay Checkout. Please check the console.',
+            });
             setIsCreatingLink(false);
         }
     };
@@ -127,80 +176,83 @@ export default function SecureCodPage() {
     }
 
     return (
-        <div className="flex items-center justify-center min-h-screen bg-transparent p-4">
-            <Card className="w-full max-w-md shadow-lg">
-                <CardHeader className="text-center">
-                    <CardTitle>Secure Your COD Order</CardTitle>
-                    <CardDescription>Confirm your order details and authorize a hold on your card. You will only be charged if you refuse delivery.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="border rounded-lg p-4 space-y-3">
-                        <div className="flex justify-between items-center">
-                            <Label htmlFor='productName' className="text-muted-foreground">Product/Order:</Label>
-                            <Input 
-                                id="productName"
-                                value={orderDetails.productName}
-                                onChange={(e) => handleDetailChange('productName', e.target.value)}
-                                className="w-48 text-right"
-                                placeholder="e.g. Order #1001"
-                            />
+        <>
+            <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
+            <div className="flex items-center justify-center min-h-screen bg-transparent p-4">
+                <Card className="w-full max-w-md shadow-lg">
+                    <CardHeader className="text-center">
+                        <CardTitle>Secure Your COD Order</CardTitle>
+                        <CardDescription>Confirm your order details and authorize a hold on your card. You will only be charged if you refuse delivery.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="border rounded-lg p-4 space-y-3">
+                            <div className="flex justify-between items-center">
+                                <Label htmlFor='productName' className="text-muted-foreground">Product/Order:</Label>
+                                <Input 
+                                    id="productName"
+                                    value={orderDetails.productName}
+                                    onChange={(e) => handleDetailChange('productName', e.target.value)}
+                                    className="w-48 text-right"
+                                    placeholder="e.g. Order #1001"
+                                />
+                            </div>
+                             <div className="flex justify-between items-center">
+                                <Label htmlFor='baseAmount' className="text-muted-foreground">Amount:</Label>
+                                 <Input 
+                                    id="baseAmount"
+                                    type="number"
+                                    value={orderDetails.baseAmount}
+                                    onChange={(e) => handleDetailChange('baseAmount', e.target.value)}
+                                    className="w-32 text-right"
+                                    placeholder="0.00"
+                                />
+                            </div>
+                            <div className="flex justify-between items-center">
+                                <Label htmlFor="quantity" className="text-muted-foreground">Quantity:</Label>
+                                <Input 
+                                    id="quantity"
+                                    type="number"
+                                    value={orderDetails.quantity}
+                                    onChange={handleQuantityChange}
+                                    className="w-20 text-center"
+                                    min="1"
+                                />
+                            </div>
+                            <div className="flex justify-between items-center text-lg">
+                                <span className="text-muted-foreground">Total Amount:</span>
+                                <span className="font-bold">₹{totalAmount.toFixed(2)}</span>
+                            </div>
                         </div>
-                         <div className="flex justify-between items-center">
-                            <Label htmlFor='baseAmount' className="text-muted-foreground">Amount:</Label>
-                             <Input 
-                                id="baseAmount"
-                                type="number"
-                                value={orderDetails.baseAmount}
-                                onChange={(e) => handleDetailChange('baseAmount', e.target.value)}
-                                className="w-32 text-right"
-                                placeholder="0.00"
-                            />
-                        </div>
-                        <div className="flex justify-between items-center">
-                            <Label htmlFor="quantity" className="text-muted-foreground">Quantity:</Label>
-                            <Input 
-                                id="quantity"
-                                type="number"
-                                value={orderDetails.quantity}
-                                onChange={handleQuantityChange}
-                                className="w-20 text-center"
-                                min="1"
-                            />
-                        </div>
-                        <div className="flex justify-between items-center text-lg">
-                            <span className="text-muted-foreground">Total Amount:</span>
-                            <span className="font-bold">₹{totalAmount.toFixed(2)}</span>
-                        </div>
-                    </div>
-                     <div className="text-center">
-                        <Link href="/faq" passHref>
-                           <span className="text-sm text-primary hover:underline cursor-pointer inline-flex items-center gap-1">
-                                <HelpCircle className="h-4 w-4" />
-                                Frequently Asked Questions
-                            </span>
-                        </Link>
-                    </div>
-                     <div className="flex items-center space-x-2 pt-2">
-                        <Checkbox id="terms" checked={agreed} onCheckedChange={(checked) => setAgreed(checked as boolean)} />
-                        <Label htmlFor="terms" className="text-sm text-muted-foreground">
-                            I agree to the{" "}
-                            <Link href="/terms-and-conditions" target="_blank" className="underline text-primary">
-                                Terms and Conditions
+                         <div className="text-center">
+                            <Link href="/faq" passHref>
+                               <span className="text-sm text-primary hover:underline cursor-pointer inline-flex items-center gap-1">
+                                    <HelpCircle className="h-4 w-4" />
+                                    Frequently Asked Questions
+                                </span>
                             </Link>
-                            .
-                        </Label>
-                    </div>
-                    <p className="text-xs text-muted-foreground text-center">
-                        By clicking the button below, you agree to authorize a temporary hold of ₹{totalAmount.toFixed(2)} on your card via Razorpay eMandate. This hold may be partially captured for a shipping fee if the order is canceled after dispatch.
-                    </p>
-                </CardContent>
-                <CardFooter>
-                    <Button className="w-full" onClick={handlePayment} disabled={!agreed || isCreatingLink}>
-                        {isCreatingLink && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Authorize with Razorpay
-                    </Button>
-                </CardFooter>
-            </Card>
-        </div>
+                        </div>
+                         <div className="flex items-center space-x-2 pt-2">
+                            <Checkbox id="terms" checked={agreed} onCheckedChange={(checked) => setAgreed(checked as boolean)} />
+                            <Label htmlFor="terms" className="text-sm text-muted-foreground">
+                                I agree to the{" "}
+                                <Link href="/terms-and-conditions" target="_blank" className="underline text-primary">
+                                    Terms and Conditions
+                                </Link>
+                                .
+                            </Label>
+                        </div>
+                        <p className="text-xs text-muted-foreground text-center">
+                            By clicking the button below, you agree to authorize a temporary hold of ₹{totalAmount.toFixed(2)} on your card via Razorpay eMandate. This hold may be partially captured for a shipping fee if the order is canceled after dispatch.
+                        </p>
+                    </CardContent>
+                    <CardFooter>
+                        <Button className="w-full" onClick={handlePayment} disabled={!agreed || isCreatingLink}>
+                            {isCreatingLink && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Authorize with Razorpay
+                        </Button>
+                    </CardFooter>
+                </Card>
+            </div>
+        </>
     );
 }
