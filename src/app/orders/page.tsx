@@ -5,10 +5,12 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import { format } from "date-fns";
 import { useState, useEffect } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, PlusCircle, Trash2 } from "lucide-react";
+import { v4 as uuidv4 } from 'uuid';
 
 type EditableOrder = {
   id: string; // Internal unique ID for React key
@@ -90,12 +92,42 @@ export default function OrdersPage() {
     );
   };
 
+  const handleAddOrder = () => {
+    const newOrder: EditableOrder = {
+        id: uuidv4(),
+        orderId: '',
+        customerName: '',
+        customerAddress: '',
+        pincode: '',
+        contactNo: '',
+        productOrdered: '',
+        quantity: 1,
+        price: '0.00',
+        paymentStatus: 'Pending',
+        date: format(new Date(), 'yyyy-MM-dd'),
+    };
+    setOrders(prevOrders => [newOrder, ...prevOrders]);
+  };
+
+  const handleRemoveOrder = (orderId: string) => {
+    setOrders(prevOrders => prevOrders.filter(order => order.id !== orderId));
+  };
+
+
   return (
     <AppShell title="All Orders">
       <Card>
         <CardHeader>
-          <CardTitle>All Orders</CardTitle>
-          <CardDescription>View and manage all orders from your Shopify store. All fields are manually editable.</CardDescription>
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div>
+                <CardTitle>All Orders</CardTitle>
+                <CardDescription>View and manage all orders from your Shopify store. All fields are manually editable.</CardDescription>
+            </div>
+            <Button onClick={handleAddOrder}>
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Add Order
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -103,6 +135,7 @@ export default function OrdersPage() {
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -116,6 +149,7 @@ export default function OrdersPage() {
                   <TableHead>Price</TableHead>
                   <TableHead>Payment Status</TableHead>
                   <TableHead>Date</TableHead>
+                  <TableHead className="text-center">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -127,14 +161,20 @@ export default function OrdersPage() {
                     <TableCell><Input value={order.pincode} onChange={(e) => handleFieldChange(order.id, 'pincode', e.target.value)} className="w-24" /></TableCell>
                     <TableCell><Input value={order.contactNo} onChange={(e) => handleFieldChange(order.id, 'contactNo', e.target.value)} className="w-32" /></TableCell>
                     <TableCell><Input value={order.productOrdered} onChange={(e) => handleFieldChange(order.id, 'productOrdered', e.target.value)} className="w-48" /></TableCell>
-                    <TableCell><Input type="number" value={order.quantity} onChange={(e) => handleFieldChange(order.id, 'quantity', parseInt(e.target.value, 10))} className="w-20" /></TableCell>
+                    <TableCell><Input type="number" value={order.quantity} onChange={(e) => handleFieldChange(order.id, 'quantity', parseInt(e.target.value, 10) || 0)} className="w-20" /></TableCell>
                     <TableCell><Input value={order.price} onChange={(e) => handleFieldChange(order.id, 'price', e.target.value)} className="w-24" /></TableCell>
                     <TableCell><Input value={order.paymentStatus} onChange={(e) => handleFieldChange(order.id, 'paymentStatus', e.target.value)} className="w-32" /></TableCell>
                     <TableCell><Input type="date" value={order.date} onChange={(e) => handleFieldChange(order.id, 'date', e.target.value)} className="w-32" /></TableCell>
+                    <TableCell className="text-center">
+                        <Button variant="destructive" size="icon" onClick={() => handleRemoveOrder(order.id)}>
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

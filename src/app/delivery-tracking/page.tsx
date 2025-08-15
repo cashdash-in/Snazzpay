@@ -45,7 +45,7 @@ function mapShopifyOrderToEditableOrder(order: ShopifyOrder): EditableOrder {
         customerName: customerName,
         customerAddress: formatAddress(order.shipping_address),
         pincode: order.shipping_address?.zip || 'N/A',
-        contactNo: customer?.phone || 'N/A',
+        contactNo: order.customer?.phone || 'N/A',
         trackingNumber: '',
         courierCompanyName: '',
         status: 'pending',
@@ -124,118 +124,120 @@ export default function DeliveryTrackingPage() {
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
             ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Order ID</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Address</TableHead>
-                <TableHead>Pincode</TableHead>
-                <TableHead>Contact</TableHead>
-                <TableHead>Courier Company</TableHead>
-                <TableHead>Tracking No.</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Est. Delivery</TableHead>
-                <TableHead className="text-center w-[200px]">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {orders.map((order) => (
-                <TableRow key={order.id}>
-                  <TableCell>
-                    <Input
-                        value={order.orderId}
-                        onChange={(e) => handleFieldChange(order.id, 'orderId', e.target.value)}
-                        className="w-28"
-                        placeholder="e.g. #1001"
-                    />
-                  </TableCell>
-                  <TableCell>
-                     <Input
-                        value={order.customerName}
-                        onChange={(e) => handleFieldChange(order.id, 'customerName', e.target.value)}
-                        className="w-40"
-                        placeholder="Customer Name"
-                    />
-                  </TableCell>
-                  <TableCell>
-                     <Input
-                        value={order.customerAddress}
-                        onChange={(e) => handleFieldChange(order.id, 'customerAddress', e.target.value)}
-                        className="w-48 text-xs"
-                         placeholder="Shipping Address"
-                    />
-                  </TableCell>
-                  <TableCell>
-                     <Input
-                        value={order.pincode}
-                        onChange={(e) => handleFieldChange(order.id, 'pincode', e.target.value)}
-                        className="w-24"
-                        placeholder="Pincode"
-                    />
-                  </TableCell>
-                  <TableCell>
-                     <Input
-                        value={order.contactNo}
-                        onChange={(e) => handleFieldChange(order.id, 'contactNo', e.target.value)}
-                        className="w-32"
-                        placeholder="Contact No."
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Input 
-                        placeholder="Courier Name" 
-                        className="w-40" 
-                        value={order.courierCompanyName}
-                        onChange={(e) => handleFieldChange(order.id, 'courierCompanyName', e.target.value)}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Input 
-                        placeholder="Enter Tracking No." 
-                        className="w-40" 
-                        value={order.trackingNumber}
-                        onChange={(e) => handleFieldChange(order.id, 'trackingNumber', e.target.value)}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Select
-                        value={order.status}
-                        onValueChange={(value: OrderStatus) => handleFieldChange(order.id, 'status', value)}
-                    >
-                      <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="Select Status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="dispatched">Dispatched</SelectItem>
-                        <SelectItem value="out-for-delivery">Out for Delivery</SelectItem>
-                        <SelectItem value="delivered">Delivered</SelectItem>
-                        <SelectItem value="failed">Delivery Failed</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell>
-                     <Input 
-                        type="date" 
-                        className="w-40" 
-                        value={order.estDelivery}
-                        onChange={(e) => handleFieldChange(order.id, 'estDelivery', e.target.value)}
-                     />
-                  </TableCell>
-                  <TableCell className="text-center space-x-2">
-                    <Button variant="outline" size="sm">
-                      <Send className="mr-2 h-4 w-4" />
-                      Notify
-                    </Button>
-                    <Button variant="destructive" size="icon" onClick={() => handleRemoveOrder(order.id)}>
-                        <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Order ID</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Address</TableHead>
+                    <TableHead>Pincode</TableHead>
+                    <TableHead>Contact</TableHead>
+                    <TableHead>Courier Company</TableHead>
+                    <TableHead>Tracking No.</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Est. Delivery</TableHead>
+                    <TableHead className="text-center w-[200px]">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {orders.map((order) => (
+                    <TableRow key={order.id}>
+                      <TableCell>
+                        <Input
+                            value={order.orderId}
+                            onChange={(e) => handleFieldChange(order.id, 'orderId', e.target.value)}
+                            className="w-28"
+                            placeholder="e.g. #1001"
+                        />
+                      </TableCell>
+                      <TableCell>
+                         <Input
+                            value={order.customerName}
+                            onChange={(e) => handleFieldChange(order.id, 'customerName', e.target.value)}
+                            className="w-40"
+                            placeholder="Customer Name"
+                        />
+                      </TableCell>
+                      <TableCell>
+                         <Input
+                            value={order.customerAddress}
+                            onChange={(e) => handleFieldChange(order.id, 'customerAddress', e.target.value)}
+                            className="w-48 text-xs"
+                             placeholder="Shipping Address"
+                        />
+                      </TableCell>
+                      <TableCell>
+                         <Input
+                            value={order.pincode}
+                            onChange={(e) => handleFieldChange(order.id, 'pincode', e.target.value)}
+                            className="w-24"
+                            placeholder="Pincode"
+                        />
+                      </TableCell>
+                      <TableCell>
+                         <Input
+                            value={order.contactNo}
+                            onChange={(e) => handleFieldChange(order.id, 'contactNo', e.target.value)}
+                            className="w-32"
+                            placeholder="Contact No."
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input 
+                            placeholder="Courier Name" 
+                            className="w-40" 
+                            value={order.courierCompanyName}
+                            onChange={(e) => handleFieldChange(order.id, 'courierCompanyName', e.target.value)}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input 
+                            placeholder="Enter Tracking No." 
+                            className="w-40" 
+                            value={order.trackingNumber}
+                            onChange={(e) => handleFieldChange(order.id, 'trackingNumber', e.target.value)}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Select
+                            value={order.status}
+                            onValueChange={(value: OrderStatus) => handleFieldChange(order.id, 'status', value)}
+                        >
+                          <SelectTrigger className="w-[180px]">
+                            <SelectValue placeholder="Select Status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="dispatched">Dispatched</SelectItem>
+                            <SelectItem value="out-for-delivery">Out for Delivery</SelectItem>
+                            <SelectItem value="delivered">Delivered</SelectItem>
+                            <SelectItem value="failed">Delivery Failed</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell>
+                         <Input 
+                            type="date" 
+                            className="w-40" 
+                            value={order.estDelivery}
+                            onChange={(e) => handleFieldChange(order.id, 'estDelivery', e.target.value)}
+                         />
+                      </TableCell>
+                      <TableCell className="text-center space-x-2">
+                        <Button variant="outline" size="sm">
+                          <Send className="mr-2 h-4 w-4" />
+                          Notify
+                        </Button>
+                        <Button variant="destructive" size="icon" onClick={() => handleRemoveOrder(order.id)}>
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
