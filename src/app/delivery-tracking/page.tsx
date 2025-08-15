@@ -117,11 +117,41 @@ export default function DeliveryTrackingPage() {
             <TableBody>
               {orders.map((order) => (
                 <TableRow key={order.id}>
-                  <TableCell className="font-medium">{order.orderId}</TableCell>
-                  <TableCell>{order.customerName}</TableCell>
-                  <TableCell className="text-xs max-w-xs truncate">{order.customerAddress}</TableCell>
-                  <TableCell>{order.pincode}</TableCell>
-                  <TableCell>{order.contactNo}</TableCell>
+                  <TableCell>
+                    <Input
+                        value={order.orderId}
+                        onChange={(e) => handleFieldChange(order.id, 'orderId', e.target.value)}
+                        className="w-28"
+                    />
+                  </TableCell>
+                  <TableCell>
+                     <Input
+                        value={order.customerName}
+                        onChange={(e) => handleFieldChange(order.id, 'customerName', e.target.value)}
+                        className="w-40"
+                    />
+                  </TableCell>
+                  <TableCell>
+                     <Input
+                        value={order.customerAddress}
+                        onChange={(e) => handleFieldChange(order.id, 'customerAddress', e.target.value)}
+                        className="w-48 text-xs"
+                    />
+                  </TableCell>
+                  <TableCell>
+                     <Input
+                        value={order.pincode}
+                        onChange={(e) => handleFieldChange(order.id, 'pincode', e.target.value)}
+                        className="w-24"
+                    />
+                  </TableCell>
+                  <TableCell>
+                     <Input
+                        value={order.contactNo}
+                        onChange={(e) => handleFieldChange(order.id, 'contactNo', e.target.value)}
+                        className="w-32"
+                    />
+                  </TableCell>
                   <TableCell>
                     <Input 
                         placeholder="Courier Name" 
