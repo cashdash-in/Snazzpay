@@ -2,100 +2,103 @@
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
-import { format } from "date-fns";
-import { useEffect, useState } from "react";
-import { Send } from "lucide-react";
+import { useState } from "react";
+import { Send, PlusCircle, Trash2 } from "lucide-react";
+import { v4 as uuidv4 } from 'uuid';
 
 type OrderStatus = 'pending' | 'dispatched' | 'out-for-delivery' | 'delivered' | 'failed';
 
 type EditableOrder = {
+  id: string; // Internal ID for React keys
   orderId: string;
   customerName: string;
-  amount: number;
-  date: string;
   trackingNumber: string;
   status: OrderStatus;
   estDelivery: string;
 };
 
-function mapShopifyOrderToEditableOrder(shopifyOrder: ShopifyOrder): EditableOrder {
-    const customer = shopifyOrder.customer;
-    const customerName = customer ? `${customer.first_name || ''} ${customer.last_name || ''}`.trim() : 'N/A';
-    
-    return {
-        orderId: shopifyOrder.name,
-        customerName,
-        amount: parseFloat(shopifyOrder.total_price),
-        date: format(new Date(shopifyOrder.created_at), "yyyy-MM-dd"),
-        trackingNumber: '',
-        status: 'pending',
-        estDelivery: '',
-    };
-}
-
+const createEmptyOrder = (): EditableOrder => ({
+    id: uuidv4(),
+    orderId: '',
+    customerName: '',
+    trackingNumber: '',
+    status: 'pending',
+    estDelivery: '',
+});
 
 export default function DeliveryTrackingPage() {
     const [orders, setOrders] = useState<EditableOrder[]>([]);
 
-    useEffect(() => {
-        async function fetchOrders() {
-            const shopifyOrders = await getOrders();
-            const allOrders = shopifyOrders.map(mapShopifyOrderToEditableOrder);
-            setOrders(allOrders);
-        }
-        fetchOrders();
-    }, []);
-
-    const handleFieldChange = (orderId: string, field: keyof EditableOrder, value: string) => {
+    const handleFieldChange = (internalId: string, field: keyof EditableOrder, value: string) => {
         setOrders(prevOrders =>
             prevOrders.map(order =>
-                order.orderId === orderId ? { ...order, [field]: value } : order
+                order.id === internalId ? { ...order, [field]: value } : order
             )
         );
     };
+
+    const handleAddNewOrder = () => {
+        setOrders(prevOrders => [...prevOrders, createEmptyOrder()]);
+    };
+    
+    const handleRemoveOrder = (internalId: string) => {
+        setOrders(prevOrders => prevOrders.filter(order => order.id !== internalId));
+    }
+
 
   return (
     <AppShell title="Delivery Tracking">
       <Card>
         <CardHeader>
           <CardTitle>Delivery Management</CardTitle>
-          <CardDescription>Update dispatch details and track delivery status for your orders.</CardDescription>
+          <CardDescription>Manually add and manage your orders, update dispatch details, and track delivery status.</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Order ID</TableHead>
+                <TableHead className="w-[150px]">Order ID</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Tracking No.</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Est. Delivery</TableHead>
-                <TableHead className="text-center">Actions</TableHead>
+                <TableHead className="text-center w-[200px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {orders.map((order) => (
-                <TableRow key={order.orderId}>
-                  <TableCell className="font-medium">{order.orderId}</TableCell>
-                  <TableCell>{order.customerName}</TableCell>
+                <TableRow key={order.id}>
+                  <TableCell>
+                      <Input 
+                        placeholder="e.g., #1001"
+                        value={order.orderId}
+                        onChange={(e) => handleFieldChange(order.id, 'orderId', e.target.value)}
+                      />
+                  </TableCell>
+                   <TableCell>
+                      <Input 
+                        placeholder="Customer Name"
+                        value={order.customerName}
+                        onChange={(e) => handleFieldChange(order.id, 'customerName', e.target.value)}
+                      />
+                  </TableCell>
                   <TableCell>
                     <Input 
                         placeholder="Enter Tracking No." 
                         className="w-40" 
                         value={order.trackingNumber}
-                        onChange={(e) => handleFieldChange(order.orderId, 'trackingNumber', e.target.value)}
+                        onChange={(e) => handleFieldChange(order.id, 'trackingNumber', e.target.value)}
                     />
                   </TableCell>
                   <TableCell>
                     <Select
                         value={order.status}
-                        onValueChange={(value: OrderStatus) => handleFieldChange(order.orderId, 'status', value)}
+                        onValueChange={(value: OrderStatus) => handleFieldChange(order.id, 'status', value)}
                     >
                       <SelectTrigger className="w-[180px]">
                         <SelectValue placeholder="Select Status" />
@@ -114,13 +117,16 @@ export default function DeliveryTrackingPage() {
                         type="date" 
                         className="w-40" 
                         value={order.estDelivery}
-                        onChange={(e) => handleFieldChange(order.orderId, 'estDelivery', e.target.value)}
+                        onChange={(e) => handleFieldChange(order.id, 'estDelivery', e.target.value)}
                      />
                   </TableCell>
-                  <TableCell className="text-center">
+                  <TableCell className="text-center space-x-2">
                     <Button variant="outline" size="sm">
                       <Send className="mr-2 h-4 w-4" />
-                      Notify Customer
+                      Notify
+                    </Button>
+                    <Button variant="destructive" size="icon" onClick={() => handleRemoveOrder(order.id)}>
+                        <Trash2 className="h-4 w-4" />
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -128,6 +134,12 @@ export default function DeliveryTrackingPage() {
             </TableBody>
           </Table>
         </CardContent>
+        <CardFooter className="justify-start border-t pt-6">
+            <Button onClick={handleAddNewOrder}>
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Add New Order
+            </Button>
+        </CardFooter>
       </Card>
     </AppShell>
   );
