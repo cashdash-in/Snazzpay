@@ -5,8 +5,6 @@ import { z } from 'zod';
 
 const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || 'rzp_test_xxxxxxxxxxxxxx';
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || 'testsecret';
-// This should be a plan with 'max_amount' enabled, created in your Razorpay dashboard.
-const RAZORPAY_PLAN_ID = process.env.RAZORPAY_PLAN_ID || 'plan_XXXXXXXXXXXXXX';
 
 const MandateSchema = z.object({
     id: z.string(),
@@ -70,19 +68,23 @@ async function razorpayFetch(endpoint: string, options: RequestInit = {}) {
 
 export async function createSubscriptionLink(maxAmount: number, description: string): Promise<{ success: boolean, url?: string, error?: string }> {
     try {
-        if (!RAZORPAY_PLAN_ID.startsWith('plan_')) {
-            throw new Error('Razorpay Plan ID is not configured. Please set RAZORPAY_PLAN_ID in your environment.');
-        }
-
-        // Create a subscription with the plan ID and total count of 1
         const subscriptionPayload = {
-            plan_id: RAZORPAY_PLAN_ID,
-            total_count: 1, // This is for a single charge authorization
+            plan: {
+                period: "yearly",
+                interval: 1,
+                item: {
+                    name: "Secure COD Mandate",
+                    amount: 100, // Nominal amount for the plan, 1 Rupee.
+                    currency: "INR",
+                    description: "Authorization for Secure COD"
+                }
+            },
+            total_count: 1,
             quantity: 1,
+            customer_notify: 0,
             notes: {
                 description: `Secure COD for: ${description}`
             },
-            // This sets the maximum amount that can be charged for this mandate
             subscription_items: [
                 {
                     item: {
@@ -116,11 +118,8 @@ export async function createSubscriptionLink(maxAmount: number, description: str
 
 export async function getMandates(): Promise<Mandate[]> {
     try {
-        if (!RAZORPAY_PLAN_ID.startsWith('plan_')) {
-             console.warn('Razorpay Plan ID is not configured. Mandate fetching may be incorrect.');
-             return [];
-        }
-        const jsonResponse = await razorpayFetch(`subscriptions?plan_id=${RAZORPAY_PLAN_ID}`);
+        // This will fetch all mandates since we don't have a plan_id to filter by
+        const jsonResponse = await razorpayFetch(`subscriptions`);
         const parsed = MandatesResponseSchema.safeParse(jsonResponse);
 
         if (!parsed.success) {
