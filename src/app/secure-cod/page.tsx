@@ -4,7 +4,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import Script from 'next/script';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -35,7 +34,7 @@ export default function SecureCodPage() {
         const name = searchParams.get('name');
         
         if (!amountStr || !name) {
-            setOrderDetails({ productName: '', baseAmount: 0, quantity: 1});
+            setOrderDetails({ productName: 'Sample Product', baseAmount: 1, quantity: 1});
             setLoading(false);
             return;
         }
@@ -100,12 +99,11 @@ export default function SecureCodPage() {
             name: "Snazzify Secure COD",
             description: `Mandate for ${orderDetails.productName}`,
             // This is the key part for creating a mandate
-            recurring: "initial",
+            recurring: 'initial',
             notes: {
                 "name": orderDetails.productName,
                 "quantity": orderDetails.quantity.toString(),
             },
-            callback_url: `${window.location.origin}/payment-success`, // Redirect URL after payment
             handler: function (response: any){
                 // This function is called when the payment is successful.
                 // You can handle the success response here, e.g., save the payment ID.
@@ -113,11 +111,11 @@ export default function SecureCodPage() {
                     title: 'Authorization Successful!',
                     description: `Payment ID: ${response.razorpay_payment_id}`,
                 });
-                // Redirect or update UI
-                window.location.href = `/payment-success?payment_id=${response.razorpay_payment_id}`;
+                // In a real app, you would likely redirect to a success page
+                // that verifies the payment status with your server.
+                 setIsCreatingLink(false);
             },
             prefill: {
-                // You can prefill customer details here if you have them
                 name: "Customer Name",
                 email: "customer@example.com",
                 contact: "9999999999"
@@ -136,6 +134,17 @@ export default function SecureCodPage() {
                 }
             }
         };
+
+        // @ts-ignore
+        if (!window.Razorpay) {
+             toast({
+                variant: 'destructive',
+                title: 'SDK Error',
+                description: 'Razorpay Checkout SDK failed to load. Please check your internet connection and try again.',
+            });
+            setIsCreatingLink(false);
+            return;
+        }
 
         try {
             // @ts-ignore
