@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Loader2 } from "lucide-react";
+import { Loader2, HelpCircle } from "lucide-react";
 import { createSubscriptionLink } from '@/services/razorpay';
 import { useToast } from '@/hooks/use-toast';
 
@@ -138,6 +138,14 @@ export default function SecureCodPage() {
                             <span className="text-muted-foreground">Total Amount:</span>
                             <span className="font-bold">₹{totalAmount.toFixed(2)}</span>
                         </div>
+                    </div>
+                     <div className="text-center">
+                        <Link href="/faq" passHref>
+                           <span className="text-sm text-primary hover:underline cursor-pointer inline-flex items-center gap-1">
+                                <HelpCircle className="h-4 w-4" />
+                                Frequently Asked Questions
+                            </span>
+                        </Link>
                     </div>
                      <div className="flex items-center space-x-2 pt-2">
                         <Checkbox id="terms" checked={agreed} onCheckedChange={(checked) => setAgreed(checked as boolean)} />
