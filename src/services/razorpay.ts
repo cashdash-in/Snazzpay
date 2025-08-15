@@ -76,42 +76,29 @@ async function razorpayFetch(endpoint: string, options: RequestInit = {}) {
 
 export async function createSubscriptionLink(maxAmount: number, description: string): Promise<{ success: boolean, url?: string, error?: string }> {
     try {
-        const orderPayload = {
-            amount: 100, // Verification amount of Re. 1
-            currency: 'INR',
-            payment_capture: 1,
-            notes: {
-                description: `Secure COD Authorization for: ${description}`
-            },
-            method: "emandate",
-            token: {
-                auth_type: 'netbanking',
-                max_amount: maxAmount,
-                expire_at: Math.floor(Date.now() / 1000) + (3600 * 24 * 365 * 10), // 10 years from now
-            }
-        };
-
-        const order = await razorpayFetch('orders', {
-            method: 'POST',
-            body: JSON.stringify(orderPayload)
-        });
-
         const paymentLinkPayload = {
-            amount: 100, // Verification amount
+            amount: 100, // Verification amount of Re. 1
             currency: "INR",
-            description: `eMandate for ${description}`,
+            description: `eMandate authorization for ${description}`,
+            subscription_registration: {
+                method: "emandate",
+                auth_type: "netbanking",
+                max_amount: maxAmount, // The actual maximum amount for the mandate
+                expire_at: Math.floor(Date.now() / 1000) + (3600 * 24 * 365 * 10), // 10 years from now
+            },
             customer: {
                 name: "Secure COD Customer",
                 email: "secure.cod@example.com",
+                contact: "+919876543210"
             },
             notes: {
-                orderId: order.id,
+                description: `Secure COD Authorization for: ${description}`
             },
             callback_url: "https://snazzify.co.in/thank-you",
             callback_method: "get"
         };
         
-        const jsonResponse = await razorpayFetch(`orders/${order.id}/payment_links`, {
+        const jsonResponse = await razorpayFetch('payment_links', {
             method: 'POST',
             body: JSON.stringify(paymentLinkPayload),
         });
