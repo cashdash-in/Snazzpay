@@ -8,9 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useEffect } from "react";
-import { Send, Trash2 } from "lucide-react";
+import { Send, Trash2, PlusCircle } from "lucide-react";
 import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import { Loader2 } from "lucide-react";
+import { v4 as uuidv4 } from 'uuid';
 
 
 type OrderStatus = 'pending' | 'dispatched' | 'out-for-delivery' | 'delivered' | 'failed';
@@ -83,15 +84,39 @@ export default function DeliveryTrackingPage() {
     
     const handleRemoveOrder = (orderId: string) => {
         setOrders(prevOrders => prevOrders.filter(order => order.id !== orderId));
-    }
+    };
+
+    const handleAddOrder = () => {
+        const newOrder: EditableOrder = {
+            id: uuidv4(),
+            orderId: '',
+            customerName: '',
+            customerAddress: '',
+            pincode: '',
+            contactNo: '',
+            trackingNumber: '',
+            courierCompanyName: '',
+            status: 'pending',
+            estDelivery: '',
+        };
+        setOrders(prevOrders => [newOrder, ...prevOrders]);
+    };
 
 
   return (
     <AppShell title="Delivery Tracking">
       <Card>
         <CardHeader>
-          <CardTitle>Delivery Management</CardTitle>
-          <CardDescription>Manage dispatch details and delivery status for your Shopify orders. All fields are manually editable.</CardDescription>
+            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                <div>
+                    <CardTitle>Delivery Management</CardTitle>
+                    <CardDescription>Manage dispatch details and delivery status for your Shopify orders. All fields are manually editable.</CardDescription>
+                </div>
+                <Button onClick={handleAddOrder}>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Add Order
+                </Button>
+          </div>
         </CardHeader>
         <CardContent>
             {loading ? (
@@ -122,6 +147,7 @@ export default function DeliveryTrackingPage() {
                         value={order.orderId}
                         onChange={(e) => handleFieldChange(order.id, 'orderId', e.target.value)}
                         className="w-28"
+                        placeholder="e.g. #1001"
                     />
                   </TableCell>
                   <TableCell>
@@ -129,6 +155,7 @@ export default function DeliveryTrackingPage() {
                         value={order.customerName}
                         onChange={(e) => handleFieldChange(order.id, 'customerName', e.target.value)}
                         className="w-40"
+                        placeholder="Customer Name"
                     />
                   </TableCell>
                   <TableCell>
@@ -136,6 +163,7 @@ export default function DeliveryTrackingPage() {
                         value={order.customerAddress}
                         onChange={(e) => handleFieldChange(order.id, 'customerAddress', e.target.value)}
                         className="w-48 text-xs"
+                         placeholder="Shipping Address"
                     />
                   </TableCell>
                   <TableCell>
@@ -143,6 +171,7 @@ export default function DeliveryTrackingPage() {
                         value={order.pincode}
                         onChange={(e) => handleFieldChange(order.id, 'pincode', e.target.value)}
                         className="w-24"
+                        placeholder="Pincode"
                     />
                   </TableCell>
                   <TableCell>
@@ -150,6 +179,7 @@ export default function DeliveryTrackingPage() {
                         value={order.contactNo}
                         onChange={(e) => handleFieldChange(order.id, 'contactNo', e.target.value)}
                         className="w-32"
+                        placeholder="Contact No."
                     />
                   </TableCell>
                   <TableCell>
