@@ -8,11 +8,22 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, Save, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Loader2, Save, ExternalLink, CreditCard } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { EditableOrder } from '../page';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 type PaymentInfo = {
     paymentId: string;
@@ -32,6 +43,7 @@ export default function OrderDetailPage() {
     const [order, setOrder] = useState<EditableOrder | null>(null);
     const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null);
     const [loading, setLoading] = useState(true);
+    const [isCharging, setIsCharging] = useState(false);
 
     useEffect(() => {
         if (!id) return;
@@ -104,6 +116,45 @@ export default function OrderDetailPage() {
             description: `Details for order ${order.orderId} have been updated successfully.`,
         });
     };
+    
+    const handleChargeMandate = async () => {
+        if (!paymentInfo || !order) return;
+        setIsCharging(true);
+        try {
+            const response = await fetch('/api/charge-mandate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    paymentId: paymentInfo.paymentId,
+                    amount: parseFloat(order.price)
+                })
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || 'Failed to charge mandate.');
+            }
+            
+            setOrder(prev => prev ? { ...prev, paymentStatus: 'Paid' } : null);
+            handleSave();
+            
+            toast({
+                title: "Charge Successful!",
+                description: `Successfully charged ₹${order.price}. Transaction ID: ${result.transactionId}`,
+            });
+
+        } catch (error: any) {
+            toast({
+                variant: 'destructive',
+                title: "Charge Failed",
+                description: error.message,
+            });
+        } finally {
+            setIsCharging(false);
+        }
+    };
+
 
     if (loading) {
         return (
@@ -172,6 +223,28 @@ export default function OrderDetailPage() {
                                 </a>
                             </div>
                         </CardContent>
+                        <CardFooter>
+                             <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button disabled={isCharging || order.paymentStatus.toLowerCase() === 'paid'}>
+                                        {isCharging ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CreditCard className="mr-2 h-4 w-4" />}
+                                        {order.paymentStatus.toLowerCase() === 'paid' ? 'Mandate Charged' : `Charge Mandate (₹${order.price})`}
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        This action will immediately charge the customer's authorized payment method for the full amount of ₹{order.price}. This cannot be undone.
+                                    </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={handleChargeMandate}>Yes, Charge Now</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        </CardFooter>
                     </Card>
                 )}
 
