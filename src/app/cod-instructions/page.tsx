@@ -27,7 +27,7 @@ export default function CodInstructionsPage() {
       onmouseover="this.style.backgroundColor='#4a28c7'"
       onmouseout="this.style.backgroundColor='#5a31f4'"
     >
-      Secure COD
+      Buy now with Secure COD
     </button>
   </a>
   <div style="text-align: center; margin-top: 8px; font-size: 12px;">
