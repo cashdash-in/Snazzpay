@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     // A plan is required to create a subscription.
     // For an on-demand "charge at will" mandate, we create a long-term plan with a nominal amount.
     const planOptions = {
-      period: 'yearly',
+      period: 'yearly' as const,
       interval: 10, // A long interval, like 10 years, for a long-lived mandate
       item: {
         name: 'SnazzPay On-Demand Mandate Plan',
