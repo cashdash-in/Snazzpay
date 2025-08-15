@@ -91,7 +91,7 @@ export default function DeliveryTrackingPage() {
       <Card>
         <CardHeader>
           <CardTitle>Delivery Management</CardTitle>
-          <CardDescription>Manage dispatch details and delivery status for your Shopify orders.</CardDescription>
+          <CardDescription>Manage dispatch details and delivery status for your Shopify orders. All fields are manually editable.</CardDescription>
         </CardHeader>
         <CardContent>
             {loading ? (
