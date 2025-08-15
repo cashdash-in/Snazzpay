@@ -235,8 +235,8 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
             <div className="flex items-center justify-center min-h-screen bg-transparent p-4">
                 <Card className="w-full max-w-md shadow-lg">
                     <CardHeader className="text-center">
-                        <CardTitle>Secure Your COD Order</CardTitle>
-                        <CardDescription>Authorize your intent with a small, refundable amount (₹1.00) to confirm your order. You will pay the full amount in cash upon delivery.</CardDescription>
+                        <CardTitle>Secure Your Order</CardTitle>
+                        <CardDescription>Confirm your order by authorizing the payment. Your account will only be auto-debited for the full amount once the order is dispatched.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                          <div className="space-y-3">
@@ -293,11 +293,11 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                                 />
                             </div>
                             <div className="flex justify-between items-center text-lg">
-                                <span className="text-muted-foreground">Total to Pay on Delivery:</span>
+                                <span className="text-muted-foreground">Total Amount:</span>
                                 <span className="font-bold">₹{totalAmount.toFixed(2)}</span>
                             </div>
                             <div className="flex justify-between items-center text-lg border-t pt-3 mt-3">
-                                <span className="text-primary">Authorization Amount:</span>
+                                <span className="text-primary">Authorization Fee:</span>
                                 <span className="font-bold text-primary">₹1.00</span>
                             </div>
                         </div>
@@ -320,7 +320,7 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                             </Label>
                         </div>
                         <p className="text-xs text-muted-foreground text-center">
-                            By clicking the button below, you agree to authorize a temporary hold on your card. You will pay the full amount of ₹{totalAmount.toFixed(2)} upon delivery.
+                           By clicking the button below, you authorize an auto-debit of ₹{totalAmount.toFixed(2)} from your account upon order dispatch.
                         </p>
                     </CardContent>
                     <CardFooter>
