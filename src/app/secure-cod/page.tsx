@@ -11,6 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Loader2, HelpCircle } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
+import { createSubscriptionLink } from '@/services/razorpay';
+
 
 export default function SecureCodPage() {
     const searchParams = useSearchParams();
@@ -68,15 +70,37 @@ export default function SecureCodPage() {
     const totalAmount = orderDetails.baseAmount * orderDetails.quantity;
 
     const handlePayment = async () => {
+        if (!agreed) {
+            toast({
+                variant: 'destructive',
+                title: 'Agreement Required',
+                description: 'You must agree to the Terms and Conditions to proceed.',
+            });
+            return;
+        }
+
         setIsCreatingLink(true);
-        // This function no longer calls the broken backend service.
-        // It informs the user that the feature is not configured.
-        toast({
-            variant: 'destructive',
-            title: 'Feature Not Configured',
-            description: 'The payment gateway integration is not yet complete.',
-        });
-        setIsCreatingLink(false);
+        try {
+            const result = await createSubscriptionLink(totalAmount, orderDetails.productName);
+
+            if (result.success && result.url) {
+                window.location.href = result.url;
+            } else {
+                toast({
+                    variant: 'destructive',
+                    title: 'Failed to Create Mandate Link',
+                    description: result.error || 'An unknown error occurred. Please try again.',
+                });
+            }
+        } catch (error: any) {
+             toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: error.message || 'An unexpected error occurred.',
+            });
+        } finally {
+            setIsCreatingLink(false);
+        }
     };
 
     if (loading) {
