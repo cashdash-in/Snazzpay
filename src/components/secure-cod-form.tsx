@@ -116,7 +116,7 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         setError('');
 
         try {
-            // Step 1: Call our own API to create a simple order on the server
+            // Step 1: Call our API. The backend now handles customer creation and mandate logic.
             const response = await fetch('/api/create-mandate-order', {
                 method: 'POST',
                 headers: {
@@ -139,16 +139,12 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
 
             const { order_id } = await response.json();
 
-            // Step 2: Open Razorpay checkout with the order_id AND the mandate token logic
+            // Step 2: Open Razorpay checkout with just the order_id.
             const options = {
                 key: razorpayKeyId,
                 order_id: order_id,
                 name: "Snazzify Secure COD",
                 description: `Authorize eMandate for ${orderDetails.productName}`,
-                // --- Mandate logic is now here, on the client ---
-                token: {
-                    "max_amount": totalAmount * 100, // Full product price in paise for the mandate
-                },
                 handler: function (response: any){
                     toast({
                         title: 'Authorization Successful!',
@@ -158,19 +154,16 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                     
                     const paymentInfo = {
                         paymentId: response.razorpay_payment_id,
-                        orderId: orderDetails.orderId, // Using OUR internal order ID
-                        razorpayOrderId: response.razorpay_order_id, // Storing razorpay's order ID too
+                        orderId: orderDetails.orderId,
+                        razorpayOrderId: response.razorpay_order_id,
                         signature: response.razorpay_signature,
-                        status: 'authorized', // This is now an authorized mandate
+                        status: 'authorized',
                         authorizedAt: new Date().toISOString()
                     };
                     
-                    // We use OUR internal order ID to store the payment info
                     localStorage.setItem(`payment_info_${orderDetails.orderId}`, JSON.stringify(paymentInfo));
                     
                     setIsAuthorizing(false);
-                    // Optionally, redirect to a success page
-                    // window.location.href = '/thank-you';
                 },
                 prefill: {
                     name: customerDetails.name,
