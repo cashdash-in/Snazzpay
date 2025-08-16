@@ -8,7 +8,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, Save, ExternalLink, CreditCard } from 'lucide-react';
+import { ArrowLeft, Loader2, Save, ExternalLink, CreditCard, Send, Loader2 as ButtonLoader } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { EditableOrder } from '../page';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -67,6 +67,7 @@ export default function OrderDetailPage() {
     const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null);
     const [loading, setLoading] = useState(true);
     const [isCharging, setIsCharging] = useState(false);
+    const [isGeneratingLink, setIsGeneratingLink] = useState(false);
 
     useEffect(() => {
         if (!orderIdParam) return;
@@ -200,6 +201,48 @@ export default function OrderDetailPage() {
             setIsCharging(false);
         }
     };
+    
+    const handleGenerateAndSend = async () => {
+        if (!order) return;
+        setIsGeneratingLink(true);
+        try {
+            const response = await fetch('/api/create-payment-link', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    amount: order.price,
+                    customerName: order.customerName,
+                    customerContact: order.contactNo,
+                    orderId: order.orderId,
+                    productName: order.productOrdered,
+                }),
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || 'Failed to create payment link.');
+            }
+
+            toast({
+                title: "Payment Link Created!",
+                description: "Preparing WhatsApp message...",
+            });
+
+            const message = encodeURIComponent(`Hi ${order.customerName}, your order #${order.orderId} has been dispatched! Please complete your payment here: ${result.paymentLinkUrl}`);
+            const whatsappUrl = `https://wa.me/${order.contactNo}?text=${message}`;
+            window.open(whatsappUrl, '_blank');
+
+        } catch (error: any) {
+             toast({
+                variant: 'destructive',
+                title: "Error Creating Link",
+                description: error.message,
+            });
+        } finally {
+            setIsGeneratingLink(false);
+        }
+    };
 
 
     if (loading) {
@@ -248,7 +291,7 @@ export default function OrderDetailPage() {
                     </Button>
                 </div>
 
-                {paymentInfo && (
+                {paymentInfo && order.paymentStatus.toLowerCase() === 'authorized' && (
                     <Card>
                         <CardHeader>
                             <CardTitle>Payment Authorization Details</CardTitle>
@@ -379,6 +422,17 @@ export default function OrderDetailPage() {
                             </Select>
                         </div>
                     </CardContent>
+                     <CardFooter>
+                        <Button 
+                            variant="default" 
+                            size="sm" 
+                            onClick={handleGenerateAndSend}
+                            disabled={isGeneratingLink}
+                        >
+                          {isGeneratingLink ? <ButtonLoader className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                          Generate & Send Payment Link
+                        </Button>
+                    </CardFooter>
                 </Card>
 
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

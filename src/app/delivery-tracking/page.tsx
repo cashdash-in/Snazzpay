@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useEffect } from "react";
-import { Send, Trash2, PlusCircle, Save } from "lucide-react";
+import { Send, Trash2, PlusCircle, Save, Loader2 as ButtonLoader } from "lucide-react";
 import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -44,6 +44,7 @@ function mapShopifyToEditable(order: ShopifyOrder): EditableOrder {
 export default function DeliveryTrackingPage() {
     const [orders, setOrders] = useState<EditableOrder[]>([]);
     const [loading, setLoading] = useState(true);
+    const [generatingLinkId, setGeneratingLinkId] = useState<string | null>(null);
     const { toast } = useToast();
 
     useEffect(() => {
@@ -84,18 +85,6 @@ export default function DeliveryTrackingPage() {
             order.id === orderId ? { ...order, [field]: value } : order
         );
         setOrders(updatedOrders);
-
-        if (field === 'readyForDispatchDate' && value) {
-            const order = updatedOrders.find(o => o.id === orderId);
-            if (order && order.contactNo) {
-                const phoneNumber = order.contactNo.replace(/[^0-9]/g, '');
-                // Construct the secure COD URL with order details
-                const secureCodUrl = `${window.location.origin}/secure-cod?amount=${encodeURIComponent(order.price)}&name=${encodeURIComponent(`Order ${order.orderId}`)}`;
-                const message = encodeURIComponent(`Hi ${order.customerName}, your order #${order.orderId} is ready for dispatch! Please complete the payment authorization here: ${secureCodUrl}`);
-                const whatsappUrl = `https://wa.me/${phoneNumber}?text=${message}`;
-                window.open(whatsappUrl, '_blank');
-            }
-        }
     };
 
     const handleSave = (orderId: string) => {
@@ -141,6 +130,48 @@ export default function DeliveryTrackingPage() {
         });
     };
 
+    const handleGenerateAndSend = async (order: EditableOrder) => {
+        setGeneratingLinkId(order.id);
+        try {
+            const response = await fetch('/api/create-payment-link', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    amount: order.price,
+                    customerName: order.customerName,
+                    customerContact: order.contactNo,
+                    orderId: order.orderId,
+                    productName: order.productOrdered,
+                }),
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || 'Failed to create payment link.');
+            }
+
+            toast({
+                title: "Payment Link Created!",
+                description: "Preparing WhatsApp message...",
+            });
+
+            // Open WhatsApp with pre-filled message
+            const message = encodeURIComponent(`Hi ${order.customerName}, your order #${order.orderId} has been dispatched! Please complete your payment here: ${result.paymentLinkUrl}`);
+            const whatsappUrl = `https://wa.me/${order.contactNo}?text=${message}`;
+            window.open(whatsappUrl, '_blank');
+
+        } catch (error: any) {
+             toast({
+                variant: 'destructive',
+                title: "Error Creating Link",
+                description: error.message,
+            });
+        } finally {
+            setGeneratingLinkId(null);
+        }
+    };
+
   return (
     <AppShell title="Delivery Tracking">
       <Card>
@@ -178,7 +209,7 @@ export default function DeliveryTrackingPage() {
                     <TableHead>Ready for Dispatch</TableHead>
                     <TableHead>Est. Delivery</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="text-center w-[200px]">Actions</TableHead>
+                    <TableHead className="text-center w-[250px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -271,9 +302,14 @@ export default function DeliveryTrackingPage() {
                         </Select>
                       </TableCell>
                       <TableCell className="text-center space-x-2">
-                        <Button variant="outline" size="sm">
-                          <Send className="mr-2 h-4 w-4" />
-                          Notify
+                        <Button 
+                            variant="default" 
+                            size="sm" 
+                            onClick={() => handleGenerateAndSend(order)}
+                            disabled={generatingLinkId === order.id}
+                        >
+                          {generatingLinkId === order.id ? <ButtonLoader className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                          Generate & Send Link
                         </Button>
                         <Button variant="outline" size="icon" onClick={() => handleSave(order.id)}>
                             <Save className="h-4 w-4" />
