@@ -158,6 +158,10 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
             toast({ variant: 'destructive', title: 'Agreement Required', description: 'You must agree to the Terms and Conditions.' });
             return;
         }
+        if (!customerDetails.name || !customerDetails.contact || !customerDetails.address || !customerDetails.pincode) {
+            toast({ variant: 'destructive', title: 'Details Required', description: 'Please fill in all customer details before proceeding.' });
+            return;
+        }
         setIsProcessing(true);
         setError('');
 
@@ -232,7 +236,7 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                         existingOrders[orderIndex].paymentStatus = 'Authorized';
                         localStorage.setItem('manualOrders', JSON.stringify(existingOrders));
                     } else {
-                        // As a fallback, create a new order if it wasn't found
+                        // As a fallback, create a new order if it wasn't found (e.g., page refresh)
                         const newOrder: EditableOrder = {
                             id: internalOrderId || uuidv4(),
                             orderId: orderDetails.orderId,
@@ -329,7 +333,7 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                     {step === 'authorize' && (
                          <div className="text-center space-y-3 p-3 bg-green-500/10 rounded-lg border border-green-500/20">
                            <h3 className="font-semibold text-green-800">Step 2: Authorize Full Amount</h3>
-                           <p className="text-xs text-muted-foreground">Final step! Authorize the full amount on your card. <span className="font-bold">Your card will NOT be charged now.</span> Payment will only be captured when your order is dispatched.</p>
+                           <p className="text-xs text-muted-foreground">Final step! Authorize the full amount on your card. <span className="font-bold">Your card will NOT be charged now.</span> You will pay with cash on delivery, and the hold is released. A charge only occurs if delivery is refused.</p>
                         </div>
                     )}
                     
@@ -359,3 +363,6 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         </div>
     );
 }
+
+
+    
