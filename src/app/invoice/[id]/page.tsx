@@ -203,6 +203,7 @@ export default function InvoicePage() {
                                 <span>Total</span>
                                 <span>₹{total.toFixed(2)}</span>
                             </div>
+                            <p className="text-xs text-muted-foreground text-right pt-1">Price is inclusive of Shipping and Tax</p>
                         </div>
                     </section>
                     <section className="mt-12">
