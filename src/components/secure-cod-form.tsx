@@ -192,7 +192,7 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                 localStorage.setItem(`payment_info_${orderDetails.orderId}`, JSON.stringify(paymentInfo));
 
                 const newOrder: EditableOrder = {
-                    id: uuidv4(),
+                    id: uuidv4(), // Give it a unique internal ID
                     orderId: orderDetails.orderId,
                     customerName: customerDetails.name,
                     customerAddress: customerDetails.address,
@@ -204,10 +204,19 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                     paymentStatus: 'Authorized',
                     date: format(new Date(), 'yyyy-MM-dd'),
                 };
-                const existingOrders = JSON.parse(localStorage.getItem('manualOrders') || '[]');
-                const orderExists = existingOrders.some((o: EditableOrder) => o.orderId === newOrder.orderId);
-                if (!orderExists) {
-                    localStorage.setItem('manualOrders', JSON.stringify([...existingOrders, newOrder]));
+                
+                try {
+                    const existingOrdersJSON = localStorage.getItem('manualOrders');
+                    let existingOrders: EditableOrder[] = existingOrdersJSON ? JSON.parse(existingOrdersJSON) : [];
+                    
+                    // Prevent duplicates
+                    const orderExists = existingOrders.some((o: EditableOrder) => o.orderId === newOrder.orderId);
+                    if (!orderExists) {
+                        const updatedOrders = [...existingOrders, newOrder];
+                        localStorage.setItem('manualOrders', JSON.stringify(updatedOrders));
+                    }
+                } catch(e) {
+                    console.error("Failed to save order to local storage", e);
                 }
                 
                 toast({ title: 'Authorization Successful!', description: 'Your order is confirmed and will be shipped soon.' });
@@ -228,7 +237,7 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                 <BadgeCheck className="mx-auto h-16 w-16 text-green-500" />
                 <h2 className="text-2xl font-bold">Order Confirmed!</h2>
                 <p className="text-muted-foreground">Thank you, {customerDetails.name}! Your order <span className="font-semibold text-primary">{orderDetails.orderId}</span> is confirmed. We will notify you once it has been dispatched.</p>
-                <p className="text-xs text-muted-foreground">A hold of ₹{totalAmount.toFixed(2)} has been placed on your card and will be charged upon shipment.</p>
+                <p className="text-xs text-muted-foreground">A hold of ₹{totalAmount.toFixed(2)} has been placed on your card and will be released if the order is cancelled before dispatch.</p>
                 <Button onClick={() => window.location.href = '/'}>Go to Dashboard</Button>
             </CardContent>
         </Card>
