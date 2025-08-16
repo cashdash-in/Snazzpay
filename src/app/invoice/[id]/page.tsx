@@ -139,8 +139,8 @@ export default function InvoicePage() {
                         <div className="flex items-center gap-4">
                             <ShieldCheck className="h-12 w-12 text-primary" />
                             <div>
-                                <h1 className="text-3xl font-bold text-gray-800">Snazzify</h1>
-                                <p className="text-sm text-gray-500">2nd Floor, VJ Complex, Pulleppady<br/>Kochi - 682018, Kerala, India</p>
+                                <h1 className="text-3xl font-bold text-gray-800">Snazzify.co.in</h1>
+                                <p className="text-sm text-gray-500">114B,1st Floor, Robert Compound, Kalina Kolovery Village<br/>Santacruz East, Mumbai 400098</p>
                             </div>
                         </div>
                         <div className="text-right">
