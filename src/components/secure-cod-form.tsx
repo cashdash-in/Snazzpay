@@ -42,6 +42,7 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
     const [isProcessing, setIsProcessing] = useState(false);
     const [error, setError] = useState('');
     const [agreed, setAgreed] = useState(false);
+    const [internalOrderId, setInternalOrderId] = useState<string | null>(null);
 
     useEffect(() => {
         setLoading(true);
@@ -163,6 +164,35 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         try {
             const { order_id } = await createOrderApi(false); // false for intent
             const handler = (response: any) => {
+                const uniqueId = uuidv4();
+                setInternalOrderId(uniqueId); // Save internal ID for the next step
+
+                const newOrder: EditableOrder = {
+                    id: uniqueId,
+                    orderId: orderDetails.orderId,
+                    customerName: customerDetails.name,
+                    customerAddress: customerDetails.address,
+                    pincode: customerDetails.pincode,
+                    contactNo: customerDetails.contact,
+                    productOrdered: orderDetails.productName,
+                    quantity: orderDetails.quantity,
+                    price: totalAmount.toFixed(2),
+                    paymentStatus: 'Intent Verified', // New status
+                    date: format(new Date(), 'yyyy-MM-dd'),
+                };
+                
+                try {
+                    const existingOrdersJSON = localStorage.getItem('manualOrders');
+                    let existingOrders: EditableOrder[] = existingOrdersJSON ? JSON.parse(existingOrdersJSON) : [];
+                    const orderExists = existingOrders.some((o: EditableOrder) => o.orderId === newOrder.orderId);
+                    if (!orderExists) {
+                        const updatedOrders = [...existingOrders, newOrder];
+                        localStorage.setItem('manualOrders', JSON.stringify(updatedOrders));
+                    }
+                } catch(e) {
+                    console.error("Failed to save order to local storage after intent", e);
+                }
+
                 toast({ title: 'Step 1 Complete!', description: 'Intent verified. Please complete the final authorization step.', variant: 'default' });
                 setIsProcessing(false);
                 setStep('authorize');
@@ -190,33 +220,37 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                     authorizedAt: new Date().toISOString()
                 };
                 localStorage.setItem(`payment_info_${orderDetails.orderId}`, JSON.stringify(paymentInfo));
-
-                const newOrder: EditableOrder = {
-                    id: uuidv4(), // Give it a unique internal ID
-                    orderId: orderDetails.orderId,
-                    customerName: customerDetails.name,
-                    customerAddress: customerDetails.address,
-                    pincode: customerDetails.pincode,
-                    contactNo: customerDetails.contact,
-                    productOrdered: orderDetails.productName,
-                    quantity: orderDetails.quantity,
-                    price: totalAmount.toFixed(2),
-                    paymentStatus: 'Authorized',
-                    date: format(new Date(), 'yyyy-MM-dd'),
-                };
                 
                 try {
                     const existingOrdersJSON = localStorage.getItem('manualOrders');
                     let existingOrders: EditableOrder[] = existingOrdersJSON ? JSON.parse(existingOrdersJSON) : [];
                     
-                    // Prevent duplicates
-                    const orderExists = existingOrders.some((o: EditableOrder) => o.orderId === newOrder.orderId);
-                    if (!orderExists) {
+                    // Find the order we created in step 1 and update its status
+                    const orderIndex = existingOrders.findIndex(o => o.id === internalOrderId);
+                    
+                    if (orderIndex > -1) {
+                        existingOrders[orderIndex].paymentStatus = 'Authorized';
+                        localStorage.setItem('manualOrders', JSON.stringify(existingOrders));
+                    } else {
+                        // As a fallback, create a new order if it wasn't found
+                        const newOrder: EditableOrder = {
+                            id: internalOrderId || uuidv4(),
+                            orderId: orderDetails.orderId,
+                            customerName: customerDetails.name,
+                            customerAddress: customerDetails.address,
+                            pincode: customerDetails.pincode,
+                            contactNo: customerDetails.contact,
+                            productOrdered: orderDetails.productName,
+                            quantity: orderDetails.quantity,
+                            price: totalAmount.toFixed(2),
+                            paymentStatus: 'Authorized',
+                            date: format(new Date(), 'yyyy-MM-dd'),
+                        };
                         const updatedOrders = [...existingOrders, newOrder];
                         localStorage.setItem('manualOrders', JSON.stringify(updatedOrders));
                     }
                 } catch(e) {
-                    console.error("Failed to save order to local storage", e);
+                    console.error("Failed to update/save order to local storage after authorization", e);
                 }
                 
                 toast({ title: 'Authorization Successful!', description: 'Your order is confirmed and will be shipped soon.' });
@@ -288,7 +322,7 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                     {step === 'intent' && (
                         <div className="text-center space-y-3 p-3 bg-primary/5 rounded-lg">
                            <h3 className="font-semibold">Step 1: Verify Your Intent</h3>
-                           <p className="text-xs text-muted-foreground">Please complete a ₹1.00 transaction to show your commitment. This helps us filter out fraudulent orders.</p>
+                           <p className="text-xs text-muted-foreground">Please complete a ₹1.00 transaction to show your commitment. This helps us filter out fraudulent orders and reserves your item.</p>
                         </div>
                     )}
                     
