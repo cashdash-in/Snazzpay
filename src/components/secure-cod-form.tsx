@@ -19,13 +19,13 @@ interface SecureCodFormProps {
     razorpayKeyId: string | null;
 }
 
-type Step = 'intent' | 'authorize' | 'complete';
+type Step = 'details' | 'authorize' | 'complete';
 
 export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
     const searchParams = useSearchParams();
     const { toast } = useToast();
 
-    const [step, setStep] = useState<Step>('intent');
+    const [step, setStep] = useState<Step>('details');
     const [orderDetails, setOrderDetails] = useState({
         productName: '',
         baseAmount: 0,
@@ -165,38 +165,40 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         setIsProcessing(true);
         setError('');
 
+        // Step 1: Create the order in our system first with "Intent Verified" status
+        const uniqueId = uuidv4();
+        setInternalOrderId(uniqueId); // Save internal ID for the next step
+
+        const newOrder: EditableOrder = {
+            id: uniqueId,
+            orderId: orderDetails.orderId,
+            customerName: customerDetails.name,
+            customerAddress: customerDetails.address,
+            pincode: customerDetails.pincode,
+            contactNo: customerDetails.contact,
+            productOrdered: orderDetails.productName,
+            quantity: orderDetails.quantity,
+            price: totalAmount.toFixed(2),
+            paymentStatus: 'Intent Verified',
+            date: format(new Date(), 'yyyy-MM-dd'),
+        };
+
+        try {
+            const existingOrdersJSON = localStorage.getItem('manualOrders');
+            let existingOrders: EditableOrder[] = existingOrdersJSON ? JSON.parse(existingOrdersJSON) : [];
+            const updatedOrders = [...existingOrders, newOrder];
+            localStorage.setItem('manualOrders', JSON.stringify(updatedOrders));
+        } catch(e) {
+            console.error("Failed to save order to local storage before intent", e);
+            toast({ variant: 'destructive', title: 'Storage Error', description: 'Could not save order details locally.' });
+            setIsProcessing(false);
+            return;
+        }
+        
+        // Step 2: Proceed with Razorpay for Rs 1
         try {
             const { order_id } = await createOrderApi(false); // false for intent
             const handler = (response: any) => {
-                const uniqueId = uuidv4();
-                setInternalOrderId(uniqueId); // Save internal ID for the next step
-
-                const newOrder: EditableOrder = {
-                    id: uniqueId,
-                    orderId: orderDetails.orderId,
-                    customerName: customerDetails.name,
-                    customerAddress: customerDetails.address,
-                    pincode: customerDetails.pincode,
-                    contactNo: customerDetails.contact,
-                    productOrdered: orderDetails.productName,
-                    quantity: orderDetails.quantity,
-                    price: totalAmount.toFixed(2),
-                    paymentStatus: 'Intent Verified', // New status
-                    date: format(new Date(), 'yyyy-MM-dd'),
-                };
-                
-                try {
-                    const existingOrdersJSON = localStorage.getItem('manualOrders');
-                    let existingOrders: EditableOrder[] = existingOrdersJSON ? JSON.parse(existingOrdersJSON) : [];
-                    const orderExists = existingOrders.some((o: EditableOrder) => o.orderId === newOrder.orderId);
-                    if (!orderExists) {
-                        const updatedOrders = [...existingOrders, newOrder];
-                        localStorage.setItem('manualOrders', JSON.stringify(updatedOrders));
-                    }
-                } catch(e) {
-                    console.error("Failed to save order to local storage after intent", e);
-                }
-
                 toast({ title: 'Step 1 Complete!', description: 'Intent verified. Please complete the final authorization step.', variant: 'default' });
                 setIsProcessing(false);
                 setStep('authorize');
@@ -206,6 +208,13 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
             setError(e.message);
             toast({ variant: 'destructive', title: 'Error', description: e.message });
             setIsProcessing(false);
+            // If Razorpay fails, remove the order we just created
+            const existingOrdersJSON = localStorage.getItem('manualOrders');
+            if (existingOrdersJSON) {
+                let existingOrders: EditableOrder[] = JSON.parse(existingOrdersJSON);
+                const filteredOrders = existingOrders.filter(o => o.id !== uniqueId);
+                localStorage.setItem('manualOrders', JSON.stringify(filteredOrders));
+            }
         }
     };
     
@@ -236,25 +245,17 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                         existingOrders[orderIndex].paymentStatus = 'Authorized';
                         localStorage.setItem('manualOrders', JSON.stringify(existingOrders));
                     } else {
-                        // As a fallback, create a new order if it wasn't found (e.g., page refresh)
-                        const newOrder: EditableOrder = {
-                            id: internalOrderId || uuidv4(),
-                            orderId: orderDetails.orderId,
-                            customerName: customerDetails.name,
-                            customerAddress: customerDetails.address,
-                            pincode: customerDetails.pincode,
-                            contactNo: customerDetails.contact,
-                            productOrdered: orderDetails.productName,
-                            quantity: orderDetails.quantity,
-                            price: totalAmount.toFixed(2),
-                            paymentStatus: 'Authorized',
-                            date: format(new Date(), 'yyyy-MM-dd'),
-                        };
-                        const updatedOrders = [...existingOrders, newOrder];
-                        localStorage.setItem('manualOrders', JSON.stringify(updatedOrders));
+                         // Fallback: if the page was refreshed and state was lost, find by orderId
+                        const fallbackIndex = existingOrders.findIndex(o => o.orderId === orderDetails.orderId && o.paymentStatus === 'Intent Verified');
+                        if (fallbackIndex > -1) {
+                             existingOrders[fallbackIndex].paymentStatus = 'Authorized';
+                             localStorage.setItem('manualOrders', JSON.stringify(existingOrders));
+                        } else {
+                           console.error("Could not find original order to update status to Authorized.");
+                        }
                     }
                 } catch(e) {
-                    console.error("Failed to update/save order to local storage after authorization", e);
+                    console.error("Failed to update order to local storage after authorization", e);
                 }
                 
                 toast({ title: 'Authorization Successful!', description: 'Your order is confirmed and will be shipped soon.' });
@@ -323,7 +324,7 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                         <div className="flex justify-between items-center text-lg"><span className="text-muted-foreground">Total Amount:</span><span className="font-bold">₹{totalAmount.toFixed(2)}</span></div>
                     </div>
                     
-                    {step === 'intent' && (
+                    {step === 'details' && (
                         <div className="text-center space-y-3 p-3 bg-primary/5 rounded-lg">
                            <h3 className="font-semibold">Step 1: Verify Your Intent</h3>
                            <p className="text-xs text-muted-foreground">Please complete a ₹1.00 transaction to show your commitment. This helps us filter out fraudulent orders and reserves your item.</p>
@@ -343,7 +344,7 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                     </div>
                 </CardContent>
                 <CardFooter className="flex flex-col gap-2">
-                     {step === 'intent' && (
+                     {step === 'details' && (
                         <Button className="w-full" onClick={handleIntentVerification} disabled={!agreed || isProcessing}>
                             {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
                             Verify with ₹1.00
@@ -363,6 +364,3 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         </div>
     );
 }
-
-
-    
