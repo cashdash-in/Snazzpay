@@ -37,12 +37,13 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         contact: '',
         address: '',
         pincode: '',
+        email: '',
     });
     const [loading, setLoading] = useState(true);
     const [isProcessing, setIsProcessing] = useState(false);
     const [error, setError] = useState('');
     const [agreed, setAgreed] = useState(false);
-    const [internalOrderId, setInternalOrderId] = useState<string | null>(null);
+    const [leadId, setLeadId] = useState<string | null>(null);
 
     useEffect(() => {
         setLoading(true);
@@ -129,7 +130,7 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
             handler: handler,
             prefill: {
                 name: customerDetails.name,
-                email: `customer.${customerDetails.contact || uuidv4().substring(0,8)}@example.com`,
+                email: customerDetails.email || `customer.${customerDetails.contact || uuidv4().substring(0,8)}@example.com`,
                 contact: customerDetails.contact
             },
             notes: {
@@ -165,37 +166,36 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         setIsProcessing(true);
         setError('');
 
-        // Step 1: Create the order in our system first with "Intent Verified" status
-        const uniqueId = uuidv4();
-        setInternalOrderId(uniqueId); // Save internal ID for the next step
+        const uniqueLeadId = uuidv4();
+        setLeadId(uniqueLeadId); 
 
-        const newOrder: EditableOrder = {
-            id: uniqueId,
+        const newLead: EditableOrder = {
+            id: uniqueLeadId,
             orderId: orderDetails.orderId,
             customerName: customerDetails.name,
+            customerEmail: customerDetails.email,
             customerAddress: customerDetails.address,
             pincode: customerDetails.pincode,
             contactNo: customerDetails.contact,
             productOrdered: orderDetails.productName,
             quantity: orderDetails.quantity,
             price: totalAmount.toFixed(2),
-            paymentStatus: 'Intent Verified',
+            paymentStatus: 'Intent Verified', // This is a lead status
             date: format(new Date(), 'yyyy-MM-dd'),
         };
 
         try {
-            const existingOrdersJSON = localStorage.getItem('manualOrders');
-            let existingOrders: EditableOrder[] = existingOrdersJSON ? JSON.parse(existingOrdersJSON) : [];
-            const updatedOrders = [...existingOrders, newOrder];
-            localStorage.setItem('manualOrders', JSON.stringify(updatedOrders));
+            const existingLeadsJSON = localStorage.getItem('leads');
+            const existingLeads: EditableOrder[] = existingLeadsJSON ? JSON.parse(existingLeadsJSON) : [];
+            const updatedLeads = [...existingLeads, newLead];
+            localStorage.setItem('leads', JSON.stringify(updatedLeads));
         } catch(e) {
-            console.error("Failed to save order to local storage before intent", e);
-            toast({ variant: 'destructive', title: 'Storage Error', description: 'Could not save order details locally.' });
+            console.error("Failed to save lead to local storage", e);
+            toast({ variant: 'destructive', title: 'Storage Error', description: 'Could not save lead details locally.' });
             setIsProcessing(false);
             return;
         }
         
-        // Step 2: Proceed with Razorpay for Rs 1
         try {
             const { order_id } = await createOrderApi(false); // false for intent
             const handler = (response: any) => {
@@ -208,12 +208,12 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
             setError(e.message);
             toast({ variant: 'destructive', title: 'Error', description: e.message });
             setIsProcessing(false);
-            // If Razorpay fails, remove the order we just created
-            const existingOrdersJSON = localStorage.getItem('manualOrders');
-            if (existingOrdersJSON) {
-                let existingOrders: EditableOrder[] = JSON.parse(existingOrdersJSON);
-                const filteredOrders = existingOrders.filter(o => o.id !== uniqueId);
-                localStorage.setItem('manualOrders', JSON.stringify(filteredOrders));
+            
+            const existingLeadsJSON = localStorage.getItem('leads');
+            if (existingLeadsJSON) {
+                let existingLeads: EditableOrder[] = JSON.parse(existingLeadsJSON);
+                const filteredLeads = existingLeads.filter(l => l.id !== uniqueLeadId);
+                localStorage.setItem('leads', JSON.stringify(filteredLeads));
             }
         }
     };
@@ -235,27 +235,35 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                 localStorage.setItem(`payment_info_${orderDetails.orderId}`, JSON.stringify(paymentInfo));
                 
                 try {
-                    const existingOrdersJSON = localStorage.getItem('manualOrders');
-                    let existingOrders: EditableOrder[] = existingOrdersJSON ? JSON.parse(existingOrdersJSON) : [];
-                    
-                    // Find the order we created in step 1 and update its status
-                    const orderIndex = existingOrders.findIndex(o => o.id === internalOrderId);
-                    
-                    if (orderIndex > -1) {
-                        existingOrders[orderIndex].paymentStatus = 'Authorized';
-                        localStorage.setItem('manualOrders', JSON.stringify(existingOrders));
-                    } else {
-                         // Fallback: if the page was refreshed and state was lost, find by orderId
-                        const fallbackIndex = existingOrders.findIndex(o => o.orderId === orderDetails.orderId && o.paymentStatus === 'Intent Verified');
-                        if (fallbackIndex > -1) {
-                             existingOrders[fallbackIndex].paymentStatus = 'Authorized';
-                             localStorage.setItem('manualOrders', JSON.stringify(existingOrders));
-                        } else {
-                           console.error("Could not find original order to update status to Authorized.");
-                        }
+                    // Remove from leads
+                    const existingLeadsJSON = localStorage.getItem('leads');
+                    if (existingLeadsJSON) {
+                        let existingLeads: EditableOrder[] = JSON.parse(existingLeadsJSON);
+                        const filteredLeads = existingLeads.filter(l => l.id !== leadId);
+                        localStorage.setItem('leads', JSON.stringify(filteredLeads));
                     }
+                    
+                    // Add to manual orders
+                    const newOrder: EditableOrder = {
+                        id: leadId || uuidv4(),
+                        orderId: orderDetails.orderId,
+                        customerName: customerDetails.name,
+                        customerEmail: customerDetails.email,
+                        customerAddress: customerDetails.address,
+                        pincode: customerDetails.pincode,
+                        contactNo: customerDetails.contact,
+                        productOrdered: orderDetails.productName,
+                        quantity: orderDetails.quantity,
+                        price: totalAmount.toFixed(2),
+                        paymentStatus: 'Authorized',
+                        date: format(new Date(), 'yyyy-MM-dd'),
+                    };
+                    const existingOrdersJSON = localStorage.getItem('manualOrders');
+                    const existingOrders: EditableOrder[] = existingOrdersJSON ? JSON.parse(existingOrdersJSON) : [];
+                    localStorage.setItem('manualOrders', JSON.stringify([...existingOrders, newOrder]));
+
                 } catch(e) {
-                    console.error("Failed to update order to local storage after authorization", e);
+                    console.error("Failed to update local storage after authorization", e);
                 }
                 
                 toast({ title: 'Authorization Successful!', description: 'Your order is confirmed and will be shipped soon.' });
@@ -314,6 +322,7 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                     <div className="space-y-3">
                         <Label>Customer Details</Label>
                         <div className="relative"><User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="customer-name" placeholder="Full Name" value={customerDetails.name} onChange={(e) => handleCustomerDetailChange('name', e.target.value)} className="pl-9" /></div>
+                        <div className="relative"><User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="customer-email" placeholder="Email Address" value={customerDetails.email} onChange={(e) => handleCustomerDetailChange('email', e.target.value)} className="pl-9" /></div>
                         <div className="relative"><Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="customer-contact" placeholder="Contact Number" value={customerDetails.contact} onChange={(e) => handleCustomerDetailChange('contact', e.target.value)} className="pl-9" /></div>
                         <div className="relative"><Home className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="customer-address" placeholder="Street Address" value={customerDetails.address} onChange={(e) => handleCustomerDetailChange('address', e.target.value)} className="pl-9" /></div>
                         <div className="relative"><MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="customer-pincode" placeholder="Pincode" value={customerDetails.pincode} onChange={(e) => handleCustomerDetailChange('pincode', e.target.value)} className="pl-9" /></div>

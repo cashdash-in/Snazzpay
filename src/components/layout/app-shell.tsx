@@ -36,12 +36,14 @@ import {
   Truck,
   Ban,
   CircleDollarSign,
+  Users,
 } from 'lucide-react';
 
 const menuItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/mandates', label: 'Mandates', icon: WalletCards },
   { href: '/orders', label: 'Orders', icon: ShoppingCart },
+  { href: '/leads', label: 'Leads', icon: Users },
   { href: '/delivery-tracking', label: 'Delivery Tracking', icon: Truck },
   { href: '/cancellations', label: 'Cancellations', icon: Ban },
   { href: '/refunds', label: 'Refunds', icon: CircleDollarSign },
