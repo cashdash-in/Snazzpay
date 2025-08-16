@@ -343,7 +343,7 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                     {step === 'authorize' && (
                          <div className="text-center space-y-3 p-3 bg-green-500/10 rounded-lg border border-green-500/20">
                            <h3 className="font-semibold text-green-800">Step 2: Authorize Full Amount</h3>
-                           <p className="text-xs text-muted-foreground">Final step! Authorize the full amount on your card. <span className="font-bold">Your card will NOT be charged now.</span> You will pay with cash on delivery, and the hold is released. A charge only occurs if delivery is refused.</p>
+                           <p className="text-xs text-muted-foreground">Final step! Authorize the full amount on your card. Your card will NOT be charged now. You will pay once you confirm dispatch. A minimum shipping charge only occurs if delivery is refused.</p>
                         </div>
                     )}
                     
