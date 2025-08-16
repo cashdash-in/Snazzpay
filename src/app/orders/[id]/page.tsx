@@ -8,7 +8,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, Save, ExternalLink, CreditCard, Send, Loader2 as ButtonLoader, Mail } from 'lucide-react';
+import { ArrowLeft, Loader2, Save, ExternalLink, CreditCard, Send, Loader2 as ButtonLoader, Mail, Printer } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { EditableOrder } from '../page';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -25,6 +25,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { getOrders, type Order as ShopifyOrder } from '@/services/shopify';
+import Link from 'next/link';
 
 type PaymentInfo = {
     paymentId: string;
@@ -283,10 +284,18 @@ export default function OrderDetailPage() {
                             <p className="text-muted-foreground">Editing order {order.orderId}. Click save when you're done.</p>
                         </div>
                     </div>
-                    <Button onClick={handleSave}>
-                        <Save className="mr-2 h-4 w-4" />
-                        Save Changes
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <Link href={`/invoice/${order.id}`} passHref>
+                          <Button variant="outline">
+                            <Printer className="mr-2 h-4 w-4" />
+                            Print Invoice
+                          </Button>
+                        </Link>
+                        <Button onClick={handleSave}>
+                            <Save className="mr-2 h-4 w-4" />
+                            Save Changes
+                        </Button>
+                    </div>
                 </div>
 
                 {paymentInfo && order.paymentStatus.toLowerCase() === 'authorized' && (
