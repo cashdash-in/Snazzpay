@@ -58,7 +58,7 @@ export async function POST(request: Request) {
             amount: Math.round(amount * 100), // Amount in paise
             currency: 'INR',
             receipt: `rcpt_${isAuthorization ? 'auth' : 'intent'}_${uuidv4().substring(0,8)}`,
-            payment_capture: !isAuthorization, // Capture immediately for Rs 1, but NOT for auth
+            payment_capture: isAuthorization ? 0 : 1, // Set to 0 for authorization, 1 for immediate capture
             customer_id: customerId,
             notes: {
                 product: productName,
