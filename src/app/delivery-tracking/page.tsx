@@ -44,7 +44,7 @@ function mapShopifyToEditable(order: ShopifyOrder): EditableOrder {
 export default function DeliveryTrackingPage() {
     const [orders, setOrders] = useState<EditableOrder[]>([]);
     const [loading, setLoading] = useState(true);
-    const [generatingLinkId, setGeneratingLinkId] = useState<string | null>(null);
+    const [sendingLinkId, setSendingLinkId] = useState<string | null>(null);
     const { toast } = useToast();
 
     useEffect(() => {
@@ -138,8 +138,8 @@ export default function DeliveryTrackingPage() {
         });
     };
 
-    const handleGenerateAndSend = async (order: EditableOrder) => {
-        setGeneratingLinkId(order.id);
+    const handleSendLink = async (order: EditableOrder) => {
+        setSendingLinkId(order.id);
         try {
             const response = await fetch('/api/create-payment-link', {
                 method: 'POST',
@@ -156,27 +156,22 @@ export default function DeliveryTrackingPage() {
             const result = await response.json();
 
             if (!response.ok) {
-                throw new Error(result.error || 'Failed to create payment link.');
+                throw new Error(result.error || 'Failed to send payment link.');
             }
 
             toast({
-                title: "Payment Link Created!",
-                description: "Preparing WhatsApp message...",
+                title: "Payment Link Sent!",
+                description: result.message || "The payment link has been sent via SMS and WhatsApp.",
             });
-
-            // Open WhatsApp with pre-filled message
-            const message = encodeURIComponent(`Hi ${order.customerName}, your order #${order.orderId} has been dispatched! Please complete your payment here: ${result.paymentLinkUrl}`);
-            const whatsappUrl = `https://wa.me/${order.contactNo}?text=${message}`;
-            window.open(whatsappUrl, '_blank');
 
         } catch (error: any) {
              toast({
                 variant: 'destructive',
-                title: "Error Creating Link",
+                title: "Error Sending Link",
                 description: error.message,
             });
         } finally {
-            setGeneratingLinkId(null);
+            setSendingLinkId(null);
         }
     };
 
@@ -313,11 +308,11 @@ export default function DeliveryTrackingPage() {
                         <Button 
                             variant="default" 
                             size="sm" 
-                            onClick={() => handleGenerateAndSend(order)}
-                            disabled={generatingLinkId === order.id}
+                            onClick={() => handleSendLink(order)}
+                            disabled={sendingLinkId === order.id}
                         >
-                          {generatingLinkId === order.id ? <ButtonLoader className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                          Generate & Send Link
+                          {sendingLinkId === order.id ? <ButtonLoader className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                          Send Payment Link
                         </Button>
                         <Button variant="outline" size="icon" onClick={() => handleSave(order.id)}>
                             <Save className="h-4 w-4" />
@@ -337,5 +332,3 @@ export default function DeliveryTrackingPage() {
     </AppShell>
   );
 }
-
-    

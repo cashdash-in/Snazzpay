@@ -67,7 +67,7 @@ export default function OrderDetailPage() {
     const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null);
     const [loading, setLoading] = useState(true);
     const [isCharging, setIsCharging] = useState(false);
-    const [isGeneratingLink, setIsGeneratingLink] = useState(false);
+    const [isSendingLink, setIsSendingLink] = useState(false);
 
     useEffect(() => {
         if (!orderIdParam) return;
@@ -202,9 +202,9 @@ export default function OrderDetailPage() {
         }
     };
     
-    const handleGenerateAndSend = async () => {
+    const handleSendLink = async () => {
         if (!order) return;
-        setIsGeneratingLink(true);
+        setIsSendingLink(true);
         try {
             const response = await fetch('/api/create-payment-link', {
                 method: 'POST',
@@ -221,26 +221,22 @@ export default function OrderDetailPage() {
             const result = await response.json();
 
             if (!response.ok) {
-                throw new Error(result.error || 'Failed to create payment link.');
+                throw new Error(result.error || 'Failed to send payment link.');
             }
 
             toast({
-                title: "Payment Link Created!",
-                description: "Preparing WhatsApp message...",
+                title: "Payment Link Sent!",
+                description: result.message || "The payment link has been sent via SMS and WhatsApp.",
             });
-
-            const message = encodeURIComponent(`Hi ${order.customerName}, your order #${order.orderId} has been dispatched! Please complete your payment here: ${result.paymentLinkUrl}`);
-            const whatsappUrl = `https://wa.me/${order.contactNo}?text=${message}`;
-            window.open(whatsappUrl, '_blank');
 
         } catch (error: any) {
              toast({
                 variant: 'destructive',
-                title: "Error Creating Link",
+                title: "Error Sending Link",
                 description: error.message,
             });
         } finally {
-            setIsGeneratingLink(false);
+            setIsSendingLink(false);
         }
     };
 
@@ -426,11 +422,11 @@ export default function OrderDetailPage() {
                         <Button 
                             variant="default" 
                             size="sm" 
-                            onClick={handleGenerateAndSend}
-                            disabled={isGeneratingLink}
+                            onClick={handleSendLink}
+                            disabled={isSendingLink}
                         >
-                          {isGeneratingLink ? <ButtonLoader className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                          Generate & Send Payment Link
+                          {isSendingLink ? <ButtonLoader className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                          Send Payment Link
                         </Button>
                     </CardFooter>
                 </Card>

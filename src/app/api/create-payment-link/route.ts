@@ -54,11 +54,16 @@ export async function POST(request: Request) {
 
         const paymentLink = await razorpay.paymentLink.create(paymentLinkOptions);
         
-        console.log("Successfully created Razorpay Payment Link:", paymentLink);
+        // Notify via WhatsApp
+        if (paymentLink.short_url) {
+            await razorpay.paymentLink.notifyBy(paymentLink.id, 'whatsapp');
+        }
+        
+        console.log("Successfully created and sent Razorpay Payment Link:", paymentLink);
 
         return NextResponse.json({
             success: true,
-            paymentLinkUrl: paymentLink.short_url
+            message: `Payment link created and sent successfully to ${customerContact}.`
         });
 
     } catch (error: any) {
