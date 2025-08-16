@@ -45,36 +45,45 @@ export default function RefundsPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    async function fetchOrders() {
+    async function fetchAndSetOrders() {
         setLoading(true);
+        let combinedOrders: EditableOrder[] = [];
         try {
             const shopifyOrders = await getOrders();
             const shopifyEditableOrders = shopifyOrders.map(mapShopifyToEditable);
-
-            const manualOrdersJSON = localStorage.getItem('manualOrders');
-            const manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
-            
-            const combinedOrders = [...shopifyEditableOrders, ...manualOrders];
-            const finalOrders = combinedOrders.map(order => {
-                const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
-                return { ...order, ...storedOverrides };
-            });
-            setOrders(finalOrders);
+            combinedOrders = [...shopifyEditableOrders];
         } catch (error) {
             console.error("Failed to fetch Shopify orders:", error);
+            toast({
+                variant: 'destructive',
+                title: "Failed to load Shopify Orders",
+                description: "Displaying manually added orders only. Check Shopify API keys in Settings.",
+            });
+        }
+
+        try {
             const manualOrdersJSON = localStorage.getItem('manualOrders');
             const manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
-            const finalOrders = manualOrders.map(order => {
-                const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
-                return { ...order, ...storedOverrides };
+            combinedOrders = [...combinedOrders, ...manualOrders];
+        } catch (error) {
+            console.error("Failed to load manual orders:", error);
+            toast({
+                variant: 'destructive',
+                title: "Error loading manual orders",
+                description: "Could not load orders from local storage.",
             });
-            setOrders(finalOrders);
-        } finally {
-            setLoading(false);
         }
+
+        const finalOrders = combinedOrders.map(order => {
+            const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
+            return { ...order, ...storedOverrides };
+        });
+
+        setOrders(finalOrders);
+        setLoading(false);
     }
-    fetchOrders();
-  }, []);
+    fetchAndSetOrders();
+  }, [toast]);
 
   const handleFieldChange = (orderId: string, field: keyof EditableOrder, value: string) => {
     setOrders(prevOrders => prevOrders.map(order =>
@@ -133,7 +142,7 @@ export default function RefundsPage() {
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
                 <CardTitle>Refund Management</CardTitle>
-                <CardDescription>View and manage all order refunds. Click an Order ID to see full details. Note: For post-dispatch cancellations, capture Rs. 300 from the mandate.</CardDescription>
+                <CardDescription>View and manage all order refunds. Note: For post-dispatch cancellations, capture Rs. 300 from the mandate.</CardDescription>
             </div>
             <Link href="/orders/new" passHref>
               <Button>
@@ -210,3 +219,5 @@ export default function RefundsPage() {
     </AppShell>
   );
 }
+
+    

@@ -82,38 +82,45 @@ export default function OrdersPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    async function fetchOrders() {
+    async function fetchAndSetOrders() {
         setLoading(true);
+        let combinedOrders: EditableOrder[] = [];
         try {
             const shopifyOrders = await getOrders();
             const shopifyEditableOrders = shopifyOrders.map(mapShopifyOrderToEditableOrder);
-            
+            combinedOrders = [...shopifyEditableOrders];
+        } catch (error) {
+            console.error("Failed to fetch Shopify orders:", error);
+            toast({
+                variant: 'destructive',
+                title: "Failed to load Shopify Orders",
+                description: "Displaying manually added orders only. Check Shopify API keys in Settings.",
+            });
+        }
+
+        try {
             const manualOrdersJSON = localStorage.getItem('manualOrders');
             const manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
-
-            // Combine and apply stored edits
-            const combinedOrders = [...shopifyEditableOrders, ...manualOrders];
-            const finalOrders = combinedOrders.map(order => {
-                const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
-                return { ...order, ...storedOverrides };
-            });
-            
-            setOrders(finalOrders);
+            combinedOrders = [...combinedOrders, ...manualOrders];
         } catch (error) {
-            console.error("Failed to fetch orders:", error);
-            const manualOrdersJSON = localStorage.getItem('manualOrders');
-            const manualOrders = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
-             const finalOrders = manualOrders.map(order => {
-                const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
-                return { ...order, ...storedOverrides };
+            console.error("Failed to load manual orders:", error);
+            toast({
+                variant: 'destructive',
+                title: "Error loading manual orders",
+                description: "Could not load orders from local storage.",
             });
-            setOrders(finalOrders);
-        } finally {
-            setLoading(false);
         }
+
+        const finalOrders = combinedOrders.map(order => {
+            const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
+            return { ...order, ...storedOverrides };
+        });
+        
+        setOrders(finalOrders);
+        setLoading(false);
     }
-    fetchOrders();
-  }, []);
+    fetchAndSetOrders();
+  }, [toast]);
 
   const handleFieldChange = (orderId: string, field: keyof EditableOrder, value: string | number) => {
     setOrders(prevOrders => prevOrders.map(order =>
@@ -245,3 +252,5 @@ export default function OrdersPage() {
     </AppShell>
   );
 }
+
+    

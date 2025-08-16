@@ -10,6 +10,7 @@ import { useEffect, useState } from "react";
 import type { EditableOrder } from "../orders/page";
 import { Loader2 } from "lucide-react";
 import Link from 'next/link';
+import { useToast } from '@/hooks/use-toast';
 
 type Mandate = {
   orderId: string;
@@ -43,9 +44,10 @@ function mapPaymentStatusToMandateStatus(paymentStatus: string): Mandate['status
 export default function MandatesPage() {
   const [allMandates, setAllMandates] = useState<Mandate[]>([]);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
-    async function fetchOrders() {
+    async function fetchAndSetOrders() {
         setLoading(true);
         let combinedOrders: EditableOrder[] = [];
         try {
@@ -66,6 +68,11 @@ export default function MandatesPage() {
             combinedOrders = [...shopifyEditableOrders];
         } catch (error) {
             console.error("Failed to fetch Shopify orders:", error);
+            toast({
+                variant: 'destructive',
+                title: "Failed to load Shopify Orders",
+                description: "Displaying manually added orders only. Check Shopify API keys in Settings.",
+            });
         }
 
         try {
@@ -74,6 +81,11 @@ export default function MandatesPage() {
             combinedOrders = [...combinedOrders, ...manualOrders];
         } catch (error) {
             console.error("Failed to load manual orders:", error);
+            toast({
+                variant: 'destructive',
+                title: "Error loading manual orders",
+                description: "Could not load orders from local storage.",
+            });
         }
 
         // Apply overrides
@@ -97,8 +109,8 @@ export default function MandatesPage() {
         setAllMandates(mandates);
         setLoading(false);
     }
-    fetchOrders();
-  }, []);
+    fetchAndSetOrders();
+  }, [toast]);
 
   return (
     <AppShell title="Mandates">
@@ -153,3 +165,5 @@ export default function MandatesPage() {
     </AppShell>
   );
 }
+
+    

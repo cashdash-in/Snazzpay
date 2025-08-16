@@ -68,6 +68,7 @@ export function RecentOrders() {
             combinedOrders = [...shopifyEditableOrders];
         } catch (error) {
             console.error("Failed to fetch Shopify orders:", error);
+            // Non-blocking, we can still show manual orders
         }
 
         try {
@@ -76,6 +77,11 @@ export function RecentOrders() {
             combinedOrders = [...combinedOrders, ...manualOrders];
         } catch (error) {
             console.error("Failed to load manual orders:", error);
+            toast({
+                variant: 'destructive',
+                title: "Error loading manual orders",
+                description: "Could not load orders from local storage.",
+            });
         }
 
         // Apply overrides
@@ -90,7 +96,7 @@ export function RecentOrders() {
         setLoading(false);
     }
     fetchAndSetOrders();
-  }, []);
+  }, [toast]);
 
 
   const handleFieldChange = (orderId: string, field: keyof EditableOrder, value: string) => {
@@ -214,3 +220,5 @@ export function RecentOrders() {
     </Card>
   );
 }
+
+    
