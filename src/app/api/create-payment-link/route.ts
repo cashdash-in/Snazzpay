@@ -30,7 +30,7 @@ export async function POST(request: Request) {
             );
         }
         
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://your-app-url.com';
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://snazzpay.apphosting.page';
 
         const paymentLinkOptions = {
             amount: Math.round(parseFloat(amount) * 100), // Amount in paise
@@ -40,35 +40,31 @@ export async function POST(request: Request) {
             customer: {
                 name: customerName,
                 contact: customerContact,
-                email: customerEmail || undefined, // Pass email if available
+                email: customerEmail || undefined,
             },
             notify: {
                 sms: true,
-                email: !!customerEmail // Send email only if it's provided
+                email: !!customerEmail,
+                whatsapp: true
             },
             reminder_enable: true,
             notes: {
                 order_id: orderId,
                 product_name: productName,
             },
-            callback_url: `${appUrl}/orders/${orderId}`, // Redirect user after payment
+            callback_url: `${appUrl}/orders/${orderId}`,
             callback_method: "get" as const
         };
 
         const paymentLink = await razorpay.paymentLink.create(paymentLinkOptions);
         
-        // Notify via WhatsApp
-        if (paymentLink.short_url) {
-            await razorpay.paymentLink.notifyBy(paymentLink.id, 'whatsapp');
-        }
-        
-        console.log("Successfully created and sent Razorpay Payment Link:", paymentLink);
+        console.log("Successfully created Razorpay Payment Link:", paymentLink);
 
-        let notificationMessage = `Payment link sent via SMS and WhatsApp to ${customerContact}.`;
+        let sentTo = ['SMS', 'WhatsApp'];
         if (customerEmail) {
-            notificationMessage = `Payment link sent via Email, SMS, and WhatsApp to ${customerContact}.`;
+            sentTo.push('Email');
         }
-
+        const notificationMessage = `Payment link sent to ${customerContact} via ${sentTo.join(', ')}.`;
 
         return NextResponse.json({
             success: true,
