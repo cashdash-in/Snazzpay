@@ -140,8 +140,8 @@ export default function InvoicePage() {
                         <div className="flex items-center gap-4">
                             <ShieldCheck className="h-12 w-12 text-primary" />
                             <div>
-                                <h1 className="text-3xl font-bold text-gray-800">SnazzPay Inc.</h1>
-                                <p className="text-sm text-gray-500">123 Market St, Suite 800<br/>San Francisco, CA 94103</p>
+                                <h1 className="text-3xl font-bold text-gray-800">Snazzify</h1>
+                                <p className="text-sm text-gray-500">2nd Floor, VJ Complex, Pulleppady<br/>Kochi - 682018, Kerala, India</p>
                             </div>
                         </div>
                         <div className="text-right">
@@ -219,8 +219,8 @@ export default function InvoicePage() {
                         />
                     </section>
                     <footer className="text-center mt-12 pt-8 border-t-2 border-gray-100 text-sm text-gray-400">
-                        <p>Thank you for choosing SnazzPay. We appreciate your business.</p>
-                        <p>www.snazzpay.apphosting.page</p>
+                        <p>Thank you for choosing Snazzify. We appreciate your business.</p>
+                        <p>www.snazzify.co.in</p>
                     </footer>
                 </div>
             </div>
@@ -244,3 +244,5 @@ export default function InvoicePage() {
         </div>
     );
 }
+
+    

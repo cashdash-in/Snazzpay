@@ -342,8 +342,8 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                     
                     {step === 'authorize' && (
                          <div className="text-center space-y-3 p-3 bg-green-500/10 rounded-lg border border-green-500/20">
-                           <h3 className="font-semibold text-green-800">Step 2: Authorize Full Amount</h3>
-                           <p className="text-xs text-muted-foreground">Final step! Authorize the full amount on your card. Your card will NOT be charged now. You will pay once you confirm dispatch. A minimum shipping charge only occurs if delivery is refused.</p>
+                           <h3 className="font-semibold text-green-800">Final step! Authorize the full amount on your card.</h3>
+                           <p className="text-xs text-muted-foreground">Your card will NOT be charged now. You will pay once you confirm dispatch. A minimum shipping charge only occurs if delivery is refused.</p>
                         </div>
                     )}
                     
@@ -373,3 +373,5 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         </div>
     );
 }
+
+    
