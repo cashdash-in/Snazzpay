@@ -37,6 +37,7 @@ import {
   Ban,
   CircleDollarSign,
   Users,
+  FileSpreadsheet,
 } from 'lucide-react';
 
 const menuItems = [
@@ -47,6 +48,7 @@ const menuItems = [
   { href: '/delivery-tracking', label: 'Delivery Tracking', icon: Truck },
   { href: '/cancellations', label: 'Cancellations', icon: Ban },
   { href: '/refunds', label: 'Refunds', icon: CircleDollarSign },
+  { href: '/reports', label: 'Reports', icon: FileSpreadsheet },
   { href: '/cod-instructions', label: 'Embedding', icon: FileCode },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
