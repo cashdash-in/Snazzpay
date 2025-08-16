@@ -17,7 +17,7 @@ type Mandate = {
   orderLink: string;
   customerName: string;
   amount: string;
-  status: 'active' | 'pending' | 'failed' | 'completed' | 'halted' | 'cancelled' | 'created';
+  status: 'active' | 'pending' | 'failed' | 'completed' | 'halted' | 'cancelled' | 'created' | 'intent-verified';
   createdAt: string;
   nextBilling: string;
 };
@@ -35,6 +35,8 @@ function mapPaymentStatusToMandateStatus(paymentStatus: string): Mandate['status
             return 'cancelled';
         case 'refunded':
             return 'halted';
+        case 'intent verified':
+            return 'intent-verified';
         default:
             return 'created';
     }
@@ -95,7 +97,7 @@ export default function MandatesPage() {
         });
 
         const mandates: Mandate[] = ordersWithOverrides
-            .filter(order => order.paymentStatus.toLowerCase() === 'authorized' || order.paymentStatus.toLowerCase() === 'paid')
+            .filter(order => ['authorized', 'paid', 'intent verified'].includes(order.paymentStatus.toLowerCase()))
             .map(order => ({
                 orderId: order.orderId,
                 orderLink: `/orders/${order.id}`,
@@ -119,7 +121,7 @@ export default function MandatesPage() {
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
               <CardTitle>Mandate Management</CardTitle>
-              <CardDescription>View status of all order payment authorizations. Only orders with 'Authorized' or 'Paid' status are shown.</CardDescription>
+              <CardDescription>View status of all payment authorizations. Includes 'Intent Verified', 'Authorized', and 'Paid' orders.</CardDescription>
             </div>
           </div>
         </CardHeader>

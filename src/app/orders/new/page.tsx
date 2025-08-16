@@ -117,6 +117,7 @@ export default function NewOrderPage() {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="Pending">Pending</SelectItem>
+                            <SelectItem value="Intent Verified">Intent Verified</SelectItem>
                             <SelectItem value="Paid">Paid</SelectItem>
                             <SelectItem value="Refunded">Refunded</SelectItem>
                             <SelectItem value="Authorized">Authorized</SelectItem>

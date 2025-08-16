@@ -1,10 +1,10 @@
 
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { CheckCircle2, XCircle, Clock, Check, Ban, AlertCircle, CirclePlus } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, Check, Ban, AlertCircle, CirclePlus, ShieldQuestion } from "lucide-react";
 
 type MandateStatusProps = {
-  status: 'active' | 'pending' | 'failed' | 'completed' | 'halted' | 'cancelled' | 'created';
+  status: 'active' | 'pending' | 'failed' | 'completed' | 'halted' | 'cancelled' | 'created' | 'intent-verified';
 };
 
 const statusConfig = {
@@ -42,6 +42,11 @@ const statusConfig = {
       label: "Created",
       icon: CirclePlus,
       className: "bg-purple-100 text-purple-800 border-purple-200 hover:bg-purple-100",
+  },
+  "intent-verified": {
+      label: "Intent Verified",
+      icon: ShieldQuestion,
+      className: "bg-indigo-100 text-indigo-800 border-indigo-200 hover:bg-indigo-100",
   }
 };
 
