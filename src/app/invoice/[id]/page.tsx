@@ -119,8 +119,7 @@ export default function InvoicePage() {
     }
     
     const subtotal = parseFloat(order.price) * order.quantity;
-    const tax = subtotal * 0.18; // Example 18% tax
-    const total = subtotal + tax;
+    const total = subtotal;
 
     return (
         <div className="bg-gray-100 min-h-screen p-4 sm:p-8">
@@ -200,10 +199,6 @@ export default function InvoicePage() {
                                 <span>Subtotal</span>
                                 <span className="font-medium">₹{subtotal.toFixed(2)}</span>
                             </div>
-                            <div className="flex justify-between">
-                                <span>Tax (18%)</span>
-                                <span className="font-medium">₹{tax.toFixed(2)}</span>
-                            </div>
                             <div className="flex justify-between text-xl font-bold text-gray-800 border-t border-gray-200 pt-2">
                                 <span>Total</span>
                                 <span>₹{total.toFixed(2)}</span>
@@ -244,5 +239,3 @@ export default function InvoicePage() {
         </div>
     );
 }
-
-    
