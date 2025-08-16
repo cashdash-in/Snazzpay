@@ -382,7 +382,20 @@ export default function OrderDetailPage() {
                         </div>
                          <div className="space-y-2">
                             <Label htmlFor="paymentStatus">Payment Status</Label>
-                            <Input id="paymentStatus" value={order.paymentStatus} onChange={(e) => handleInputChange('paymentStatus', e.target.value)} />
+                             <Select value={order.paymentStatus} onValueChange={(value) => handleSelectChange('paymentStatus', value)}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select Status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Pending">Pending</SelectItem>
+                                    <SelectItem value="Intent Verified">Intent Verified</SelectItem>
+                                    <SelectItem value="Authorized">Authorized</SelectItem>
+                                    <SelectItem value="Paid">Paid</SelectItem>
+                                    <SelectItem value="Refunded">Refunded</SelectItem>
+                                    <SelectItem value="Partially Paid">Partially Paid</SelectItem>
+                                    <SelectItem value="Voided">Voided</SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
                     </CardContent>
                 </Card>

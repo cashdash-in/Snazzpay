@@ -12,6 +12,7 @@ import { useState, useEffect } from "react";
 import { Loader2, PlusCircle, Trash2, Save } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
+import { v4 as uuidv4 } from 'uuid';
 
 export type EditableOrder = {
   id: string; // Internal unique ID for React key
@@ -101,8 +102,31 @@ export default function OrdersPage() {
         }
 
         try {
+            let manualOrders: EditableOrder[] = [];
             const manualOrdersJSON = localStorage.getItem('manualOrders');
-            const manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
+            if (manualOrdersJSON) {
+                manualOrders = JSON.parse(manualOrdersJSON);
+            }
+            
+            // Add a test order if no orders exist
+            if (combinedOrders.length === 0 && manualOrders.length === 0) {
+                 manualOrders.push({
+                    id: uuidv4(),
+                    orderId: '#TEST-1001',
+                    customerName: 'Test Customer',
+                    customerEmail: 'test@example.com',
+                    customerAddress: '123 Test Street, Testville',
+                    pincode: '12345',
+                    contactNo: '9876543210',
+                    productOrdered: 'Sample Product for Testing',
+                    quantity: 1,
+                    price: '499.00',
+                    paymentStatus: 'Pending',
+                    date: format(new Date(), 'yyyy-MM-dd'),
+                });
+                localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
+            }
+
             combinedOrders = [...combinedOrders, ...manualOrders];
         } catch (error) {
             console.error("Failed to load manual orders:", error);
@@ -118,7 +142,10 @@ export default function OrdersPage() {
             return { ...order, ...storedOverrides };
         });
         
-        setOrders(finalOrders);
+        // Filter out "Intent Verified" from this main view, as they are in Leads
+        const filteredOrders = finalOrders.filter(o => o.paymentStatus !== 'Intent Verified');
+
+        setOrders(filteredOrders);
         setLoading(false);
     }
     fetchAndSetOrders();
