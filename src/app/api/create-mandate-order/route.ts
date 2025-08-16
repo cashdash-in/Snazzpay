@@ -57,7 +57,7 @@ export async function POST(request: Request) {
         const orderOptions = {
             amount: Math.round(amount * 100), // Amount in paise
             currency: 'INR',
-            receipt: `rcpt_${isAuthorization ? 'auth' : 'intent'}_${uuidv4()}`,
+            receipt: `rcpt_${isAuthorization ? 'auth' : 'intent'}_${Date.now()}`,
             payment_capture: isAuthorization ? 0 : 1, // Set to 0 for authorization, 1 for immediate capture
             customer_id: customerId,
             notes: {
