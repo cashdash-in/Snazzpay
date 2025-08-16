@@ -17,6 +17,7 @@ export type EditableOrder = {
   id: string; // Internal unique ID for React key
   orderId: string;
   customerName: string;
+  customerEmail?: string;
   customerAddress: string;
   pincode: string;
   contactNo: string;
@@ -65,6 +66,7 @@ function mapShopifyOrderToEditableOrder(shopifyOrder: ShopifyOrder): EditableOrd
         id: shopifyOrder.id.toString(),
         orderId: shopifyOrder.name,
         customerName,
+        customerEmail: shopifyOrder.customer?.email || undefined,
         customerAddress: formatAddress(shopifyOrder.shipping_address),
         pincode: shopifyOrder.shipping_address?.zip || 'N/A',
         contactNo: shopifyOrder.customer?.phone || 'N/A',
@@ -252,5 +254,3 @@ export default function OrdersPage() {
     </AppShell>
   );
 }
-
-    

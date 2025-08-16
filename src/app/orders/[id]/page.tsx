@@ -8,7 +8,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, Save, ExternalLink, CreditCard, Send, Loader2 as ButtonLoader } from 'lucide-react';
+import { ArrowLeft, Loader2, Save, ExternalLink, CreditCard, Send, Loader2 as ButtonLoader, Mail } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { EditableOrder } from '../page';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -45,6 +45,7 @@ function mapShopifyOrderToEditableOrder(shopifyOrder: ShopifyOrder): EditableOrd
         id: shopifyOrder.id.toString(),
         orderId: shopifyOrder.name,
         customerName,
+        customerEmail: customer?.email || undefined,
         customerAddress: shopifyOrder.shipping_address ? `${shopifyOrder.shipping_address.address1}, ${shopifyOrder.shipping_address.city}` : 'N/A',
         pincode: shopifyOrder.shipping_address?.zip || 'N/A',
         contactNo: shopifyOrder.customer?.phone || 'N/A',
@@ -213,6 +214,7 @@ export default function OrderDetailPage() {
                     amount: order.price,
                     customerName: order.customerName,
                     customerContact: order.contactNo,
+                    customerEmail: order.customerEmail,
                     orderId: order.orderId,
                     productName: order.productOrdered,
                 }),
@@ -226,7 +228,7 @@ export default function OrderDetailPage() {
 
             toast({
                 title: "Payment Link Sent!",
-                description: result.message || "The payment link has been sent via SMS and WhatsApp.",
+                description: result.message,
             });
 
         } catch (error: any) {
@@ -349,6 +351,10 @@ export default function OrderDetailPage() {
                         <div className="space-y-2">
                             <Label htmlFor="contactNo">Contact No.</Label>
                             <Input id="contactNo" value={order.contactNo} onChange={(e) => handleInputChange('contactNo', e.target.value)} />
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="customerEmail">Email</Label>
+                            <Input id="customerEmail" value={order.customerEmail || ''} onChange={(e) => handleInputChange('customerEmail', e.target.value)} placeholder="customer@example.com"/>
                         </div>
                          <div className="space-y-2 md:col-span-2">
                             <Label htmlFor="customerAddress">Address</Label>

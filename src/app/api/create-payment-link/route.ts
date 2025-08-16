@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     });
 
     try {
-        const { amount, customerName, customerContact, orderId, productName } = await request.json();
+        const { amount, customerName, customerContact, customerEmail, orderId, productName } = await request.json();
 
         if (!amount || !customerName || !customerContact || !orderId) {
             return new NextResponse(
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
             );
         }
         
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://your-app-url.com'; // Fallback URL
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://your-app-url.com';
 
         const paymentLinkOptions = {
             amount: Math.round(parseFloat(amount) * 100), // Amount in paise
@@ -40,10 +40,11 @@ export async function POST(request: Request) {
             customer: {
                 name: customerName,
                 contact: customerContact,
+                email: customerEmail || undefined, // Pass email if available
             },
             notify: {
                 sms: true,
-                email: false // Assuming we don't have customer email
+                email: !!customerEmail // Send email only if it's provided
             },
             reminder_enable: true,
             notes: {
@@ -63,9 +64,15 @@ export async function POST(request: Request) {
         
         console.log("Successfully created and sent Razorpay Payment Link:", paymentLink);
 
+        let notificationMessage = `Payment link sent via SMS and WhatsApp to ${customerContact}.`;
+        if (customerEmail) {
+            notificationMessage = `Payment link sent via Email, SMS, and WhatsApp to ${customerContact}.`;
+        }
+
+
         return NextResponse.json({
             success: true,
-            message: `Payment link created and sent successfully to ${customerContact}.`
+            message: notificationMessage
         });
 
     } catch (error: any) {

@@ -29,6 +29,7 @@ function mapShopifyToEditable(order: ShopifyOrder): EditableOrder {
         id: order.id.toString(),
         orderId: order.name,
         customerName: `${order.customer?.first_name || ''} ${order.customer?.last_name || ''}`.trim(),
+        customerEmail: order.customer?.email || undefined,
         customerAddress: formatAddress(order.shipping_address),
         pincode: order.shipping_address?.zip || 'N/A',
         contactNo: order.customer?.phone || 'N/A',
@@ -148,6 +149,7 @@ export default function DeliveryTrackingPage() {
                     amount: order.price,
                     customerName: order.customerName,
                     customerContact: order.contactNo,
+                    customerEmail: order.customerEmail,
                     orderId: order.orderId,
                     productName: order.productOrdered,
                 }),
@@ -161,7 +163,7 @@ export default function DeliveryTrackingPage() {
 
             toast({
                 title: "Payment Link Sent!",
-                description: result.message || "The payment link has been sent via SMS and WhatsApp.",
+                description: result.message,
             });
 
         } catch (error: any) {

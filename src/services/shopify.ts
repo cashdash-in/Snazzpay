@@ -25,6 +25,7 @@ const OrderSchema = z.object({
         first_name: z.string().nullable(),
         last_name: z.string().nullable(),
         phone: z.string().nullable(),
+        email: z.string().nullable(),
     }).nullable(),
     shipping_address: z.object({
         address1: z.string().nullable(),
