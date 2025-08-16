@@ -149,7 +149,7 @@ export default function OrderDetailPage() {
         });
     };
     
-    const handleChargeMandate = async () => {
+    const handleChargePayment = async () => {
         if (!paymentInfo || !order) return;
         setIsCharging(true);
         try {
@@ -165,7 +165,7 @@ export default function OrderDetailPage() {
             const result = await response.json();
 
             if (!response.ok) {
-                throw new Error(result.error || 'Failed to charge mandate.');
+                throw new Error(result.error || 'Failed to charge payment.');
             }
             
             const updatedOrder = { ...order, paymentStatus: 'Paid' };
@@ -317,19 +317,19 @@ export default function OrderDetailPage() {
                                 <AlertDialogTrigger asChild>
                                     <Button disabled={isCharging || order.paymentStatus.toLowerCase() === 'paid'}>
                                         {isCharging ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CreditCard className="mr-2 h-4 w-4" />}
-                                        {order.paymentStatus.toLowerCase() === 'paid' ? 'Mandate Charged' : `Charge Mandate (₹${order.price})`}
+                                        {order.paymentStatus.toLowerCase() === 'paid' ? 'Payment Captured' : `Charge Authorized Payment (₹${order.price})`}
                                     </Button>
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
                                     <AlertDialogHeader>
                                     <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                                     <AlertDialogDescription>
-                                        This action will immediately charge the customer's authorized payment method for the full amount of ₹{order.price}. This cannot be undone.
+                                        This action will immediately charge the customer's authorized card for the full amount of ₹{order.price}. This cannot be undone.
                                     </AlertDialogDescription>
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
                                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={handleChargeMandate}>Yes, Charge Now</AlertDialogAction>
+                                    <AlertDialogAction onClick={handleChargePayment}>Yes, Charge Now</AlertDialogAction>
                                     </AlertDialogFooter>
                                 </AlertDialogContent>
                             </AlertDialog>

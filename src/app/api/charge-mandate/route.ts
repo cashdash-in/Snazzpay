@@ -29,37 +29,15 @@ export async function POST(request: Request) {
             );
         }
 
-        // The paymentId from the authorization step is actually the token for charging.
-        const paymentToken = paymentId; 
-        
-        // First, fetch the payment to get the customer ID associated with the token
-        const payment = await razorpay.payments.fetch(paymentToken);
-        if (!payment || !payment.customer_id) {
-            throw new Error('Could not find a customer associated with this payment token.');
-        }
-        const customerId = payment.customer_id;
-        
-        // Create a subsequent payment against the token
-        const charge = await razorpay.payments.create({
-            amount: Math.round(amount * 100), // Amount in paise
-            currency: 'INR',
-            customer_id: customerId,
-            payment_capture: 1, // Auto-capture the payment
-            receipt: `rcpt_charge_${uuidv4().substring(0,8)}`,
-            // This is the crucial part for charging a mandate
-            token: paymentToken, 
-            description: `Charging mandate for order.`,
-             notes: {
-                charge_reason: "Order dispatched"
-            }
-        });
+        // The paymentId from the authorization step is the one we need to capture.
+        const capturedPayment = await razorpay.payments.capture(paymentId, Math.round(amount * 100), 'INR');
 
-        console.log("Successfully charged mandate:", charge);
+        console.log("Successfully captured payment:", capturedPayment);
 
-        return NextResponse.json({ success: true, transactionId: charge.id });
+        return NextResponse.json({ success: true, transactionId: capturedPayment.id });
 
     } catch (error: any) {
-        console.error("--- Razorpay Mandate Charge Error ---");
+        console.error("--- Razorpay Payment Capture Error ---");
         if (error.error) {
              console.error(JSON.stringify(error.error, null, 2));
         } else {
@@ -67,7 +45,7 @@ export async function POST(request: Request) {
         }
         const errorMessage = error?.error?.description || error.message || 'An unknown error occurred.';
         return new NextResponse(
-            JSON.stringify({ error: `Failed to charge mandate: ${errorMessage}` }),
+            JSON.stringify({ error: `Failed to capture payment: ${errorMessage}` }),
             { status: 500, headers: { 'Content-Type': 'application/json' } }
         );
     }
