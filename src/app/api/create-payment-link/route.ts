@@ -30,6 +30,8 @@ export async function POST(request: Request) {
             );
         }
         
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://your-app-url.com'; // Fallback URL
+
         const paymentLinkOptions = {
             amount: Math.round(parseFloat(amount) * 100), // Amount in paise
             currency: "INR",
@@ -48,7 +50,7 @@ export async function POST(request: Request) {
                 order_id: orderId,
                 product_name: productName,
             },
-            callback_url: `${process.env.NEXT_PUBLIC_APP_URL || ''}/orders/${orderId}`, // Redirect user after payment
+            callback_url: `${appUrl}/orders/${orderId}`, // Redirect user after payment
             callback_method: "get" as const
         };
 
