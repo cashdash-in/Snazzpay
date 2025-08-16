@@ -133,7 +133,9 @@ export default function LeadsPage() {
                   <TableHead>Captured On</TableHead>
                   <TableHead>Original Order ID</TableHead>
                   <TableHead>Customer</TableHead>
+                  <TableHead>Email</TableHead>
                   <TableHead>Contact No</TableHead>
+                  <TableHead>Address</TableHead>
                   <TableHead>Product(s)</TableHead>
                   <TableHead>Value</TableHead>
                   <TableHead className="text-center">Actions</TableHead>
@@ -145,7 +147,9 @@ export default function LeadsPage() {
                     <TableCell>{lead.date}</TableCell>
                     <TableCell className="font-medium">{lead.orderId}</TableCell>
                     <TableCell>{lead.customerName}</TableCell>
+                    <TableCell>{lead.customerEmail}</TableCell>
                     <TableCell>{lead.contactNo}</TableCell>
+                    <TableCell>{lead.customerAddress}, {lead.pincode}</TableCell>
                     <TableCell>{lead.productOrdered}</TableCell>
                     <TableCell>₹{lead.price}</TableCell>
                     <TableCell className="text-center space-x-2">
