@@ -79,6 +79,8 @@ function mapShopifyOrderToEditableOrder(shopifyOrder: ShopifyOrder): EditableOrd
     };
 }
 
+const TEST_ORDER_ID = '#TEST-1001';
+
 export default function OrdersPage() {
   const [orders, setOrders] = useState<EditableOrder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -102,17 +104,15 @@ export default function OrdersPage() {
         }
 
         try {
-            let manualOrders: EditableOrder[] = [];
             const manualOrdersJSON = localStorage.getItem('manualOrders');
-            if (manualOrdersJSON) {
-                manualOrders = JSON.parse(manualOrdersJSON);
-            }
+            let manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
             
-            // Add a test order if no orders exist
-            if (combinedOrders.length === 0 && manualOrders.length === 0) {
-                 manualOrders.push({
+            // Add a test order if it doesn't exist
+            const testOrderExists = manualOrders.some(order => order.orderId === TEST_ORDER_ID);
+            if (!testOrderExists) {
+                 manualOrders.unshift({ // Add to the beginning of the list
                     id: uuidv4(),
-                    orderId: '#TEST-1001',
+                    orderId: TEST_ORDER_ID,
                     customerName: 'Test Customer',
                     customerEmail: 'test@example.com',
                     customerAddress: '123 Test Street, Testville',
