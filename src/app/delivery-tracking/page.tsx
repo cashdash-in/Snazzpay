@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useEffect } from "react";
-import { Send, Trash2, PlusCircle, Save, Loader2 as ButtonLoader } from "lucide-react";
+import { Send, Trash2, PlusCircle, Save, Loader2 as ButtonLoader, Clipboard } from "lucide-react";
 import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -45,7 +45,7 @@ function mapShopifyToEditable(order: ShopifyOrder): EditableOrder {
 export default function DeliveryTrackingPage() {
     const [orders, setOrders] = useState<EditableOrder[]>([]);
     const [loading, setLoading] = useState(true);
-    const [sendingLinkId, setSendingLinkId] = useState<string | null>(null);
+    const [generatingLinkId, setGeneratingLinkId] = useState<string | null>(null);
     const { toast } = useToast();
 
     useEffect(() => {
@@ -139,17 +139,14 @@ export default function DeliveryTrackingPage() {
         });
     };
 
-    const handleSendLink = async (order: EditableOrder) => {
-        setSendingLinkId(order.id);
+    const handleGetAuthLink = async (order: EditableOrder) => {
+        setGeneratingLinkId(order.id);
         try {
             const response = await fetch('/api/create-payment-link', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     amount: order.price,
-                    customerName: order.customerName,
-                    customerContact: order.contactNo,
-                    customerEmail: order.customerEmail,
                     orderId: order.orderId,
                     productName: order.productOrdered,
                 }),
@@ -158,22 +155,24 @@ export default function DeliveryTrackingPage() {
             const result = await response.json();
 
             if (!response.ok) {
-                throw new Error(result.error || 'Failed to send payment link.');
+                throw new Error(result.error || 'Failed to generate link.');
             }
 
+            navigator.clipboard.writeText(result.paymentLink);
+
             toast({
-                title: "Payment Link Sent!",
-                description: result.message,
+                title: "Authorization Link Copied!",
+                description: "The URL has been copied to your clipboard. Please send it to the customer.",
             });
 
         } catch (error: any) {
              toast({
                 variant: 'destructive',
-                title: "Error Sending Link",
+                title: "Error Generating Link",
                 description: error.message,
             });
         } finally {
-            setSendingLinkId(null);
+            setGeneratingLinkId(null);
         }
     };
 
@@ -310,11 +309,11 @@ export default function DeliveryTrackingPage() {
                         <Button 
                             variant="default" 
                             size="sm" 
-                            onClick={() => handleSendLink(order)}
-                            disabled={sendingLinkId === order.id}
+                            onClick={() => handleGetAuthLink(order)}
+                            disabled={generatingLinkId === order.id}
                         >
-                          {sendingLinkId === order.id ? <ButtonLoader className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                          Send Payment Link
+                          {generatingLinkId === order.id ? <ButtonLoader className="mr-2 h-4 w-4 animate-spin" /> : <Clipboard className="mr-2 h-4 w-4" />}
+                          Copy Auth Link
                         </Button>
                         <Button variant="outline" size="icon" onClick={() => handleSave(order.id)}>
                             <Save className="h-4 w-4" />
