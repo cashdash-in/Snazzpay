@@ -32,8 +32,6 @@ export async function POST(request: Request) {
         
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://snazzpay.apphosting.page';
         
-        const paymentLinkMessage = `Click to authorize payment for your order '${productName}' from Snazzify. Your card will not be charged now.`;
-
         // This is the correct way to create an authorization-only payment link.
         // We create a Razorpay Order first with payment_capture set to 0.
         const orderOptions = {
@@ -51,7 +49,6 @@ export async function POST(request: Request) {
         const razorpayOrder = await razorpay.orders.create(orderOptions);
 
         const paymentLinkOptions = {
-            description: paymentLinkMessage,
             customer: {
                 name: customerName,
                 contact: customerContact,
@@ -62,27 +59,11 @@ export async function POST(request: Request) {
                 email: !!customerEmail,
                 whatsapp: true
             },
-            reminder_enable: true,
-            notes: {
-                "Order ID": orderId,
-                "Product Name": productName,
-                "Transaction Type": "Secure COD Authorization"
-            },
             callback_url: `${appUrl}/orders/${orderId}`,
             callback_method: "get" as const,
-            expire_by: Math.floor(Date.now() / 1000) + (24 * 60 * 60), // 24 hours from now
             order_id: razorpayOrder.id, // Associate with the authorization order
-            options: {
-                checkout: {
-                    method: {
-                        card: true,
-                        netbanking: false,
-                        wallet: false,
-                        upi: false, // CRITICAL: Disable UPI to force card authorization
-                        emi: false,
-                    },
-                }
-            }
+            // CRITICAL: No other parameters like amount, currency, description, etc. are allowed here.
+            // They are inherited from the order_id. This is the fix.
         };
         
         const paymentLink = await razorpay.paymentLink.create(paymentLinkOptions);
