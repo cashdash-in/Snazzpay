@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useEffect } from "react";
-import { Send, Trash2, PlusCircle, Save, Loader2 as ButtonLoader, Clipboard } from "lucide-react";
+import { Send, Trash2, PlusCircle, Save, Loader2 as ButtonLoader, Clipboard, Mail } from "lucide-react";
 import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -45,7 +45,7 @@ function mapShopifyToEditable(order: ShopifyOrder): EditableOrder {
 export default function DeliveryTrackingPage() {
     const [orders, setOrders] = useState<EditableOrder[]>([]);
     const [loading, setLoading] = useState(true);
-    const [sendingLinkId, setSendingLinkId] = useState<string | null>(null);
+    const [sendingState, setSendingState] = useState<{ id: string; type: 'sms' | 'email' | 'copy' } | null>(null);
     const { toast } = useToast();
 
     useEffect(() => {
@@ -139,8 +139,8 @@ export default function DeliveryTrackingPage() {
         });
     };
 
-    const handleSendAuthLink = async (order: EditableOrder) => {
-        setSendingLinkId(order.id);
+    const handleSendAuthLink = async (order: EditableOrder, method: 'sms' | 'email') => {
+        setSendingState({ id: order.id, type: method });
         try {
             const response = await fetch('/api/send-auth-link', {
                 method: 'POST',
@@ -149,7 +149,10 @@ export default function DeliveryTrackingPage() {
                     amount: order.price,
                     orderId: order.orderId,
                     productName: order.productOrdered,
+                    customerName: order.customerName,
                     customerContact: order.contactNo,
+                    customerEmail: order.customerEmail,
+                    sendMethod: method,
                 }),
             });
 
@@ -167,13 +170,32 @@ export default function DeliveryTrackingPage() {
         } catch (error: any) {
              toast({
                 variant: 'destructive',
-                title: "Error Sending Link",
+                title: `Error Sending ${method === 'sms' ? 'SMS' : 'Email'}`,
                 description: error.message,
             });
         } finally {
-            setSendingLinkId(null);
+            setSendingState(null);
         }
     };
+    
+    const handleCopyLink = (order: EditableOrder) => {
+        setSendingState({ id: order.id, type: 'copy' });
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://snazzpay.apphosting.page';
+        const secureCodUrl = new URL(`${appUrl}/secure-cod`);
+        secureCodUrl.searchParams.set('amount', order.price.toString());
+        secureCodUrl.searchParams.set('name', order.productOrdered);
+        secureCodUrl.searchParams.set('order_id', order.orderId);
+        
+        navigator.clipboard.writeText(secureCodUrl.toString());
+        
+        toast({
+            title: "Link Copied!",
+            description: "The secure COD link has been copied to your clipboard.",
+        });
+        
+        setTimeout(() => setSendingState(null), 1000);
+    };
+
 
   return (
     <AppShell title="Delivery Tracking">
@@ -205,14 +227,11 @@ export default function DeliveryTrackingPage() {
                     <TableHead>Order ID</TableHead>
                     <TableHead>Customer</TableHead>
                     <TableHead>Address</TableHead>
-                    <TableHead>Pincode</TableHead>
                     <TableHead>Contact</TableHead>
                     <TableHead>Courier Company</TableHead>
                     <TableHead>Tracking No.</TableHead>
-                    <TableHead>Ready for Dispatch</TableHead>
-                    <TableHead>Est. Delivery</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="text-center w-[250px]">Actions</TableHead>
+                    <TableHead className="text-center w-[400px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -241,14 +260,6 @@ export default function DeliveryTrackingPage() {
                       </TableCell>
                       <TableCell>
                          <Input
-                            value={order.pincode}
-                            onChange={(e) => handleFieldChange(order.id, 'pincode', e.target.value)}
-                            className="w-24"
-                            placeholder="Pincode"
-                        />
-                      </TableCell>
-                      <TableCell>
-                         <Input
                             value={order.contactNo}
                             onChange={(e) => handleFieldChange(order.id, 'contactNo', e.target.value)}
                             className="w-32"
@@ -272,22 +283,6 @@ export default function DeliveryTrackingPage() {
                         />
                       </TableCell>
                        <TableCell>
-                         <Input 
-                            type="date" 
-                            className="w-40" 
-                            value={order.readyForDispatchDate || ''}
-                            onChange={(e) => handleFieldChange(order.id, 'readyForDispatchDate', e.target.value)}
-                         />
-                      </TableCell>
-                      <TableCell>
-                         <Input 
-                            type="date" 
-                            className="w-40" 
-                            value={order.estDelivery || ''}
-                            onChange={(e) => handleFieldChange(order.id, 'estDelivery', e.target.value)}
-                         />
-                      </TableCell>
-                       <TableCell>
                         <Select
                             value={order.deliveryStatus || 'pending'}
                             onValueChange={(value: OrderStatus) => handleFieldChange(order.id, 'deliveryStatus', value)}
@@ -308,11 +303,24 @@ export default function DeliveryTrackingPage() {
                         <Button 
                             variant="default" 
                             size="sm" 
-                            onClick={() => handleSendAuthLink(order)}
-                            disabled={sendingLinkId === order.id}
+                            onClick={() => handleSendAuthLink(order, 'sms')}
+                            disabled={sendingState?.id === order.id}
                         >
-                          {sendingLinkId === order.id ? <ButtonLoader className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                          Send Auth Link
+                          {sendingState?.id === order.id && sendingState.type === 'sms' ? <ButtonLoader className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                          Send SMS Link
+                        </Button>
+                        <Button 
+                            variant="default" 
+                            size="sm" 
+                            onClick={() => handleSendAuthLink(order, 'email')}
+                            disabled={sendingState?.id === order.id || !order.customerEmail}
+                        >
+                          {sendingState?.id === order.id && sendingState.type === 'email' ? <ButtonLoader className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
+                          Send Email Link
+                        </Button>
+                         <Button variant="secondary" size="sm" onClick={() => handleCopyLink(order)}>
+                            <Clipboard className="mr-2 h-4 w-4" />
+                            Copy Link
                         </Button>
                         <Button variant="outline" size="icon" onClick={() => handleSave(order.id)}>
                             <Save className="h-4 w-4" />
