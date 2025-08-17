@@ -45,7 +45,7 @@ function mapShopifyToEditable(order: ShopifyOrder): EditableOrder {
 export default function DeliveryTrackingPage() {
     const [orders, setOrders] = useState<EditableOrder[]>([]);
     const [loading, setLoading] = useState(true);
-    const [sendingState, setSendingState] = useState<{ id: string; type: 'sms' | 'email' | 'copy' } | null>(null);
+    const [sendingState, setSendingState] = useState<{ id: string; type: 'email' | 'copy' } | null>(null);
     const { toast } = useToast();
 
     useEffect(() => {
@@ -139,14 +139,14 @@ export default function DeliveryTrackingPage() {
         });
     };
 
-    const handleSendAuthLink = async (order: EditableOrder, method: 'email') => {
+    const sendOrCopyLink = async (order: EditableOrder, method: 'email' | 'copy') => {
         setSendingState({ id: order.id, type: method });
         try {
             const response = await fetch('/api/send-auth-link', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    amount: order.price,
+                    amount: parseFloat(order.price),
                     orderId: order.orderId,
                     productName: order.productOrdered,
                     customerName: order.customerName,
@@ -159,18 +159,30 @@ export default function DeliveryTrackingPage() {
             const result = await response.json();
 
             if (!response.ok) {
-                throw new Error(result.error || 'Failed to send link.');
+                throw new Error(result.error || 'Failed to process link.');
             }
 
-            toast({
-                title: "Authorization Link Sent!",
-                description: result.message,
-            });
+            if (method === 'copy') {
+                if (result.url) {
+                    navigator.clipboard.writeText(result.url);
+                    toast({
+                        title: "Link Copied!",
+                        description: "The Razorpay authorization link has been copied.",
+                    });
+                } else {
+                    throw new Error("URL was not returned from the server.");
+                }
+            } else {
+                 toast({
+                    title: "Authorization Link Sent!",
+                    description: result.message,
+                });
+            }
 
         } catch (error: any) {
              toast({
                 variant: 'destructive',
-                title: `Error Sending ${method === 'email' ? 'Email' : 'SMS'}`,
+                title: `Error processing link`,
                 description: error.message,
             });
         } finally {
@@ -178,24 +190,6 @@ export default function DeliveryTrackingPage() {
         }
     };
     
-    const handleCopyLink = (order: EditableOrder) => {
-        setSendingState({ id: order.id, type: 'copy' });
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://snazzpay.apphosting.page';
-        const secureCodUrl = new URL(`${appUrl}/secure-cod`);
-        secureCodUrl.searchParams.set('amount', order.price.toString());
-        secureCodUrl.searchParams.set('name', order.productOrdered);
-        secureCodUrl.searchParams.set('order_id', order.orderId);
-        
-        navigator.clipboard.writeText(secureCodUrl.toString());
-        
-        toast({
-            title: "Link Copied!",
-            description: "The secure COD link has been copied to your clipboard.",
-        });
-        
-        setTimeout(() => setSendingState(null), 1000);
-    };
-
 
   return (
     <AppShell title="Delivery Tracking">
@@ -303,14 +297,14 @@ export default function DeliveryTrackingPage() {
                         <Button 
                             variant="default" 
                             size="sm" 
-                            onClick={() => handleSendAuthLink(order, 'email')}
+                            onClick={() => sendOrCopyLink(order, 'email')}
                             disabled={sendingState?.id === order.id || !order.customerEmail}
                         >
                           {sendingState?.id === order.id && sendingState.type === 'email' ? <ButtonLoader className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
                           Send Email Link
                         </Button>
-                         <Button variant="secondary" size="sm" onClick={() => handleCopyLink(order)}>
-                            <Clipboard className="mr-2 h-4 w-4" />
+                         <Button variant="secondary" size="sm" onClick={() => sendOrCopyLink(order, 'copy')}>
+                            {sendingState?.id === order.id && sendingState.type === 'copy' ? <ButtonLoader className="mr-2 h-4 w-4 animate-spin" /> : <Clipboard className="mr-2 h-4 w-4" />}
                             Copy Link
                         </Button>
                         <Button variant="outline" size="icon" onClick={() => handleSave(order.id)}>

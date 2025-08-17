@@ -1,10 +1,65 @@
 
 import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
+import Razorpay from 'razorpay';
+import { v4 as uuidv4 } from 'uuid';
 
-// The SMS sending function has been removed as the free provider (textbelt.com)
-// does not support sending messages to India. We now recommend using email or
-// manually copying the link.
+
+async function createRazorpayLink(order: {
+    amount: number,
+    productName: string,
+    orderId: string,
+    customerName: string,
+    customerContact: string,
+    customerEmail: string
+}) {
+    const keyId = process.env.RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+
+    if (!keyId || !keySecret) {
+        throw new Error("Server configuration error: Razorpay keys are missing.");
+    }
+    
+    const razorpay = new Razorpay({
+        key_id: keyId,
+        key_secret: keySecret,
+    });
+
+    const paymentLinkOptions = {
+        amount: Math.round(order.amount * 100),
+        currency: "INR",
+        accept_partial: false,
+        description: `Card Authorization for: ${order.productName} (Order: ${order.orderId})`,
+        customer: {
+            name: order.customerName,
+            email: order.customerEmail,
+            contact: order.customerContact,
+        },
+        notify: {
+            sms: false, // We will handle notifications manually to provide better feedback
+            email: false,
+        },
+        reminder_enable: false,
+        reference_id: order.orderId,
+        callback_url: `${process.env.NEXT_PUBLIC_APP_URL}/orders/${order.orderId}`, // A placeholder URL
+        callback_method: "get" as "get",
+        options: {
+            checkout: {
+                name: "Snazzify Secure COD",
+                method: {
+                    card: true,
+                    netbanking: false,
+                    wallet: false,
+                    upi: false, // CRITICAL: Force card for authorization flow
+                }
+            }
+        }
+    };
+    
+    const paymentLink = await razorpay.paymentLink.create(paymentLinkOptions);
+    return paymentLink.short_url;
+}
+
 
 async function sendEmail(recipient: string, name: string, productName: string, url: string) {
     const { GMAIL_APP_EMAIL, GMAIL_APP_PASSWORD } = process.env;
@@ -13,8 +68,6 @@ async function sendEmail(recipient: string, name: string, productName: string, u
         throw new Error("Email service is not configured on the server. Please set GMAIL_APP_EMAIL and GMAIL_APP_PASSWORD.");
     }
     
-    // For using Gmail, you need to set up an "App Password"
-    // See: https://support.google.com/accounts/answer/185833
     const transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
@@ -29,8 +82,9 @@ async function sendEmail(recipient: string, name: string, productName: string, u
         subject: `Confirm your Secure COD Order for ${productName}`,
         html: `
             <p>Hi ${name},</p>
-            <p>Thank you for your order! Please confirm your Secure Cash on Delivery order by clicking the link below:</p>
-            <p><a href="${url}" style="display: inline-block; padding: 10px 20px; font-size: 16px; color: #ffffff; background-color: #5a31f4; text-decoration: none; border-radius: 5px;">Confirm Your Order</a></p>
+            <p>Thank you for your order! Please complete the card authorization for your Secure Cash on Delivery order by clicking the link below:</p>
+            <p><a href="${url}" style="display: inline-block; padding: 10px 20px; font-size: 16px; color: #ffffff; background-color: #5a31f4; text-decoration: none; border-radius: 5px;">Authorize Your Order</a></p>
+            <p>This is not a payment. It is a temporary hold that will be released upon successful delivery.</p>
             <p>If you did not place this order, please disregard this email.</p>
             <br/>
             <p>Thanks,</p>
@@ -51,45 +105,32 @@ export async function POST(request: Request) {
             customerName,
             customerContact, 
             customerEmail,
-            sendMethod // 'sms' or 'email'
+            sendMethod // 'email' or 'copy'
         } = await request.json();
 
-        if (!amount || !productName || !orderId || !customerName) {
+        if (!amount || !productName || !orderId || !customerName || !customerEmail || !customerContact) {
             return new NextResponse(
                 JSON.stringify({ error: "Missing required order fields." }),
                 { status: 400, headers: { 'Content-Type': 'application/json' } }
             );
         }
         
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://snazzpay.apphosting.page';
-        
-        // Construct the URL to our own secure-cod page
-        const secureCodUrl = new URL(`${appUrl}/secure-cod`);
-        secureCodUrl.searchParams.set('amount', amount.toString());
-        secureCodUrl.searchParams.set('name', productName);
-        secureCodUrl.searchParams.set('order_id', orderId);
+        const secureUrlString = await createRazorpayLink({amount, productName, orderId, customerName, customerContact, customerEmail});
 
-        const secureUrlString = secureCodUrl.toString();
-
-        if (sendMethod === 'sms') {
-             return new NextResponse(
-                JSON.stringify({ error: "SMS service is currently unavailable. Please use email or copy the link." }),
-                { status: 503, headers: { 'Content-Type': 'application/json' } }
-            );
-
-        } else if (sendMethod === 'email') {
-            if (!customerEmail) {
-                return new NextResponse(
-                    JSON.stringify({ error: "Customer email is required for sending email." }),
-                    { status: 400, headers: { 'Content-Type': 'application/json' } }
-                );
-            }
+        if (sendMethod === 'email') {
             await sendEmail(customerEmail, customerName, productName, secureUrlString);
             return NextResponse.json({
                 success: true,
                 message: `Authorization link sent via Email to ${customerEmail}.`
             });
-        } else {
+        } else if (sendMethod === 'copy') {
+             return NextResponse.json({
+                success: true,
+                message: `Link copied to clipboard.`,
+                url: secureUrlString,
+            });
+        }
+        else {
              return new NextResponse(
                 JSON.stringify({ error: "Invalid send method specified." }),
                 { status: 400, headers: { 'Content-Type': 'application/json' } }
