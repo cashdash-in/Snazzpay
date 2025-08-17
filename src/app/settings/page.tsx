@@ -206,7 +206,7 @@ export default function SettingsPage() {
                     <Mail className="h-4 w-4" />
                     <AlertTitle>How to Enable Email Notifications</AlertTitle>
                     <AlertDescription>
-                        <p>To send emails, you must configure your Gmail account credentials as environment variables in `apphosting.yaml`.</p>
+                        <p>To send emails, you must configure your Gmail account credentials as environment variables in `apphosting.yaml`. This is the most reliable method for sending notifications.</p>
                         <p className="font-semibold mt-2">Step 1: Generate a Gmail App Password</p>
                         <ol className="list-decimal pl-5 mt-1 text-xs">
                             <li>Go to your Google Account settings: <Link href="https://myaccount.google.com/" target="_blank" className="underline">myaccount.google.com</Link></li>
@@ -226,9 +226,9 @@ export default function SettingsPage() {
                 </Alert>
                 <Alert variant="destructive">
                      <MessageSquareWarning className="h-4 w-4" />
-                    <AlertTitle>SMS/WhatsApp Service</AlertTitle>
+                    <AlertTitle>SMS/WhatsApp Service in India</AlertTitle>
                     <AlertDescription>
-                        The current SMS/WhatsApp integration uses a free third-party service (`textbelt.com`). This service will attempt to send a WhatsApp message to Indian numbers but may fall back to SMS. It is intended for development and testing only, can be unreliable, and may stop working. For production use, we recommend integrating a robust, paid provider like Twilio.
+                       The free SMS/WhatsApp integration previously used (`textbelt.com`) does not support sending messages to India. For reliable delivery, we strongly recommend integrating a dedicated provider like Twilio, Vonage, or a similar service with official support for India. This typically requires a paid account and API key configuration.
                     </AlertDescription>
                 </Alert>
             </CardContent>

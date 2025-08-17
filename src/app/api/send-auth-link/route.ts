@@ -2,20 +2,9 @@
 import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 
-async function sendSms(contact: string, message: string) {
-    // Using Textbelt to send the SMS/WhatsApp message
-    // Note: The free tier sends via SMS and may have a "textbelt.com" branding.
-    const textbeltResponse = await fetch('https://textbelt.com/text', {
-        method: 'post',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            phone: contact,
-            message: message,
-            key: 'textbelt', // Use the free key
-        }),
-    });
-    return textbeltResponse.json();
-}
+// The SMS sending function has been removed as the free provider (textbelt.com)
+// does not support sending messages to India. We now recommend using email or
+// manually copying the link.
 
 async function sendEmail(recipient: string, name: string, productName: string, url: string) {
     const { GMAIL_APP_EMAIL, GMAIL_APP_PASSWORD } = process.env;
@@ -83,22 +72,10 @@ export async function POST(request: Request) {
         const secureUrlString = secureCodUrl.toString();
 
         if (sendMethod === 'sms') {
-            if (!customerContact) {
-                 return new NextResponse(
-                    JSON.stringify({ error: "Customer contact number is required for SMS." }),
-                    { status: 400, headers: { 'Content-Type': 'application/json' } }
-                );
-            }
-            const message = `Please confirm your Secure COD order with Snazzify by clicking this link: ${secureUrlString}`;
-            const smsResult = await sendSms(customerContact, message);
-             if (!smsResult.success) {
-                console.error("Textbelt API Error:", smsResult);
-                throw new Error(`Failed to send SMS: ${smsResult.error || 'Unknown error'}. You can still manually send the link.`);
-            }
-            return NextResponse.json({
-                success: true,
-                message: `Authorization link sent via SMS to ${customerContact}.`
-            });
+             return new NextResponse(
+                JSON.stringify({ error: "SMS service is currently unavailable. Please use email or copy the link." }),
+                { status: 503, headers: { 'Content-Type': 'application/json' } }
+            );
 
         } else if (sendMethod === 'email') {
             if (!customerEmail) {

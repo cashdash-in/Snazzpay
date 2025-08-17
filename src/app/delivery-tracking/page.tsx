@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useEffect } from "react";
-import { Send, Trash2, PlusCircle, Save, Loader2 as ButtonLoader, Clipboard, Mail } from "lucide-react";
+import { Trash2, PlusCircle, Save, Loader2 as ButtonLoader, Clipboard, Mail } from "lucide-react";
 import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -139,7 +139,7 @@ export default function DeliveryTrackingPage() {
         });
     };
 
-    const handleSendAuthLink = async (order: EditableOrder, method: 'sms' | 'email') => {
+    const handleSendAuthLink = async (order: EditableOrder, method: 'email') => {
         setSendingState({ id: order.id, type: method });
         try {
             const response = await fetch('/api/send-auth-link', {
@@ -170,7 +170,7 @@ export default function DeliveryTrackingPage() {
         } catch (error: any) {
              toast({
                 variant: 'destructive',
-                title: `Error Sending ${method === 'sms' ? 'SMS/WhatsApp' : 'Email'}`,
+                title: `Error Sending ${method === 'email' ? 'Email' : 'SMS'}`,
                 description: error.message,
             });
         } finally {
@@ -300,15 +300,6 @@ export default function DeliveryTrackingPage() {
                         </Select>
                       </TableCell>
                       <TableCell className="text-center space-x-2">
-                        <Button 
-                            variant="default" 
-                            size="sm" 
-                            onClick={() => handleSendAuthLink(order, 'sms')}
-                            disabled={sendingState?.id === order.id}
-                        >
-                          {sendingState?.id === order.id && sendingState.type === 'sms' ? <ButtonLoader className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                          Send SMS / WhatsApp
-                        </Button>
                         <Button 
                             variant="default" 
                             size="sm" 
