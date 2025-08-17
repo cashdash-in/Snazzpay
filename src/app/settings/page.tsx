@@ -10,12 +10,14 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Terminal } from "lucide-react";
+import { Terminal, Mail, MessageSquareWarning } from "lucide-react";
+import Link from "next/link";
 
 export default function SettingsPage() {
   const { toast } = useToast();
   const [razorpaySettings, setRazorpaySettings] = useState({ keyId: '', keySecret: '' });
   const [shopifySettings, setShopifySettings] = useState({ storeUrl: '', apiKey: '', apiSecret: '' });
+  const [notificationSettings, setNotificationSettings] = useState({ gmailEmail: '', gmailPassword: '' });
 
   useEffect(() => {
     // Load saved settings from localStorage for display purposes
@@ -40,6 +42,10 @@ export default function SettingsPage() {
     if (savedShopifyApiSecret) {
         setShopifySettings(prev => ({ ...prev, apiSecret: savedShopifyApiSecret }));
     }
+    const savedGmailEmail = localStorage.getItem('gmail_app_email');
+    if (savedGmailEmail) {
+        setNotificationSettings(prev => ({...prev, gmailEmail: savedGmailEmail}));
+    }
   }, []);
 
   const handleRazorpayChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -50,31 +56,36 @@ export default function SettingsPage() {
     setShopifySettings({ ...shopifySettings, [e.target.name]: e.target.value });
   };
 
-  const handleSaveRazorpay = () => {
-    localStorage.setItem('razorpay_key_id', razorpaySettings.keyId);
-    localStorage.setItem('razorpay_key_secret', razorpaySettings.keySecret);
-    toast({
-      title: "Settings Saved to Browser",
-      description: "Your Razorpay settings have been saved in this browser. NOTE: For server-side operations to work, you must also set these as environment variables.",
-    });
+  const handleNotificationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setNotificationSettings({ ...notificationSettings, [e.target.name]: e.target.value });
   };
 
-  const handleSaveShopify = () => {
-    localStorage.setItem('shopify_store_url', shopifySettings.storeUrl);
-    localStorage.setItem('shopify_api_key', shopifySettings.apiKey);
-    localStorage.setItem('shopify_api_secret', shopifySettings.apiSecret);
+  const handleSaveSettings = (type: 'razorpay' | 'shopify' | 'notifications') => {
+    if (type === 'razorpay') {
+        localStorage.setItem('razorpay_key_id', razorpaySettings.keyId);
+        localStorage.setItem('razorpay_key_secret', razorpaySettings.keySecret);
+    } else if (type === 'shopify') {
+        localStorage.setItem('shopify_store_url', shopifySettings.storeUrl);
+        localStorage.setItem('shopify_api_key', shopifySettings.apiKey);
+        localStorage.setItem('shopify_api_secret', shopifySettings.apiSecret);
+    } else if (type === 'notifications') {
+        localStorage.setItem('gmail_app_email', notificationSettings.gmailEmail);
+        localStorage.setItem('gmail_app_password', notificationSettings.gmailPassword);
+    }
+
     toast({
       title: "Settings Saved to Browser",
-      description: "Your Shopify settings have been saved in this browser. NOTE: For server-side operations to work, you must also set these as environment variables.",
+      description: `Your ${type} settings have been saved in this browser. For server operations to work, you must also set these as environment variables in apphosting.yaml.`,
     });
   };
 
   return (
     <AppShell title="Settings">
       <Tabs defaultValue="razorpay" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto">
+        <TabsList className="grid w-full grid-cols-3 max-w-lg mx-auto">
           <TabsTrigger value="razorpay">Razorpay</TabsTrigger>
           <TabsTrigger value="shopify">Shopify</TabsTrigger>
+          <TabsTrigger value="notifications">Notifications</TabsTrigger>
         </TabsList>
         <TabsContent value="razorpay">
           <Card>
@@ -89,7 +100,7 @@ export default function SettingsPage() {
                 <Terminal className="h-4 w-4" />
                 <AlertTitle>Action Required!</AlertTitle>
                 <AlertDescription>
-                  For Razorpay integration to work, you must set your keys as environment variables in this tool. The fields below save to your browser but will not be used for server requests.
+                  For Razorpay integration to work, you must set your keys as environment variables in `apphosting.yaml`. The fields below save to your browser but are not used by the server.
                   <ul className="list-disc pl-5 mt-2">
                     <li><span className="font-mono text-xs">RAZORPAY_KEY_ID</span></li>
                     <li><span className="font-mono text-xs">RAZORPAY_KEY_SECRET</span></li>
@@ -119,7 +130,7 @@ export default function SettingsPage() {
               </div>
             </CardContent>
             <CardFooter>
-              <Button onClick={handleSaveRazorpay}>Save Razorpay Settings to Browser</Button>
+              <Button onClick={() => handleSaveSettings('razorpay')}>Save Razorpay Settings to Browser</Button>
             </CardFooter>
           </Card>
         </TabsContent>
@@ -136,10 +147,11 @@ export default function SettingsPage() {
                 <Terminal className="h-4 w-4" />
                 <AlertTitle>Action Required!</AlertTitle>
                 <AlertDescription>
-                  For Shopify integration to work, you must set your store details as environment variables.
+                  For Shopify integration to work, you must set your store details as environment variables in `apphosting.yaml`.
                   <ul className="list-disc pl-5 mt-2">
                     <li><span className="font-mono text-xs">SHOPIFY_STORE_URL</span> (e.g., your-store.myshopify.com)</li>
                     <li><span className="font-mono text-xs">SHOPIFY_API_KEY</span> (Your Admin API access token)</li>
+                     <li><span className="font-mono text-xs">SHOPIFY_API_SECRET</span> (Your Shopify App's API secret key)</li>
                   </ul>
                 </AlertDescription>
               </Alert>
@@ -177,8 +189,49 @@ export default function SettingsPage() {
               </div>
             </CardContent>
             <CardFooter>
-              <Button onClick={handleSaveShopify}>Save Shopify Settings to Browser</Button>
+              <Button onClick={() => handleSaveSettings('shopify')}>Save Shopify Settings to Browser</Button>
             </CardFooter>
+          </Card>
+        </TabsContent>
+        <TabsContent value="notifications">
+          <Card>
+            <CardHeader>
+              <CardTitle>Email & SMS Notifications</CardTitle>
+              <CardDescription>
+                Configure how authorization links are sent to customers.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                <Alert>
+                    <Mail className="h-4 w-4" />
+                    <AlertTitle>How to Enable Email Notifications</AlertTitle>
+                    <AlertDescription>
+                        <p>To send emails, you must configure your Gmail account credentials as environment variables in `apphosting.yaml`.</p>
+                        <p className="font-semibold mt-2">Step 1: Generate a Gmail App Password</p>
+                        <ol className="list-decimal pl-5 mt-1 text-xs">
+                            <li>Go to your Google Account settings: <Link href="https://myaccount.google.com/" target="_blank" className="underline">myaccount.google.com</Link></li>
+                            <li>Go to the "Security" section.</li>
+                            <li>Under "How you sign in to Google", enable <strong>2-Step Verification</strong>. You cannot create an App Password without this.</li>
+                            <li>After enabling 2-Step Verification, return to the Security page and find <strong>App passwords</strong>.</li>
+                            <li>Generate a new password. For the app, select "Mail", and for the device, select "Other (Custom name)" and call it "SnazzPay".</li>
+                            <li>Copy the 16-character password that is generated. This is your App Password.</li>
+                        </ol>
+                         <p className="font-semibold mt-2">Step 2: Set Environment Variables</p>
+                         <p>In `apphosting.yaml`, set the following variables:</p>
+                        <ul className="list-disc pl-5 mt-1 font-mono text-xs">
+                           <li>GMAIL_APP_EMAIL: "your-email@gmail.com"</li>
+                           <li>GMAIL_APP_PASSWORD: "your-16-character-app-password"</li>
+                        </ul>
+                    </AlertDescription>
+                </Alert>
+                <Alert variant="destructive">
+                     <MessageSquareWarning className="h-4 w-4" />
+                    <AlertTitle>SMS/WhatsApp Service</AlertTitle>
+                    <AlertDescription>
+                        The current SMS/WhatsApp integration uses a free third-party service (`textbelt.com`) which is intended for development and testing only. It can be unreliable and may stop working. For production use, we recommend integrating a robust, paid SMS provider.
+                    </AlertDescription>
+                </Alert>
+            </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
