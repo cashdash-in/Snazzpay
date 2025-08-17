@@ -1,41 +1,92 @@
 
 import { NextResponse } from 'next/server';
-import { URLSearchParams } from 'url';
+import Razorpay from 'razorpay';
+import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(request: Request) {
-    try {
-        const { amount, productName, orderId } = await request.json();
+    const keyId = process.env.RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
 
-        if (!amount || !productName || !orderId) {
+    if (!keyId || !keySecret) {
+        return new NextResponse(
+            JSON.stringify({ error: "Server configuration error: Razorpay keys are missing." }),
+            { status: 500, headers: { 'Content-Type': 'application/json' } }
+        );
+    }
+    
+    const razorpay = new Razorpay({
+        key_id: keyId,
+        key_secret: keySecret,
+    });
+
+    try {
+        const { amount, productName, orderId, customerName, customerContact, customerEmail } = await request.json();
+
+        if (!amount || !productName || !orderId || !customerName || !customerContact) {
             return new NextResponse(
-                JSON.stringify({ error: "Missing required fields: amount, productName, orderId" }),
+                JSON.stringify({ error: "Missing required fields." }),
                 { status: 400, headers: { 'Content-Type': 'application/json' } }
             );
         }
         
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://snazzpay.apphosting.page';
-        const secureCodUrl = `${appUrl}/secure-cod`;
+        
+        // 1. Create a Razorpay Order first, for authorization only
+        const orderOptions = {
+            amount: Math.round(amount * 100), // Amount in paise
+            currency: 'INR',
+            payment_capture: 0, // IMPORTANT: This makes it an authorization
+            receipt: `rcpt_auth_${orderId}`.slice(0, 40),
+            notes: {
+                product: productName,
+                originalOrderId: orderId,
+                type: "secure_cod_card_authorization_link"
+            }
+        };
 
-        const params = new URLSearchParams({
-            amount: amount.toString(),
-            name: productName,
-            order_id: orderId,
-        });
+        const razorpayOrder = await razorpay.orders.create(orderOptions);
 
-        const finalUrl = `${secureCodUrl}?${params.toString()}`;
+        // 2. Create a Payment Link associated with that order
+        const paymentLinkOptions = {
+            description: `Click to authorize payment for ${productName}`,
+            customer: {
+                name: customerName,
+                contact: customerContact,
+                email: customerEmail,
+            },
+            notes: {
+                product: productName,
+                originalOrderId: orderId
+            },
+            order_id: razorpayOrder.id,
+            callback_url: `${appUrl}/orders`,
+            callback_method: 'get',
+            notify: {
+                sms: true,
+                email: true,
+                whatsapp: true
+            },
+            'options[checkout][method][upi]': 0, // Disable UPI to enforce card auth
+        };
 
+        const paymentLink = await razorpay.paymentLink.create(paymentLinkOptions as any);
+        
         return NextResponse.json({
             success: true,
-            message: "Secure COD URL generated. Please send it to the customer manually.",
-            paymentLink: finalUrl
+            message: `Authorization link sent to ${customerContact} and ${customerEmail || 'their email'}.`,
+            paymentLink: paymentLink.short_url
         });
 
     } catch (error: any) {
-        console.error("--- URL Generation Error ---");
-        console.error(error);
-        const errorMessage = error.message || 'An unknown error occurred.';
+        console.error("--- Razorpay Payment Link Error ---");
+         if (error.error) {
+             console.error(JSON.stringify(error.error, null, 2));
+        } else {
+            console.error(error);
+        }
+        const errorMessage = error?.error?.description || error.message || 'An unknown error occurred.';
         return new NextResponse(
-            JSON.stringify({ error: `Failed to generate Secure COD URL: ${errorMessage}` }),
+            JSON.stringify({ error: `Failed to create Razorpay payment link: ${errorMessage}` }),
             { status: 500, headers: { 'Content-Type': 'application/json' } }
         );
     }

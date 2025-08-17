@@ -45,7 +45,7 @@ function mapShopifyToEditable(order: ShopifyOrder): EditableOrder {
 export default function DeliveryTrackingPage() {
     const [orders, setOrders] = useState<EditableOrder[]>([]);
     const [loading, setLoading] = useState(true);
-    const [generatingLinkId, setGeneratingLinkId] = useState<string | null>(null);
+    const [sendingLinkId, setSendingLinkId] = useState<string | null>(null);
     const { toast } = useToast();
 
     useEffect(() => {
@@ -55,7 +55,7 @@ export default function DeliveryTrackingPage() {
             try {
                 const shopifyOrders = await getOrders();
                 const shopifyEditableOrders = shopifyOrders.map(mapShopifyToEditable);
-                combinedOrders = [...shopifyEditableOrders];
+                combinedOrders = [...combinedOrders];
             } catch (error) {
                 console.error("Failed to fetch Shopify orders:", error);
                 toast({
@@ -139,8 +139,8 @@ export default function DeliveryTrackingPage() {
         });
     };
 
-    const handleGetAuthLink = async (order: EditableOrder) => {
-        setGeneratingLinkId(order.id);
+    const handleSendAuthLink = async (order: EditableOrder) => {
+        setSendingLinkId(order.id);
         try {
             const response = await fetch('/api/create-payment-link', {
                 method: 'POST',
@@ -149,6 +149,9 @@ export default function DeliveryTrackingPage() {
                     amount: order.price,
                     orderId: order.orderId,
                     productName: order.productOrdered,
+                    customerName: order.customerName,
+                    customerContact: order.contactNo,
+                    customerEmail: order.customerEmail,
                 }),
             });
 
@@ -158,21 +161,19 @@ export default function DeliveryTrackingPage() {
                 throw new Error(result.error || 'Failed to generate link.');
             }
 
-            navigator.clipboard.writeText(result.paymentLink);
-
             toast({
-                title: "Authorization Link Copied!",
-                description: "The URL has been copied to your clipboard. Please send it to the customer.",
+                title: "Authorization Link Sent!",
+                description: result.message,
             });
 
         } catch (error: any) {
              toast({
                 variant: 'destructive',
-                title: "Error Generating Link",
+                title: "Error Sending Link",
                 description: error.message,
             });
         } finally {
-            setGeneratingLinkId(null);
+            setSendingLinkId(null);
         }
     };
 
@@ -309,11 +310,11 @@ export default function DeliveryTrackingPage() {
                         <Button 
                             variant="default" 
                             size="sm" 
-                            onClick={() => handleGetAuthLink(order)}
-                            disabled={generatingLinkId === order.id}
+                            onClick={() => handleSendAuthLink(order)}
+                            disabled={sendingLinkId === order.id}
                         >
-                          {generatingLinkId === order.id ? <ButtonLoader className="mr-2 h-4 w-4 animate-spin" /> : <Clipboard className="mr-2 h-4 w-4" />}
-                          Copy Auth Link
+                          {sendingLinkId === order.id ? <ButtonLoader className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                          Send Auth Link
                         </Button>
                         <Button variant="outline" size="icon" onClick={() => handleSave(order.id)}>
                             <Save className="h-4 w-4" />
