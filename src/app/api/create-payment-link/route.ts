@@ -43,11 +43,10 @@ export async function POST(request: Request) {
         const razorpayOrder = await razorpay.orders.create(orderOptions);
 
         // Step 2: Create a Payment Link associated with the authorization order
+        // Crucially, we do NOT pass amount or currency here as they are inherited from the order.
         const paymentLinkMessage = `Click to authorize payment for your order '${productName}' from Snazzify. Your card will not be charged now.`;
 
         const paymentLinkOptions = {
-            // Amount and currency are taken from the order, so we do not pass them here.
-            // This was the source of the "extra fields" error.
             order_id: razorpayOrder.id, // Associate the link with the authorization order
             description: paymentLinkMessage,
             customer: {
