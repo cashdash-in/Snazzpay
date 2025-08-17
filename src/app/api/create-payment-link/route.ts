@@ -44,12 +44,10 @@ export async function POST(request: Request) {
 
         // Step 2: Create a Payment Link associated with the authorization order
         const paymentLinkMessage = `Click to authorize payment for your order '${productName}' from Snazzify. Your card will not be charged now.`;
-        const referenceId = `auth_order_${orderId.replace(/[^a-zA-Z0-9]/g, '')}_${Date.now()}`.slice(0, 40);
 
         const paymentLinkOptions = {
             // Amount and currency are taken from the order, so we don't pass them here
             description: paymentLinkMessage,
-            reference_id: razorpayOrder.id, // Use the Razorpay Order ID as the reference
             customer: {
                 name: customerName,
                 contact: customerContact,
@@ -66,7 +64,7 @@ export async function POST(request: Request) {
                 "Product Name": productName,
                 "Transaction Type": "Secure COD Authorization"
             },
-            callback_url: `${appUrl}/orders/${orderId}?ref=${referenceId}`,
+            callback_url: `${appUrl}/orders/${orderId}`,
             callback_method: "get" as const,
             expire_by: Math.floor(Date.now() / 1000) + (24 * 60 * 60), // 24 hours from now
             order_id: razorpayOrder.id // Associate the link with the authorization order
