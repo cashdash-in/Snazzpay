@@ -32,22 +32,13 @@ export async function POST(request: Request) {
         
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://snazzpay.apphosting.page';
         
-        // Step 1: Create an Order with payment_capture = 0 to make it an authorization
-        const orderOptions = {
-            amount: Math.round(parseFloat(amount) * 100), // Amount in paise
-            currency: 'INR',
-            receipt: `rcpt_auth_${orderId.replace(/[^a-zA-Z0-9]/g, '')}_${Date.now()}`.slice(0, 40),
-            payment_capture: 0, // This is the key change to make it an authorization
-        };
-
-        const razorpayOrder = await razorpay.orders.create(orderOptions);
-
-        // Step 2: Create a Payment Link associated with the authorization order
-        // Crucially, we do NOT pass amount or currency here as they are inherited from the order.
         const paymentLinkMessage = `Click to authorize payment for your order '${productName}' from Snazzify. Your card will not be charged now.`;
 
         const paymentLinkOptions = {
-            order_id: razorpayOrder.id, // Associate the link with the authorization order
+            amount: Math.round(parseFloat(amount) * 100), // Amount in paise
+            currency: 'INR',
+            accept_partial: false,
+            reference_id: `ref_${orderId.replace(/[^a-zA-Z0-9]/g, '')}_${Date.now()}`.slice(0, 40),
             description: paymentLinkMessage,
             customer: {
                 name: customerName,
@@ -68,6 +59,15 @@ export async function POST(request: Request) {
             callback_url: `${appUrl}/orders/${orderId}`,
             callback_method: "get" as const,
             expire_by: Math.floor(Date.now() / 1000) + (24 * 60 * 60), // 24 hours from now
+            options: {
+                checkout: {
+                    method: {
+                        card: true,
+                    },
+                    // This forces the authorization flow.
+                    "upi_link": false 
+                }
+            }
         };
         
         const paymentLink = await razorpay.paymentLink.create(paymentLinkOptions);
