@@ -8,14 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useEffect } from "react";
-import { Trash2, PlusCircle, Save, Loader2 as ButtonLoader, CreditCard } from "lucide-react";
+import { Trash2, PlusCircle, Save, Loader2 as ButtonLoader, Send } from "lucide-react";
 import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import type { EditableOrder } from '../orders/page';
 import { format } from "date-fns";
-import { getRazorpayKeyId } from "../actions";
 
 type OrderStatus = 'pending' | 'dispatched' | 'out-for-delivery' | 'delivered' | 'failed';
 
@@ -46,7 +45,7 @@ function mapShopifyToEditable(order: ShopifyOrder): EditableOrder {
 export default function DeliveryTrackingPage() {
     const [orders, setOrders] = useState<EditableOrder[]>([]);
     const [loading, setLoading] = useState(true);
-    const [authorizingState, setAuthorizingState] = useState<string | null>(null);
+    const [sendingState, setSendingState] = useState<string | null>(null);
     const { toast } = useToast();
 
     useEffect(() => {
@@ -140,108 +139,42 @@ export default function DeliveryTrackingPage() {
         });
     };
 
-    const authorizeOrder = async (order: EditableOrder) => {
-        setAuthorizingState(order.id);
+    const sendAuthLink = async (order: EditableOrder) => {
+        setSendingState(order.id);
         
-        const razorpayKeyId = await getRazorpayKeyId();
-        if (!razorpayKeyId) {
-            toast({ variant: 'destructive', title: 'Configuration Error', description: 'Razorpay Key ID is not available.' });
-            setAuthorizingState(null);
-            return;
-        }
-
         try {
-            // Step 1: Create a valid authorization order on the server
-            const orderResponse = await fetch('/api/create-mandate-order', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                  amount: parseFloat(order.price),
-                  productName: order.productOrdered,
-                  customerName: order.customerName,
-                  customerContact: order.contactNo,
-                  customerAddress: order.customerAddress,
-                  customerPincode: order.pincode,
-                  isAuthorization: true,
-              }),
+            const response = await fetch('/api/create-payment-link', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    amount: order.price,
+                    customerName: order.customerName,
+                    customerContact: order.contactNo,
+                    customerEmail: order.customerEmail,
+                    orderId: order.orderId,
+                    productName: order.productOrdered,
+                }),
             });
 
-            if (!orderResponse.ok) {
-                const errorData = await orderResponse.json();
-                throw new Error(errorData.error || 'Failed to create Razorpay order.');
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || 'Failed to send payment link.');
             }
 
-            const { order_id } = await orderResponse.json();
-
-            // Step 2: Open Razorpay Checkout on the client with the valid order_id
-            const options = {
-                key: razorpayKeyId,
-                amount: Math.round(parseFloat(order.price) * 100),
-                currency: "INR",
-                name: "Snazzify Secure COD",
-                description: `Authorize ₹${order.price} for ${order.productOrdered}`,
-                order_id: order_id, 
-                handler: (response: any) => {
-                    const paymentInfo = {
-                        paymentId: response.razorpay_payment_id,
-                        orderId: order.orderId,
-                        razorpayOrderId: response.razorpay_order_id,
-                        signature: response.razorpay_signature,
-                        status: 'authorized',
-                        authorizedAt: new Date().toISOString()
-                    };
-                    localStorage.setItem(`payment_info_${order.orderId}`, JSON.stringify(paymentInfo));
-
-                    const updatedOrder = { ...order, paymentStatus: 'Authorized' };
-                    setOrders(prev => prev.map(o => o.id === order.id ? updatedOrder : o));
-                    handleSave(order.id); // Save the updated status
-
-                    toast({ title: 'Authorization Successful!', description: 'Your order is confirmed and will be shipped soon.' });
-                    setAuthorizingState(null);
-                },
-                prefill: {
-                    name: order.customerName,
-                    email: order.customerEmail,
-                    contact: order.contactNo,
-                },
-                notes: {
-                    address: order.customerAddress,
-                    product: order.productOrdered,
-                    original_order_id: order.orderId,
-                },
-                theme: { color: "#663399" },
-                modal: {
-                    ondismiss: () => {
-                        setAuthorizingState(null);
-                        toast({
-                            variant: 'destructive',
-                            title: 'Process Cancelled',
-                            description: 'The authorization process was cancelled.',
-                        });
-                    }
-                }
-            };
-            const rzp = new (window as any).Razorpay(options);
-            
-            rzp.on('payment.failed', function (response: any) {
-                console.error("Razorpay payment failed:", response.error);
-                toast({
-                    variant: 'destructive',
-                    title: `Authorization Failed`,
-                    description: response.error.description || 'An unknown error occurred.',
-                });
-                setAuthorizingState(null);
+            toast({
+                title: "Link Sent Successfully!",
+                description: result.message,
             });
-
-            rzp.open();
 
         } catch (error: any) {
              toast({
                 variant: 'destructive',
-                title: `Error Authorizing`,
+                title: `Error Sending Link`,
                 description: error.message,
             });
-            setAuthorizingState(null);
+        } finally {
+            setSendingState(null);
         }
     };
     
@@ -352,11 +285,12 @@ export default function DeliveryTrackingPage() {
                         <Button 
                             variant="default" 
                             size="sm" 
-                            onClick={() => authorizeOrder(order)}
-                            disabled={authorizingState === order.id || !order.customerEmail || !order.contactNo}
+                            onClick={() => sendAuthLink(order)}
+                            disabled={sendingState === order.id || !order.customerEmail || !order.contactNo}
+                            title={!order.customerEmail || !order.contactNo ? "Customer email and contact are required" : "Send Authorization Link"}
                         >
-                          {authorizingState === order.id ? <ButtonLoader className="mr-2 h-4 w-4 animate-spin" /> : <CreditCard className="mr-2 h-4 w-4" />}
-                          Authorize Payment
+                          {sendingState === order.id ? <ButtonLoader className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                          Send Auth Link
                         </Button>
                         <Button variant="outline" size="icon" onClick={() => handleSave(order.id)}>
                             <Save className="h-4 w-4" />
