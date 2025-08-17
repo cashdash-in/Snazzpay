@@ -32,16 +32,24 @@ export async function POST(request: Request) {
         
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://snazzpay.apphosting.page';
         
+        // Step 1: Create an Order with payment_capture = 0 to make it an authorization
+        const orderOptions = {
+            amount: Math.round(parseFloat(amount) * 100), // Amount in paise
+            currency: 'INR',
+            receipt: `rcpt_auth_${orderId.replace(/[^a-zA-Z0-9]/g, '')}_${Date.now()}`.slice(0, 40),
+            payment_capture: 0, // This is the key change to make it an authorization
+        };
+
+        const razorpayOrder = await razorpay.orders.create(orderOptions);
+
+        // Step 2: Create a Payment Link associated with the authorization order
+        const paymentLinkMessage = `Click to authorize payment for your order '${productName}' from Snazzify. Your card will not be charged now.`;
         const referenceId = `auth_order_${orderId.replace(/[^a-zA-Z0-9]/g, '')}_${Date.now()}`.slice(0, 40);
 
-        const paymentLinkMessage = `Click to authorize payment for your order '${productName}' from Snazzify. Your card will not be charged now.`;
-        
         const paymentLinkOptions = {
-            amount: Math.round(parseFloat(amount) * 100),
-            currency: "INR",
-            accept_partial: false,
+            // Amount and currency are taken from the order, so we don't pass them here
             description: paymentLinkMessage,
-            reference_id: referenceId, // Unique ID for this authorization request
+            reference_id: razorpayOrder.id, // Use the Razorpay Order ID as the reference
             customer: {
                 name: customerName,
                 contact: customerContact,
@@ -60,46 +68,13 @@ export async function POST(request: Request) {
             },
             callback_url: `${appUrl}/orders/${orderId}?ref=${referenceId}`,
             callback_method: "get" as const,
-            expire_by: Math.floor(Date.now() / 1000) + (24 * 60 * 60) // 24 hours from now
+            expire_by: Math.floor(Date.now() / 1000) + (24 * 60 * 60), // 24 hours from now
+            order_id: razorpayOrder.id // Associate the link with the authorization order
         };
         
         const paymentLink = await razorpay.paymentLink.create(paymentLinkOptions);
-
-        // Setting a custom parameter to make it an authorization link
-        // This is a workaround since the SDK doesn't directly support this for payment links.
-        // We will now create an order with payment_capture=0 and associate it.
-        const orderOptions = {
-            amount: Math.round(parseFloat(amount) * 100), // Amount in paise
-            currency: 'INR',
-            receipt: `rcpt_auth_${orderId.replace(/[^a-zA-Z0-9]/g, '')}_${Date.now()}`.slice(0, 40),
-            payment_capture: 0, // This is the key change to make it an authorization
-        };
-
-        const razorpayOrder = await razorpay.orders.create(orderOptions);
-
-        // The payment link should have been created with the order_id in reference.
-        // The above is a bit of a hybrid approach. The most reliable is to create order first.
-        // Let's rebuild the link with the order.
-
-        const finalPaymentLinkOptions = {
-            ...paymentLinkOptions,
-            order_id: razorpayOrder.id,
-            // The reference_id is now the order id from Razorpay
-            reference_id: razorpayOrder.id,
-        };
-
-        // We can't update a payment link, so we create a new one with the correct order ID.
-        // First cancel the old one if it was created.
-        try {
-            await razorpay.paymentLink.cancel(paymentLink.id);
-        } catch(e) {
-            // Ignore if cancellation fails, it might not have been created successfully.
-        }
-
-        const finalPaymentLink = await razorpay.paymentLink.create(finalPaymentLinkOptions);
-
         
-        console.log("Successfully created Razorpay Authorization Payment Link.", finalPaymentLink);
+        console.log("Successfully created Razorpay Authorization Payment Link.", paymentLink);
 
         let sentTo = ['SMS', 'WhatsApp'];
         if (customerEmail) {
@@ -110,7 +85,7 @@ export async function POST(request: Request) {
         return NextResponse.json({
             success: true,
             message: notificationMessage,
-            paymentLink: finalPaymentLink.short_url
+            paymentLink: paymentLink.short_url
         });
 
     } catch (error: any) {
