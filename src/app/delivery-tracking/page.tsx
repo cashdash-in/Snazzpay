@@ -142,23 +142,21 @@ export default function DeliveryTrackingPage() {
     const handleSendAuthLink = async (order: EditableOrder) => {
         setSendingLinkId(order.id);
         try {
-            const response = await fetch('/api/create-payment-link', {
+            const response = await fetch('/api/send-auth-link', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     amount: order.price,
                     orderId: order.orderId,
                     productName: order.productOrdered,
-                    customerName: order.customerName,
                     customerContact: order.contactNo,
-                    customerEmail: order.customerEmail,
                 }),
             });
 
             const result = await response.json();
 
             if (!response.ok) {
-                throw new Error(result.error || 'Failed to generate link.');
+                throw new Error(result.error || 'Failed to send link.');
             }
 
             toast({
