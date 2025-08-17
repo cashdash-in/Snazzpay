@@ -21,6 +21,7 @@ export default function NewOrderPage() {
     const [order, setOrder] = useState({
         orderId: '',
         customerName: '',
+        customerEmail: '',
         customerAddress: '',
         pincode: '',
         contactNo: '',
@@ -85,6 +86,14 @@ export default function NewOrderPage() {
                         <Label htmlFor="customerName">Customer Name</Label>
                         <Input id="customerName" value={order.customerName} onChange={handleInputChange} placeholder="John Doe" />
                     </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="customerEmail">Email</Label>
+                        <Input id="customerEmail" type="email" value={order.customerEmail} onChange={handleInputChange} placeholder="customer@example.com" />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="contactNo">Contact No.</Label>
+                        <Input id="contactNo" value={order.contactNo} onChange={handleInputChange} placeholder="+1234567890" />
+                    </div>
                     <div className="space-y-2 md:col-span-2">
                         <Label htmlFor="customerAddress">Address</Label>
                         <Input id="customerAddress" value={order.customerAddress} onChange={handleInputChange} placeholder="123 Main St, Anytown, USA" />
@@ -93,10 +102,7 @@ export default function NewOrderPage() {
                         <Label htmlFor="pincode">Pincode</Label>
                         <Input id="pincode" value={order.pincode} onChange={handleInputChange} placeholder="12345" />
                     </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="contactNo">Contact No.</Label>
-                        <Input id="contactNo" value={order.contactNo} onChange={handleInputChange} placeholder="+1234567890" />
-                    </div>
+                    
                     <div className="space-y-2 md:col-span-2">
                         <Label htmlFor="productOrdered">Product(s)</Label>
                         <Input id="productOrdered" value={order.productOrdered} onChange={handleInputChange} placeholder="T-Shirt, Mug" />
