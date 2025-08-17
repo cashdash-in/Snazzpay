@@ -196,7 +196,7 @@ export default function SettingsPage() {
         <TabsContent value="notifications">
           <Card>
             <CardHeader>
-              <CardTitle>Email & SMS Notifications</CardTitle>
+              <CardTitle>Email & SMS/WhatsApp Notifications</CardTitle>
               <CardDescription>
                 Configure how authorization links are sent to customers.
               </CardDescription>
@@ -228,7 +228,7 @@ export default function SettingsPage() {
                      <MessageSquareWarning className="h-4 w-4" />
                     <AlertTitle>SMS/WhatsApp Service</AlertTitle>
                     <AlertDescription>
-                        The current SMS/WhatsApp integration uses a free third-party service (`textbelt.com`) which is intended for development and testing only. It can be unreliable and may stop working. For production use, we recommend integrating a robust, paid SMS provider.
+                        The current SMS/WhatsApp integration uses a free third-party service (`textbelt.com`). This service will attempt to send a WhatsApp message to Indian numbers but may fall back to SMS. It is intended for development and testing only, can be unreliable, and may stop working. For production use, we recommend integrating a robust, paid provider like Twilio.
                     </AlertDescription>
                 </Alert>
             </CardContent>

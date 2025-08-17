@@ -170,7 +170,7 @@ export default function DeliveryTrackingPage() {
         } catch (error: any) {
              toast({
                 variant: 'destructive',
-                title: `Error Sending ${method === 'sms' ? 'SMS' : 'Email'}`,
+                title: `Error Sending ${method === 'sms' ? 'SMS/WhatsApp' : 'Email'}`,
                 description: error.message,
             });
         } finally {
@@ -307,7 +307,7 @@ export default function DeliveryTrackingPage() {
                             disabled={sendingState?.id === order.id}
                         >
                           {sendingState?.id === order.id && sendingState.type === 'sms' ? <ButtonLoader className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                          Send SMS Link
+                          Send SMS / WhatsApp
                         </Button>
                         <Button 
                             variant="default" 
