@@ -31,12 +31,12 @@ export async function POST(request: Request) {
         
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://snazzpay.apphosting.page';
         
-        // 1. Create a Razorpay Order first, for authorization only
+        // Step 1. Create a Razorpay Order for authorization only
         const orderOptions = {
-            amount: Math.round(amount * 100), // Amount in paise
+            amount: Math.round(amount * 100), // Amount in the smallest currency unit (paise)
             currency: 'INR',
-            payment_capture: 0, // IMPORTANT: This makes it an authorization
-            receipt: `rcpt_auth_${orderId}`.slice(0, 40),
+            payment_capture: 0, // This is crucial for making it an authorization
+            receipt: `rcpt_auth_${orderId}_${uuidv4().substring(0,4)}`.slice(0, 40),
             notes: {
                 product: productName,
                 originalOrderId: orderId,
@@ -45,35 +45,45 @@ export async function POST(request: Request) {
         };
 
         const razorpayOrder = await razorpay.orders.create(orderOptions);
-
-        // 2. Create a Payment Link associated with that order
-        const paymentLinkOptions = {
-            description: `Click to authorize payment for ${productName}`,
+        
+        // Step 2. Create the payment link using the order_id.
+        // DO NOT pass amount, currency, or other fields that are inherited from the order.
+        const paymentLinkOptions: any = {
+            order_id: razorpayOrder.id,
+            description: `Authorize payment for ${productName}`,
             customer: {
                 name: customerName,
                 contact: customerContact,
-                email: customerEmail,
             },
             notes: {
                 product: productName,
                 originalOrderId: orderId
             },
-            order_id: razorpayOrder.id,
             callback_url: `${appUrl}/orders`,
             callback_method: 'get',
             notify: {
                 sms: true,
-                email: true,
-                whatsapp: true
+                whatsapp: true,
+                email: !!customerEmail // Only send email if it exists
             },
-            'options[checkout][method][upi]': 0, // Disable UPI to enforce card auth
+            "options": {
+                "checkout": {
+                    "method": {
+                        "upi": "0" // Disable UPI to force card auth
+                    }
+                }
+            }
         };
 
-        const paymentLink = await razorpay.paymentLink.create(paymentLinkOptions as any);
+        if (customerEmail) {
+            paymentLinkOptions.customer.email = customerEmail;
+        }
+
+        const paymentLink = await razorpay.paymentLink.create(paymentLinkOptions);
         
         return NextResponse.json({
             success: true,
-            message: `Authorization link sent to ${customerContact} and ${customerEmail || 'their email'}.`,
+            message: `Authorization link sent to ${customerContact} ${customerEmail ? `and ${customerEmail}` : ''}.`,
             paymentLink: paymentLink.short_url
         });
 
