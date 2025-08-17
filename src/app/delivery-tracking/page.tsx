@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useEffect } from "react";
-import { Trash2, PlusCircle, Save, Loader2 as ButtonLoader, Clipboard, Mail } from "lucide-react";
+import { Trash2, PlusCircle, Save, Loader2 as ButtonLoader, Send } from "lucide-react";
 import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -45,7 +45,7 @@ function mapShopifyToEditable(order: ShopifyOrder): EditableOrder {
 export default function DeliveryTrackingPage() {
     const [orders, setOrders] = useState<EditableOrder[]>([]);
     const [loading, setLoading] = useState(true);
-    const [sendingState, setSendingState] = useState<{ id: string; type: 'email' | 'copy' } | null>(null);
+    const [sendingState, setSendingState] = useState<string | null>(null);
     const { toast } = useToast();
 
     useEffect(() => {
@@ -139,10 +139,10 @@ export default function DeliveryTrackingPage() {
         });
     };
 
-    const sendOrCopyLink = async (order: EditableOrder, method: 'email' | 'copy') => {
-        setSendingState({ id: order.id, type: method });
+    const sendAuthLink = async (order: EditableOrder) => {
+        setSendingState(order.id);
         try {
-            const response = await fetch('/api/send-auth-link', {
+            const response = await fetch('/api/create-payment-link', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -152,7 +152,6 @@ export default function DeliveryTrackingPage() {
                     customerName: order.customerName,
                     customerContact: order.contactNo,
                     customerEmail: order.customerEmail,
-                    sendMethod: method,
                 }),
             });
 
@@ -161,28 +160,16 @@ export default function DeliveryTrackingPage() {
             if (!response.ok) {
                 throw new Error(result.error || 'Failed to process link.');
             }
-
-            if (method === 'copy') {
-                if (result.url) {
-                    navigator.clipboard.writeText(result.url);
-                    toast({
-                        title: "Link Copied!",
-                        description: "The Razorpay authorization link has been copied.",
-                    });
-                } else {
-                    throw new Error("URL was not returned from the server.");
-                }
-            } else {
-                 toast({
-                    title: "Authorization Link Sent!",
-                    description: result.message,
-                });
-            }
+            
+            toast({
+                title: "Authorization Link Sent!",
+                description: result.message,
+            });
 
         } catch (error: any) {
              toast({
                 variant: 'destructive',
-                title: `Error processing link`,
+                title: `Error Sending Link`,
                 description: error.message,
             });
         } finally {
@@ -297,15 +284,11 @@ export default function DeliveryTrackingPage() {
                         <Button 
                             variant="default" 
                             size="sm" 
-                            onClick={() => sendOrCopyLink(order, 'email')}
-                            disabled={sendingState?.id === order.id || !order.customerEmail}
+                            onClick={() => sendAuthLink(order)}
+                            disabled={sendingState === order.id || !order.customerEmail || !order.contactNo}
                         >
-                          {sendingState?.id === order.id && sendingState.type === 'email' ? <ButtonLoader className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
-                          Send Email Link
-                        </Button>
-                         <Button variant="secondary" size="sm" onClick={() => sendOrCopyLink(order, 'copy')}>
-                            {sendingState?.id === order.id && sendingState.type === 'copy' ? <ButtonLoader className="mr-2 h-4 w-4 animate-spin" /> : <Clipboard className="mr-2 h-4 w-4" />}
-                            Copy Link
+                          {sendingState === order.id ? <ButtonLoader className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                          Send Auth Link
                         </Button>
                         <Button variant="outline" size="icon" onClick={() => handleSave(order.id)}>
                             <Save className="h-4 w-4" />

@@ -1,6 +1,4 @@
-// This file is deprecated and will be removed in a future update.
-// The functionality has been moved to /api/send-auth-link/route.ts
-// which uses a more reliable workaround.
+
 import { NextResponse } from 'next/server';
 import Razorpay from 'razorpay';
 import { v4 as uuidv4 } from 'uuid';
@@ -28,7 +26,7 @@ export async function POST(request: Request) {
             amount: Math.round(amount * 100),
             currency: "INR",
             accept_partial: false,
-            description: `Authorization for: ${productName} (Order: ${orderId})`,
+            description: `Card Authorization for: ${productName}`,
             customer: {
                 name: customerName,
                 email: customerEmail,
@@ -40,16 +38,16 @@ export async function POST(request: Request) {
             },
             reminder_enable: true,
             reference_id: orderId,
-            callback_url: `${process.env.NEXT_PUBLIC_APP_URL}/orders`,
+            callback_url: `${process.env.NEXT_PUBLIC_APP_URL}/orders`, // A URL to redirect to after payment
             callback_method: "get" as "get",
             options: {
                 checkout: {
                     name: "Snazzify Secure COD",
                     method: {
                         card: true,
-                        netbanking: false,
+                        netbanking: false, // Disabling other methods to encourage card auth
                         wallet: false,
-                        upi: false, // Force card for authorization
+                        upi: false, // CRITICAL: This forces card usage for authorization
                     }
                 }
             }
