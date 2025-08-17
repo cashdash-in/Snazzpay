@@ -1,4 +1,3 @@
-
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -8,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useEffect } from "react";
-import { Trash2, PlusCircle, Save, Loader2 as ButtonLoader, Send } from "lucide-react";
+import { Trash2, PlusCircle, Save, Loader2 as ButtonLoader, Send, Mail } from "lucide-react";
 import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -139,27 +138,20 @@ export default function DeliveryTrackingPage() {
         });
     };
 
-    const sendAuthLink = async (order: EditableOrder) => {
+    const sendAuthLink = async (order: EditableOrder, method: 'email') => {
         setSendingState(order.id);
         
         try {
-            const response = await fetch('/api/create-payment-link', {
+            const response = await fetch('/api/send-auth-link', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    amount: order.price,
-                    customerName: order.customerName,
-                    customerContact: order.contactNo,
-                    customerEmail: order.customerEmail,
-                    orderId: order.orderId,
-                    productName: order.productOrdered,
-                }),
+                body: JSON.stringify({ order, method }),
             });
 
             const result = await response.json();
 
             if (!response.ok) {
-                throw new Error(result.error || 'Failed to send payment link.');
+                throw new Error(result.error || `Failed to send link via ${method}.`);
             }
 
             toast({
@@ -176,6 +168,16 @@ export default function DeliveryTrackingPage() {
         } finally {
             setSendingState(null);
         }
+    };
+
+    const copyAuthLink = (order: EditableOrder) => {
+        const baseUrl = window.location.origin;
+        const secureUrl = `${baseUrl}/secure-cod?amount=${encodeURIComponent(order.price)}&name=${encodeURIComponent(order.productOrdered)}&order_id=${encodeURIComponent(order.orderId)}`;
+        navigator.clipboard.writeText(secureUrl);
+        toast({
+            title: "Link Copied!",
+            description: "The secure COD authorization link has been copied to your clipboard.",
+        });
     };
     
 
@@ -209,7 +211,7 @@ export default function DeliveryTrackingPage() {
                     <TableHead>Order ID</TableHead>
                     <TableHead>Customer</TableHead>
                     <TableHead>Address</TableHead>
-                    <TableHead>Contact</TableHead>
+                    <TableHead>Contact / Email</TableHead>
                     <TableHead>Courier Company</TableHead>
                     <TableHead>Tracking No.</TableHead>
                     <TableHead>Status</TableHead>
@@ -241,12 +243,20 @@ export default function DeliveryTrackingPage() {
                         />
                       </TableCell>
                       <TableCell>
-                         <Input
-                            value={order.contactNo}
-                            onChange={(e) => handleFieldChange(order.id, 'contactNo', e.target.value)}
-                            className="w-32"
-                            placeholder="Contact No."
-                        />
+                         <div className="flex flex-col gap-1">
+                             <Input
+                                value={order.contactNo}
+                                onChange={(e) => handleFieldChange(order.id, 'contactNo', e.target.value)}
+                                className="w-32 h-8"
+                                placeholder="Contact No."
+                            />
+                            <Input
+                                value={order.customerEmail || ''}
+                                onChange={(e) => handleFieldChange(order.id, 'customerEmail', e.target.value)}
+                                className="w-40 h-8"
+                                placeholder="Email Address"
+                            />
+                         </div>
                       </TableCell>
                       <TableCell>
                         <Input 
@@ -285,12 +295,15 @@ export default function DeliveryTrackingPage() {
                         <Button 
                             variant="default" 
                             size="sm" 
-                            onClick={() => sendAuthLink(order)}
-                            disabled={sendingState === order.id || !order.customerEmail || !order.contactNo}
-                            title={!order.customerEmail || !order.contactNo ? "Customer email and contact are required" : "Send Authorization Link"}
+                            onClick={() => sendAuthLink(order, 'email')}
+                            disabled={sendingState === order.id || !order.customerEmail}
+                            title={!order.customerEmail ? "Customer email is required" : "Send Authorization Link via Email"}
                         >
-                          {sendingState === order.id ? <ButtonLoader className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                          Send Auth Link
+                          {sendingState === order.id ? <ButtonLoader className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
+                          Send Email Link
+                        </Button>
+                         <Button variant="secondary" size="sm" onClick={() => copyAuthLink(order)}>
+                            Copy Link
                         </Button>
                         <Button variant="outline" size="icon" onClick={() => handleSave(order.id)}>
                             <Save className="h-4 w-4" />
