@@ -34,11 +34,23 @@ export async function POST(request: Request) {
         
         const paymentLinkMessage = `Click to authorize payment for your order '${productName}' from Snazzify. Your card will not be charged now.`;
 
-        const paymentLinkOptions = {
+        // This is the correct way to create an authorization-only payment link.
+        // We create a Razorpay Order first with payment_capture set to 0.
+        const orderOptions = {
             amount: Math.round(parseFloat(amount) * 100), // Amount in paise
             currency: 'INR',
-            accept_partial: false,
-            reference_id: `ref_${orderId.replace(/[^a-zA-Z0-9]/g, '')}_${Date.now()}`.slice(0, 40),
+            payment_capture: 0, // This is the key for authorization
+            receipt: `rcpt_auth_${orderId.replace(/[^a-zA-Z0-9]/g, '')}`.slice(0, 40),
+             notes: {
+                "Order ID": orderId,
+                "Product Name": productName,
+                "Transaction Type": "Secure COD Authorization"
+            },
+        };
+
+        const razorpayOrder = await razorpay.orders.create(orderOptions);
+
+        const paymentLinkOptions = {
             description: paymentLinkMessage,
             customer: {
                 name: customerName,
@@ -59,13 +71,16 @@ export async function POST(request: Request) {
             callback_url: `${appUrl}/orders/${orderId}`,
             callback_method: "get" as const,
             expire_by: Math.floor(Date.now() / 1000) + (24 * 60 * 60), // 24 hours from now
+            order_id: razorpayOrder.id, // Associate with the authorization order
             options: {
                 checkout: {
                     method: {
                         card: true,
+                        netbanking: false,
+                        wallet: false,
+                        upi: false, // CRITICAL: Disable UPI to force card authorization
+                        emi: false,
                     },
-                    // This forces the authorization flow.
-                    "upi_link": false 
                 }
             }
         };
@@ -78,7 +93,7 @@ export async function POST(request: Request) {
         if (customerEmail) {
             sentTo.push('Email');
         }
-        const notificationMessage = `Authorization link sent to ${customerContact} via ${sentTo.join(', ')}.`;
+        const notificationMessage = `Authorization link sent to ${customerContact} via ${sentTo.join(', ')}. Please check your Razorpay Dashboard settings if messages are not received.`;
 
         return NextResponse.json({
             success: true,
