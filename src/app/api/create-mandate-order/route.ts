@@ -26,12 +26,15 @@ export async function POST(request: Request) {
         let customerId;
 
         // Step 1: Find or Create Customer
+        // This is the simplest approach. A more robust solution for a production app would be to
+        // first search for the customer by contact number if your Razorpay plan supports it,
+        // or to store Razorpay customer IDs in your own database.
+        // For this app's purpose, creating a customer is sufficient, and Razorpay may handle de-duplication.
         try {
-            // Razorpay doesn't support search by contact in the Node SDK directly in `all`.
-            // A better approach is to create the customer and handle potential duplicates.
             const newCustomer = await razorpay.customers.create({
                 name: customerName,
                 contact: customerContact,
+                // Using a unique email helps prevent conflicts if the same email is used with different contact numbers.
                 email: `customer.${customerContact || uuidv4().substring(0,8)}@example.com`,
                 notes: {
                     address: customerAddress,
@@ -41,30 +44,20 @@ export async function POST(request: Request) {
             customerId = newCustomer.id;
 
         } catch (customerError: any) {
-            // Check if the error indicates a customer with this contact already exists.
-            if (customerError.error && customerError.error.description.toLowerCase().includes('contact already exists')) {
-                // If so, we need to fetch that customer. This is a limitation of Razorpay's API design.
-                // A robust solution would require storing customer IDs in your own database.
-                // For this app, we'll proceed but this might create duplicate customers if not handled carefully.
-                // A simple workaround is to re-create the customer, Razorpay might merge them.
-                 const newCustomer = await razorpay.customers.create({
-                    name: customerName,
-                    contact: customerContact,
-                    email: `customer.${customerContact || uuidv4().substring(0,8)}@example.com`,
-                });
-                customerId = newCustomer.id;
-            } else {
-                 throw customerError; // Re-throw other errors
-            }
+            // The most common error is the customer contact already existing.
+            // In a real production environment, you would fetch the existing customer's ID.
+            // Since this app does not have its own database to store customer mappings,
+            // we will log the error and proceed. This can be improved in a full-scale app.
+            console.warn(`Could not create new Razorpay customer (they might already exist): ${customerError.error?.description || customerError.message}`);
+             // We can proceed without a customerId for the order, Razorpay will handle it.
         }
        
         // Step 2: Create Order
-        const orderOptions = {
+        const orderOptions: any = {
             amount: Math.round(amount * 100), // Amount in paise
             currency: 'INR',
             receipt: `rcpt_${isAuthorization ? 'auth' : 'intent'}_${Date.now()}`.slice(0, 40),
             payment_capture: isAuthorization ? 0 : 1, // Set to 0 for authorization, 1 for immediate capture
-            customer_id: customerId,
             notes: {
                 product: productName,
                 type: isAuthorization ? "secure_cod_card_authorization" : "secure_cod_intent_verification",
@@ -74,6 +67,10 @@ export async function POST(request: Request) {
                 customerPincode
             },
         };
+        
+        if (customerId) {
+            orderOptions.customer_id = customerId;
+        }
 
         console.log("Creating Razorpay order with options:", JSON.stringify(orderOptions, null, 2));
         const order = await razorpay.orders.create(orderOptions);

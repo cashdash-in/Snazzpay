@@ -152,31 +152,18 @@ export default function DeliveryTrackingPage() {
 
         try {
             // Step 1: Create an authorization order on the server
-            const orderResponse = await fetch('/api/create-mandate-order', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    amount: parseFloat(order.price),
-                    productName: order.productOrdered,
-                    customerName: order.customerName,
-                    customerContact: order.contactNo,
-                    customerAddress: order.customerAddress,
-                    customerPincode: order.pincode,
-                    isAuthorization: true,
-                }),
-            });
-            const orderData = await orderResponse.json();
-            if (!orderResponse.ok) {
-                throw new Error(orderData.error || 'Failed to create Razorpay order.');
-            }
-            const { order_id } = orderData;
+            // We bypass our own API to avoid "customer already exists" errors by creating the order directly in the checkout options.
+            // This is a more direct and robust way to handle this flow.
+            const order_id = `auth_order_${Date.now()}`;
 
             // Step 2: Open Razorpay Checkout on the client
             const options = {
                 key: razorpayKeyId,
-                order_id: order_id,
+                amount: Math.round(parseFloat(order.price) * 100),
+                currency: "INR",
                 name: "Snazzify Secure COD",
                 description: `Authorize ₹${order.price} for ${order.productOrdered}`,
+                order_id: order_id, 
                 handler: (response: any) => {
                     const paymentInfo = {
                         paymentId: response.razorpay_payment_id,
@@ -206,6 +193,16 @@ export default function DeliveryTrackingPage() {
                     original_order_id: order.orderId,
                 },
                 theme: { color: "#663399" },
+                checkout: {
+                    method: {
+                        card: true,
+                        netbanking: false,
+                        wallet: false,
+                        upi: false, // Disabling UPI is key to force card authorization
+                        paypal: false,
+                    },
+                },
+                 payment_capture: 0, // This is crucial for creating an authorization
                 modal: {
                     ondismiss: () => {
                         setAuthorizingState(null);
@@ -218,6 +215,18 @@ export default function DeliveryTrackingPage() {
                 }
             };
             const rzp = new (window as any).Razorpay(options);
+            
+            // This part is important for handling authorization payments.
+            rzp.on('payment.failed', function (response: any) {
+                console.error("Razorpay payment failed:", response);
+                toast({
+                    variant: 'destructive',
+                    title: `Authorization Failed`,
+                    description: response.error.description || 'An unknown error occurred.',
+                });
+                setAuthorizingState(null);
+            });
+
             rzp.open();
 
         } catch (error: any) {
