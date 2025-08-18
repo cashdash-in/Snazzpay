@@ -1,3 +1,4 @@
+
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -7,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useEffect } from "react";
-import { Trash2, PlusCircle, Save, Loader2 as ButtonLoader, Send, Mail } from "lucide-react";
+import { Trash2, PlusCircle, Save, Loader2 as ButtonLoader, Send, Mail, Copy } from "lucide-react";
 import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -300,9 +301,10 @@ export default function DeliveryTrackingPage() {
                             title={!order.customerEmail ? "Customer email is required" : "Send Authorization Link via Email"}
                         >
                           {sendingState === order.id ? <ButtonLoader className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
-                          Send Email Link
+                          Email Link
                         </Button>
                          <Button variant="secondary" size="sm" onClick={() => copyAuthLink(order)}>
+                            <Copy className="mr-2 h-4 w-4" />
                             Copy Link
                         </Button>
                         <Button variant="outline" size="icon" onClick={() => handleSave(order.id)}>
