@@ -1,3 +1,4 @@
+
 import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 import type { EditableOrder } from '@/app/orders/page';
@@ -10,9 +11,9 @@ export async function POST(request: Request) {
     const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002';
 
     if (method === 'email') {
-        if (!GMAIL_EMAIL || !GMAIL_PASSWORD || GMAIL_EMAIL === 'your-email@gmail.com') {
+        if (!GMAIL_EMAIL || !GMAIL_PASSWORD || GMAIL_EMAIL === 'your-email@gmail.com' || GMAIL_EMAIL === 'YOUR_GMAIL_EMAIL_HERE') {
             return new NextResponse(
-                JSON.stringify({ error: "Email Service is not configured on the server. Please set GMAIL_APP_EMAIL and GMAIL_APP_PASSWORD in apphosting.yaml." }),
+                JSON.stringify({ error: "Email Service is not configured on the server. Please set GMAIL_APP_EMAIL and GMAIL_APP_PASSWORD in apphosting.yaml and restart the server." }),
                 { status: 500, headers: { 'Content-Type': 'application/json' } }
             );
         }
@@ -60,6 +61,13 @@ export async function POST(request: Request) {
             return NextResponse.json({ success: true, message: `Authorization link sent to ${order.customerEmail}.` });
         } catch (error: any) {
             console.error("Nodemailer error:", error);
+            // Provide a more specific error if it's an authentication issue.
+            if (error.code === 'EAUTH') {
+                 return new NextResponse(
+                    JSON.stringify({ error: `Failed to send email: Incorrect Gmail credentials. Please check your GMAIL_APP_EMAIL and GMAIL_APP_PASSWORD in apphosting.yaml.` }),
+                    { status: 500, headers: { 'Content-Type': 'application/json' } }
+                );
+            }
             return new NextResponse(
                 JSON.stringify({ error: `Failed to send email: ${error.message}` }),
                 { status: 500, headers: { 'Content-Type': 'application/json' } }
