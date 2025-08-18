@@ -16,6 +16,6 @@ runConfig:
     NEXT_PUBLIC_RAZORPAY_KEY_ID: "rzp_live_R5cgT6cx4nfFJd"
     NEXT_PUBLIC_APP_URL: "https://snazzpay.apphosting.page"
     SHOPIFY_API_SECRET: "your_shopify_api_secret_here"
-    GMAIL_APP_EMAIL: "YOUR_GMAIL_EMAIL_HERE"
-    GMAIL_APP_PASSWORD: "YOUR_16_DIGIT_APP_PASSWORD_HERE"
+    GMAIL_APP_EMAIL: "snazzycoin@gmail.com"
+    GMAIL_APP_PASSWORD: "rubxrrdhowsmadnv"
 
