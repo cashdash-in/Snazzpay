@@ -11,10 +11,6 @@ export async function POST(request: Request) {
     const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002';
 
     if (method === 'email') {
-        // The check for credentials was too strict and causing issues.
-        // The server will have the environment variables from apphosting.yaml.
-        // If they are missing, the nodemailer transport will fail with a more specific error.
-        
         if (!order.customerEmail) {
              return new NextResponse(
                 JSON.stringify({ error: "Customer email address is missing." }),
