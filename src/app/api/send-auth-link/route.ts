@@ -62,7 +62,7 @@ export async function POST(request: Request) {
             // Provide a more specific error if it's an authentication issue.
             if (error.code === 'EAUTH') {
                  return new NextResponse(
-                    JSON.stringify({ error: `Failed to send email: Incorrect Gmail credentials. Please check your GMAIL_APP_EMAIL and GMAIL_APP_PASSWORD in apphosting.yaml.` }),
+                    JSON.stringify({ error: `Failed to send email: Incorrect Gmail credentials. Please double-check your GMAIL_APP_EMAIL and GMAIL_APP_PASSWORD in apphosting.yaml. Ensure the password is the 16-digit App Password from Google, not your regular password.` }),
                     { status: 500, headers: { 'Content-Type': 'application/json' } }
                 );
             }
