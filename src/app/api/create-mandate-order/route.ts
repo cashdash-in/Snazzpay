@@ -57,7 +57,7 @@ export async function POST(request: Request) {
             amount: Math.round(amount * 100), // Amount in paise
             currency: 'INR',
             receipt: `rcpt_${isAuthorization ? 'auth' : 'intent'}_${Date.now()}`.slice(0, 40),
-            payment_capture: isAuthorization ? 0 : 1, // Set to 0 for authorization, 1 for immediate capture
+            payment_capture: 0, // Always set to 0 for authorization, for both intent and final amount.
             notes: {
                 product: productName,
                 type: isAuthorization ? "secure_cod_card_authorization" : "secure_cod_intent_verification",
