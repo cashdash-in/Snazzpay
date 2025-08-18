@@ -8,7 +8,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, Save, ExternalLink, CreditCard, Send, Loader2 as ButtonLoader, Mail, Printer } from 'lucide-react';
+import { ArrowLeft, Loader2, Save, ExternalLink, CreditCard, Send, Loader2 as ButtonLoader, Mail, Printer, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { EditableOrder } from '../page';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -70,6 +70,8 @@ export default function OrderDetailPage() {
     const [loading, setLoading] = useState(true);
     const [isCharging, setIsCharging] = useState(false);
     const [isSendingLink, setIsSendingLink] = useState(false);
+
+    const isManualOrder = order ? !order.id.startsWith('gid://') && !/^\d+$/.test(order.id) : false;
 
     useEffect(() => {
         if (!orderIdParam) return;
@@ -151,6 +153,26 @@ export default function OrderDetailPage() {
         });
     };
     
+    const savePaymentStatusChange = (newStatus: string) => {
+         if (!order) return;
+        const updatedOrder = { ...order, paymentStatus: newStatus };
+        setOrder(updatedOrder);
+
+        if (updatedOrder.id.startsWith('gid://') || /^\d+$/.test(updatedOrder.id)) {
+            const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${updatedOrder.id}`) || '{}');
+            const newOverrides = { ...storedOverrides, paymentStatus: newStatus };
+            localStorage.setItem(`order-override-${updatedOrder.id}`, JSON.stringify(newOverrides));
+        } else {
+             const manualOrdersJSON = localStorage.getItem('manualOrders');
+            let manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
+            const orderIndex = manualOrders.findIndex(o => o.id === updatedOrder.id);
+            if (orderIndex > -1) {
+                manualOrders[orderIndex].paymentStatus = newStatus;
+                localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
+            }
+        }
+    };
+
     const handleChargePayment = async () => {
         if (!paymentInfo || !order) return;
         setIsCharging(true);
@@ -170,23 +192,7 @@ export default function OrderDetailPage() {
                 throw new Error(result.error || 'Failed to charge payment.');
             }
             
-            const updatedOrder = { ...order, paymentStatus: 'Paid' };
-            setOrder(updatedOrder);
-
-            // Save the payment status change using the internal id
-            if (updatedOrder.id.startsWith('gid://') || /^\d+$/.test(updatedOrder.id)) {
-                const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${updatedOrder.id}`) || '{}');
-                const newOverrides = { ...storedOverrides, paymentStatus: 'Paid' };
-                localStorage.setItem(`order-override-${updatedOrder.id}`, JSON.stringify(newOverrides));
-            } else {
-                 const manualOrdersJSON = localStorage.getItem('manualOrders');
-                let manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
-                const orderIndex = manualOrders.findIndex(o => o.id === updatedOrder.id);
-                if (orderIndex > -1) {
-                    manualOrders[orderIndex].paymentStatus = 'Paid';
-                    localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
-                }
-            }
+            savePaymentStatusChange('Paid');
 
             toast({
                 title: "Charge Successful!",
@@ -204,38 +210,54 @@ export default function OrderDetailPage() {
         }
     };
     
-    const handleSendLink = async () => {
+    const handleSimulateCharge = () => {
         if (!order) return;
+        setIsCharging(true);
+        // Simulate a short delay
+        setTimeout(() => {
+            savePaymentStatusChange('Paid');
+            toast({
+                title: "Charge Simulated",
+                description: `Status for manual order ${order.orderId} changed to 'Paid'.`,
+            });
+            setIsCharging(false);
+        }, 500);
+    };
+
+    const copyAuthLink = (orderToCopy: EditableOrder) => {
+        const baseUrl = window.location.origin;
+        const secureUrl = `${baseUrl}/secure-cod?amount=${encodeURIComponent(orderToCopy.price)}&name=${encodeURIComponent(orderToCopy.productOrdered)}&order_id=${encodeURIComponent(orderToCopy.orderId)}`;
+        navigator.clipboard.writeText(secureUrl);
+        toast({
+            title: "Link Copied!",
+            description: "The secure COD authorization link has been copied to your clipboard.",
+        });
+    };
+
+    const sendAuthLink = async (orderToSend: EditableOrder, method: 'email') => {
         setIsSendingLink(true);
         try {
-            const response = await fetch('/api/create-payment-link', {
+            const response = await fetch('/api/send-auth-link', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    amount: order.price,
-                    customerName: order.customerName,
-                    customerContact: order.contactNo,
-                    customerEmail: order.customerEmail,
-                    orderId: order.orderId,
-                    productName: order.productOrdered,
-                }),
+                body: JSON.stringify({ order: orderToSend, method }),
             });
 
             const result = await response.json();
 
             if (!response.ok) {
-                throw new Error(result.error || 'Failed to send payment link.');
+                throw new Error(result.error || `Failed to send link via ${method}.`);
             }
 
             toast({
-                title: "Payment Link Sent!",
+                title: "Link Sent Successfully!",
                 description: result.message,
             });
 
         } catch (error: any) {
              toast({
                 variant: 'destructive',
-                title: "Error Sending Link",
+                title: `Error Sending Link`,
                 description: error.message,
             });
         } finally {
@@ -270,6 +292,9 @@ export default function OrderDetailPage() {
             </AppShell>
         );
     }
+    
+    const showChargeButton = order.paymentStatus.toLowerCase() === 'authorized';
+
 
     return (
         <AppShell title={`Order ${order.orderId}`}>
@@ -298,7 +323,7 @@ export default function OrderDetailPage() {
                     </div>
                 </div>
 
-                {paymentInfo && order.paymentStatus.toLowerCase() === 'authorized' && (
+                {paymentInfo && showChargeButton && (
                     <Card>
                         <CardHeader>
                             <CardTitle>Payment Authorization Details</CardTitle>
@@ -343,6 +368,38 @@ export default function OrderDetailPage() {
                         </CardFooter>
                     </Card>
                 )}
+                
+                {!paymentInfo && isManualOrder && showChargeButton && (
+                     <Card>
+                        <CardHeader>
+                            <CardTitle>Manual Payment Capture</CardTitle>
+                            <CardDescription>This is a manual order set to 'Authorized'. You can simulate a payment capture.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                             <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button disabled={isCharging || order.paymentStatus.toLowerCase() === 'paid'}>
+                                        {isCharging ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CreditCard className="mr-2 h-4 w-4" />}
+                                        {order.paymentStatus.toLowerCase() === 'paid' ? 'Payment Captured' : `Simulate Charge (₹${order.price})`}
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                    <AlertDialogTitle>Simulate Payment Capture?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        This will change the order status to 'Paid'. This is for record-keeping only and does not perform a real transaction.
+                                    </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={handleSimulateCharge}>Yes, Simulate Charge</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        </CardContent>
+                    </Card>
+                )}
+
 
                 <Card>
                     <CardHeader>
@@ -412,6 +469,7 @@ export default function OrderDetailPage() {
                  <Card>
                     <CardHeader>
                         <CardTitle>Delivery Tracking</CardTitle>
+                        <CardDescription>Send authorization link to customer via Email or copy it to send via other channels like WhatsApp.</CardDescription>
                     </CardHeader>
                     <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="space-y-2">
@@ -446,15 +504,20 @@ export default function OrderDetailPage() {
                             </Select>
                         </div>
                     </CardContent>
-                     <CardFooter>
+                     <CardFooter className="gap-2">
                         <Button 
                             variant="default" 
                             size="sm" 
-                            onClick={handleSendLink}
-                            disabled={isSendingLink}
+                            onClick={() => sendAuthLink(order, 'email')}
+                            disabled={isSendingLink || !order.customerEmail}
+                            title={!order.customerEmail ? "Customer email is required to send link" : "Send Authorization Link"}
                         >
-                          {isSendingLink ? <ButtonLoader className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                          Send Payment Link
+                          {isSendingLink ? <ButtonLoader className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
+                          Send Email Link
+                        </Button>
+                         <Button variant="secondary" size="sm" onClick={() => copyAuthLink(order)}>
+                            <Copy className="mr-2 h-4 w-4" />
+                            Copy Auth Link
                         </Button>
                     </CardFooter>
                 </Card>

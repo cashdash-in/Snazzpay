@@ -285,7 +285,6 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                 <h2 className="text-2xl font-bold">Order Confirmed!</h2>
                 <p className="text-muted-foreground">Thank you, {customerDetails.name}! Your order <span className="font-semibold text-primary">{orderDetails.orderId}</span> is confirmed. We will notify you once it has been dispatched.</p>
                 <p className="text-xs text-muted-foreground">A hold of ₹{totalAmount.toFixed(2)} has been placed on your card and will be released if the order is cancelled before dispatch.</p>
-                <Button onClick={() => window.location.href = '/'}>Go to Dashboard</Button>
             </CardContent>
         </Card>
     );
