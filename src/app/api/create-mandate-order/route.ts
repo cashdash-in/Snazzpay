@@ -43,9 +43,6 @@ export async function POST(request: Request) {
         }
        
         // Step 2: Create Order
-        const fiveDaysInSeconds = 5 * 24 * 60 * 60;
-        const expireByTimestamp = Math.floor(Date.now() / 1000) + fiveDaysInSeconds;
-
         const orderOptions: any = {
             amount: Math.round(amount * 100), // Amount in paise
             currency: 'INR',
@@ -60,10 +57,6 @@ export async function POST(request: Request) {
                 customerPincode
             },
         };
-        
-        if (isAuthorization) {
-            orderOptions.expire_by = expireByTimestamp;
-        }
 
         if (customerId) {
             orderOptions.customer_id = customerId;
