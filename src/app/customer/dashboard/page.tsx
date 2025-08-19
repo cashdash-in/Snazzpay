@@ -17,6 +17,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
+import { v4 as uuidv4 } from 'uuid';
 
 
 export default function CustomerDashboardPage() {
@@ -47,6 +48,11 @@ export default function CustomerDashboardPage() {
                 // Step 2: Apply any saved overrides to every manual order
                 const ordersWithOverrides = allSnazzPayOrders.map(order => {
                     const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
+                    // Ensure a cancellationId exists for every order
+                    if (!storedOverrides.cancellationId && !order.cancellationId) {
+                        storedOverrides.cancellationId = `CNCL-${uuidv4().substring(0, 8).toUpperCase()}`;
+                        localStorage.setItem(`order-override-${order.id}`, JSON.stringify(storedOverrides));
+                    }
                     return { ...order, ...storedOverrides };
                 });
 
@@ -247,7 +253,7 @@ export default function CustomerDashboardPage() {
                                                                             <div className="mt-4 text-xs text-muted-foreground space-y-1">
                                                                                 <p>Contact support to get your ID:</p>
                                                                                 <div className='flex items-center gap-2'><Mail className="h-3 w-3" /> <a href="mailto:customer.service@snazzify.co.in" className="text-primary hover:underline">customer.service@snazzify.co.in</a></div>
-                                                                                <div className='flex items-center gap-2'><MessageSquare className="h-3 w-3" /> <a href="https://wa.me/919920320790" target="_blank" className="text-primary hover:underline">WhatsApp: 9920320790</a></div>
+                                                                                <div className='flex items-center gap-2'><MessageSquare className="h-3 w-3" /> <a href="https://wa.me/9920320790" target="_blank" className="text-primary hover:underline">WhatsApp: 9920320790</a></div>
                                                                             </div>
                                                                         </AlertDialogDescription>
                                                                     </AlertDialogHeader>
@@ -300,3 +306,5 @@ export default function CustomerDashboardPage() {
         </div>
     );
 }
+
+    

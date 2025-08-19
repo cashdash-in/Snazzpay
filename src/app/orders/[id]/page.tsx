@@ -101,8 +101,10 @@ function OrderDetailContent() {
             if (foundOrder) {
                  const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${foundOrder.id}`) || '{}');
                  foundOrder = {...foundOrder, ...storedOverrides};
+                 // Generate cancellationId if it does not exist and save it back
                  if (!foundOrder.cancellationId) {
                     foundOrder.cancellationId = `CNCL-${uuidv4().substring(0, 8).toUpperCase()}`;
+                    localStorage.setItem(`order-override-${foundOrder.id}`, JSON.stringify({ ...storedOverrides, cancellationId: foundOrder.cancellationId }));
                  }
             }
             
@@ -596,3 +598,5 @@ function OrderDetailContent() {
 export default function OrderDetailPage() {
     return <OrderDetailContent />;
 }
+
+    
