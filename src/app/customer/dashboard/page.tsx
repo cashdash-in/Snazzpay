@@ -44,9 +44,19 @@ export default function CustomerDashboardPage() {
                 // Step 1: Get all manual orders from local storage
                 const manualOrdersJSON = localStorage.getItem('manualOrders');
                 let allSnazzPayOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
+                
+                // De-duplication: Create a map to hold unique orders by orderId
+                const uniqueOrdersMap = new Map<string, EditableOrder>();
+                allSnazzPayOrders.forEach(order => {
+                    if (!uniqueOrdersMap.has(order.orderId)) {
+                        uniqueOrdersMap.set(order.orderId, order);
+                    }
+                });
+                const deDupedOrders = Array.from(uniqueOrdersMap.values());
+
 
                 // Step 2: Apply any saved overrides to every manual order
-                const ordersWithOverrides = allSnazzPayOrders.map(order => {
+                const ordersWithOverrides = deDupedOrders.map(order => {
                     const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
                     // Ensure a cancellationId exists for every order
                     if (!storedOverrides.cancellationId && !order.cancellationId) {
@@ -306,5 +316,3 @@ export default function CustomerDashboardPage() {
         </div>
     );
 }
-
-    

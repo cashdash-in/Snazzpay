@@ -90,11 +90,10 @@ export default function OrdersPage() {
   useEffect(() => {
     async function fetchAndSetOrders() {
         setLoading(true);
-        let combinedOrders: EditableOrder[] = [];
+        let shopifyEditableOrders: EditableOrder[] = [];
         try {
             const shopifyOrders = await getOrders();
-            const shopifyEditableOrders = shopifyOrders.map(mapShopifyOrderToEditableOrder);
-            combinedOrders = [...shopifyEditableOrders];
+            shopifyEditableOrders = shopifyOrders.map(mapShopifyOrderToEditableOrder);
         } catch (error) {
             console.error("Failed to fetch Shopify orders:", error);
             toast({
@@ -104,9 +103,10 @@ export default function OrdersPage() {
             });
         }
 
+        let manualOrders: EditableOrder[] = [];
         try {
             const manualOrdersJSON = localStorage.getItem('manualOrders');
-            let manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
+            manualOrders = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
             
             // Add a test order if it doesn't exist
             const testOrderExists = manualOrders.some(order => order.orderId === TEST_ORDER_ID);
@@ -127,8 +127,6 @@ export default function OrdersPage() {
                 });
                 localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
             }
-
-            combinedOrders = [...combinedOrders, ...manualOrders];
         } catch (error) {
             console.error("Failed to load manual orders:", error);
             toast({
@@ -138,7 +136,19 @@ export default function OrdersPage() {
             });
         }
 
-        const finalOrders = combinedOrders.map(order => {
+        // De-duplication logic
+        const combinedOrders = [...manualOrders, ...shopifyEditableOrders];
+        const uniqueOrdersMap = new Map<string, EditableOrder>();
+        combinedOrders.forEach(order => {
+             // If orderId is not in the map, add it. Manual orders are added first, so they take precedence.
+            if (!uniqueOrdersMap.has(order.orderId)) {
+                uniqueOrdersMap.set(order.orderId, order);
+            }
+        });
+        const deDupedOrders = Array.from(uniqueOrdersMap.values());
+
+
+        const finalOrders = deDupedOrders.map(order => {
             const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
             return { ...order, ...storedOverrides };
         });
