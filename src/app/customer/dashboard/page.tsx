@@ -60,7 +60,7 @@ export default function CustomerDashboardPage() {
                     let representativeOrder = group[0]; 
 
                     for (const status of statusPriority) {
-                        const priorityOrder = group.find(o => o.paymentStatus === status || o.cancellationStatus === 'Processed');
+                        const priorityOrder = group.find(o => o.paymentStatus === status || o.cancellationStatus === 'Processed' || o.refundStatus === 'Processed');
                         if (priorityOrder) {
                             representativeOrder = priorityOrder;
                             break;
@@ -270,7 +270,7 @@ export default function CustomerDashboardPage() {
                                                             <Badge variant={order.paymentStatus === 'Paid' ? 'default' : 'secondary'} className={
                                                                 order.paymentStatus === 'Paid' ? 'bg-green-100 text-green-800' : 
                                                                 order.paymentStatus === 'Authorized' ? 'bg-yellow-100 text-yellow-800' :
-                                                                order.paymentStatus === 'Voided' || order.paymentStatus === 'Cancelled' ? 'bg-red-100 text-red-800' :
+                                                                ['Voided', 'Cancelled', 'Refunded'].includes(order.paymentStatus) ? 'bg-red-100 text-red-800' :
                                                                 'bg-gray-100 text-gray-800'
                                                             }>
                                                                 {order.paymentStatus === 'Paid' ? <CheckCircle className="mr-1 h-3 w-3" /> : <Clock className="mr-1 h-3 w-3" />}
@@ -280,7 +280,7 @@ export default function CustomerDashboardPage() {
                                                         <TableCell>
                                                             <AlertDialog>
                                                                 <AlertDialogTrigger asChild>
-                                                                    <Button variant="destructive" size="sm" onClick={() => setSelectedOrderForCancellation(order)} disabled={order.paymentStatus === 'Voided' || order.paymentStatus === 'Cancelled'}>Cancel</Button>
+                                                                    <Button variant="destructive" size="sm" onClick={() => setSelectedOrderForCancellation(order)} disabled={['Voided', 'Cancelled', 'Refunded'].includes(order.paymentStatus)}>Cancel</Button>
                                                                 </AlertDialogTrigger>
                                                                 <AlertDialogContent>
                                                                     <AlertDialogHeader>

@@ -149,18 +149,16 @@ export default function OrdersPage() {
         const statusPriority = ['Voided', 'Refunded', 'Cancelled'];
 
         orderGroups.forEach(group => {
-            let representativeOrder = group[0]; // Default to the first one (manual takes precedence)
+            let representativeOrder = group[0]; 
 
-            // Find the order with the highest priority status
             for (const status of statusPriority) {
-                const priorityOrder = group.find(o => o.paymentStatus === status || o.cancellationStatus === 'Processed');
+                const priorityOrder = group.find(o => o.paymentStatus === status || o.cancellationStatus === 'Processed' || o.refundStatus === 'Processed');
                 if (priorityOrder) {
                     representativeOrder = priorityOrder;
-                    break; 
+                    break;
                 }
             }
             
-            // If a priority status was found, ensure the final order reflects it
             if (representativeOrder.cancellationStatus === 'Processed') {
                 representativeOrder.paymentStatus = 'Voided';
             }
