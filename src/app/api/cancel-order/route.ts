@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     });
 
     try {
-        const { orderId, cancellationId } = await request.json();
+        const { orderId, cancellationId, paymentId, amount } = await request.json();
 
         if (!orderId || !cancellationId) {
             return new NextResponse(
@@ -29,29 +29,9 @@ export async function POST(request: Request) {
             );
         }
 
-        // In a real app, you'd fetch this from a database.
-        // For this app, we're simulating by checking local storage data that we assume the API has access to.
-        // This is a conceptual stand-in. The client should pass up the necessary data.
+        // In a real app, you would look up the order in a database using the orderId and
+        // verify that the cancellationId matches. Here we trust the client to pass the correct paymentId.
         
-        // The client must find the order and its payment info and pass it up.
-        // The following is a placeholder for how you would find the order based on IDs.
-        // We'll trust the client to pass the paymentId for now.
-
-        const paymentInfoJSON = `payment_info_${orderId}`; // This is a conceptual key
-        // You would need a way to look up the real paymentId.
-        // For now, we assume client may pass it, or we find it from a DB.
-
-        // This is a simplified check. A robust system would query a database for the order
-        // and its associated cancellationId.
-        console.log(`Attempting to cancel Order: ${orderId} with Cancellation ID: ${cancellationId}`);
-
-        // Since we can't access localStorage on the server, we rely on a conceptual check.
-        // The real implementation would be to look up the order in a DB via its `orderId`
-        // and check if `cancellationId` matches.
-
-        // Let's assume the client passes up the paymentId associated with the authorization.
-        const { paymentId, amount } = await request.json(); // The client needs to send this.
-
         if(!paymentId) {
              return new NextResponse(
                 JSON.stringify({ error: "Could not find a valid payment authorization for this order to cancel/refund." }),
@@ -59,7 +39,7 @@ export async function POST(request: Request) {
             );
         }
 
-        // Refund the full authorized amount. This effectively cancels the hold.
+        // Refunding the full authorized amount on an uncaptured payment effectively voids it.
         const refund = await razorpay.payments.refund(paymentId, {
             amount: Math.round(amount * 100),
             speed: 'normal',
@@ -68,7 +48,7 @@ export async function POST(request: Request) {
             }
         });
         
-        console.log("Successfully processed refund/cancellation:", refund);
+        console.log("Successfully processed refund/cancellation (void):", refund);
         
         // You would now update your database to mark the order as 'Voided' or 'Cancelled'.
 

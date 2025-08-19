@@ -40,20 +40,36 @@ function CancellationFormComponent() {
         setIsProcessing(true);
 
         try {
-            // Find the order in localStorage to get payment details
+            // In a real app, a backend would look up this info.
+            // For the prototype, we find the order in local storage to get its details.
+            const allOrders: EditableOrder[] = [];
             const manualOrdersJSON = localStorage.getItem('manualOrders');
-            const manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
-            const orderToCancel = manualOrders.find(o => o.orderId === orderId && o.cancellationId === cancellationId);
+            if (manualOrdersJSON) {
+                allOrders.push(...JSON.parse(manualOrdersJSON));
+            }
+
+            const orderToCancel = allOrders.find(o => o.orderId === orderId);
 
             if (!orderToCancel) {
-                 throw new Error("Order ID and Cancellation ID do not match our records. Please check your details and try again.");
+                 throw new Error("Order ID not found. Please check and try again.");
+            }
+
+            // Check if the cancellation ID matches the one stored in the order's overrides
+            const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${orderToCancel.id}`) || '{}');
+            const fullOrderDetails = { ...orderToCancel, ...storedOverrides };
+
+            if (fullOrderDetails.cancellationId !== cancellationId) {
+                throw new Error("The Cancellation ID is incorrect for this order. Please contact support.");
             }
             
             const paymentInfoJSON = localStorage.getItem(`payment_info_${orderToCancel.orderId}`);
+            
             if (!paymentInfoJSON) {
                 // If there's no payment auth, just mark as cancelled locally.
-                const updatedOrders = manualOrders.map(o => o.id === orderToCancel.id ? { ...o, paymentStatus: 'Voided', cancellationStatus: 'Processed' } : o);
-                localStorage.setItem('manualOrders', JSON.stringify(updatedOrders));
+                // This handles cases where auth was never completed.
+                const updatedOverrides = { ...storedOverrides, paymentStatus: 'Voided', cancellationStatus: 'Processed' };
+                localStorage.setItem(`order-override-${orderToCancel.id}`, JSON.stringify(updatedOverrides));
+
                 toast({
                     title: 'Order Cancelled',
                     description: 'Your order has been cancelled successfully.',
@@ -68,10 +84,10 @@ function CancellationFormComponent() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
-                    orderId: orderToCancel.orderId, 
-                    cancellationId: orderToCancel.cancellationId,
+                    orderId: fullOrderDetails.orderId, 
+                    cancellationId: fullOrderDetails.cancellationId,
                     paymentId: paymentInfo.paymentId,
-                    amount: orderToCancel.price
+                    amount: fullOrderDetails.price
                 }),
             });
 
@@ -82,8 +98,8 @@ function CancellationFormComponent() {
             }
             
             // Update local storage
-            const updatedOrders = manualOrders.map(o => o.id === orderToCancel.id ? { ...o, paymentStatus: 'Voided', cancellationStatus: 'Processed' } : o);
-            localStorage.setItem('manualOrders', JSON.stringify(updatedOrders));
+            const updatedOverrides = { ...storedOverrides, paymentStatus: 'Voided', cancellationStatus: 'Processed' };
+            localStorage.setItem(`order-override-${orderToCancel.id}`, JSON.stringify(updatedOverrides));
             localStorage.removeItem(`payment_info_${orderToCancel.orderId}`);
 
             toast({
