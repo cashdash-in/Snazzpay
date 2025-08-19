@@ -9,9 +9,11 @@ import { Label } from "@/components/ui/label";
 import { Phone, Lock, Wallet } from "lucide-react";
 import Link from "next/link";
 import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
 
 export default function CustomerLoginPage() {
     const { toast } = useToast();
+    const router = useRouter();
     const [mobileNumber, setMobileNumber] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -19,12 +21,13 @@ export default function CustomerLoginPage() {
     const handleLogin = () => {
         setIsLoading(true);
         // This is where you would add real authentication logic.
-        // For now, we'll simulate it.
+        // For now, we'll simulate it and redirect to the dashboard.
         setTimeout(() => {
              toast({
-                title: "Feature Coming Soon!",
-                description: "The full customer portal is under construction. Thank you for your interest!",
+                title: "Login Successful (Simulated)",
+                description: "Redirecting you to your customer dashboard.",
             });
+            router.push('/customer/dashboard');
             setIsLoading(false);
         }, 1000);
     }
@@ -71,7 +74,7 @@ export default function CustomerLoginPage() {
                     </p>
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4">
-                    <Button className="w-full" onClick={handleLogin} disabled={isLoading}>
+                    <Button className="w-full" onClick={handleLogin} disabled={isLoading || !mobileNumber || !password}>
                         {isLoading ? 'Processing...' : 'Login or Register'}
                     </Button>
                     <Link href="/secure-cod" passHref>
