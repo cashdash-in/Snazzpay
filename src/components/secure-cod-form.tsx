@@ -45,7 +45,13 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
     const [agreed, setAgreed] = useState(false);
     const [leadId, setLeadId] = useState<string | null>(null);
 
+    const action = searchParams.get('action');
+
     useEffect(() => {
+        if (action === 'cancel') {
+            setLoading(false);
+            return;
+        }
         setLoading(true);
         if (!razorpayKeyId) {
             setError('Razorpay Key ID is not configured on the server.');
@@ -80,7 +86,7 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         });
         setLoading(false);
         
-    }, [searchParams, razorpayKeyId]);
+    }, [searchParams, razorpayKeyId, action]);
 
     const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const quantity = parseInt(e.target.value, 10);
@@ -288,6 +294,10 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
             </CardContent>
         </Card>
     );
+    
+    if (action === 'cancel') {
+        return null; // Don't render this form if we're in cancel mode
+    }
 
     if (loading) {
         return <div className="flex items-center justify-center min-h-screen bg-gray-100"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;

@@ -8,7 +8,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, Save, ExternalLink, CreditCard, Send, Loader2 as ButtonLoader, Mail, Printer, Copy } from 'lucide-react';
+import { ArrowLeft, Loader2, Save, ExternalLink, CreditCard, Send, Loader2 as ButtonLoader, Mail, Printer, Copy, ShieldAlert } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { EditableOrder } from '../page';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { getOrders, type Order as ShopifyOrder } from '@/services/shopify';
 import Link from 'next/link';
+import { v4 as uuidv4 } from 'uuid';
 
 type PaymentInfo = {
     paymentId: string;
@@ -100,6 +101,9 @@ function OrderDetailContent() {
             if (foundOrder) {
                  const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${foundOrder.id}`) || '{}');
                  foundOrder = {...foundOrder, ...storedOverrides};
+                 if (!foundOrder.cancellationId) {
+                    foundOrder.cancellationId = `CNCL-${uuidv4().substring(0, 8).toUpperCase()}`;
+                 }
             }
             
             setOrder(foundOrder);
@@ -528,6 +532,14 @@ function OrderDetailContent() {
                             <CardTitle>Cancellation</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
+                             <div className="space-y-2">
+                                <Label htmlFor="cancellationId">Cancellation ID</Label>
+                                <div className="flex items-center gap-2">
+                                    <Input id="cancellationId" value={order.cancellationId || ''} readOnly className="font-mono bg-muted" />
+                                    <Button variant="secondary" size="sm" onClick={() => navigator.clipboard.writeText(order.cancellationId || '')}>Copy ID</Button>
+                                </div>
+                                <p className="text-xs text-muted-foreground">Provide this unique ID to the customer to allow them to cancel the order.</p>
+                            </div>
                              <div className="space-y-2">
                                 <Label htmlFor="cancellationReason">Reason for Cancellation</Label>
                                 <Input id="cancellationReason" value={order.cancellationReason || ''} onChange={(e) => handleInputChange('cancellationReason', e.target.value)} />
