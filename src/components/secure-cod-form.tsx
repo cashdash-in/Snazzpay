@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Loader2, HelpCircle, AlertTriangle, User, Phone, Home, MapPin, BadgeCheck, ShieldCheck, CreditCard, Mail } from "lucide-react";
+import { Loader2, HelpCircle, AlertTriangle, User, Phone, Home, MapPin, BadgeCheck, ShieldCheck, CreditCard, Mail, Wallet } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
@@ -21,6 +21,32 @@ interface SecureCodFormProps {
 }
 
 type Step = 'details' | 'authorize' | 'complete';
+
+function SnazzifyCoinCard({ customerName, orderId }: { customerName: string, orderId: string }) {
+    return (
+        <Link href="/customer/login" className="block w-full transition-transform duration-300 hover:scale-105">
+            <div className="w-full max-w-sm rounded-xl bg-gradient-to-br from-purple-600 to-indigo-700 p-6 text-white shadow-2xl space-y-6">
+                <div className="flex justify-between items-start">
+                    <div className="space-y-1">
+                        <h3 className="text-2xl font-bold tracking-wider">Snazzify Coin</h3>
+                        <p className="text-xs font-mono opacity-80">CUSTOMER WALLET</p>
+                    </div>
+                    <Wallet className="h-8 w-8 text-white/80" />
+                </div>
+                <div className="space-y-1 text-center">
+                    <p className="text-sm font-mono opacity-80">Order ID</p>
+                    <p className="text-lg font-mono tracking-widest">{orderId}</p>
+                </div>
+                <div className="space-y-1">
+                     <p className="text-xs font-mono opacity-80">CARD HOLDER</p>
+                    <p className="text-base font-medium uppercase tracking-wider">{customerName}</p>
+                </div>
+                <p className="text-center text-xs opacity-90 pt-2">Click here to log in and view your wallet</p>
+            </div>
+        </Link>
+    );
+}
+
 
 export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
     const searchParams = useSearchParams();
@@ -286,32 +312,14 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
     };
 
     const renderCompleteState = () => (
-        <Card className="w-full max-w-md shadow-lg text-center">
-            <CardHeader>
+        <Card className="w-full max-w-md shadow-lg text-center bg-transparent border-0">
+            <CardHeader className="pb-4">
                 <BadgeCheck className="mx-auto h-12 w-12 text-green-500" />
                 <CardTitle>Order Confirmed!</CardTitle>
-                <CardDescription>Thank you! Your order is confirmed. Here is your Snazzify Coin.</CardDescription>
+                <CardDescription>Thank you! Your order is secured. Here is your personal Snazzify Coin Card.</CardDescription>
             </CardHeader>
              <CardContent className="flex flex-col items-center justify-center space-y-4">
-                <p className="text-muted-foreground">Scratch the card to reveal your reward!</p>
-                <ScratchCard
-                    width={300}
-                    height={180}
-                    scratchImageSrc="https://placehold.co/300x180/8B5CF6/FFFFFF.png?text=Snazzify+Coin"
-                    data-ai-hint="purple gold coin"
-                >
-                    <div className="flex flex-col items-center justify-center h-full text-center bg-gray-100 rounded-lg p-4">
-                        <h3 className="text-lg font-bold text-primary">Your Reward!</h3>
-                        <p className="text-sm text-muted-foreground mt-1 mb-3">Here's a link to your order invoice.</p>
-                        <Link href={`/invoice/${leadId}`} passHref>
-                           <Button>View My Invoice</Button>
-                        </Link>
-                    </div>
-                </ScratchCard>
-                <div className="text-center text-sm pt-4">
-                    <p className="font-semibold">{customerDetails.name}</p>
-                    <p className="text-muted-foreground">Order: {orderDetails.orderId}</p>
-                </div>
+                <SnazzifyCoinCard customerName={customerDetails.name} orderId={orderDetails.orderId} />
             </CardContent>
         </Card>
     );
