@@ -42,11 +42,13 @@ function CancellationFormComponent() {
         try {
             // In a real app, a backend would look up this info.
             // For the prototype, we find the order in local storage to get its details.
-            const allOrders: EditableOrder[] = [];
+            let allOrders: EditableOrder[] = [];
             const manualOrdersJSON = localStorage.getItem('manualOrders');
             if (manualOrdersJSON) {
                 allOrders.push(...JSON.parse(manualOrdersJSON));
             }
+             // You might need to fetch shopify orders too if they can be cancelled this way
+            // For now, we assume only manual/locally stored orders are being cancelled.
 
             const orderToCancel = allOrders.find(o => o.orderId === orderId);
 
