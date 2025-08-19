@@ -61,9 +61,10 @@ export default function CustomerDashboardPage() {
                 try {
                     const shopifyOrders = await getOrders();
                     const mappedShopifyOrders = shopifyOrders.map(mapShopifyOrderToEditableOrder);
-                    allOrders.push(...mappedShopifyOrders);
+                    allOrders = allOrders.concat(mappedShopifyOrders);
                 } catch (error) {
                     console.error("Could not load Shopify orders for dashboard", error);
+                    // Don't toast here, as it's a common case for them to not be configured
                 }
 
                 // 2. Fetch manual orders and add them to the list
@@ -71,7 +72,7 @@ export default function CustomerDashboardPage() {
                     const manualOrdersJSON = localStorage.getItem('manualOrders');
                     if (manualOrdersJSON) {
                         const manualOrders: EditableOrder[] = JSON.parse(manualOrdersJSON);
-                        allOrders.push(...manualOrders);
+                        allOrders = allOrders.concat(manualOrders);
                     }
                 } catch (error) {
                     console.error("Could not load manual orders for dashboard", error);
@@ -286,5 +287,3 @@ export default function CustomerDashboardPage() {
         </div>
     );
 }
-
-    
