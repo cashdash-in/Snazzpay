@@ -32,47 +32,37 @@ export default function CustomerDashboardPage() {
         async function loadCustomerData() {
             setIsLoading(true);
             try {
-                let allSnazzPayOrders: EditableOrder[] = [];
-                
-                // Step 1: Fetch manual orders from local storage
-                try {
-                    const manualOrdersJSON = localStorage.getItem('manualOrders');
-                    if (manualOrdersJSON) {
-                        allSnazzPayOrders = JSON.parse(manualOrdersJSON);
-                    }
-                } catch (error) {
-                    console.error("Could not load manual orders for dashboard", error);
-                    toast({ variant: 'destructive', title: "Error", description: "Could not load your SnazzPay orders." });
-                }
+                // Step 1: Get all manual orders from local storage
+                const manualOrdersJSON = localStorage.getItem('manualOrders');
+                let allSnazzPayOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
 
-                // Step 2: Filter the manual orders for the logged-in customer
-                const customerOrders = allSnazzPayOrders.filter(order => {
+                // Step 2: Apply any saved overrides to every manual order
+                const ordersWithOverrides = allSnazzPayOrders.map(order => {
+                    const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
+                    return { ...order, ...storedOverrides };
+                });
+
+                // Step 3: Now, filter the updated list for the logged-in customer
+                const customerOrders = ordersWithOverrides.filter(order => {
                     const normalize = (phone: string = '') => phone.replace(/[^0-9]/g, '');
                     const orderContact = normalize(order.contactNo);
                     const loggedInContact = normalize(loggedInMobile);
                     
                     if (!orderContact || !loggedInContact) return false;
-
-                    // Check if one number ends with the other, to handle cases like +919.. vs 9...
+                    
                     return orderContact.endsWith(loggedInContact) || loggedInContact.endsWith(orderContact);
                 });
                 
-                // Step 3: Apply overrides to the customer's orders
-                const customerOrdersFinal = customerOrders.map(order => {
-                    const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
-                    return { ...order, ...storedOverrides };
-                });
-
                 // Step 4: Set state with the final, correct data
-                const customerName = customerOrdersFinal.length > 0 ? customerOrdersFinal[0].customerName : 'Valued Customer';
+                const customerName = customerOrders.length > 0 ? customerOrders[0].customerName : 'Valued Customer';
                 setUser({ name: customerName, mobile: loggedInMobile });
 
-                const activeOrderValue = customerOrdersFinal
+                const activeOrderValue = customerOrders
                     .filter(o => o.paymentStatus === 'Authorized' || o.paymentStatus === 'Paid')
                     .reduce((sum, o) => sum + parseFloat(o.price || '0'), 0);
                 
                 setWalletBalance(activeOrderValue);
-                setOrders(customerOrdersFinal);
+                setOrders(customerOrders);
 
             } catch (error) {
                 console.error("Error loading customer data:", error);
