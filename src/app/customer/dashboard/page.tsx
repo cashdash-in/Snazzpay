@@ -55,49 +55,54 @@ export default function CustomerDashboardPage() {
         async function loadCustomerData() {
             setIsLoading(true);
             try {
+                // Step 1: Create a master list to hold ALL orders
                 let allOrders: EditableOrder[] = [];
-                
-                // 1. Fetch Shopify orders
+
+                // Step 2: Fetch Shopify orders and add them to the master list
                 try {
                     const shopifyOrders = await getOrders();
                     const mappedShopifyOrders = shopifyOrders.map(mapShopifyOrderToEditableOrder);
-                    allOrders = allOrders.concat(mappedShopifyOrders);
+                    allOrders.push(...mappedShopifyOrders);
                 } catch (error) {
                     console.error("Could not load Shopify orders for dashboard", error);
+                    // Don't toast here, it might be expected if keys are not set
                 }
 
-                // 2. Fetch manual orders
+                // Step 3: Fetch manual orders and add them to the master list
                 try {
                     const manualOrdersJSON = localStorage.getItem('manualOrders');
                     if (manualOrdersJSON) {
                         const manualOrders: EditableOrder[] = JSON.parse(manualOrdersJSON);
-                        allOrders = allOrders.concat(manualOrders);
+                        allOrders.push(...manualOrders);
                     }
                 } catch (error) {
                     console.error("Could not load manual orders for dashboard", error);
                 }
 
-                // 3. Apply overrides to all fetched orders
-                const ordersWithOverrides = allOrders.map(order => {
+                // Step 4: Filter the master list for the logged-in customer
+                const customerOrdersUnfiltered = allOrders.filter(order => {
+                    // Simple normalization to be safe
+                    const orderContact = order.contactNo?.replace(/\s+/g, '') || '';
+                    const loggedInContact = loggedInMobile.replace(/\s+/g, '');
+                    return orderContact === loggedInContact;
+                });
+                
+                // Step 5: Apply overrides to the customer's orders
+                const customerOrdersFinal = customerOrdersUnfiltered.map(order => {
                     const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
                     return { ...order, ...storedOverrides };
                 });
-                
-                // 4. Filter for the logged-in customer using their mobile number
-                const customerOrders = ordersWithOverrides.filter(order => {
-                    // Normalize phone numbers for comparison if needed, e.g., remove spaces or country codes
-                    return order.contactNo === loggedInMobile;
-                });
-                
-                const customerName = customerOrders.length > 0 ? customerOrders[0].customerName : 'Valued Customer';
+
+                // Step 6: Set state with the final, correct data
+                const customerName = customerOrdersFinal.length > 0 ? customerOrdersFinal[0].customerName : 'Valued Customer';
                 setUser({ name: customerName, mobile: loggedInMobile });
 
-                const activeOrderValue = customerOrders
+                const activeOrderValue = customerOrdersFinal
                     .filter(o => o.paymentStatus === 'Authorized' || o.paymentStatus === 'Paid')
                     .reduce((sum, o) => sum + parseFloat(o.price), 0);
                 
                 setWalletBalance(activeOrderValue);
-                setOrders(customerOrders);
+                setOrders(customerOrdersFinal);
 
             } catch (error) {
                 console.error("Error loading customer data:", error);
@@ -288,5 +293,3 @@ export default function CustomerDashboardPage() {
         </div>
     );
 }
-
-    
