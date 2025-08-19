@@ -70,7 +70,7 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
     const [isProcessing, setIsProcessing] = useState(false);
     const [error, setError] = useState('');
     const [agreed, setAgreed] = useState(false);
-    const [leadId, setLeadId] = useState<string | null>(null);
+    const [activeLead, setActiveLead] = useState<EditableOrder | null>(null);
 
     const action = searchParams.get('action');
 
@@ -199,11 +199,8 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         setIsProcessing(true);
         setError('');
 
-        const uniqueLeadId = uuidv4();
-        setLeadId(uniqueLeadId); 
-
         const newLead: EditableOrder = {
-            id: uniqueLeadId,
+            id: uuidv4(),
             orderId: orderDetails.orderId,
             customerName: customerDetails.name,
             customerEmail: customerDetails.email,
@@ -216,6 +213,8 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
             paymentStatus: 'Intent Verified', // This is a lead status
             date: format(new Date(), 'yyyy-MM-dd'),
         };
+        
+        setActiveLead(newLead);
 
         try {
             const existingLeadsJSON = localStorage.getItem('leads');
@@ -242,11 +241,14 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
             toast({ variant: 'destructive', title: 'Error', description: e.message });
             setIsProcessing(false);
             
-            const existingLeadsJSON = localStorage.getItem('leads');
-            if (existingLeadsJSON) {
-                let existingLeads: EditableOrder[] = JSON.parse(existingLeadsJSON);
-                const filteredLeads = existingLeads.filter(l => l.id !== uniqueLeadId);
-                localStorage.setItem('leads', JSON.stringify(filteredLeads));
+            // Rollback lead creation
+            if (newLead) {
+                const existingLeadsJSON = localStorage.getItem('leads');
+                if (existingLeadsJSON) {
+                    let existingLeads: EditableOrder[] = JSON.parse(existingLeadsJSON);
+                    const filteredLeads = existingLeads.filter(l => l.id !== newLead.id);
+                    localStorage.setItem('leads', JSON.stringify(filteredLeads));
+                }
             }
         }
     };
@@ -268,17 +270,19 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                 localStorage.setItem(`payment_info_${orderDetails.orderId}`, JSON.stringify(paymentInfo));
                 
                 try {
-                    // Remove from leads
-                    const existingLeadsJSON = localStorage.getItem('leads');
-                    if (existingLeadsJSON) {
-                        let existingLeads: EditableOrder[] = JSON.parse(existingLeadsJSON);
-                        const filteredLeads = existingLeads.filter(l => l.id !== leadId);
-                        localStorage.setItem('leads', JSON.stringify(filteredLeads));
+                    // Remove from leads, using the lead object we stored in state
+                    if (activeLead) {
+                        const existingLeadsJSON = localStorage.getItem('leads');
+                        if (existingLeadsJSON) {
+                            let existingLeads: EditableOrder[] = JSON.parse(existingLeadsJSON);
+                            const filteredLeads = existingLeads.filter(l => l.id !== activeLead.id);
+                            localStorage.setItem('leads', JSON.stringify(filteredLeads));
+                        }
                     }
                     
                     // Add to manual orders
                     const newOrder: EditableOrder = {
-                        id: leadId || uuidv4(),
+                        id: activeLead?.id || uuidv4(), // Re-use lead's unique ID
                         orderId: orderDetails.orderId,
                         customerName: customerDetails.name,
                         customerEmail: customerDetails.email,
@@ -414,3 +418,5 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         </div>
     );
 }
+
+    
