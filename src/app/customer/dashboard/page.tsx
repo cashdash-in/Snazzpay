@@ -62,7 +62,7 @@ export default function CustomerDashboardPage() {
                 try {
                     const shopifyOrders = await getOrders();
                     const mappedShopifyOrders = shopifyOrders.map(mapShopifyOrderToEditableOrder);
-                    allOrders.push(...mappedShopifyOrders);
+                    allOrders = allOrders.concat(mappedShopifyOrders);
                 } catch (error) {
                     console.error("Could not load Shopify orders for dashboard", error);
                     // Don't toast here, it might be expected if keys are not set
@@ -73,18 +73,20 @@ export default function CustomerDashboardPage() {
                     const manualOrdersJSON = localStorage.getItem('manualOrders');
                     if (manualOrdersJSON) {
                         const manualOrders: EditableOrder[] = JSON.parse(manualOrdersJSON);
-                        allOrders.push(...manualOrders);
+                        allOrders = allOrders.concat(manualOrders);
                     }
-                } catch (error) {
+                } catch (error)
+                 {
                     console.error("Could not load manual orders for dashboard", error);
                 }
 
-                // Step 4: Filter the master list for the logged-in customer
+                // Step 4: Filter the master list for the logged-in customer, normalizing phone numbers
                 const customerOrdersUnfiltered = allOrders.filter(order => {
-                    // Simple normalization to be safe
-                    const orderContact = order.contactNo?.replace(/\s+/g, '') || '';
-                    const loggedInContact = loggedInMobile.replace(/\s+/g, '');
-                    return orderContact === loggedInContact;
+                    const normalize = (phone: string) => phone.replace(/[^0-9]/g, '');
+                    const orderContact = order.contactNo ? normalize(order.contactNo) : '';
+                    const loggedInContact = normalize(loggedInMobile);
+                    // Check if one number ends with the other, to handle cases like +919.. vs 9...
+                    return orderContact.endsWith(loggedInContact) || loggedInContact.endsWith(orderContact);
                 });
                 
                 // Step 5: Apply overrides to the customer's orders
@@ -293,3 +295,5 @@ export default function CustomerDashboardPage() {
         </div>
     );
 }
+
+    
