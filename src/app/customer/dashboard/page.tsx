@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Wallet, ShoppingCart, ShieldAlert, LogOut, CheckCircle, Clock } from "lucide-react";
+import { Wallet, ShoppingCart, ShieldAlert, LogOut, CheckCircle, Clock, Mail, MessageSquare } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
@@ -12,7 +12,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { EditableOrder } from '@/app/orders/page';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import { differenceInDays } from 'date-fns';
+import { getOrders } from '@/services/shopify';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import Link from 'next/link';
 
 
 export default function CustomerDashboardPage() {
@@ -22,6 +26,9 @@ export default function CustomerDashboardPage() {
     const [walletBalance, setWalletBalance] = useState(0);
     const [orders, setOrders] = useState<EditableOrder[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [cancellationInput, setCancellationInput] = useState('');
+    const [selectedOrderForCancellation, setSelectedOrderForCancellation] = useState<EditableOrder | null>(null);
+
 
     useEffect(() => {
         const loggedInMobile = localStorage.getItem('loggedInUserMobile');
@@ -51,6 +58,7 @@ export default function CustomerDashboardPage() {
                     
                     if (!orderContact || !loggedInContact) return false;
                     
+                    // Check if one number ends with the other to handle +91 prefixes etc.
                     return orderContact.endsWith(loggedInContact) || loggedInContact.endsWith(orderContact);
                 });
                 
@@ -83,7 +91,12 @@ export default function CustomerDashboardPage() {
         router.push('/customer/login');
     };
 
-    const handleCancelOrder = async (order: EditableOrder) => {
+    const handleCancelOrder = async () => {
+        const order = selectedOrderForCancellation;
+        const enteredId = cancellationInput;
+
+        if (!order) return;
+
         if (!order.cancellationId) {
              toast({
                 variant: 'destructive',
@@ -93,9 +106,7 @@ export default function CustomerDashboardPage() {
             return;
         }
         
-        const cancellationId = prompt(`This will cancel your order #${order.orderId}. To proceed, please enter the unique Cancellation ID provided by our support team:`);
-        
-        if (cancellationId && cancellationId === order.cancellationId) {
+        if (enteredId && enteredId === order.cancellationId) {
             
             const paymentInfoJSON = localStorage.getItem(`payment_info_${order.orderId}`);
             let paymentId = null;
@@ -138,9 +149,12 @@ export default function CustomerDashboardPage() {
                     description: error.message,
                 });
             }
-        } else if (cancellationId) {
+        } else if (enteredId) {
             toast({ variant: 'destructive', title: "Incorrect ID", description: "The Cancellation ID you entered is incorrect." });
         }
+         // Reset state
+        setCancellationInput('');
+        setSelectedOrderForCancellation(null);
     };
 
 
@@ -208,28 +222,53 @@ export default function CustomerDashboardPage() {
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
-                                                {orders.length > 0 ? orders.map((order) => {
-                                                    const isCancellable = ['Pending', 'Authorized', 'Paid'].includes(order.paymentStatus) && differenceInDays(new Date(), new Date(order.date)) <= 7;
-                                                    return (
-                                                        <TableRow key={order.id}>
-                                                            <TableCell className="font-medium">{order.orderId}</TableCell>
-                                                            <TableCell>{order.date}</TableCell>
-                                                            <TableCell>{order.productOrdered}</TableCell>
-                                                            <TableCell>₹{parseFloat(order.price).toFixed(2)}</TableCell>
-                                                            <TableCell>
-                                                                <Badge variant={order.paymentStatus === 'Paid' ? 'default' : 'secondary'} className={order.paymentStatus === 'Paid' ? 'bg-green-100 text-green-800' : (order.paymentStatus === 'Authorized' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800')}>
-                                                                    {order.paymentStatus === 'Paid' ? <CheckCircle className="mr-1 h-3 w-3" /> : <Clock className="mr-1 h-3 w-3" />}
-                                                                    {order.paymentStatus}
-                                                                </Badge>
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                {isCancellable && (
-                                                                    <Button variant="destructive" size="sm" onClick={() => handleCancelOrder(order)}>Cancel</Button>
-                                                                )}
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    )
-                                                }) : (
+                                                {orders.length > 0 ? orders.map((order) => (
+                                                    <TableRow key={order.id}>
+                                                        <TableCell className="font-medium">{order.orderId}</TableCell>
+                                                        <TableCell>{order.date}</TableCell>
+                                                        <TableCell>{order.productOrdered}</TableCell>
+                                                        <TableCell>₹{parseFloat(order.price).toFixed(2)}</TableCell>
+                                                        <TableCell>
+                                                            <Badge variant={order.paymentStatus === 'Paid' ? 'default' : 'secondary'} className={order.paymentStatus === 'Paid' ? 'bg-green-100 text-green-800' : (order.paymentStatus === 'Authorized' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800')}>
+                                                                {order.paymentStatus === 'Paid' ? <CheckCircle className="mr-1 h-3 w-3" /> : <Clock className="mr-1 h-3 w-3" />}
+                                                                {order.paymentStatus}
+                                                            </Badge>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <AlertDialog>
+                                                                <AlertDialogTrigger asChild>
+                                                                    <Button variant="destructive" size="sm" onClick={() => setSelectedOrderForCancellation(order)}>Cancel</Button>
+                                                                </AlertDialogTrigger>
+                                                                <AlertDialogContent>
+                                                                    <AlertDialogHeader>
+                                                                        <AlertDialogTitle>Cancel Order #{selectedOrderForCancellation?.orderId}?</AlertDialogTitle>
+                                                                        <AlertDialogDescription>
+                                                                            To proceed, please enter the unique Cancellation ID provided by our support team.
+                                                                            <div className="mt-4 text-xs text-muted-foreground space-y-1">
+                                                                                <p>Contact support to get your ID:</p>
+                                                                                <div className='flex items-center gap-2'><Mail className="h-3 w-3" /> <a href="mailto:customer.service@snazzify.co.in" className="text-primary hover:underline">customer.service@snazzify.co.in</a></div>
+                                                                                <div className='flex items-center gap-2'><MessageSquare className="h-3 w-3" /> <a href="https://wa.me/919920320790" target="_blank" className="text-primary hover:underline">WhatsApp: 9920320790</a></div>
+                                                                            </div>
+                                                                        </AlertDialogDescription>
+                                                                    </AlertDialogHeader>
+                                                                    <div className="space-y-2 py-2">
+                                                                        <Label htmlFor="cancellation-id-input">Cancellation ID</Label>
+                                                                        <Input
+                                                                            id="cancellation-id-input"
+                                                                            value={cancellationInput}
+                                                                            onChange={(e) => setCancellationInput(e.target.value)}
+                                                                            placeholder="Enter your Cancellation ID"
+                                                                        />
+                                                                    </div>
+                                                                    <AlertDialogFooter>
+                                                                        <AlertDialogCancel onClick={() => setCancellationInput('')}>Close</AlertDialogCancel>
+                                                                        <AlertDialogAction onClick={handleCancelOrder}>Submit Cancellation</AlertDialogAction>
+                                                                    </AlertDialogFooter>
+                                                                </AlertDialogContent>
+                                                            </AlertDialog>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                )) : (
                                                     <TableRow>
                                                         <TableCell colSpan={6} className="text-center text-muted-foreground">
                                                             You have no orders yet.
@@ -261,5 +300,3 @@ export default function CustomerDashboardPage() {
         </div>
     );
 }
-
-    
