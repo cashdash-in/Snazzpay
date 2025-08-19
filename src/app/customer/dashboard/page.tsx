@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { EditableOrder } from '@/app/orders/page';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
+import { differenceInDays } from 'date-fns';
 
 
 export default function CustomerDashboardPage() {
@@ -203,25 +204,28 @@ export default function CustomerDashboardPage() {
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
-                                                {orders.length > 0 ? orders.map((order) => (
-                                                    <TableRow key={order.id}>
-                                                        <TableCell className="font-medium">{order.orderId}</TableCell>
-                                                        <TableCell>{order.date}</TableCell>
-                                                        <TableCell>{order.productOrdered}</TableCell>
-                                                        <TableCell>₹{parseFloat(order.price).toFixed(2)}</TableCell>
-                                                        <TableCell>
-                                                            <Badge variant={order.paymentStatus === 'Paid' ? 'default' : 'secondary'} className={order.paymentStatus === 'Paid' ? 'bg-green-100 text-green-800' : (order.paymentStatus === 'Authorized' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800')}>
-                                                                {order.paymentStatus === 'Paid' ? <CheckCircle className="mr-1 h-3 w-3" /> : <Clock className="mr-1 h-3 w-3" />}
-                                                                {order.paymentStatus}
-                                                            </Badge>
-                                                        </TableCell>
-                                                        <TableCell>
-                                                             {(order.paymentStatus === 'Authorized' || order.paymentStatus === 'Pending') && (
-                                                                <Button variant="destructive" size="sm" onClick={() => handleCancelOrder(order)}>Cancel</Button>
-                                                            )}
-                                                        </TableCell>
-                                                    </TableRow>
-                                                )) : (
+                                                {orders.length > 0 ? orders.map((order) => {
+                                                    const isCancellable = ['Pending', 'Authorized', 'Paid'].includes(order.paymentStatus) && differenceInDays(new Date(), new Date(order.date)) <= 7;
+                                                    return (
+                                                        <TableRow key={order.id}>
+                                                            <TableCell className="font-medium">{order.orderId}</TableCell>
+                                                            <TableCell>{order.date}</TableCell>
+                                                            <TableCell>{order.productOrdered}</TableCell>
+                                                            <TableCell>₹{parseFloat(order.price).toFixed(2)}</TableCell>
+                                                            <TableCell>
+                                                                <Badge variant={order.paymentStatus === 'Paid' ? 'default' : 'secondary'} className={order.paymentStatus === 'Paid' ? 'bg-green-100 text-green-800' : (order.paymentStatus === 'Authorized' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800')}>
+                                                                    {order.paymentStatus === 'Paid' ? <CheckCircle className="mr-1 h-3 w-3" /> : <Clock className="mr-1 h-3 w-3" />}
+                                                                    {order.paymentStatus}
+                                                                </Badge>
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                {isCancellable && (
+                                                                    <Button variant="destructive" size="sm" onClick={() => handleCancelOrder(order)}>Cancel</Button>
+                                                                )}
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    )
+                                                }) : (
                                                     <TableRow>
                                                         <TableCell colSpan={6} className="text-center text-muted-foreground">
                                                             You have no orders yet.
