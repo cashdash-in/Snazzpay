@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,40 +12,107 @@ import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
-
-// Mock data for demonstration
-const mockUser = {
-    name: 'Ankit Sharma',
-    mobile: '98XXXXXX01',
-};
-
-const mockWallet = {
-    balance: 500.00,
-};
-
-const mockOrders = [
-    { id: '#1005', date: '2024-05-20', item: 'Premium Leather Wallet', amount: 500.00, status: 'Authorized' },
-    { id: '#1002', date: '2024-05-15', item: 'Stylish Sunglasses', amount: 1250.00, status: 'Delivered' },
-];
+import type { EditableOrder } from '@/app/orders/page';
+import { useRouter } from 'next/navigation';
 
 export default function CustomerDashboardPage() {
     const { toast } = useToast();
+    const router = useRouter();
+    const [user, setUser] = useState({ name: '', mobile: '' });
+    const [walletBalance, setWalletBalance] = useState(0);
+    const [orders, setOrders] = useState<EditableOrder[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const loggedInMobile = localStorage.getItem('loggedInUserMobile');
+        if (!loggedInMobile) {
+            router.push('/customer/login');
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            const allManualOrdersJSON = localStorage.getItem('manualOrders');
+            const allManualOrders: EditableOrder[] = allManualOrdersJSON ? JSON.parse(allManualOrdersJSON) : [];
+            
+            const customerOrders = allManualOrders.filter(order => order.contactNo === loggedInMobile);
+            
+            customerOrders.forEach(order => {
+                 const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
+                 Object.assign(order, storedOverrides);
+            });
+
+            const customerName = customerOrders.length > 0 ? customerOrders[0].customerName : 'Valued Customer';
+            setUser({ name: customerName, mobile: loggedInMobile });
+
+            const activeOrderValue = customerOrders
+                .filter(o => o.paymentStatus === 'Authorized' || o.paymentStatus === 'Paid')
+                .reduce((sum, o) => sum + parseFloat(o.price), 0);
+            
+            setWalletBalance(activeOrderValue);
+            setOrders(customerOrders);
+
+        } catch (error) {
+            console.error("Error loading customer data:", error);
+            toast({ variant: 'destructive', title: "Error", description: "Could not load your account details." });
+        } finally {
+            setIsLoading(false);
+        }
+    }, [router, toast]);
+    
+    const handleLogout = () => {
+        localStorage.removeItem('loggedInUserMobile');
+        toast({ title: "Logged Out", description: "You have been successfully logged out." });
+        router.push('/customer/login');
+    };
+
+    const handleCancelOrder = (order: EditableOrder) => {
+        if (!order.cancellationId) {
+            toast({ variant: 'destructive', title: "Cannot Cancel", description: "This order does not have a Cancellation ID. Please contact support." });
+            return;
+        }
+        
+        // This simulates the flow where the user is given the cancellation ID
+        const cancellationId = prompt(`Please enter the unique cancellation ID provided by support for order ${order.orderId}:`);
+        
+        if (cancellationId && cancellationId === order.cancellationId) {
+            // In a real app, this would be an API call
+            console.log("Simulating cancellation for order:", order.orderId);
+            
+            const updatedOrder = { ...order, paymentStatus: 'Voided', cancellationStatus: 'Processed' };
+
+            // Update local storage
+            const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
+            const newOverrides = { ...storedOverrides, paymentStatus: 'Voided', cancellationStatus: 'Processed' };
+            localStorage.setItem(`order-override-${order.id}`, JSON.stringify(newOverrides));
+            
+            // Update state
+            setOrders(prev => prev.map(o => o.id === order.id ? updatedOrder : o));
+            setWalletBalance(prev => prev - parseFloat(order.price));
+
+            toast({ title: "Order Cancelled", description: `Your order ${order.orderId} has been successfully cancelled.` });
+        } else if (cancellationId) {
+            toast({ variant: 'destructive', title: "Incorrect ID", description: "The Cancellation ID you entered is incorrect." });
+        }
+    };
+
+
+    if (isLoading) {
+        return <div className="flex justify-center items-center h-screen">Loading...</div>
+    }
 
     return (
         <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
             <div className="max-w-7xl mx-auto">
                 <header className="flex flex-col sm:flex-row justify-between sm:items-center mb-8">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-800">Welcome, {mockUser.name}</h1>
+                        <h1 className="text-3xl font-bold text-gray-800">Welcome, {user.name}</h1>
                         <p className="text-muted-foreground">Here's an overview of your Snazzify account.</p>
                     </div>
-                     <Link href="/secure-cod" passHref>
-                        <Button variant="outline">
-                            <LogOut className="mr-2 h-4 w-4" />
-                            Logout
-                        </Button>
-                    </Link>
+                     <Button variant="outline" onClick={handleLogout}>
+                        <LogOut className="mr-2 h-4 w-4" />
+                        Logout
+                    </Button>
                 </header>
                 
                 <main className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -53,20 +120,14 @@ export default function CustomerDashboardPage() {
                     <div className="lg:col-span-1 space-y-8">
                         <Card className="shadow-lg">
                             <CardHeader className="flex flex-row items-center justify-between">
-                                <CardTitle>Snazzify Wallet</CardTitle>
+                                <CardTitle>Snazzify Trust Wallet</CardTitle>
                                 <Wallet className="h-6 w-6 text-primary" />
                             </CardHeader>
                             <CardContent>
-                                <p className="text-sm text-muted-foreground">Current Balance</p>
-                                <p className="text-4xl font-bold">₹{mockWallet.balance.toFixed(2)}</p>
-                                <p className="text-xs text-muted-foreground mt-1">Includes ₹1 verification + ₹499 for Order #1005</p>
+                                <p className="text-sm text-muted-foreground">Value of Active Orders</p>
+                                <p className="text-4xl font-bold">₹{walletBalance.toFixed(2)}</p>
+                                <p className="text-xs text-muted-foreground mt-1">This reflects the total amount for your active, pre-authorized orders.</p>
                             </CardContent>
-                            <CardFooter>
-                                <Button className="w-full">
-                                    <CreditCard className="mr-2 h-4 w-4" />
-                                    Add Funds (Coming Soon)
-                                </Button>
-                            </CardFooter>
                         </Card>
                     </div>
 
@@ -84,8 +145,8 @@ export default function CustomerDashboardPage() {
                             <TabsContent value="orders">
                                 <Card className="shadow-lg">
                                     <CardHeader>
-                                        <CardTitle>Recent Orders</CardTitle>
-                                        <CardDescription>Here are your most recent orders with us.</CardDescription>
+                                        <CardTitle>My Order History</CardTitle>
+                                        <CardDescription>Here are all the orders placed with your mobile number.</CardDescription>
                                     </CardHeader>
                                     <CardContent>
                                         <Table>
@@ -96,20 +157,26 @@ export default function CustomerDashboardPage() {
                                                     <TableHead>Item</TableHead>
                                                     <TableHead>Amount</TableHead>
                                                     <TableHead>Status</TableHead>
+                                                    <TableHead>Actions</TableHead>
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
-                                                {mockOrders.map((order) => (
+                                                {orders.map((order) => (
                                                     <TableRow key={order.id}>
-                                                        <TableCell className="font-medium">{order.id}</TableCell>
+                                                        <TableCell className="font-medium">{order.orderId}</TableCell>
                                                         <TableCell>{order.date}</TableCell>
-                                                        <TableCell>{order.item}</TableCell>
-                                                        <TableCell>₹{order.amount.toFixed(2)}</TableCell>
+                                                        <TableCell>{order.productOrdered}</TableCell>
+                                                        <TableCell>₹{parseFloat(order.price).toFixed(2)}</TableCell>
                                                         <TableCell>
-                                                            <Badge variant={order.status === 'Delivered' ? 'default' : 'secondary'} className={order.status === 'Delivered' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
-                                                                {order.status === 'Delivered' ? <CheckCircle className="mr-1 h-3 w-3" /> : <Clock className="mr-1 h-3 w-3" />}
-                                                                {order.status}
+                                                            <Badge variant={order.paymentStatus === 'Paid' ? 'default' : 'secondary'} className={order.paymentStatus === 'Paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
+                                                                {order.paymentStatus === 'Paid' ? <CheckCircle className="mr-1 h-3 w-3" /> : <Clock className="mr-1 h-3 w-3" />}
+                                                                {order.paymentStatus}
                                                             </Badge>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                             {(order.paymentStatus === 'Authorized' || order.paymentStatus === 'Pending') && (
+                                                                <Button variant="destructive" size="sm" onClick={() => handleCancelOrder(order)}>Cancel</Button>
+                                                            )}
                                                         </TableCell>
                                                     </TableRow>
                                                 ))}
@@ -122,21 +189,13 @@ export default function CustomerDashboardPage() {
                                 <Card className="shadow-lg">
                                     <CardHeader>
                                         <CardTitle>Request a Cancellation</CardTitle>
-                                        <CardDescription>If you need to cancel an order, please input the unique ID provided by our support team.</CardDescription>
+                                        <CardDescription>To cancel an active order, find it in the "My Orders" tab and click the "Cancel" button. You will need the unique Cancellation ID provided by our support team.</CardDescription>
                                     </CardHeader>
-                                    <CardContent className="space-y-4">
-                                         <div className="space-y-2">
-                                            <Label htmlFor="order-id">Order ID to Cancel</Label>
-                                            <Input id="order-id" placeholder="e.g., #1005" />
-                                        </div>
-                                         <div className="space-y-2">
-                                            <Label htmlFor="cancellation-id">Unique Cancellation ID</Label>
-                                            <Input id="cancellation-id" placeholder="Enter the ID from our email/SMS" />
-                                        </div>
+                                    <CardContent>
+                                        <p className="text-sm text-muted-foreground">
+                                            The cancellation process requires a unique ID to ensure security. This ID is available to our support team and will be provided to you upon request. Once you click "Cancel" on an order, you will be prompted to enter this ID.
+                                        </p>
                                     </CardContent>
-                                    <CardFooter>
-                                        <Button variant="destructive">Submit Cancellation Request</Button>
-                                    </CardFooter>
                                 </Card>
                             </TabsContent>
                         </Tabs>

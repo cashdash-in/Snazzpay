@@ -21,8 +21,17 @@ export default function CustomerLoginPage() {
     const handleLogin = () => {
         setIsLoading(true);
         // This is where you would add real authentication logic.
-        // For now, we'll simulate it and redirect to the dashboard.
+        // For now, we'll simulate it, save the mobile number to localStorage,
+        // and redirect to the dashboard.
+        
+        if (mobileNumber.length < 10) {
+            toast({ variant: 'destructive', title: "Invalid Mobile Number", description: "Please enter a valid 10-digit mobile number." });
+            setIsLoading(false);
+            return;
+        }
+
         setTimeout(() => {
+            localStorage.setItem('loggedInUserMobile', mobileNumber);
              toast({
                 title: "Login Successful (Simulated)",
                 description: "Redirecting you to your customer dashboard.",
@@ -42,7 +51,7 @@ export default function CustomerLoginPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="mobile-number">Mobile Number</Label>
+                        <Label htmlFor="mobile-number">Mobile Number (User ID)</Label>
                         <div className="relative">
                             <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input 

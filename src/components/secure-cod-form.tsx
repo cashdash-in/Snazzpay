@@ -299,6 +299,9 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                     console.error("Failed to update local storage after authorization", e);
                 }
                 
+                // Set the mobile number for auto-login after confirmation
+                localStorage.setItem('loggedInUserMobile', customerDetails.contact);
+
                 toast({ title: 'Authorization Successful!', description: 'Your order is confirmed and will be shipped soon.' });
                 setStep('complete');
                 setIsProcessing(false);
