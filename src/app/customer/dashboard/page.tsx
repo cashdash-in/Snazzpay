@@ -4,16 +4,38 @@
 import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Wallet, CreditCard, ShoppingCart, ShieldAlert, LogOut, CheckCircle, Clock } from "lucide-react";
-import Link from "next/link";
+import { Wallet, ShoppingCart, ShieldAlert, LogOut, CheckCircle, Clock } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { EditableOrder } from '@/app/orders/page';
+import { getOrders, type Order as ShopifyOrder } from '@/services/shopify';
+import { format } from "date-fns";
 import { useRouter } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
+
+function mapShopifyOrderToEditableOrder(shopifyOrder: ShopifyOrder): EditableOrder {
+    const customer = shopifyOrder.customer;
+    const customerName = customer ? `${customer.first_name || ''} ${customer.last_name || ''}`.trim() : 'N/A';
+    const products = shopifyOrder.line_items.map(item => item.title).join(', ');
+
+    return {
+        id: shopifyOrder.id.toString(),
+        orderId: shopifyOrder.name,
+        customerName,
+        customerEmail: customer?.email || undefined,
+        customerAddress: shopifyOrder.shipping_address ? `${shopifyOrder.shipping_address.address1}, ${shopifyOrder.shipping_address.city}` : 'N/A',
+        pincode: shopifyOrder.shipping_address?.zip || 'N/A',
+        contactNo: shopifyOrder.customer?.phone || 'N/A',
+        productOrdered: products,
+        quantity: shopifyOrder.line_items.reduce((sum, item) => sum + item.quantity, 0),
+        price: shopifyOrder.total_price,
+        paymentStatus: shopifyOrder.financial_status || 'Pending',
+        date: format(new Date(shopifyOrder.created_at), "yyyy-MM-dd"),
+    };
+}
+
 
 export default function CustomerDashboardPage() {
     const { toast } = useToast();
@@ -30,34 +52,55 @@ export default function CustomerDashboardPage() {
             return;
         }
 
-        setIsLoading(true);
-        try {
-            const allManualOrdersJSON = localStorage.getItem('manualOrders');
-            const allManualOrders: EditableOrder[] = allManualOrdersJSON ? JSON.parse(allManualOrdersJSON) : [];
-            
-            const customerOrders = allManualOrders.filter(order => order.contactNo === loggedInMobile);
-            
-            customerOrders.forEach(order => {
-                 const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
-                 Object.assign(order, storedOverrides);
-            });
+        async function loadCustomerData() {
+            setIsLoading(true);
+            try {
+                let combinedOrders: EditableOrder[] = [];
+                
+                // 1. Fetch Shopify orders
+                try {
+                    const shopifyOrders = await getOrders();
+                    combinedOrders = combinedOrders.concat(shopifyOrders.map(mapShopifyOrderToEditableOrder));
+                } catch (error) {
+                    console.error("Could not load Shopify orders for dashboard", error);
+                    // Don't toast here, it's not a critical failure for the user
+                }
 
-            const customerName = customerOrders.length > 0 ? customerOrders[0].customerName : 'Valued Customer';
-            setUser({ name: customerName, mobile: loggedInMobile });
+                // 2. Fetch manual orders
+                const manualOrdersJSON = localStorage.getItem('manualOrders');
+                if (manualOrdersJSON) {
+                    combinedOrders = combinedOrders.concat(JSON.parse(manualOrdersJSON));
+                }
 
-            const activeOrderValue = customerOrders
-                .filter(o => o.paymentStatus === 'Authorized' || o.paymentStatus === 'Paid')
-                .reduce((sum, o) => sum + parseFloat(o.price), 0);
-            
-            setWalletBalance(activeOrderValue);
-            setOrders(customerOrders);
+                // 3. Apply overrides to all fetched orders
+                const ordersWithOverrides = combinedOrders.map(order => {
+                    const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
+                    return { ...order, ...storedOverrides };
+                });
+                
+                // 4. Filter for the logged-in customer
+                const customerOrders = ordersWithOverrides.filter(order => order.contactNo === loggedInMobile);
+                
+                const customerName = customerOrders.length > 0 ? customerOrders[0].customerName : 'Valued Customer';
+                setUser({ name: customerName, mobile: loggedInMobile });
 
-        } catch (error) {
-            console.error("Error loading customer data:", error);
-            toast({ variant: 'destructive', title: "Error", description: "Could not load your account details." });
-        } finally {
-            setIsLoading(false);
+                const activeOrderValue = customerOrders
+                    .filter(o => o.paymentStatus === 'Authorized' || o.paymentStatus === 'Paid')
+                    .reduce((sum, o) => sum + parseFloat(o.price), 0);
+                
+                setWalletBalance(activeOrderValue);
+                setOrders(customerOrders);
+
+            } catch (error) {
+                console.error("Error loading customer data:", error);
+                toast({ variant: 'destructive', title: "Error", description: "Could not load your account details." });
+            } finally {
+                setIsLoading(false);
+            }
         }
+        
+        loadCustomerData();
+
     }, [router, toast]);
     
     const handleLogout = () => {
@@ -66,31 +109,57 @@ export default function CustomerDashboardPage() {
         router.push('/customer/login');
     };
 
-    const handleCancelOrder = (order: EditableOrder) => {
+    const handleCancelOrder = async (order: EditableOrder) => {
         if (!order.cancellationId) {
             toast({ variant: 'destructive', title: "Cannot Cancel", description: "This order does not have a Cancellation ID. Please contact support." });
             return;
         }
         
-        // This simulates the flow where the user is given the cancellation ID
         const cancellationId = prompt(`Please enter the unique cancellation ID provided by support for order ${order.orderId}:`);
         
         if (cancellationId && cancellationId === order.cancellationId) {
-            // In a real app, this would be an API call
-            console.log("Simulating cancellation for order:", order.orderId);
             
-            const updatedOrder = { ...order, paymentStatus: 'Voided', cancellationStatus: 'Processed' };
+            const paymentInfoJSON = localStorage.getItem(`payment_info_${order.orderId}`);
+            let paymentId = null;
+            if (paymentInfoJSON) {
+                paymentId = JSON.parse(paymentInfoJSON).paymentId;
+            }
 
-            // Update local storage
-            const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
-            const newOverrides = { ...storedOverrides, paymentStatus: 'Voided', cancellationStatus: 'Processed' };
-            localStorage.setItem(`order-override-${order.id}`, JSON.stringify(newOverrides));
+            try {
+                const response = await fetch('/api/cancel-order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        orderId: order.orderId, 
+                        cancellationId: order.cancellationId,
+                        paymentId: paymentId,
+                        amount: order.price
+                    }),
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.error || 'Failed to process cancellation.');
+                }
+                
+                const updatedOrder = { ...order, paymentStatus: 'Voided', cancellationStatus: 'Processed' };
+                const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
+                const newOverrides = { ...storedOverrides, paymentStatus: 'Voided', cancellationStatus: 'Processed' };
+                localStorage.setItem(`order-override-${order.id}`, JSON.stringify(newOverrides));
+                
+                setOrders(prev => prev.map(o => o.id === order.id ? updatedOrder : o));
+                setWalletBalance(prev => prev - parseFloat(order.price));
+
+                toast({ title: "Order Cancelled", description: `Your order ${order.orderId} has been successfully cancelled.` });
             
-            // Update state
-            setOrders(prev => prev.map(o => o.id === order.id ? updatedOrder : o));
-            setWalletBalance(prev => prev - parseFloat(order.price));
-
-            toast({ title: "Order Cancelled", description: `Your order ${order.orderId} has been successfully cancelled.` });
+            } catch (error: any) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Cancellation Failed',
+                    description: error.message,
+                });
+            }
         } else if (cancellationId) {
             toast({ variant: 'destructive', title: "Incorrect ID", description: "The Cancellation ID you entered is incorrect." });
         }
@@ -98,7 +167,7 @@ export default function CustomerDashboardPage() {
 
 
     if (isLoading) {
-        return <div className="flex justify-center items-center h-screen">Loading...</div>
+        return <div className="flex justify-center items-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>
     }
 
     return (
@@ -161,14 +230,14 @@ export default function CustomerDashboardPage() {
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
-                                                {orders.map((order) => (
+                                                {orders.length > 0 ? orders.map((order) => (
                                                     <TableRow key={order.id}>
                                                         <TableCell className="font-medium">{order.orderId}</TableCell>
                                                         <TableCell>{order.date}</TableCell>
                                                         <TableCell>{order.productOrdered}</TableCell>
                                                         <TableCell>₹{parseFloat(order.price).toFixed(2)}</TableCell>
                                                         <TableCell>
-                                                            <Badge variant={order.paymentStatus === 'Paid' ? 'default' : 'secondary'} className={order.paymentStatus === 'Paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
+                                                            <Badge variant={order.paymentStatus === 'Paid' ? 'default' : 'secondary'} className={order.paymentStatus === 'Paid' ? 'bg-green-100 text-green-800' : (order.paymentStatus === 'Authorized' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800')}>
                                                                 {order.paymentStatus === 'Paid' ? <CheckCircle className="mr-1 h-3 w-3" /> : <Clock className="mr-1 h-3 w-3" />}
                                                                 {order.paymentStatus}
                                                             </Badge>
@@ -179,7 +248,13 @@ export default function CustomerDashboardPage() {
                                                             )}
                                                         </TableCell>
                                                     </TableRow>
-                                                ))}
+                                                )) : (
+                                                    <TableRow>
+                                                        <TableCell colSpan={6} className="text-center text-muted-foreground">
+                                                            You have no orders yet.
+                                                        </TableCell>
+                                                    </TableRow>
+                                                )}
                                             </TableBody>
                                         </Table>
                                     </CardContent>
