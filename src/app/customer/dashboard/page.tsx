@@ -55,30 +55,36 @@ export default function CustomerDashboardPage() {
         async function loadCustomerData() {
             setIsLoading(true);
             try {
-                let combinedOrders: EditableOrder[] = [];
+                let allOrders: EditableOrder[] = [];
                 
                 // 1. Fetch Shopify orders and add them to the list
                 try {
                     const shopifyOrders = await getOrders();
-                    combinedOrders = shopifyOrders.map(mapShopifyOrderToEditableOrder);
+                    const mappedShopifyOrders = shopifyOrders.map(mapShopifyOrderToEditableOrder);
+                    allOrders.push(...mappedShopifyOrders);
                 } catch (error) {
                     console.error("Could not load Shopify orders for dashboard", error);
-                    // Don't toast here, it's not a critical failure for the user
                 }
 
                 // 2. Fetch manual orders and add them to the list
-                const manualOrdersJSON = localStorage.getItem('manualOrders');
-                if (manualOrdersJSON) {
-                    combinedOrders = combinedOrders.concat(JSON.parse(manualOrdersJSON));
+                try {
+                    const manualOrdersJSON = localStorage.getItem('manualOrders');
+                    if (manualOrdersJSON) {
+                        const manualOrders: EditableOrder[] = JSON.parse(manualOrdersJSON);
+                        allOrders.push(...manualOrders);
+                    }
+                } catch (error) {
+                    console.error("Could not load manual orders for dashboard", error);
                 }
 
+
                 // 3. Apply overrides to all fetched orders
-                const ordersWithOverrides = combinedOrders.map(order => {
+                const ordersWithOverrides = allOrders.map(order => {
                     const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
                     return { ...order, ...storedOverrides };
                 });
                 
-                // 4. Filter for the logged-in customer
+                // 4. Filter for the logged-in customer using their mobile number
                 const customerOrders = ordersWithOverrides.filter(order => order.contactNo === loggedInMobile);
                 
                 const customerName = customerOrders.length > 0 ? customerOrders[0].customerName : 'Valued Customer';
@@ -280,3 +286,5 @@ export default function CustomerDashboardPage() {
         </div>
     );
 }
+
+    
