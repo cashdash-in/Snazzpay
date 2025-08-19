@@ -57,16 +57,16 @@ export default function CustomerDashboardPage() {
             try {
                 let combinedOrders: EditableOrder[] = [];
                 
-                // 1. Fetch Shopify orders
+                // 1. Fetch Shopify orders and add them to the list
                 try {
                     const shopifyOrders = await getOrders();
-                    combinedOrders = combinedOrders.concat(shopifyOrders.map(mapShopifyOrderToEditableOrder));
+                    combinedOrders = shopifyOrders.map(mapShopifyOrderToEditableOrder);
                 } catch (error) {
                     console.error("Could not load Shopify orders for dashboard", error);
                     // Don't toast here, it's not a critical failure for the user
                 }
 
-                // 2. Fetch manual orders
+                // 2. Fetch manual orders and add them to the list
                 const manualOrdersJSON = localStorage.getItem('manualOrders');
                 if (manualOrdersJSON) {
                     combinedOrders = combinedOrders.concat(JSON.parse(manualOrdersJSON));
