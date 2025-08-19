@@ -10,31 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { EditableOrder } from '@/app/orders/page';
-import { getOrders, type Order as ShopifyOrder } from '@/services/shopify';
-import { format } from "date-fns";
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-
-function mapShopifyOrderToEditableOrder(shopifyOrder: ShopifyOrder): EditableOrder {
-    const customer = shopifyOrder.customer;
-    const customerName = customer ? `${customer.first_name || ''} ${customer.last_name || ''}`.trim() : 'N/A';
-    const products = shopifyOrder.line_items.map(item => item.title).join(', ');
-
-    return {
-        id: shopifyOrder.id.toString(),
-        orderId: shopifyOrder.name,
-        customerName,
-        customerEmail: customer?.email || undefined,
-        customerAddress: shopifyOrder.shipping_address ? `${shopifyOrder.shipping_address.address1}, ${shopifyOrder.shipping_address.city}` : 'N/A',
-        pincode: shopifyOrder.shipping_address?.zip || 'N/A',
-        contactNo: shopifyOrder.customer?.phone || 'N/A',
-        productOrdered: products,
-        quantity: shopifyOrder.line_items.reduce((sum, item) => sum + item.quantity, 0),
-        price: shopifyOrder.total_price,
-        paymentStatus: shopifyOrder.financial_status || 'Pending',
-        date: format(new Date(shopifyOrder.created_at), "yyyy-MM-dd"),
-    };
-}
 
 
 export default function CustomerDashboardPage() {
@@ -55,53 +32,44 @@ export default function CustomerDashboardPage() {
         async function loadCustomerData() {
             setIsLoading(true);
             try {
-                // Step 1: Create a master list to hold ALL orders
-                let allOrders: EditableOrder[] = [];
-
-                // Step 2: Fetch Shopify orders and add them to the master list
-                try {
-                    const shopifyOrders = await getOrders();
-                    const mappedShopifyOrders = shopifyOrders.map(mapShopifyOrderToEditableOrder);
-                    allOrders = allOrders.concat(mappedShopifyOrders);
-                } catch (error) {
-                    console.error("Could not load Shopify orders for dashboard", error);
-                    // Don't toast here, it might be expected if keys are not set
-                }
-
-                // Step 3: Fetch manual orders and add them to the master list
+                let allSnazzPayOrders: EditableOrder[] = [];
+                
+                // Step 1: Fetch manual orders from local storage
                 try {
                     const manualOrdersJSON = localStorage.getItem('manualOrders');
                     if (manualOrdersJSON) {
-                        const manualOrders: EditableOrder[] = JSON.parse(manualOrdersJSON);
-                        allOrders = allOrders.concat(manualOrders);
+                        allSnazzPayOrders = JSON.parse(manualOrdersJSON);
                     }
-                } catch (error)
-                 {
+                } catch (error) {
                     console.error("Could not load manual orders for dashboard", error);
+                    toast({ variant: 'destructive', title: "Error", description: "Could not load your SnazzPay orders." });
                 }
 
-                // Step 4: Filter the master list for the logged-in customer, normalizing phone numbers
-                const customerOrdersUnfiltered = allOrders.filter(order => {
-                    const normalize = (phone: string) => phone.replace(/[^0-9]/g, '');
-                    const orderContact = order.contactNo ? normalize(order.contactNo) : '';
+                // Step 2: Filter the manual orders for the logged-in customer
+                const customerOrders = allSnazzPayOrders.filter(order => {
+                    const normalize = (phone: string = '') => phone.replace(/[^0-9]/g, '');
+                    const orderContact = normalize(order.contactNo);
                     const loggedInContact = normalize(loggedInMobile);
+                    
+                    if (!orderContact || !loggedInContact) return false;
+
                     // Check if one number ends with the other, to handle cases like +919.. vs 9...
                     return orderContact.endsWith(loggedInContact) || loggedInContact.endsWith(orderContact);
                 });
                 
-                // Step 5: Apply overrides to the customer's orders
-                const customerOrdersFinal = customerOrdersUnfiltered.map(order => {
+                // Step 3: Apply overrides to the customer's orders
+                const customerOrdersFinal = customerOrders.map(order => {
                     const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
                     return { ...order, ...storedOverrides };
                 });
 
-                // Step 6: Set state with the final, correct data
+                // Step 4: Set state with the final, correct data
                 const customerName = customerOrdersFinal.length > 0 ? customerOrdersFinal[0].customerName : 'Valued Customer';
                 setUser({ name: customerName, mobile: loggedInMobile });
 
                 const activeOrderValue = customerOrdersFinal
                     .filter(o => o.paymentStatus === 'Authorized' || o.paymentStatus === 'Paid')
-                    .reduce((sum, o) => sum + parseFloat(o.price), 0);
+                    .reduce((sum, o) => sum + parseFloat(o.price || '0'), 0);
                 
                 setWalletBalance(activeOrderValue);
                 setOrders(customerOrdersFinal);
@@ -295,5 +263,3 @@ export default function CustomerDashboardPage() {
         </div>
     );
 }
-
-    
