@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Wallet, ShoppingCart, ShieldAlert, LogOut, CheckCircle, Clock } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { EditableOrder } from '@/app/orders/page';
 import { useRouter } from 'next/navigation';
@@ -59,7 +59,7 @@ export default function CustomerDashboardPage() {
                 setUser({ name: customerName, mobile: loggedInMobile });
 
                 const activeOrderValue = customerOrders
-                    .filter(o => o.paymentStatus === 'Authorized' || o.paymentStatus === 'Paid')
+                    .filter(o => ['Pending', 'Authorized', 'Paid'].includes(o.paymentStatus))
                     .reduce((sum, o) => sum + parseFloat(o.price || '0'), 0);
                 
                 setWalletBalance(activeOrderValue);
@@ -85,11 +85,15 @@ export default function CustomerDashboardPage() {
 
     const handleCancelOrder = async (order: EditableOrder) => {
         if (!order.cancellationId) {
-            toast({ variant: 'destructive', title: "Cannot Cancel", description: "This order does not have a Cancellation ID. Please contact support." });
+             toast({
+                variant: 'destructive',
+                title: "Cannot Cancel Online",
+                description: "This order is missing a Cancellation ID. Please contact support to cancel.",
+            });
             return;
         }
         
-        const cancellationId = prompt(`Please enter the unique cancellation ID provided by support for order ${order.orderId}:`);
+        const cancellationId = prompt(`This will cancel your order #${order.orderId}. To proceed, please enter the unique Cancellation ID provided by our support team:`);
         
         if (cancellationId && cancellationId === order.cancellationId) {
             
@@ -123,7 +127,7 @@ export default function CustomerDashboardPage() {
                 localStorage.setItem(`order-override-${order.id}`, JSON.stringify(newOverrides));
                 
                 setOrders(prev => prev.map(o => o.id === order.id ? updatedOrder : o));
-                setWalletBalance(prev => prev - parseFloat(order.price));
+                setWalletBalance(prev => prev - parseFloat(order.price || '0'));
 
                 toast({ title: "Order Cancelled", description: `Your order ${order.orderId} has been successfully cancelled.` });
             
@@ -257,3 +261,5 @@ export default function CustomerDashboardPage() {
         </div>
     );
 }
+
+    
