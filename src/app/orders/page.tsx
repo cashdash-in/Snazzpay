@@ -108,10 +108,9 @@ export default function OrdersPage() {
             const manualOrdersJSON = localStorage.getItem('manualOrders');
             manualOrders = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
             
-            // Add a test order if it doesn't exist
             const testOrderExists = manualOrders.some(order => order.orderId === TEST_ORDER_ID);
             if (!testOrderExists) {
-                 manualOrders.unshift({ // Add to the beginning of the list
+                 manualOrders.unshift({
                     id: uuidv4(),
                     orderId: TEST_ORDER_ID,
                     customerName: 'Test Customer',
@@ -136,16 +135,41 @@ export default function OrdersPage() {
             });
         }
 
-        // De-duplication logic
         const combinedOrders = [...manualOrders, ...shopifyEditableOrders];
-        const uniqueOrdersMap = new Map<string, EditableOrder>();
+        
+        // De-duplication logic with status priority
+        const orderGroups = new Map<string, EditableOrder[]>();
         combinedOrders.forEach(order => {
-             // If orderId is not in the map, add it. Manual orders are added first, so they take precedence.
-            if (!uniqueOrdersMap.has(order.orderId)) {
-                uniqueOrdersMap.set(order.orderId, order);
-            }
+            const group = orderGroups.get(order.orderId) || [];
+            group.push(order);
+            orderGroups.set(order.orderId, group);
         });
-        const deDupedOrders = Array.from(uniqueOrdersMap.values());
+
+        const deDupedOrders: EditableOrder[] = [];
+        const statusPriority = ['Voided', 'Refunded', 'Cancelled'];
+
+        orderGroups.forEach(group => {
+            let representativeOrder = group[0]; // Default to the first one (manual takes precedence)
+
+            // Find the order with the highest priority status
+            for (const status of statusPriority) {
+                const priorityOrder = group.find(o => o.paymentStatus === status || o.cancellationStatus === 'Processed');
+                if (priorityOrder) {
+                    representativeOrder = priorityOrder;
+                    break; 
+                }
+            }
+            
+            // If a priority status was found, ensure the final order reflects it
+            if (representativeOrder.cancellationStatus === 'Processed') {
+                representativeOrder.paymentStatus = 'Voided';
+            }
+            if (representativeOrder.refundStatus === 'Processed') {
+                 representativeOrder.paymentStatus = 'Refunded';
+            }
+
+            deDupedOrders.push(representativeOrder);
+        });
 
 
         const finalOrders = deDupedOrders.map(order => {
@@ -153,7 +177,6 @@ export default function OrdersPage() {
             return { ...order, ...storedOverrides };
         });
         
-        // Filter out "Intent Verified" from this main view, as they are in Leads
         const filteredOrders = finalOrders.filter(o => o.paymentStatus !== 'Intent Verified');
 
         setOrders(filteredOrders);
@@ -173,12 +196,10 @@ export default function OrdersPage() {
     if (!orderToSave) return;
 
     if (orderToSave.id.startsWith('gid://') || orderToSave.id.match(/^\d+$/)) {
-      // It's a Shopify order, save overrides
       const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${orderId}`) || '{}');
       const newOverrides = { ...storedOverrides, ...orderToSave };
       localStorage.setItem(`order-override-${orderId}`, JSON.stringify(newOverrides));
     } else {
-      // It's a manual order, find and update it in the manualOrders array
       const manualOrdersJSON = localStorage.getItem('manualOrders');
       let manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
       const orderIndex = manualOrders.findIndex(o => o.id === orderId);
@@ -197,7 +218,6 @@ export default function OrdersPage() {
   const handleRemoveOrder = (orderId: string) => {
     setOrders(prev => prev.filter(order => order.id !== orderId));
     
-    // Remove from manual storage if it exists there
     const manualOrdersJSON = localStorage.getItem('manualOrders');
     if(manualOrdersJSON) {
         let manualOrders: EditableOrder[] = JSON.parse(manualOrdersJSON);
@@ -205,7 +225,6 @@ export default function OrdersPage() {
         localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
     }
     
-    // Remove any overrides
     localStorage.removeItem(`order-override-${orderId}`);
 
     toast({

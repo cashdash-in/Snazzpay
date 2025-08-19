@@ -45,14 +45,37 @@ export default function CustomerDashboardPage() {
                 const manualOrdersJSON = localStorage.getItem('manualOrders');
                 let allSnazzPayOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
                 
-                // De-duplication: Create a map to hold unique orders by orderId
-                const uniqueOrdersMap = new Map<string, EditableOrder>();
+                // De-duplication and status priority logic
+                const orderGroups = new Map<string, EditableOrder[]>();
                 allSnazzPayOrders.forEach(order => {
-                    if (!uniqueOrdersMap.has(order.orderId)) {
-                        uniqueOrdersMap.set(order.orderId, order);
-                    }
+                    const group = orderGroups.get(order.orderId) || [];
+                    group.push(order);
+                    orderGroups.set(order.orderId, group);
                 });
-                const deDupedOrders = Array.from(uniqueOrdersMap.values());
+
+                const deDupedOrders: EditableOrder[] = [];
+                const statusPriority = ['Voided', 'Refunded', 'Cancelled'];
+
+                orderGroups.forEach(group => {
+                    let representativeOrder = group[0]; 
+
+                    for (const status of statusPriority) {
+                        const priorityOrder = group.find(o => o.paymentStatus === status || o.cancellationStatus === 'Processed');
+                        if (priorityOrder) {
+                            representativeOrder = priorityOrder;
+                            break;
+                        }
+                    }
+                    
+                    if (representativeOrder.cancellationStatus === 'Processed') {
+                        representativeOrder.paymentStatus = 'Voided';
+                    }
+                     if (representativeOrder.refundStatus === 'Processed') {
+                         representativeOrder.paymentStatus = 'Refunded';
+                    }
+                    
+                    deDupedOrders.push(representativeOrder);
+                });
 
 
                 // Step 2: Apply any saved overrides to every manual order
@@ -74,7 +97,6 @@ export default function CustomerDashboardPage() {
                     
                     if (!orderContact || !loggedInContact) return false;
                     
-                    // Check if one number ends with the other to handle +91 prefixes etc.
                     return orderContact.endsWith(loggedInContact) || loggedInContact.endsWith(orderContact);
                 });
                 
@@ -245,7 +267,12 @@ export default function CustomerDashboardPage() {
                                                         <TableCell>{order.productOrdered}</TableCell>
                                                         <TableCell>₹{parseFloat(order.price).toFixed(2)}</TableCell>
                                                         <TableCell>
-                                                            <Badge variant={order.paymentStatus === 'Paid' ? 'default' : 'secondary'} className={order.paymentStatus === 'Paid' ? 'bg-green-100 text-green-800' : (order.paymentStatus === 'Authorized' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800')}>
+                                                            <Badge variant={order.paymentStatus === 'Paid' ? 'default' : 'secondary'} className={
+                                                                order.paymentStatus === 'Paid' ? 'bg-green-100 text-green-800' : 
+                                                                order.paymentStatus === 'Authorized' ? 'bg-yellow-100 text-yellow-800' :
+                                                                order.paymentStatus === 'Voided' || order.paymentStatus === 'Cancelled' ? 'bg-red-100 text-red-800' :
+                                                                'bg-gray-100 text-gray-800'
+                                                            }>
                                                                 {order.paymentStatus === 'Paid' ? <CheckCircle className="mr-1 h-3 w-3" /> : <Clock className="mr-1 h-3 w-3" />}
                                                                 {order.paymentStatus}
                                                             </Badge>
@@ -253,7 +280,7 @@ export default function CustomerDashboardPage() {
                                                         <TableCell>
                                                             <AlertDialog>
                                                                 <AlertDialogTrigger asChild>
-                                                                    <Button variant="destructive" size="sm" onClick={() => setSelectedOrderForCancellation(order)}>Cancel</Button>
+                                                                    <Button variant="destructive" size="sm" onClick={() => setSelectedOrderForCancellation(order)} disabled={order.paymentStatus === 'Voided' || order.paymentStatus === 'Cancelled'}>Cancel</Button>
                                                                 </AlertDialogTrigger>
                                                                 <AlertDialogContent>
                                                                     <AlertDialogHeader>
