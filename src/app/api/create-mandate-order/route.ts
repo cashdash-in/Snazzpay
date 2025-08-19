@@ -26,15 +26,10 @@ export async function POST(request: Request) {
         let customerId;
 
         // Step 1: Find or Create Customer
-        // This is the simplest approach. A more robust solution for a production app would be to
-        // first search for the customer by contact number if your Razorpay plan supports it,
-        // or to store Razorpay customer IDs in your own database.
-        // For this app's purpose, creating a customer is sufficient, and Razorpay may handle de-duplication.
         try {
             const newCustomer = await razorpay.customers.create({
                 name: customerName,
                 contact: customerContact,
-                // Using a unique email helps prevent conflicts if the same email is used with different contact numbers.
                 email: `customer.${customerContact || uuidv4().substring(0,8)}@example.com`,
                 notes: {
                     address: customerAddress,
@@ -44,20 +39,18 @@ export async function POST(request: Request) {
             customerId = newCustomer.id;
 
         } catch (customerError: any) {
-            // The most common error is the customer contact already existing.
-            // In a real production environment, you would fetch the existing customer's ID.
-            // Since this app does not have its own database to store customer mappings,
-            // we will log the error and proceed. This can be improved in a full-scale app.
             console.warn(`Could not create new Razorpay customer (they might already exist): ${customerError.error?.description || customerError.message}`);
-             // We can proceed without a customerId for the order, Razorpay will handle it.
         }
        
         // Step 2: Create Order
+        const fiveDaysInSeconds = 5 * 24 * 60 * 60;
+        const expireByTimestamp = Math.floor(Date.now() / 1000) + fiveDaysInSeconds;
+
         const orderOptions: any = {
             amount: Math.round(amount * 100), // Amount in paise
             currency: 'INR',
             receipt: `rcpt_${isAuthorization ? 'auth' : 'intent'}_${Date.now()}`.slice(0, 40),
-            payment_capture: 0, // Always set to 0 for authorization, for both intent and final amount.
+            payment_capture: 0, // Always set to 0 for authorization
             notes: {
                 product: productName,
                 type: isAuthorization ? "secure_cod_card_authorization" : "secure_cod_intent_verification",
@@ -68,6 +61,10 @@ export async function POST(request: Request) {
             },
         };
         
+        if (isAuthorization) {
+            orderOptions.expire_by = expireByTimestamp;
+        }
+
         if (customerId) {
             orderOptions.customer_id = customerId;
         }

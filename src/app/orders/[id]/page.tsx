@@ -59,7 +59,7 @@ function mapShopifyOrderToEditableOrder(shopifyOrder: ShopifyOrder): EditableOrd
 }
 
 
-export default function OrderDetailPage() {
+function OrderDetailContent() {
     const router = useRouter();
     const params = useParams();
     const { toast } = useToast();
@@ -579,4 +579,8 @@ export default function OrderDetailPage() {
             </div>
         </AppShell>
     );
+}
+
+export default function OrderDetailPage() {
+    return <OrderDetailContent />;
 }
