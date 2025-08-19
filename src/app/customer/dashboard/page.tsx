@@ -57,17 +57,16 @@ export default function CustomerDashboardPage() {
             try {
                 let allOrders: EditableOrder[] = [];
                 
-                // 1. Fetch Shopify orders and add them to the list
+                // 1. Fetch Shopify orders
                 try {
                     const shopifyOrders = await getOrders();
                     const mappedShopifyOrders = shopifyOrders.map(mapShopifyOrderToEditableOrder);
                     allOrders = allOrders.concat(mappedShopifyOrders);
                 } catch (error) {
                     console.error("Could not load Shopify orders for dashboard", error);
-                    // Don't toast here, as it's a common case for them to not be configured
                 }
 
-                // 2. Fetch manual orders and add them to the list
+                // 2. Fetch manual orders
                 try {
                     const manualOrdersJSON = localStorage.getItem('manualOrders');
                     if (manualOrdersJSON) {
@@ -78,7 +77,6 @@ export default function CustomerDashboardPage() {
                     console.error("Could not load manual orders for dashboard", error);
                 }
 
-
                 // 3. Apply overrides to all fetched orders
                 const ordersWithOverrides = allOrders.map(order => {
                     const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
@@ -86,7 +84,10 @@ export default function CustomerDashboardPage() {
                 });
                 
                 // 4. Filter for the logged-in customer using their mobile number
-                const customerOrders = ordersWithOverrides.filter(order => order.contactNo === loggedInMobile);
+                const customerOrders = ordersWithOverrides.filter(order => {
+                    // Normalize phone numbers for comparison if needed, e.g., remove spaces or country codes
+                    return order.contactNo === loggedInMobile;
+                });
                 
                 const customerName = customerOrders.length > 0 ? customerOrders[0].customerName : 'Valued Customer';
                 setUser({ name: customerName, mobile: loggedInMobile });
