@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
 import type { EditableOrder } from '@/app/orders/page';
+import { ScratchCard } from '@/components/scratch-card';
 
 interface SecureCodFormProps {
     razorpayKeyId: string | null;
@@ -285,12 +286,32 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
     };
 
     const renderCompleteState = () => (
-        <Card className="w-full max-w-md shadow-lg">
-             <CardContent className="pt-6 text-center space-y-4">
-                <BadgeCheck className="mx-auto h-16 w-16 text-green-500" />
-                <h2 className="text-2xl font-bold">Order Confirmed!</h2>
-                <p className="text-muted-foreground">Thank you, {customerDetails.name}! Your order <span className="font-semibold text-primary">{orderDetails.orderId}</span> is confirmed. We will notify you once it has been dispatched.</p>
-                <p className="text-xs text-muted-foreground">A hold of ₹{totalAmount.toFixed(2)} has been placed on your card and will be released if the order is cancelled before dispatch.</p>
+        <Card className="w-full max-w-md shadow-lg text-center">
+            <CardHeader>
+                <BadgeCheck className="mx-auto h-12 w-12 text-green-500" />
+                <CardTitle>Order Confirmed!</CardTitle>
+                <CardDescription>Thank you! Your order is confirmed. Here is your Snazzify Coin.</CardDescription>
+            </CardHeader>
+             <CardContent className="flex flex-col items-center justify-center space-y-4">
+                <p className="text-muted-foreground">Scratch the card to reveal your reward!</p>
+                <ScratchCard
+                    width={300}
+                    height={180}
+                    scratchImageSrc="https://placehold.co/300x180/8B5CF6/FFFFFF.png?text=Snazzify+Coin"
+                    data-ai-hint="purple gold coin"
+                >
+                    <div className="flex flex-col items-center justify-center h-full text-center bg-gray-100 rounded-lg p-4">
+                        <h3 className="text-lg font-bold text-primary">Your Reward!</h3>
+                        <p className="text-sm text-muted-foreground mt-1 mb-3">Here's a link to your order invoice.</p>
+                        <Link href={`/invoice/${leadId}`} passHref>
+                           <Button>View My Invoice</Button>
+                        </Link>
+                    </div>
+                </ScratchCard>
+                <div className="text-center text-sm pt-4">
+                    <p className="font-semibold">{customerDetails.name}</p>
+                    <p className="text-muted-foreground">Order: {orderDetails.orderId}</p>
+                </div>
             </CardContent>
         </Card>
     );
