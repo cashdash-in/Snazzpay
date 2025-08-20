@@ -28,7 +28,7 @@ function SnazzifyCoinCard({ customerName, orderId }: { customerName: string, ord
             <div className="w-full max-w-sm rounded-xl bg-gradient-to-br from-purple-600 to-indigo-700 p-6 text-white shadow-2xl space-y-6">
                 <div className="flex justify-between items-start">
                     <div className="space-y-1">
-                        <h3 className="text-2xl font-bold tracking-wider">Snazzify Coin</h3>
+                        <h3 className="text-2xl font-bold tracking-wider">Snazzify Trust Wallet</h3>
                         <p className="text-xs font-mono opacity-80">CUSTOMER WALLET</p>
                     </div>
                     <Wallet className="h-8 w-8 text-white/80" />
@@ -156,9 +156,9 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         const options = {
             key: razorpayKeyId,
             order_id: order_id,
-            name: "Snazzify Secure COD",
+            name: "Snazzify Trust Wallet",
             description: isAuthorization 
-                ? `Authorize ₹${totalAmount.toFixed(2)} for ${orderDetails.productName}`
+                ? `Secure ₹${totalAmount.toFixed(2)} in your Wallet`
                 : `Verify Intent with ₹1.00`,
             handler: handler,
             prefill: {
@@ -306,7 +306,7 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                 // Set the mobile number for auto-login after confirmation
                 localStorage.setItem('loggedInUserMobile', customerDetails.contact);
 
-                toast({ title: 'Authorization Successful!', description: 'Your order is confirmed and will be shipped soon.' });
+                toast({ title: 'Order Secured!', description: 'Your order is confirmed and will be shipped soon.' });
                 setStep('complete');
                 setIsProcessing(false);
             };
@@ -323,7 +323,7 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
             <CardHeader className="pb-4">
                 <BadgeCheck className="mx-auto h-12 w-12 text-green-500" />
                 <CardTitle>Order Confirmed!</CardTitle>
-                <CardDescription>Thank you! Your order is secured. Here is your personal Snazzify Coin Card.</CardDescription>
+                <CardDescription>Thank you! Your order is secured in your Trust Wallet.</CardDescription>
             </CardHeader>
              <CardContent className="flex flex-col items-center justify-center space-y-4">
                 <SnazzifyCoinCard customerName={customerDetails.name} orderId={orderDetails.orderId} />
@@ -360,8 +360,8 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         <div className="flex items-center justify-center min-h-screen bg-transparent p-4">
             <Card className="w-full max-w-md shadow-lg">
                 <CardHeader className="text-center">
-                    <CardTitle>Confirm Your Secure COD Order</CardTitle>
-                    <CardDescription>A two-step process to ensure your order is genuine and reserved.</CardDescription>
+                    <CardTitle>Secure Your COD Order</CardTitle>
+                    <CardDescription>A two-step process to secure your order in a Trust Wallet.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-3">
@@ -387,8 +387,8 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                     
                     {step === 'authorize' && (
                          <div className="text-center space-y-3 p-3 bg-green-500/10 rounded-lg border border-green-500/20">
-                           <h3 className="font-semibold text-green-800">Final step! Authorize the full amount on your card.</h3>
-                           <p className="text-xs text-muted-foreground">Your card will NOT be charged now. You will pay once you confirm dispatch. A minimum shipping charge only occurs if delivery is refused.</p>
+                           <h3 className="font-semibold text-green-800">Final step! Secure the full amount in your Trust Wallet.</h3>
+                           <p className="text-xs text-muted-foreground">Your card will NOT be charged now. You will pay cash on delivery. Funds are only captured from your wallet if delivery is refused.</p>
                         </div>
                     )}
                     
@@ -407,7 +407,7 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                      {step === 'authorize' && (
                          <Button className="w-full" onClick={handleCardAuthorization} disabled={isProcessing}>
                             {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CreditCard className="mr-2 h-4 w-4" />}
-                            Authorize ₹{totalAmount.toFixed(2)} on Card
+                            Secure ₹{totalAmount.toFixed(2)} in Trust Wallet
                         </Button>
                      )}
                     <div className="flex items-center justify-center space-x-4 text-sm">
@@ -423,5 +423,3 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         </div>
     );
 }
-
-    

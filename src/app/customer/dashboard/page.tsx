@@ -68,19 +68,18 @@ export default function CustomerDashboardPage() {
                 });
 
                 const unifiedOrders: EditableOrder[] = [];
-                const statusPriority = ['Voided', 'Refunded', 'Cancelled'];
-
                 orderGroups.forEach((group) => {
                     let representativeOrder = group.reduce((acc, curr) => ({ ...acc, ...curr }), group[0]);
                     
-                    for (const status of statusPriority) {
-                         if (group.some(o => o.paymentStatus === status || o.cancellationStatus === 'Processed' || o.refundStatus === 'Processed')) {
-                            if(status === 'Voided' || group.some(o => o.cancellationStatus === 'Processed')) representativeOrder.paymentStatus = 'Voided';
-                            if(status === 'Refunded' || group.some(o => o.refundStatus === 'Processed')) representativeOrder.paymentStatus = 'Refunded';
-                            break;
-                        }
-                    }
+                    const hasVoided = group.some(o => o.paymentStatus === 'Voided' || o.cancellationStatus === 'Processed');
+                    const hasRefunded = group.some(o => o.refundStatus === 'Processed' || o.paymentStatus === 'Refunded');
 
+                    if (hasVoided) {
+                        representativeOrder.paymentStatus = 'Voided';
+                    } else if (hasRefunded) {
+                        representativeOrder.paymentStatus = 'Refunded';
+                    }
+                    
                     const sharedCancellationId = group.find(o => o.cancellationId)?.cancellationId;
                     if (sharedCancellationId) {
                         representativeOrder.cancellationId = sharedCancellationId;
@@ -218,7 +217,7 @@ export default function CustomerDashboardPage() {
                             <CardContent>
                                 <p className="text-sm text-muted-foreground">Value of Active Orders</p>
                                 <p className="text-4xl font-bold">₹{walletBalance.toFixed(2)}</p>
-                                <p className="text-xs text-muted-foreground mt-1">This reflects the total amount for your active, pre-authorized orders.</p>
+                                <p className="text-xs text-muted-foreground mt-1">This is the total amount held securely in your Trust Wallet for your active orders. Funds are automatically released after you complete your cash on delivery payment.</p>
                             </CardContent>
                         </Card>
                     </div>

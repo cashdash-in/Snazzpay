@@ -2,27 +2,28 @@
 'use client';
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { CheckCircle } from "lucide-react";
+import { CheckCircle, Wallet } from "lucide-react";
 
 export default function SecureCodInfoPage() {
     return (
         <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
             <Card className="w-full max-w-lg shadow-lg">
                 <CardHeader className="text-center">
-                    <CardTitle>What is Secure Cash on Delivery?</CardTitle>
-                    <CardDescription>Building trust and ensuring commitment for your COD orders.</CardDescription>
+                     <Wallet className="mx-auto h-12 w-12 text-primary" />
+                    <CardTitle>What is the Snazzify Trust Wallet?</CardTitle>
+                    <CardDescription>A secure way to confirm your COD order and reduce fraud.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <div className="text-left">
                         <p className="text-muted-foreground mb-4">
-                            Secure COD is a way for you to confirm your Cash on Delivery (COD) order by pre-authorizing the payment. It helps us ensure that COD orders are genuine, which in turn helps us serve you better.
+                           The Snazzify Trust Wallet is designed to make Cash on Delivery (COD) orders more secure for both you and us. By authorizing the order amount, you are holding the funds in your personal, secure Trust Wallet. This confirms your order and protects against fraud.
                         </p>
                         
                         <h4 className="font-semibold text-lg mb-2">How It Works:</h4>
                         <ul className="space-y-2 text-muted-foreground">
                             <li className="flex items-start">
                                 <CheckCircle className="h-5 w-5 text-green-500 mr-2 mt-1 flex-shrink-0" />
-                                <span><span className="font-semibold text-foreground">Pre-authorize, Don't Pay:</span> You authorize a temporary hold for the order amount on your card or bank account via Razorpay eMandate. No money is deducted at this time.</span>
+                                <span><span className="font-semibold text-foreground">Secure Funds in Wallet:</span> You authorize a temporary hold for the order amount. These funds are secured in your personal Trust Wallet, not paid to us.</span>
                             </li>
                             <li className="flex items-start">
                                 <CheckCircle className="h-5 w-5 text-green-500 mr-2 mt-1 flex-shrink-0" />
@@ -30,7 +31,7 @@ export default function SecureCodInfoPage() {
                             </li>
                              <li className="flex items-start">
                                 <CheckCircle className="h-5 w-5 text-green-500 mr-2 mt-1 flex-shrink-0" />
-                                <span><span className="font-semibold text-foreground">Automatic Release:</span> Once you pay our delivery agent, the hold on your card is automatically released.</span>
+                                <span><span className="font-semibold text-foreground">Automatic Release:</span> Once you pay our delivery agent, the funds held in your Trust Wallet are automatically released back to your original account.</span>
                             </li>
                         </ul>
 
@@ -38,11 +39,11 @@ export default function SecureCodInfoPage() {
                          <ul className="space-y-2 text-muted-foreground">
                             <li className="flex items-start">
                                 <CheckCircle className="h-5 w-5 text-green-500 mr-2 mt-1 flex-shrink-0" />
-                                <span><span className="font-semibold text-foreground">Priority Processing:</span> Your order gets confirmed instantly and is often processed faster.</span>
+                                <span><span className="font-semibold text-foreground">Priority Processing:</span> Your order gets confirmed instantly and is processed with priority.</span>
                             </li>
                             <li className="flex items-start">
                                 <CheckCircle className="h-5 w-5 text-green-500 mr-2 mt-1 flex-shrink-0" />
-                                <span><span className="font-semibold text-foreground">Builds Trust:</span> It shows your commitment to the order, which helps us reduce fraudulent orders and keep our prices competitive.</span>
+                                <span><span className="font-semibold text-foreground">Reduces Fraud:</span> It shows your commitment to the order, which helps us reduce fraudulent orders and keep our prices competitive for genuine customers like you.</span>
                             </li>
                              <li className="flex items-start">
                                 <CheckCircle className="h-5 w-5 text-green-500 mr-2 mt-1 flex-shrink-0" />
@@ -50,7 +51,7 @@ export default function SecureCodInfoPage() {
                             </li>
                         </ul>
                          <p className="text-xs text-muted-foreground text-center mt-6">
-                            You will only be charged if the delivery is refused or the order is cancelled after it has been shipped.
+                            Funds from your wallet are only used to cover shipping fees if the delivery is refused or the order is cancelled after it has been shipped.
                         </p>
                     </div>
                 </CardContent>
