@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { EditableOrder } from '../orders/page';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { v4 as uuidv4 } from 'uuid';
 
 
 type RefundStatus = 'Pending' | 'Processed' | 'Failed';
@@ -76,12 +77,34 @@ export default function RefundsPage() {
         });
     }
 
-    const finalOrders = combinedOrders.map(order => {
+    // De-duplication and status unification logic
+    const orderGroups = new Map<string, EditableOrder[]>();
+    combinedOrders.forEach(order => {
         const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
-        return { ...order, ...storedOverrides };
+        const finalOrder = { ...order, ...storedOverrides };
+        const group = orderGroups.get(finalOrder.orderId) || [];
+        group.push(finalOrder);
+        orderGroups.set(finalOrder.orderId, group);
     });
 
-    setOrders(finalOrders);
+    const unifiedOrders: EditableOrder[] = [];
+    orderGroups.forEach((group) => {
+        let representativeOrder = group.reduce((acc, curr) => ({ ...acc, ...curr }), group[0]);
+
+        const hasRefunded = group.some(o => o.refundStatus === 'Processed' || o.paymentStatus === 'Refunded');
+        if (hasRefunded) {
+            representativeOrder.refundStatus = 'Processed';
+            representativeOrder.paymentStatus = 'Refunded';
+        }
+
+        if (!representativeOrder.cancellationId) {
+            representativeOrder.cancellationId = `CNCL-${uuidv4().substring(0, 8).toUpperCase()}`;
+        }
+        
+        unifiedOrders.push(representativeOrder);
+    });
+
+    setOrders(unifiedOrders);
     setLoading(false);
   }
 
@@ -99,19 +122,10 @@ export default function RefundsPage() {
     const orderToSave = orders.find(o => o.id === orderId);
     if (!orderToSave) return;
 
-    if (orderToSave.id.startsWith('gid://') || orderToSave.id.match(/^\d+$/)) {
-      const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${orderId}`) || '{}');
-      const newOverrides = { ...storedOverrides, ...orderToSave };
-      localStorage.setItem(`order-override-${orderId}`, JSON.stringify(newOverrides));
-    } else {
-      const manualOrdersJSON = localStorage.getItem('manualOrders');
-      let manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
-      const orderIndex = manualOrders.findIndex(o => o.id === orderId);
-      if (orderIndex > -1) {
-        manualOrders[orderIndex] = orderToSave;
-        localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
-      }
-    }
+    // We only save overrides, never the original shopify/manual order data
+    const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${orderId}`) || '{}');
+    const newOverrides = { ...storedOverrides, ...orderToSave };
+    localStorage.setItem(`order-override-${orderId}`, JSON.stringify(newOverrides));
 
     toast({
         title: "Refund Info Saved",
@@ -122,19 +136,13 @@ export default function RefundsPage() {
   const handleRemove = (orderId: string) => {
     setOrders(prev => prev.filter(order => order.id !== orderId));
     
-    const manualOrdersJSON = localStorage.getItem('manualOrders');
-    if (manualOrdersJSON) {
-        let manualOrders: EditableOrder[] = JSON.parse(manualOrdersJSON);
-        manualOrders = manualOrders.filter(o => o.id !== orderId);
-        localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
-    }
-
-    localStorage.removeItem(`order-override-${orderId}`);
+    // This action should probably only remove it from a "refunds view" not delete the order
+    // For now, it just removes from the local state.
     
     toast({
         variant: 'destructive',
         title: "Order Removed",
-        description: "The order has been removed from refunds.",
+        description: "The order has been removed from this view.",
     });
   };
 
@@ -145,8 +153,8 @@ export default function RefundsPage() {
     if (!paymentInfoJSON) {
         toast({
             variant: 'destructive',
-            title: "Cannot Process Refund",
-            description: "No Razorpay payment information found for this order. This might be a manual order or one where the customer did not complete authorization.",
+            title: "Cannot Process Refund Automatically",
+            description: "No Razorpay payment information found for this order. This might be a manual order or one where the customer did not complete authorization. Please process manually in Razorpay.",
         });
         setProcessingRefundId(null);
         return;
@@ -175,8 +183,8 @@ export default function RefundsPage() {
             description: result.message,
         });
 
-        // Update the order status locally
-        handleFieldChange(order.id, 'refundStatus', 'Processed');
+        const updatedOrders = orders.map(o => o.id === order.id ? {...o, refundStatus: 'Processed', paymentStatus: 'Refunded'} : o)
+        setOrders(updatedOrders);
         handleSave(order.id);
 
     } catch (error: any) {
@@ -243,7 +251,7 @@ export default function RefundsPage() {
                     </TableCell>
                     <TableCell><Input value={order.customerName} onChange={(e) => handleFieldChange(order.id, 'customerName', e.target.value)} className="w-40" /></TableCell>
                     <TableCell><Input type="date" value={order.date} onChange={(e) => handleFieldChange(order.id, 'date', e.target.value)} className="w-32" /></TableCell>
-                    <TableCell><Input value={order.price} onChange={(e) => handleFieldChange(order.id, 'price', e.target.value)} className="w-32" readOnly /></TableCell>
+                    <TableCell>₹{order.price}</TableCell>
                     <TableCell><Input value={order.refundAmount || ''} onChange={(e) => handleFieldChange(order.id, 'refundAmount', e.target.value)} placeholder={order.price} className="w-36" /></TableCell>
                     <TableCell><Input value={order.refundReason || ''} onChange={(e) => handleFieldChange(order.id, 'refundReason', e.target.value)} placeholder="e.g., Post-dispatch cancellation" className="w-48" /></TableCell>
                     <TableCell>
