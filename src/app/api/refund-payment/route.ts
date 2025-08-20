@@ -37,6 +37,10 @@ export async function POST(request: Request) {
             speed: 'normal', // Can be 'normal' or 'optimum'
             notes: {
                 reason: reason || "Refund processed from SnazzPay dashboard."
+            },
+            notify: {
+                sms: true,
+                email: true,
             }
         });
         

@@ -137,6 +137,7 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                 amount: totalAmount,
                 productName: orderDetails.productName,
                 customerName: customerDetails.name,
+                customerEmail: customerDetails.email,
                 customerContact: customerDetails.contact,
                 customerAddress: customerDetails.address,
                 customerPincode: customerDetails.pincode,
@@ -298,8 +299,8 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                     <div className="space-y-3">
                         <Label>Customer Details</Label>
                         <div className="relative"><User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="customer-name" placeholder="Full Name" value={customerDetails.name} onChange={(e) => handleCustomerDetailChange('name', e.target.value)} className="pl-9" /></div>
-                        <div className="relative"><Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="customer-email" placeholder="Email Address" value={customerDetails.email} onChange={(e) => handleCustomerDetailChange('email', e.target.value)} className="pl-9" /></div>
-                        <div className="relative"><Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="customer-contact" placeholder="Contact Number" value={customerDetails.contact} onChange={(e) => handleCustomerDetailChange('contact', e.target.value)} className="pl-9" /></div>
+                        <div className="relative"><Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="customer-email" placeholder="Email Address for Notifications" value={customerDetails.email} onChange={(e) => handleCustomerDetailChange('email', e.target.value)} className="pl-9" /></div>
+                        <div className="relative"><Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="customer-contact" placeholder="Contact Number for Notifications" value={customerDetails.contact} onChange={(e) => handleCustomerDetailChange('contact', e.target.value)} className="pl-9" /></div>
                         <div className="relative"><Home className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="customer-address" placeholder="Street Address" value={customerDetails.address} onChange={(e) => handleCustomerDetailChange('address', e.target.value)} className="pl-9" /></div>
                         <div className="relative"><MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="customer-pincode" placeholder="Pincode" value={customerDetails.pincode} onChange={(e) => handleCustomerDetailChange('pincode', e.target.value)} className="pl-9" /></div>
                     </div>

@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     });
 
     try {
-        const { amount, productName, customerName, customerContact, customerAddress, customerPincode, isAuthorization } = await request.json();
+        const { amount, productName, customerName, customerEmail, customerContact, customerAddress, customerPincode, isAuthorization } = await request.json();
         
         let customerId;
 
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
             const newCustomer = await razorpay.customers.create({
                 name: customerName,
                 contact: customerContact,
-                email: `customer.${customerContact || uuidv4().substring(0,8)}@example.com`,
+                email: customerEmail || `customer.${customerContact || uuidv4().substring(0,8)}@example.com`,
                 notes: {
                     address: customerAddress,
                     pincode: customerPincode,
@@ -56,6 +56,10 @@ export async function POST(request: Request) {
                 customerAddress,
                 customerPincode
             },
+            notify: {
+                sms: true,
+                email: true
+            }
         };
 
         if (customerId) {

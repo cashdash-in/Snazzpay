@@ -45,6 +45,11 @@ export async function POST(request: Request) {
             speed: 'normal',
             notes: {
                 reason: `Customer cancellation with ID: ${cancellationId}`
+            },
+            receipt: `receipt-cancel-${orderId}`,
+            notify: {
+                sms: true,
+                email: true,
             }
         });
         
