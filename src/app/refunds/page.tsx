@@ -9,11 +9,13 @@ import { Button } from "@/components/ui/button";
 import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import { format } from "date-fns";
 import { useState, useEffect } from "react";
-import { Loader2, PlusCircle, Trash2, Save } from "lucide-react";
+import { Loader2, PlusCircle, Trash2, Save, RefreshCw, Loader2 as ButtonLoader } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import type { EditableOrder } from '../orders/page';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+
 
 type RefundStatus = 'Pending' | 'Processed' | 'Failed';
 
@@ -42,46 +44,48 @@ function mapShopifyToEditable(order: ShopifyOrder): EditableOrder {
 export default function RefundsPage() {
   const [orders, setOrders] = useState<EditableOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [processingRefundId, setProcessingRefundId] = useState<string | null>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
-    async function fetchAndSetOrders() {
-        setLoading(true);
-        let combinedOrders: EditableOrder[] = [];
-        try {
-            const shopifyOrders = await getOrders();
-            const shopifyEditableOrders = shopifyOrders.map(mapShopifyToEditable);
-            combinedOrders = [...shopifyEditableOrders];
-        } catch (error) {
-            console.error("Failed to fetch Shopify orders:", error);
-            toast({
-                variant: 'destructive',
-                title: "Failed to load Shopify Orders",
-                description: "Displaying manually added orders only. Check Shopify API keys in Settings.",
-            });
-        }
-
-        try {
-            const manualOrdersJSON = localStorage.getItem('manualOrders');
-            const manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
-            combinedOrders = [...combinedOrders, ...manualOrders];
-        } catch (error) {
-            console.error("Failed to load manual orders:", error);
-            toast({
-                variant: 'destructive',
-                title: "Error loading manual orders",
-                description: "Could not load orders from local storage.",
-            });
-        }
-
-        const finalOrders = combinedOrders.map(order => {
-            const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
-            return { ...order, ...storedOverrides };
+  const fetchAndSetOrders = async () => {
+    setLoading(true);
+    let combinedOrders: EditableOrder[] = [];
+    try {
+        const shopifyOrders = await getOrders();
+        const shopifyEditableOrders = shopifyOrders.map(mapShopifyToEditable);
+        combinedOrders = [...shopifyEditableOrders];
+    } catch (error) {
+        console.error("Failed to fetch Shopify orders:", error);
+        toast({
+            variant: 'destructive',
+            title: "Failed to load Shopify Orders",
+            description: "Displaying manually added orders only. Check Shopify API keys in Settings.",
         });
-
-        setOrders(finalOrders);
-        setLoading(false);
     }
+
+    try {
+        const manualOrdersJSON = localStorage.getItem('manualOrders');
+        const manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
+        combinedOrders = [...combinedOrders, ...manualOrders];
+    } catch (error) {
+        console.error("Failed to load manual orders:", error);
+        toast({
+            variant: 'destructive',
+            title: "Error loading manual orders",
+            description: "Could not load orders from local storage.",
+        });
+    }
+
+    const finalOrders = combinedOrders.map(order => {
+        const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
+        return { ...order, ...storedOverrides };
+    });
+
+    setOrders(finalOrders);
+    setLoading(false);
+  }
+
+  useEffect(() => {
     fetchAndSetOrders();
   }, [toast]);
 
@@ -95,7 +99,6 @@ export default function RefundsPage() {
     const orderToSave = orders.find(o => o.id === orderId);
     if (!orderToSave) return;
 
-    // Save logic is the same as orders page
     if (orderToSave.id.startsWith('gid://') || orderToSave.id.match(/^\d+$/)) {
       const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${orderId}`) || '{}');
       const newOverrides = { ...storedOverrides, ...orderToSave };
@@ -135,6 +138,58 @@ export default function RefundsPage() {
     });
   };
 
+  const handleProcessRefund = async (order: EditableOrder) => {
+    setProcessingRefundId(order.id);
+
+    const paymentInfoJSON = localStorage.getItem(`payment_info_${order.orderId}`);
+    if (!paymentInfoJSON) {
+        toast({
+            variant: 'destructive',
+            title: "Cannot Process Refund",
+            description: "No Razorpay payment information found for this order. This might be a manual order or one where the customer did not complete authorization.",
+        });
+        setProcessingRefundId(null);
+        return;
+    }
+    const paymentInfo = JSON.parse(paymentInfoJSON);
+    const paymentId = paymentInfo.paymentId;
+
+    try {
+        const response = await fetch('/api/refund-payment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                paymentId: paymentId,
+                amount: order.refundAmount || order.price, // Use refund amount if specified, else full price
+                reason: order.refundReason
+            })
+        });
+
+        const result = await response.json();
+        if (!response.ok) {
+            throw new Error(result.error);
+        }
+
+        toast({
+            title: "Refund Processed",
+            description: result.message,
+        });
+
+        // Update the order status locally
+        handleFieldChange(order.id, 'refundStatus', 'Processed');
+        handleSave(order.id);
+
+    } catch (error: any) {
+        toast({
+            variant: 'destructive',
+            title: "Refund Failed",
+            description: error.message,
+        });
+    } finally {
+        setProcessingRefundId(null);
+    }
+  };
+
   return (
     <AppShell title="Refunds">
       <Card>
@@ -144,12 +199,18 @@ export default function RefundsPage() {
                 <CardTitle>Refund Management</CardTitle>
                 <CardDescription>View and manage all order refunds. Note: For post-dispatch cancellations, capture Rs. 300 from the mandate.</CardDescription>
             </div>
-            <Link href="/orders/new" passHref>
-              <Button>
-                  <PlusCircle className="mr-2 h-4 w-4" />
-                  Add Order
-              </Button>
-            </Link>
+            <div className="flex gap-2">
+                <Button variant="outline" onClick={fetchAndSetOrders}>
+                    <RefreshCw className="mr-2 h-4 w-4"/>
+                    Refresh
+                </Button>
+                <Link href="/orders/new" passHref>
+                <Button>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Add Order
+                </Button>
+                </Link>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -182,8 +243,8 @@ export default function RefundsPage() {
                     </TableCell>
                     <TableCell><Input value={order.customerName} onChange={(e) => handleFieldChange(order.id, 'customerName', e.target.value)} className="w-40" /></TableCell>
                     <TableCell><Input type="date" value={order.date} onChange={(e) => handleFieldChange(order.id, 'date', e.target.value)} className="w-32" /></TableCell>
-                    <TableCell><Input value={order.price} onChange={(e) => handleFieldChange(order.id, 'price', e.target.value)} className="w-32" /></TableCell>
-                    <TableCell><Input value={order.refundAmount || ''} onChange={(e) => handleFieldChange(order.id, 'refundAmount', e.target.value)} placeholder="Amount (less Rs. 300?)" className="w-36" /></TableCell>
+                    <TableCell><Input value={order.price} onChange={(e) => handleFieldChange(order.id, 'price', e.target.value)} className="w-32" readOnly /></TableCell>
+                    <TableCell><Input value={order.refundAmount || ''} onChange={(e) => handleFieldChange(order.id, 'refundAmount', e.target.value)} placeholder={order.price} className="w-36" /></TableCell>
                     <TableCell><Input value={order.refundReason || ''} onChange={(e) => handleFieldChange(order.id, 'refundReason', e.target.value)} placeholder="e.g., Post-dispatch cancellation" className="w-48" /></TableCell>
                     <TableCell>
                         <Select
@@ -201,10 +262,34 @@ export default function RefundsPage() {
                         </Select>
                     </TableCell>
                     <TableCell className="text-center space-x-2">
+                         <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                 <Button 
+                                    variant="destructive"
+                                    size="sm"
+                                    disabled={processingRefundId === order.id || order.refundStatus === 'Processed'}
+                                >
+                                    {processingRefundId === order.id && <ButtonLoader className="mr-2 h-4 w-4 animate-spin" />}
+                                    {order.refundStatus === 'Processed' ? 'Refunded' : 'Process Refund'}
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Are you sure you want to process this refund?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        This will initiate a refund of <strong>₹{order.refundAmount || order.price}</strong> for order <strong>{order.orderId}</strong> via Razorpay. This action cannot be undone.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleProcessRefund(order)}>Yes, Process Refund</AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
                         <Button variant="outline" size="icon" onClick={() => handleSave(order.id)}>
                             <Save className="h-4 w-4" />
                         </Button>
-                        <Button variant="destructive" size="icon" onClick={() => handleRemove(order.id)}>
+                        <Button variant="ghost" size="icon" onClick={() => handleRemove(order.id)}>
                             <Trash2 className="h-4 w-4" />
                         </Button>
                     </TableCell>
@@ -219,5 +304,3 @@ export default function RefundsPage() {
     </AppShell>
   );
 }
-
-    
