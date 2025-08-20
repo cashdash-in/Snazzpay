@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Loader2, HelpCircle, AlertTriangle, User, Phone, Home, MapPin, BadgeCheck, ShieldCheck, CreditCard, Mail, Wallet, LogIn } from "lucide-react";
+import { Loader2, HelpCircle, AlertTriangle, User, Phone, Home, MapPin, BadgeCheck, ShieldCheck, CreditCard, Mail, Wallet, LogIn, Zap } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
@@ -20,7 +20,7 @@ interface SecureCodFormProps {
     razorpayKeyId: string | null;
 }
 
-type Step = 'details' | 'authorize' | 'complete';
+type Step = 'details' | 'complete';
 
 function SnazzifyCoinCard({ customerName, orderId }: { customerName: string, orderId: string }) {
     return (
@@ -129,18 +129,18 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
 
     const totalAmount = orderDetails.baseAmount * orderDetails.quantity;
 
-    const createOrderApi = async (isAuthorization: boolean) => {
+    const createOrderApi = async () => {
         const response = await fetch('/api/create-mandate-order', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                amount: isAuthorization ? totalAmount : 1,
+                amount: totalAmount,
                 productName: orderDetails.productName,
                 customerName: customerDetails.name,
                 customerContact: customerDetails.contact,
                 customerAddress: customerDetails.address,
                 customerPincode: customerDetails.pincode,
-                isAuthorization,
+                isAuthorization: true, // This is now always an authorization
             }),
         });
 
@@ -152,14 +152,12 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         return response.json();
     };
 
-    const openRazorpayCheckout = (order_id: string, isAuthorization: boolean, handler: (response: any) => void) => {
+    const openRazorpayCheckout = (order_id: string, handler: (response: any) => void) => {
         const options = {
             key: razorpayKeyId,
             order_id: order_id,
             name: "Snazzify Trust Wallet",
-            description: isAuthorization 
-                ? `Secure ₹${totalAmount.toFixed(2)} in your Wallet`
-                : `Verify Intent with ₹1.00`,
+            description: `Pay ₹${totalAmount.toFixed(2)} - Held in Trust`,
             handler: handler,
             prefill: {
                 name: customerDetails.name,
@@ -177,8 +175,8 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                     setIsProcessing(false);
                     toast({
                         variant: 'destructive',
-                        title: 'Process Cancelled',
-                        description: 'The verification/authorization process was cancelled.',
+                        title: 'Payment Cancelled',
+                        description: 'The payment process was cancelled.',
                     });
                 }
             }
@@ -186,8 +184,8 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         const rzp = new (window as any).Razorpay(options);
         rzp.open();
     };
-
-    const handleIntentVerification = async () => {
+    
+    const handlePayment = async () => {
         if (!agreed) {
             toast({ variant: 'destructive', title: 'Agreement Required', description: 'You must agree to the Terms and Conditions.' });
             return;
@@ -198,66 +196,9 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         }
         setIsProcessing(true);
         setError('');
-
-        const newLead: EditableOrder = {
-            id: uuidv4(),
-            orderId: orderDetails.orderId,
-            customerName: customerDetails.name,
-            customerEmail: customerDetails.email,
-            customerAddress: customerDetails.address,
-            pincode: customerDetails.pincode,
-            contactNo: customerDetails.contact,
-            productOrdered: orderDetails.productName,
-            quantity: orderDetails.quantity,
-            price: totalAmount.toFixed(2),
-            paymentStatus: 'Intent Verified', // This is a lead status
-            date: format(new Date(), 'yyyy-MM-dd'),
-        };
-        
-        setActiveLead(newLead);
-
-        try {
-            const existingLeadsJSON = localStorage.getItem('leads');
-            const existingLeads: EditableOrder[] = existingLeadsJSON ? JSON.parse(existingLeadsJSON) : [];
-            const updatedLeads = [...existingLeads, newLead];
-            localStorage.setItem('leads', JSON.stringify(updatedLeads));
-        } catch(e) {
-            console.error("Failed to save lead to local storage", e);
-            toast({ variant: 'destructive', title: 'Storage Error', description: 'Could not save lead details locally.' });
-            setIsProcessing(false);
-            return;
-        }
         
         try {
-            const { order_id } = await createOrderApi(false); // false for intent
-            const handler = (response: any) => {
-                toast({ title: 'Step 1 Complete!', description: 'Intent verified. Please complete the final authorization step.', variant: 'default' });
-                setIsProcessing(false);
-                setStep('authorize');
-            };
-            openRazorpayCheckout(order_id, false, handler);
-        } catch (e: any) {
-            setError(e.message);
-            toast({ variant: 'destructive', title: 'Error', description: e.message });
-            setIsProcessing(false);
-            
-            // Rollback lead creation
-            if (newLead) {
-                const existingLeadsJSON = localStorage.getItem('leads');
-                if (existingLeadsJSON) {
-                    let existingLeads: EditableOrder[] = JSON.parse(existingLeadsJSON);
-                    const filteredLeads = existingLeads.filter(l => l.id !== newLead.id);
-                    localStorage.setItem('leads', JSON.stringify(filteredLeads));
-                }
-            }
-        }
-    };
-    
-    const handleCardAuthorization = async () => {
-        setIsProcessing(true);
-        setError('');
-        try {
-            const { order_id } = await createOrderApi(true); // true for authorization
+            const { order_id } = await createOrderApi();
             const handler = (response: any) => {
                  const paymentInfo = {
                     paymentId: response.razorpay_payment_id,
@@ -270,19 +211,9 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                 localStorage.setItem(`payment_info_${orderDetails.orderId}`, JSON.stringify(paymentInfo));
                 
                 try {
-                    // Remove from leads, using the lead object we stored in state
-                    if (activeLead) {
-                        const existingLeadsJSON = localStorage.getItem('leads');
-                        if (existingLeadsJSON) {
-                            let existingLeads: EditableOrder[] = JSON.parse(existingLeadsJSON);
-                            const filteredLeads = existingLeads.filter(l => l.id !== activeLead.id);
-                            localStorage.setItem('leads', JSON.stringify(filteredLeads));
-                        }
-                    }
-                    
                     // Add to manual orders
                     const newOrder: EditableOrder = {
-                        id: activeLead?.id || uuidv4(), // Re-use lead's unique ID
+                        id: uuidv4(),
                         orderId: orderDetails.orderId,
                         customerName: customerDetails.name,
                         customerEmail: customerDetails.email,
@@ -303,14 +234,13 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                     console.error("Failed to update local storage after authorization", e);
                 }
                 
-                // Set the mobile number for auto-login after confirmation
                 localStorage.setItem('loggedInUserMobile', customerDetails.contact);
 
-                toast({ title: 'Order Secured!', description: 'Your order is confirmed and will be shipped soon.' });
+                toast({ title: 'Payment Secured!', description: 'Your order is confirmed and will be shipped soon.' });
                 setStep('complete');
                 setIsProcessing(false);
             };
-            openRazorpayCheckout(order_id, true, handler);
+            openRazorpayCheckout(order_id, handler);
         } catch (e: any) {
             setError(e.message);
             toast({ variant: 'destructive', title: 'Error', description: e.message });
@@ -322,8 +252,8 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         <Card className="w-full max-w-md shadow-lg text-center bg-transparent border-0">
             <CardHeader className="pb-4">
                 <BadgeCheck className="mx-auto h-12 w-12 text-green-500" />
-                <CardTitle>Order Confirmed!</CardTitle>
-                <CardDescription>Thank you! Your order is secured in your Trust Wallet.</CardDescription>
+                <CardTitle>Payment Successful!</CardTitle>
+                <CardDescription>Thank you! Your payment is secured in your Trust Wallet.</CardDescription>
             </CardHeader>
              <CardContent className="flex flex-col items-center justify-center space-y-4">
                 <SnazzifyCoinCard customerName={customerDetails.name} orderId={orderDetails.orderId} />
@@ -360,8 +290,9 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         <div className="flex items-center justify-center min-h-screen bg-transparent p-4">
             <Card className="w-full max-w-md shadow-lg">
                 <CardHeader className="text-center">
-                    <CardTitle>Secure Your COD Order</CardTitle>
-                    <CardDescription>A two-step process to secure your order in a Trust Wallet.</CardDescription>
+                    <Zap className="mx-auto h-8 w-8 text-primary" />
+                    <CardTitle>Modern, Secure Payment</CardTitle>
+                    <CardDescription>Pay now and your funds are held in a Trust Wallet until dispatch.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-3">
@@ -378,38 +309,16 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                         <div className="flex justify-between items-center text-lg"><span className="text-muted-foreground">Total Amount:</span><span className="font-bold">₹{totalAmount.toFixed(2)}</span></div>
                     </div>
                     
-                    {step === 'details' && (
-                        <div className="text-center space-y-3 p-3 bg-primary/5 rounded-lg">
-                           <h3 className="font-semibold">Step 1: Verify Your Intent</h3>
-                           <p className="text-xs text-muted-foreground">Please complete a ₹1.00 transaction to show your commitment. This helps us filter out fraudulent orders and reserves your item.</p>
-                        </div>
-                    )}
-                    
-                    {step === 'authorize' && (
-                         <div className="text-center space-y-3 p-3 bg-green-500/10 rounded-lg border border-green-500/20">
-                           <h3 className="font-semibold text-green-800">Final step! Secure the full amount in your Trust Wallet.</h3>
-                           <p className="text-xs text-muted-foreground">Your card will NOT be charged now. You will pay cash on delivery. Funds are only captured from your wallet if delivery is refused.</p>
-                        </div>
-                    )}
-                    
                     <div className="flex items-start space-x-2 pt-2">
                         <Checkbox id="terms" checked={agreed} onCheckedChange={(checked) => setAgreed(checked as boolean)} className="mt-1" />
                         <Label htmlFor="terms" className="text-sm text-muted-foreground">I agree to the <Link href="/terms-and-conditions" target="_blank" className="underline text-primary">Terms and Conditions</Link>.</Label>
                     </div>
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4">
-                     {step === 'details' && (
-                        <Button className="w-full" onClick={handleIntentVerification} disabled={!agreed || isProcessing}>
-                            {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
-                            Verify with ₹1.00
-                        </Button>
-                     )}
-                     {step === 'authorize' && (
-                         <Button className="w-full" onClick={handleCardAuthorization} disabled={isProcessing}>
-                            {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CreditCard className="mr-2 h-4 w-4" />}
-                            Secure ₹{totalAmount.toFixed(2)} in Trust Wallet
-                        </Button>
-                     )}
+                    <Button className="w-full" onClick={handlePayment} disabled={!agreed || isProcessing}>
+                        {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CreditCard className="mr-2 h-4 w-4" />}
+                        Pay ₹{totalAmount.toFixed(2)} Now
+                    </Button>
                     <div className="flex items-center justify-center space-x-4 text-sm">
                         <Link href="/customer/login" passHref>
                             <span className="text-primary hover:underline cursor-pointer inline-flex items-center gap-1"><LogIn className="h-4 w-4" />Customer Login</span>

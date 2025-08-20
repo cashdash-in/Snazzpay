@@ -10,68 +10,68 @@ import Link from "next/link";
 const faqs = {
   en: [
     {
-      question: "What is Secure COD with a Trust Wallet?",
-      answer: "It's a modern way to place a Cash on Delivery order. You authorize the order amount, which is held securely in your personal Snazzify Trust Wallet. You still pay with cash upon delivery, and the held amount is released back to you automatically. This process reduces fraud and ensures genuine orders."
+      question: "What is Secure COD? Do I pay cash on delivery?",
+      answer: "Secure COD is a modern, upfront payment method. You pay for the order now, and we hold your money securely in your personal Snazzify Trust Wallet. There is no need to pay any cash to the courier. This reduces fraud and ensures a faster, more secure delivery."
     },
     {
-      question: "Is money deducted from my account when I authorize?",
-      answer: "No, this is not a payment. It is a temporary hold on your funds, which are kept safe in your Trust Wallet. The money is not debited from your account. It's similar to how a hotel might hold an amount on your card at check-in."
+      question: "Is my money safe in the Trust Wallet?",
+      answer: "Absolutely. Your funds are held in a secure Trust Wallet powered by Razorpay, a leading payment gateway. We only transfer the funds to our account after your product has been dispatched. This protects you from non-delivery and gives you time to cancel."
     },
     {
-      question: "When is the hold in my Trust Wallet released?",
-      answer: "The hold is automatically released within 24-48 hours after you have paid the delivery agent in cash and the delivery is marked as successful."
+      question: "When are the funds transferred to Snazzify?",
+      answer: "The payment is transferred from your Trust Wallet to our account only when your order is dispatched from our warehouse. You will be notified when this happens."
     },
     {
-      question: "What happens if I refuse the delivery or cancel after shipping?",
-      answer: "If you refuse the delivery for reasons other than product damage, or if you cancel the order after it has been shipped, we will capture a shipping and handling fee of Rs. 300 from the amount held in your Trust Wallet, as per our Terms and Conditions."
+      question: "How do I cancel my order?",
+      answer: "You can cancel your order anytime before it is dispatched for a full refund. You can also cancel up to 3 days after receiving the product. For all cancellations, a small service fee to cover shipping and handling may be deducted from your refund."
     },
     {
-      question: "Is the Trust Wallet process secure?",
-      answer: "Absolutely. The entire authorization process is handled by Razorpay, a leading and secure payment gateway in India. We do not see or store your card details. Your funds are secured in the wallet and only handled based on the delivery outcome."
+      question: "Why is this better than traditional Cash on Delivery?",
+      answer: "This modern approach eliminates the risks of handling cash, reduces fraudulent orders, and allows us to process and ship your order with higher priority. It's a safer, faster, and more reliable way to shop."
     },
   ],
   hi: [
     {
-      question: "ट्रस्ट वॉलेट के साथ सिक्योर सीओडी क्या है?",
-      answer: "यह कैश ऑन डिलीवरी ऑर्डर देने का एक आधुनिक तरीका है। आप ऑर्डर की राशि को अधिकृत करते हैं, जो आपके व्यक्तिगत स्नैज़िफाई ट्रस्ट वॉलेट में सुरक्षित रूप से रखी जाती है। आप अभी भी डिलीवरी पर नकद में भुगतान करते हैं, और रखी गई राशि स्वचालित रूप से आपको वापस कर दी जाती है। यह प्रक्रिया धोखाधड़ी को कम करती है और वास्तविक ऑर्डर सुनिश्चित करती है।"
+      question: "सिक्योर सीओडी क्या है? क्या मुझे डिलीवरी के समय नकद भुगतान करना होगा?",
+      answer: "सिक्योर सीओडी एक आधुनिक, अग्रिम भुगतान पद्धति है। आप अभी ऑर्डर के लिए भुगतान करते हैं, और हम आपके पैसे को आपके व्यक्तिगत स्नैज़िफाई ट्रस्ट वॉलेट में सुरक्षित रूप से रखते हैं। कूरियर को कोई नकद भुगतान करने की आवश्यकता नहीं है। यह धोखाधड़ी को कम करता है और एक तेज, अधिक सुरक्षित डिलीवरी सुनिश्चित करता है।"
     },
     {
-      question: "क्या मेरे खाते से तुरंत पैसा कट जाता है?",
-      answer: "नहीं, यह भुगतान नहीं है। यह आपके फंड पर एक अस्थायी होल्ड है, जिसे आपके ट्रस्ट वॉलेट में सुरक्षित रखा जाता है। आपके खाते से पैसा नहीं काटा जाता है। यह उसी तरह है जैसे कोई होटल चेक-इन के समय आपके कार्ड पर एक राशि होल्ड कर सकता है।"
+      question: "क्या मेरा पैसा ट्रस्ट वॉलेट में सुरक्षित है?",
+      answer: "बिल्कुल। आपका फंड रेजरपे द्वारा संचालित एक सुरक्षित ट्रस्ट वॉलेट में रखा जाता है। हम आपके उत्पाद के भेजे जाने के बाद ही फंड को अपने खाते में स्थानांतरित करते हैं। यह आपको नॉन-डिलीवरी से बचाता है और आपको रद्द करने का समय देता है।"
     },
     {
-      question: "मेरे ट्रस्ट वॉलेट में होल्ड कब जारी किया जाता है?",
-      answer: "जब आप डिलीवरी एजेंट को नकद में भुगतान कर देते हैं और डिलीवरी को सफल के रूप में चिह्नित किया जाता है, तो होल्ड 24-48 घंटों के भीतर स्वचालित रूप से जारी कर दिया जाता है।"
+      question: "फंड स्नैज़िफाई को कब ट्रांसफर किया जाता है?",
+      answer: "भुगतान आपके ट्रस्ट वॉलेट से हमारे खाते में तभी स्थानांतरित किया जाता है जब आपका ऑर्डर हमारे गोदाम से भेज दिया जाता है। ऐसा होने पर आपको सूचित किया जाएगा।"
     },
     {
-      question: "अगर मैं डिलीवरी लेने से मना कर दूं या शिपिंग के बाद रद्द कर दूं तो क्या होगा?",
-      answer: "यदि आप उत्पाद के क्षतिग्रस्त होने के अलावा अन्य कारणों से डिलीवरी से इनकार करते हैं, या यदि आप इसे शिप किए जाने के बाद ऑर्डर रद्द करते हैं, तो हम आपके ट्रस्ट वॉलेट में रखी गई राशि में से शिपिंग और हैंडलिंग शुल्क के रूप में 300 रुपये की कटौती करेंगे, जैसा कि हमारे नियमों और शर्तों में है।"
+      question: "मैं अपना ऑर्डर कैसे रद्द कर सकता हूं?",
+      answer: "आप पूरे रिफंड के लिए भेजे जाने से पहले किसी भी समय अपना ऑर्डर रद्द कर सकते हैं। आप उत्पाद प्राप्त करने के 3 दिन बाद तक भी रद्द कर सकते हैं। सभी रद्दीकरणों के लिए, आपके रिफंड से शिपिंग और हैंडलिंग को कवर करने के लिए एक छोटा सेवा शुल्क काटा जा सकता है।"
     },
     {
-      question: "क्या यह ट्रस्ट वॉलेट प्रक्रिया सुरक्षित है?",
-      answer: "बिल्कुल। पूरी प्राधिकरण प्रक्रिया भारत के एक प्रमुख और सुरक्षित भुगतान गेटवे, रेज़रपे द्वारा नियंत्रित की जाती है। हम आपके कार्ड का विवरण नहीं देखते या संग्रहीत नहीं करते हैं। आपके फंड वॉलेट में सुरक्षित हैं और केवल डिलीवरी के परिणाम के आधार पर संभाले जाते हैं।"
+      question: "यह पारंपरिक कैश ऑन डिलीवरी से बेहतर क्यों है?",
+      answer: "यह आधुनिक दृष्टिकोण नकदी संभालने के जोखिमों को समाप्त करता है, धोखाधड़ी वाले ऑर्डर कम करता है, और हमें आपके ऑर्डर को उच्च प्राथमिकता के साथ संसाधित करने और भेजने की अनुमति देता है। यह खरीदारी करने का एक सुरक्षित, तेज और अधिक विश्वसनीय तरीका है।"
     },
   ],
   mr: [
     {
-      question: "ट्रस्ट वॉलेटसह सुरक्षित सीओडी म्हणजे काय?",
-      answer: "कॅश ऑन डिलिव्हरी ऑर्डर देण्याचा हा एक आधुनिक मार्ग आहे. तुम्ही ऑर्डरची रक्कम अधिकृत करता, जी तुमच्या वैयक्तिक स्नॅझिफाय ट्रस्ट वॉलेटमध्ये सुरक्षितपणे ठेवली जाते. तुम्ही डिलिव्हरीच्या वेळी रोख पैसे देता आणि ठेवलेली रक्कम आपोआप तुम्हाला परत केली जाते. ही प्रक्रिया फसवणूक कमी करते आणि अस्सल ऑर्डर सुनिश्चित करते."
+      question: "सिक्योर सीओडी म्हणजे काय? मला डिलिव्हरीच्या वेळी रोख पैसे द्यावे लागतील का?",
+      answer: "सिक्योर सीओडी ही एक आधुनिक, आगाऊ पेमेंट पद्धत आहे. तुम्ही आता ऑर्डरसाठी पैसे देता आणि आम्ही तुमचे पैसे तुमच्या वैयक्तिक स्नॅझिफाय ट्रस्ट वॉलेटमध्ये सुरक्षित ठेवतो. कुरिअरला कोणतीही रोख रक्कम देण्याची गरज नाही. यामुळे फसवणूक कमी होते आणि जलद, अधिक सुरक्षित डिलिव्हरी सुनिश्चित होते."
     },
     {
-      question: "मी अधिकृत केल्यावर माझ्या खात्यातून पैसे कापले जातात का?",
-      answer: "नाही, हे पेमेंट नाही. हे तुमच्या निधीवर तात्पुरते होल्ड आहे, जे तुमच्या ट्रस्ट वॉलेटमध्ये सुरक्षित ठेवले जाते. तुमच्या खात्यातून पैसे डेबिट होत नाहीत. हे हॉटेल चेक-इनच्या वेळी तुमच्या कार्डवर रक्कम होल्ड करण्यासारखे आहे."
+      question: "माझे पैसे ट्रस्ट वॉलेटमध्ये सुरक्षित आहेत का?",
+      answer: "नक्कीच. तुमचा निधी रेझरपेद्वारे समर्थित सुरक्षित ट्रस्ट वॉलेटमध्ये ठेवला जातो. आम्ही तुमचे उत्पादन पाठवल्यानंतरच निधी आमच्या खात्यात हस्तांतरित करतो. हे तुम्हाला न-डिलिव्हरीपासून वाचवते आणि तुम्हाला रद्द करण्यासाठी वेळ देते."
     },
     {
-      question: "माझ्या ट्रस्ट वॉलेटमधील होल्ड कधी रिलीज होते?",
-      answer: "तुम्ही डिलिव्हरी एजंटला रोख पैसे दिल्यानंतर आणि डिलिव्हरी यशस्वी म्हणून चिन्हांकित झाल्यावर 24-48 तासांच्या आत होल्ड आपोआप रिलीज होते."
+      question: "निधी स्नॅझिफायला केव्हा हस्तांतरित केला जातो?",
+      answer: "जेव्हा तुमची ऑर्डर आमच्या वेअरहाऊसमधून पाठवली जाते तेव्हाच तुमच्या ट्रस्ट वॉलेटमधून आमच्या खात्यात पेमेंट हस्तांतरित केले जाते. असे झाल्यावर तुम्हाला सूचित केले जाईल."
     },
     {
-      question: "मी डिलिव्हरी घेण्यास नकार दिल्यास किंवा शिपिंगनंतर रद्द केल्यास काय होईल?",
-      answer: "तुम्ही उत्पादनाच्या नुकसानीव्यतिरिक्त इतर कारणांसाठी डिलिव्हरी नाकारल्यास, किंवा ऑर्डर पाठवल्यानंतर तुम्ही ती रद्द केल्यास, आम्ही आमच्या अटी व शर्तींनुसार तुमच्या ट्रस्ट वॉलेटमध्ये ठेवलेल्या रकमेतून शिपिंग आणि हँडलिंग शुल्कासाठी ३०० रुपये वसूल करू."
+      question: "मी माझी ऑर्डर कशी रद्द करू शकेन?",
+      answer: "तुम्ही संपूर्ण परताव्यासाठी पाठवण्यापूर्वी कधीही तुमची ऑर्डर रद्द करू शकता. तुम्ही उत्पादन मिळाल्यानंतर ३ दिवसांपर्यंत रद्द करू शकता. सर्व रद्द करण्यांसाठी, तुमच्या परताव्यातून शिपिंग आणि हाताळणी कव्हर करण्यासाठी एक लहान सेवा शुल्क कापले जाऊ शकते."
     },
     {
-      question: "ही ट्रस्ट वॉलेट प्रक्रिया सुरक्षित आहे का?",
-      answer: "नक्कीच. संपूर्ण प्राधिकरण प्रक्रिया रेझरपे, भारतातील एक अग्रगण्य आणि सुरक्षित पेमेंट गेटवेद्वारे हाताळली जाते. आम्ही तुमचे कार्ड तपशील पाहत नाही किंवा संग्रहित करत नाही. तुमचा निधी वॉलेटमध्ये सुरक्षित आहे आणि केवळ डिलिव्हरीच्या निकालावर आधारित हाताळला जातो."
+      question: "हे पारंपारिक कॅश ऑन डिलिव्हरीपेक्षा चांगले का आहे?",
+      answer: "हा आधुनिक दृष्टिकोन रोख हाताळण्याचे धोके दूर करतो, फसव्या ऑर्डर कमी करतो आणि आम्हाला तुमच्या ऑर्डरवर उच्च प्राधान्याने प्रक्रिया करण्यास आणि पाठविण्यास अनुमती देतो. खरेदी करण्याचा हा एक सुरक्षित, जलद आणि अधिक विश्वासार्ह मार्ग आहे."
     },
   ],
 };
@@ -83,7 +83,7 @@ export default function FaqPage() {
             <Card className="w-full max-w-3xl shadow-lg">
                 <CardHeader className="text-center">
                     <CardTitle>Frequently Asked Questions</CardTitle>
-                    <CardDescription>Get answers to your questions about Secure COD and your Trust Wallet.</CardDescription>
+                    <CardDescription>Get answers to your questions about our modern Secure COD payment method.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Tabs defaultValue="en" className="w-full">

@@ -36,14 +36,14 @@ export async function POST(request: Request) {
                 <div style="font-family: Arial, sans-serif; line-height: 1.6;">
                     <h2>Confirm Your Order #${order.orderId}</h2>
                     <p>Dear ${order.customerName},</p>
-                    <p>Thank you for your order. To confirm your Cash on Delivery (COD) order and ensure faster processing, please secure the order amount in your personal Snazzify Trust Wallet by clicking the link below.</p>
-                    <p><strong>This is not a payment.</strong> The funds are held securely in your Trust Wallet and will be automatically released back to you once you pay cash on delivery.</p>
+                    <p>Thank you for your order. To confirm your order and ensure faster processing, please complete the secure payment by clicking the link below.</p>
+                    <p><strong>This is a modern, secure payment method.</strong> Your funds will be held in your personal Snazzify Trust Wallet. The amount is only transferred to us after your product has been dispatched. You can cancel your order anytime before dispatch for a full refund (less a small service fee).</p>
                     <p><strong>Order Details:</strong></p>
                     <ul>
                         <li><strong>Product:</strong> ${order.productOrdered}</li>
                         <li><strong>Amount:</strong> ₹${order.price}</li>
                     </ul>
-                    <a href="${secureUrl}" style="background-color: #663399; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 20px 0;">Secure My Order in Trust Wallet</a>
+                    <a href="${secureUrl}" style="background-color: #663399; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 20px 0;">Complete Secure Payment</a>
                     <p>If you did not place this order, please disregard this email.</p>
                     <p>Thank you,<br/>The Snazzify Team</p>
                 </div>

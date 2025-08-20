@@ -57,14 +57,14 @@ export async function POST(request: Request) {
                 <div style="font-family: Arial, sans-serif; line-height: 1.6;">
                     <h2>Complete Your Order #${orderId}</h2>
                     <p>Dear ${customerName},</p>
-                    <p>We noticed you started the confirmation process for your order but didn't complete it. To finalize your Cash on Delivery (COD) order, please secure the order amount in your Snazzify Trust Wallet by clicking the link below.</p>
-                    <p><strong>This is not a payment.</strong> The funds are held securely in your Trust Wallet and are only released to us after you have paid cash on delivery.</p>
+                    <p>We noticed you started the confirmation process for your order but didn't complete it. To finalize your Secure COD order, please complete the payment by clicking the link below. </p>
+                    <p><strong>This is a modern, secure way to pay.</strong> Your funds are held securely in your personal Snazzify Trust Wallet and are only transferred to us after your product is dispatched. You can cancel anytime before dispatch for a full refund.</p>
                     <p><strong>Order Details:</strong></p>
                     <ul>
                         <li><strong>Product:</strong> ${productName}</li>
                         <li><strong>Amount:</strong> ₹${amount}</li>
                     </ul>
-                    <a href="${secureUrl}" style="background-color: #663399; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 20px 0;">Secure My Order in Trust Wallet</a>
+                    <a href="${secureUrl}" style="background-color: #663399; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 20px 0;">Complete Secure Payment</a>
                     <p>If you have any questions, please contact our support team.</p>
                     <p>Thank you,<br/>The Snazzify Team</p>
                 </div>
