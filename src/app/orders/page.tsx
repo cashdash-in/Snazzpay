@@ -155,24 +155,17 @@ export default function OrdersPage() {
         const statusPriority = ['Voided', 'Refunded', 'Cancelled'];
 
         orderGroups.forEach((group, orderId) => {
-            // Find the most definitive record (usually a manual one or one with overrides)
-            const manualRecord = group.find(o => !o.id.startsWith('gid://') && !/^\d+$/.test(o.id));
-            const shopifyRecord = group.find(o => o.id.startsWith('gid://') || /^\d+$/.test(o.id));
-            let representativeOrder = manualRecord || shopifyRecord || group[0];
+            let representativeOrder = group.reduce((acc, curr) => ({ ...acc, ...curr }), group[0]);
 
-            // Merge all data into the representative order
-            representativeOrder = group.reduce((acc, curr) => ({ ...acc, ...curr }), representativeOrder);
-            
-            // Unify status
-            for (const status of statusPriority) {
-                if (group.some(o => o.paymentStatus === status || o.cancellationStatus === 'Processed' || o.refundStatus === 'Processed')) {
-                    if(status === 'Voided' || o.cancellationStatus === 'Processed') representativeOrder.paymentStatus = 'Voided';
-                    if(status === 'Refunded' || o.refundStatus === 'Processed') representativeOrder.paymentStatus = 'Refunded';
-                    break;
-                }
+            const hasVoided = group.some(o => o.paymentStatus === 'Voided' || o.cancellationStatus === 'Processed');
+            const hasRefunded = group.some(o => o.paymentStatus === 'Refunded' || o.refundStatus === 'Processed');
+
+            if (hasVoided) {
+                representativeOrder.paymentStatus = 'Voided';
+            } else if (hasRefunded) {
+                representativeOrder.paymentStatus = 'Refunded';
             }
             
-             // Unify cancellationId
             const sharedCancellationId = group.find(o => o.cancellationId)?.cancellationId;
             if (sharedCancellationId) {
                 representativeOrder.cancellationId = sharedCancellationId;
