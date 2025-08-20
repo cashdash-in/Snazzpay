@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Wallet, ShoppingCart, ShieldAlert, LogOut, CheckCircle, Clock, Mail, MessageSquare, PackageCheck } from "lucide-react";
+import { Wallet, ShoppingCart, ShieldAlert, LogOut, CheckCircle, Clock, Mail, MessageSquare, PackageCheck, FileText, Calendar, Truck, ArrowRight, CircleDotDashed } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
@@ -16,6 +16,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { v4 as uuidv4 } from 'uuid';
+import { format } from 'date-fns';
 
 type PaymentInfo = {
     paymentId: string;
@@ -26,6 +27,26 @@ type PaymentInfo = {
     authorizedAt: string;
 };
 
+const TimelineEvent = ({ icon, title, date, children, isLast = false }: { icon: React.ElementType, title: string, date: string | null, children?: React.ReactNode, isLast?: boolean }) => {
+    const IconComponent = icon;
+    const isComplete = !!date;
+
+    return (
+        <div className="flex gap-4">
+            <div className="flex flex-col items-center">
+                <div className={`flex items-center justify-center w-8 h-8 rounded-full ${isComplete ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-500'}`}>
+                    <IconComponent className="w-4 h-4" />
+                </div>
+                {!isLast && <div className="flex-grow w-px bg-gray-200"></div>}
+            </div>
+            <div className="pb-8 pt-1">
+                <p className={`font-semibold ${isComplete ? 'text-gray-800' : 'text-gray-500'}`}>{title}</p>
+                {isComplete && <p className="text-xs text-muted-foreground">{date}</p>}
+                {children && <div className="text-sm text-muted-foreground mt-1">{children}</div>}
+            </div>
+        </div>
+    );
+}
 
 export default function CustomerDashboardPage() {
     const { toast } = useToast();
@@ -37,8 +58,6 @@ export default function CustomerDashboardPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [cancellationInput, setCancellationInput] = useState('');
     const [selectedOrderForCancellation, setSelectedOrderForCancellation] = useState<EditableOrder | null>(null);
-
-    // This state will store payment info to check for the 24-hour cancellation window
     const [paymentInfos, setPaymentInfos] = useState<Map<string, PaymentInfo>>(new Map());
 
     useEffect(() => {
@@ -98,7 +117,6 @@ export default function CustomerDashboardPage() {
 
                     unifiedOrders.push(representativeOrder);
 
-                    // Load payment info for this order if it exists
                     const paymentInfoJSON = localStorage.getItem(`payment_info_${representativeOrder.orderId}`);
                     if (paymentInfoJSON) {
                         loadedPaymentInfos.set(representativeOrder.orderId, JSON.parse(paymentInfoJSON));
@@ -122,7 +140,6 @@ export default function CustomerDashboardPage() {
                 setOrders(finalOrders);
                 setPaymentInfos(loadedPaymentInfos);
 
-
             } catch (error) {
                 console.error("Error loading customer data:", error);
                 toast({ variant: 'destructive', title: "Error", description: "Could not load your account details." });
@@ -145,68 +162,19 @@ export default function CustomerDashboardPage() {
         const order = directCancelOrder || selectedOrderForCancellation;
         if (!order) return;
 
-        // Logic for direct 24-hour cancellation
-        if (directCancelOrder) {
-            const paymentInfo = paymentInfos.get(order.orderId);
-            if (!paymentInfo) {
-                toast({ variant: 'destructive', title: "Error", description: "Payment details not found for this order." });
-                return;
-            }
-
-            try {
-                const response = await fetch('/api/cancel-order', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        orderId: order.orderId, 
-                        cancellationId: order.cancellationId,
-                        paymentId: paymentInfo.paymentId,
-                        amount: order.price
-                    }),
-                });
-                const result = await response.json();
-                if (!response.ok) throw new Error(result.error || 'Failed to process cancellation.');
-                
-                const updatedOrder = { ...order, paymentStatus: 'Voided', cancellationStatus: 'Processed' };
-                const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
-                const newOverrides = { ...storedOverrides, paymentStatus: 'Voided', cancellationStatus: 'Processed' };
-                localStorage.setItem(`order-override-${order.id}`, JSON.stringify(newOverrides));
-                
-                setOrders(prev => prev.map(o => o.id === order.id ? updatedOrder : o));
-                setTrustWalletValue(prev => prev - parseFloat(order.price || '0'));
-                toast({ title: "Order Cancelled", description: `Your order ${order.orderId} has been successfully cancelled.` });
-            
-            } catch (error: any) {
-                toast({ variant: 'destructive', title: 'Cancellation Failed', description: error.message });
-            }
-            return;
-        }
-
-        // Logic for cancellation via Support ID
-        const enteredId = cancellationInput;
-        if (!enteredId) {
-            toast({ variant: 'destructive', title: 'ID Required', description: 'Please enter the cancellation ID.' });
-            return;
-        }
-
-        if (enteredId !== order.cancellationId) {
-            toast({ variant: 'destructive', title: "Incorrect ID", description: "The Cancellation ID you entered is incorrect." });
-            return;
-        }
+        const paymentInfo = paymentInfos.get(order.orderId);
 
         try {
-            const paymentInfo = paymentInfos.get(order.orderId);
             const response = await fetch('/api/cancel-order', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                     orderId: order.orderId, 
                     cancellationId: order.cancellationId,
-                    paymentId: paymentInfo?.paymentId, // Can be null if not found
+                    paymentId: paymentInfo?.paymentId,
                     amount: order.price
                 }),
             });
-
             const result = await response.json();
             if (!response.ok) throw new Error(result.error || 'Failed to process cancellation.');
             
@@ -222,11 +190,13 @@ export default function CustomerDashboardPage() {
         } catch (error: any) {
             toast({ variant: 'destructive', title: 'Cancellation Failed', description: error.message });
         }
-        
-        setCancellationInput('');
-        setSelectedOrderForCancellation(null);
-    };
 
+        if (!directCancelOrder) {
+            setCancellationInput('');
+            setSelectedOrderForCancellation(null);
+        }
+    };
+    
     const isWithin24Hours = (isoDateString: string) => {
         if (!isoDateString) return false;
         const authDate = new Date(isoDateString);
@@ -234,7 +204,6 @@ export default function CustomerDashboardPage() {
         const diffHours = (now.getTime() - authDate.getTime()) / (1000 * 60 * 60);
         return diffHours < 24;
     };
-
 
     if (isLoading) {
         return <div className="flex justify-center items-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>
@@ -264,7 +233,7 @@ export default function CustomerDashboardPage() {
                             <CardContent>
                                 <p className="text-sm text-muted-foreground">Value of Active Orders Held in Trust</p>
                                 <p className="text-4xl font-bold">₹{trustWalletValue.toFixed(2)}</p>
-                                <p className="text-xs text-muted-foreground mt-1">This is the total amount for your active orders, held securely. Funds are only transferred to us after your order is dispatched.</p>
+                                <p className="text-xs text-muted-foreground mt-1">This is the total amount for your active orders, held securely. Funds are only transferred after your order is dispatched.</p>
                             </CardContent>
                         </Card>
                          <Card className="shadow-lg">
@@ -275,16 +244,19 @@ export default function CustomerDashboardPage() {
                             <CardContent>
                                 <p className="text-sm text-muted-foreground">Total Value of Completed Orders</p>
                                 <p className="text-4xl font-bold">₹{confirmedOrderValue.toFixed(2)}</p>
-                                <p className="text-xs text-muted-foreground mt-1">This is the total value for your orders where payment has been finalized and transferred.</p>
+                                <p className="text-xs text-muted-foreground mt-1">This is the total value for your orders where payment has been finalized.</p>
                             </CardContent>
                         </Card>
                     </div>
 
                     <div className="lg:col-span-2">
                         <Tabs defaultValue="orders" className="w-full">
-                            <TabsList className="grid w-full grid-cols-2">
+                            <TabsList className="grid w-full grid-cols-3">
                                 <TabsTrigger value="orders">
                                     <ShoppingCart className="mr-2 h-4 w-4" /> My Orders
+                                </TabsTrigger>
+                                <TabsTrigger value="history">
+                                    <FileText className="mr-2 h-4 w-4" /> Order History
                                 </TabsTrigger>
                                 <TabsTrigger value="cancellations">
                                     <ShieldAlert className="mr-2 h-4 w-4" /> Cancellations
@@ -341,7 +313,7 @@ export default function CustomerDashboardPage() {
                                                                             <AlertDialogHeader>
                                                                                 <AlertDialogTitle>Cancel Order #{order.orderId}?</AlertDialogTitle>
                                                                                 <AlertDialogDescription>
-                                                                                    Are you sure you want to cancel this order? The authorized amount of ₹{order.price} will be released back to your account.
+                                                                                    Are you sure you want to cancel this order? The authorized amount of ₹{order.price} will be released back to your account. This action is final.
                                                                                 </AlertDialogDescription>
                                                                             </AlertDialogHeader>
                                                                             <AlertDialogFooter>
@@ -354,7 +326,7 @@ export default function CustomerDashboardPage() {
                                                                     <AlertDialog>
                                                                         <AlertDialogTrigger asChild>
                                                                             <Button variant="outline" size="sm" onClick={() => setSelectedOrderForCancellation(order)} disabled={isCancelled}>
-                                                                                {isCancelled ? 'Cancelled' : 'Cancel'}
+                                                                                {isCancelled ? 'Cancelled' : 'Request Cancellation'}
                                                                             </Button>
                                                                         </AlertDialogTrigger>
                                                                         <AlertDialogContent>
@@ -400,6 +372,63 @@ export default function CustomerDashboardPage() {
                                     </CardContent>
                                 </Card>
                             </TabsContent>
+                             <TabsContent value="history">
+                                <Card className="shadow-lg">
+                                    <CardHeader>
+                                        <CardTitle>Detailed Order History</CardTitle>
+                                        <CardDescription>A complete timeline of each order's journey.</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="space-y-6">
+                                        {orders.length > 0 ? orders.map((order, orderIndex) => {
+                                            const paymentInfo = paymentInfos.get(order.orderId);
+                                            const authorizedDate = paymentInfo?.authorizedAt ? format(new Date(paymentInfo.authorizedAt), 'PPp') : format(new Date(order.date), 'PPp');
+                                            
+                                            const isPaid = order.paymentStatus === 'Paid';
+                                            // A bit of a hack: Assume payment capture happens close to dispatch or on a specific event
+                                            const finalizationDate = isPaid ? (order.readyForDispatchDate ? format(new Date(order.readyForDispatchDate), 'PPp') : `Funds Transferred`) : null;
+                                            
+                                            const isRefunded = order.paymentStatus === 'Voided' || order.paymentStatus === 'Refunded';
+                                            const refundDate = isRefunded ? `Refund Processed` : null;
+
+                                            const events = [
+                                                { icon: CircleDotDashed, title: "Order Placed & Payment Authorized", date: authorizedDate },
+                                                { icon: ArrowRight, title: "Funds Transferred", date: finalizationDate },
+                                                { icon: PackageCheck, title: "Order Dispatched", date: order.readyForDispatchDate ? format(new Date(order.readyForDispatchDate), 'PPp') : null, children: order.trackingNumber && `Tracking No: ${order.trackingNumber}` },
+                                                { icon: Truck, title: "Delivered", date: order.deliveryStatus === 'delivered' && order.estDelivery ? format(new Date(order.estDelivery), 'PPp') : null },
+                                                { icon: ShieldAlert, title: "Refunded / Cancelled", date: refundDate }
+                                            ].filter(e => e.date); // Only show events that have a date
+
+
+                                            return (
+                                            <Card key={order.id} className="p-4">
+                                                <div className="flex justify-between items-start mb-4">
+                                                    <div>
+                                                        <h4 className="font-bold text-lg">Order #{order.orderId}</h4>
+                                                        <p className="text-sm text-muted-foreground">{order.productOrdered}</p>
+                                                    </div>
+                                                    <Badge>₹{order.price}</Badge>
+                                                </div>
+                                                <div className="relative">
+                                                     <div className="absolute left-4 h-full w-px bg-gray-200"></div>
+                                                     {events.map((event, index) => (
+                                                         <TimelineEvent 
+                                                            key={index}
+                                                            icon={event.icon}
+                                                            title={event.title}
+                                                            date={event.date}
+                                                            isLast={index === events.length - 1}
+                                                        >
+                                                            {event.children}
+                                                        </TimelineEvent>
+                                                     ))}
+                                                </div>
+                                            </Card>
+                                        )}) : (
+                                            <p className="text-center text-muted-foreground py-8">No order history to display.</p>
+                                        )}
+                                    </CardContent>
+                                </Card>
+                            </TabsContent>
                              <TabsContent value="cancellations">
                                 <Card className="shadow-lg">
                                     <CardHeader>
@@ -410,7 +439,7 @@ export default function CustomerDashboardPage() {
                                         <div>
                                             <h4 className='font-semibold'>Within 24 Hours of Payment</h4>
                                             <p className="text-sm text-muted-foreground">
-                                                For 24 hours after you secure your payment, you can cancel your order directly from the "My Orders" tab. Just find the order and click the "Cancel" button.
+                                                For 24 hours after you secure your payment, you can cancel your order instantly from the "My Orders" tab. Just find the order and click the "Cancel" button. Your funds will be released immediately.
                                             </p>
                                         </div>
                                          <div>
