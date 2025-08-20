@@ -38,6 +38,7 @@ import {
   CircleDollarSign,
   Users,
   FileSpreadsheet,
+  LogIn,
 } from 'lucide-react';
 
 const menuItems = [
@@ -113,6 +114,13 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
                 <DropdownMenuSeparator />
                 <DropdownMenuItem>Profile</DropdownMenuItem>
                 <DropdownMenuItem>Billing</DropdownMenuItem>
+                <Link href="/customer/login" passHref target="_blank">
+                  <DropdownMenuItem>
+                    <LogIn className="mr-2 h-4 w-4" />
+                    <span>Customer Login</span>
+                  </DropdownMenuItem>
+                </Link>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem>Logout</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
