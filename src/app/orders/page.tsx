@@ -135,9 +135,15 @@ export default function OrdersPage() {
             });
         }
 
-        const combinedOrders = [...manualOrders, ...shopifyEditableOrders];
+        let combinedOrders = [...manualOrders, ...shopifyEditableOrders];
+
+        // Apply any stored overrides to all orders first
+        combinedOrders = combinedOrders.map(order => {
+            const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
+            return { ...order, ...storedOverrides };
+        });
         
-        // De-duplication logic with status priority
+        // De-duplication and status unification logic
         const orderGroups = new Map<string, EditableOrder[]>();
         combinedOrders.forEach(order => {
             const group = orderGroups.get(order.orderId) || [];
@@ -145,39 +151,41 @@ export default function OrdersPage() {
             orderGroups.set(order.orderId, group);
         });
 
-        const deDupedOrders: EditableOrder[] = [];
+        const unifiedOrders: EditableOrder[] = [];
         const statusPriority = ['Voided', 'Refunded', 'Cancelled'];
 
-        orderGroups.forEach(group => {
-            let representativeOrder = group[0]; 
+        orderGroups.forEach((group, orderId) => {
+            // Find the most definitive record (usually a manual one or one with overrides)
+            const manualRecord = group.find(o => !o.id.startsWith('gid://') && !/^\d+$/.test(o.id));
+            const shopifyRecord = group.find(o => o.id.startsWith('gid://') || /^\d+$/.test(o.id));
+            let representativeOrder = manualRecord || shopifyRecord || group[0];
 
+            // Merge all data into the representative order
+            representativeOrder = group.reduce((acc, curr) => ({ ...acc, ...curr }), representativeOrder);
+            
+            // Unify status
             for (const status of statusPriority) {
-                const priorityOrder = group.find(o => o.paymentStatus === status || o.cancellationStatus === 'Processed' || o.refundStatus === 'Processed');
-                if (priorityOrder) {
-                    representativeOrder = priorityOrder;
+                if (group.some(o => o.paymentStatus === status || o.cancellationStatus === 'Processed' || o.refundStatus === 'Processed')) {
+                    if(status === 'Voided' || o.cancellationStatus === 'Processed') representativeOrder.paymentStatus = 'Voided';
+                    if(status === 'Refunded' || o.refundStatus === 'Processed') representativeOrder.paymentStatus = 'Refunded';
                     break;
                 }
             }
             
-            if (representativeOrder.cancellationStatus === 'Processed') {
-                representativeOrder.paymentStatus = 'Voided';
-            }
-            if (representativeOrder.refundStatus === 'Processed') {
-                 representativeOrder.paymentStatus = 'Refunded';
+             // Unify cancellationId
+            const sharedCancellationId = group.find(o => o.cancellationId)?.cancellationId;
+            if (sharedCancellationId) {
+                representativeOrder.cancellationId = sharedCancellationId;
+            } else {
+                 representativeOrder.cancellationId = `CNCL-${uuidv4().substring(0, 8).toUpperCase()}`;
             }
 
-            deDupedOrders.push(representativeOrder);
+            unifiedOrders.push(representativeOrder);
         });
 
+        const finalOrders = unifiedOrders.filter(o => o.paymentStatus !== 'Intent Verified');
 
-        const finalOrders = deDupedOrders.map(order => {
-            const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
-            return { ...order, ...storedOverrides };
-        });
-        
-        const filteredOrders = finalOrders.filter(o => o.paymentStatus !== 'Intent Verified');
-
-        setOrders(filteredOrders);
+        setOrders(finalOrders);
         setLoading(false);
     }
     fetchAndSetOrders();

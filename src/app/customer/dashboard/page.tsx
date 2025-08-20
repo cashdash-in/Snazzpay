@@ -41,75 +41,68 @@ export default function CustomerDashboardPage() {
         async function loadCustomerData() {
             setIsLoading(true);
             try {
-                // Step 1: Get all manual orders from local storage
+                // Step 1: Get all manual orders from local storage and apply overrides
                 const manualOrdersJSON = localStorage.getItem('manualOrders');
                 let allSnazzPayOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
-                
+
+                allSnazzPayOrders = allSnazzPayOrders.map(order => {
+                    const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
+                    return { ...order, ...storedOverrides };
+                });
+
+                // Filter for orders relevant to the logged-in customer
+                const customerSnazzPayOrders = allSnazzPayOrders.filter(order => {
+                    const normalize = (phone: string = '') => phone.replace(/[^0-9]/g, '');
+                    const orderContact = normalize(order.contactNo);
+                    const loggedInContact = normalize(loggedInMobile);
+                    if (!orderContact || !loggedInContact) return false;
+                    return orderContact.endsWith(loggedInContact) || loggedInContact.endsWith(orderContact);
+                });
+
                 // De-duplication and status priority logic
                 const orderGroups = new Map<string, EditableOrder[]>();
-                allSnazzPayOrders.forEach(order => {
+                customerSnazzPayOrders.forEach(order => {
                     const group = orderGroups.get(order.orderId) || [];
                     group.push(order);
                     orderGroups.set(order.orderId, group);
                 });
 
-                const deDupedOrders: EditableOrder[] = [];
+                const unifiedOrders: EditableOrder[] = [];
                 const statusPriority = ['Voided', 'Refunded', 'Cancelled'];
 
-                orderGroups.forEach(group => {
-                    let representativeOrder = group[0]; 
-
+                orderGroups.forEach((group) => {
+                    let representativeOrder = group.reduce((acc, curr) => ({ ...acc, ...curr }), group[0]);
+                    
                     for (const status of statusPriority) {
-                        const priorityOrder = group.find(o => o.paymentStatus === status || o.cancellationStatus === 'Processed' || o.refundStatus === 'Processed');
-                        if (priorityOrder) {
-                            representativeOrder = priorityOrder;
+                         if (group.some(o => o.paymentStatus === status || o.cancellationStatus === 'Processed' || o.refundStatus === 'Processed')) {
+                            if(status === 'Voided' || group.some(o => o.cancellationStatus === 'Processed')) representativeOrder.paymentStatus = 'Voided';
+                            if(status === 'Refunded' || group.some(o => o.refundStatus === 'Processed')) representativeOrder.paymentStatus = 'Refunded';
                             break;
                         }
                     }
-                    
-                    if (representativeOrder.cancellationStatus === 'Processed') {
-                        representativeOrder.paymentStatus = 'Voided';
-                    }
-                     if (representativeOrder.refundStatus === 'Processed') {
-                         representativeOrder.paymentStatus = 'Refunded';
-                    }
-                    
-                    deDupedOrders.push(representativeOrder);
-                });
 
-
-                // Step 2: Apply any saved overrides to every manual order
-                const ordersWithOverrides = deDupedOrders.map(order => {
-                    const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
-                    // Ensure a cancellationId exists for every order
-                    if (!storedOverrides.cancellationId && !order.cancellationId) {
-                        storedOverrides.cancellationId = `CNCL-${uuidv4().substring(0, 8).toUpperCase()}`;
-                        localStorage.setItem(`order-override-${order.id}`, JSON.stringify(storedOverrides));
+                    const sharedCancellationId = group.find(o => o.cancellationId)?.cancellationId;
+                    if (sharedCancellationId) {
+                        representativeOrder.cancellationId = sharedCancellationId;
+                    } else {
+                         representativeOrder.cancellationId = `CNCL-${uuidv4().substring(0, 8).toUpperCase()}`;
                     }
-                    return { ...order, ...storedOverrides };
-                });
 
-                // Step 3: Now, filter the updated list for the logged-in customer
-                const customerOrders = ordersWithOverrides.filter(order => {
-                    const normalize = (phone: string = '') => phone.replace(/[^0-9]/g, '');
-                    const orderContact = normalize(order.contactNo);
-                    const loggedInContact = normalize(loggedInMobile);
-                    
-                    if (!orderContact || !loggedInContact) return false;
-                    
-                    return orderContact.endsWith(loggedInContact) || loggedInContact.endsWith(orderContact);
+                    unifiedOrders.push(representativeOrder);
                 });
                 
+                const finalOrders = unifiedOrders.filter(o => o.paymentStatus !== 'Intent Verified');
+
                 // Step 4: Set state with the final, correct data
-                const customerName = customerOrders.length > 0 ? customerOrders[0].customerName : 'Valued Customer';
+                const customerName = finalOrders.length > 0 ? finalOrders[0].customerName : 'Valued Customer';
                 setUser({ name: customerName, mobile: loggedInMobile });
 
-                const activeOrderValue = customerOrders
+                const activeOrderValue = finalOrders
                     .filter(o => ['Pending', 'Authorized', 'Paid'].includes(o.paymentStatus))
                     .reduce((sum, o) => sum + parseFloat(o.price || '0'), 0);
                 
                 setWalletBalance(activeOrderValue);
-                setOrders(customerOrders);
+                setOrders(finalOrders);
 
             } catch (error) {
                 console.error("Error loading customer data:", error);
