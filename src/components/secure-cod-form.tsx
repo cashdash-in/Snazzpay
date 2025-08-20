@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Loader2, HelpCircle, AlertTriangle, User, Phone, Home, MapPin, BadgeCheck, ShieldCheck, CreditCard, Mail, Wallet } from "lucide-react";
+import { Loader2, HelpCircle, AlertTriangle, User, Phone, Home, MapPin, BadgeCheck, ShieldCheck, CreditCard, Mail, Wallet, LogIn } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
@@ -397,7 +397,7 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                         <Label htmlFor="terms" className="text-sm text-muted-foreground">I agree to the <Link href="/terms-and-conditions" target="_blank" className="underline text-primary">Terms and Conditions</Link>.</Label>
                     </div>
                 </CardContent>
-                <CardFooter className="flex flex-col gap-2">
+                <CardFooter className="flex flex-col gap-4">
                      {step === 'details' && (
                         <Button className="w-full" onClick={handleIntentVerification} disabled={!agreed || isProcessing}>
                             {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
@@ -410,9 +410,14 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                             Authorize ₹{totalAmount.toFixed(2)} on Card
                         </Button>
                      )}
-                    <Link href="/faq" passHref>
-                        <span className="text-sm text-primary hover:underline cursor-pointer inline-flex items-center gap-1"><HelpCircle className="h-4 w-4" />How does this work?</span>
-                    </Link>
+                    <div className="flex items-center justify-center space-x-4 text-sm">
+                        <Link href="/customer/login" passHref>
+                            <span className="text-primary hover:underline cursor-pointer inline-flex items-center gap-1"><LogIn className="h-4 w-4" />Customer Login</span>
+                        </Link>
+                        <Link href="/faq" passHref>
+                            <span className="text-primary hover:underline cursor-pointer inline-flex items-center gap-1"><HelpCircle className="h-4 w-4" />How does this work?</span>
+                        </Link>
+                    </div>
                 </CardFooter>
             </Card>
         </div>
