@@ -39,6 +39,7 @@ import {
   Users,
   FileSpreadsheet,
   LogIn,
+  Video,
 } from 'lucide-react';
 
 const menuItems = [
@@ -50,6 +51,7 @@ const menuItems = [
   { href: '/cancellations', label: 'Cancellations', icon: Ban },
   { href: '/refunds', label: 'Refunds', icon: CircleDollarSign },
   { href: '/reports', label: 'Reports', icon: FileSpreadsheet },
+  { href: '/explainer-video', label: 'Explainer Video', icon: Video },
   { href: '/cod-instructions', label: 'Embedding', icon: FileCode },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
