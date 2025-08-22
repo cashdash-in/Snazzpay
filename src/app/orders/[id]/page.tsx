@@ -316,7 +316,7 @@ function OrderDetailContent() {
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
-                        <Link href={`/invoice/${order.id}`} passHref>
+                        <Link href={`/invoice/${order.id}`}>
                           <Button variant="outline">
                             <Printer className="mr-2 h-4 w-4" />
                             Print Invoice
@@ -598,5 +598,3 @@ function OrderDetailContent() {
 export default function OrderDetailPage() {
     return <OrderDetailContent />;
 }
-
-    

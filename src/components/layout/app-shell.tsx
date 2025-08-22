@@ -74,7 +74,7 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
           <SidebarMenu>
             {menuItems.map((item) => (
               <SidebarMenuItem key={item.label}>
-                <Link href={item.href} passHref legacyBehavior>
+                <Link href={item.href}>
                   <SidebarMenuButton
                     isActive={pathname === item.href}
                     tooltip={item.label}
@@ -116,7 +116,7 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
                 <DropdownMenuSeparator />
                 <DropdownMenuItem>Profile</DropdownMenuItem>
                 <DropdownMenuItem>Billing</DropdownMenuItem>
-                <Link href="/customer/login" passHref target="_blank">
+                <Link href="/customer/login" target="_blank">
                   <DropdownMenuItem>
                     <LogIn className="mr-2 h-4 w-4" />
                     <span>Customer Login</span>

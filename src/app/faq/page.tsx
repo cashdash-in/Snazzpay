@@ -100,8 +100,8 @@ export default function FaqPage() {
                     </Tabs>
 
                     <div className="text-center mt-6">
-                        <Link href="/secure-cod" passHref>
-                            <span className="text-sm text-primary hover:underline cursor-pointer">Back to Secure COD Page</span>
+                        <Link href="/secure-cod" className="text-sm text-primary hover:underline cursor-pointer">
+                           Back to Secure COD Page
                         </Link>
                     </div>
                 </CardContent>

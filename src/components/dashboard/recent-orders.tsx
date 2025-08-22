@@ -102,7 +102,7 @@ export function RecentOrders() {
             {orders.map((order) => (
               <TableRow key={order.id}>
                 <TableCell>
-                  <Link href={`/orders/${order.id}`} passHref>
+                  <Link href={`/orders/${order.id}`}>
                     <div className="font-medium text-primary hover:underline cursor-pointer">{order.customerName}</div>
                     <div className="text-xs text-muted-foreground">{order.orderId}</div>
                   </Link>

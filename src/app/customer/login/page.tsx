@@ -86,8 +86,8 @@ export default function CustomerLoginPage() {
                     <Button className="w-full" onClick={handleLogin} disabled={isLoading || !mobileNumber || !password}>
                         {isLoading ? 'Processing...' : 'Login or Register'}
                     </Button>
-                    <Link href="/secure-cod" passHref>
-                         <span className="text-sm text-primary hover:underline cursor-pointer">Back to Main Page</span>
+                    <Link href="/secure-cod" className="text-sm text-primary hover:underline cursor-pointer">
+                        Back to Main Page
                     </Link>
                 </CardFooter>
             </Card>

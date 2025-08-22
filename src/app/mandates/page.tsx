@@ -146,8 +146,8 @@ export default function MandatesPage() {
               {allMandates.map((mandate) => (
                 <TableRow key={mandate.orderId}>
                   <TableCell>
-                      <Link href={mandate.orderLink} passHref>
-                          <span className="font-medium text-primary hover:underline cursor-pointer">{mandate.orderId}</span>
+                      <Link href={mandate.orderLink} className="font-medium text-primary hover:underline cursor-pointer">
+                          {mandate.orderId}
                       </Link>
                   </TableCell>
                   <TableCell>{mandate.customerName}</TableCell>
@@ -167,5 +167,3 @@ export default function MandatesPage() {
     </AppShell>
   );
 }
-
-    

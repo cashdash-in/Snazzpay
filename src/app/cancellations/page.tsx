@@ -145,7 +145,7 @@ export default function CancellationsPage() {
                 <CardTitle>Cancellation Management</CardTitle>
                 <CardDescription>View and manage all order cancellations. Click an Order ID to see full details.</CardDescription>
             </div>
-            <Link href="/orders/new" passHref>
+            <Link href="/orders/new">
               <Button>
                   <PlusCircle className="mr-2 h-4 w-4" />
                   Add Order
@@ -175,8 +175,8 @@ export default function CancellationsPage() {
                 {orders.map((order) => (
                   <TableRow key={order.id}>
                     <TableCell>
-                        <Link href={`/orders/${order.id}`} passHref>
-                            <span className="font-medium text-primary hover:underline cursor-pointer">{order.orderId}</span>
+                        <Link href={`/orders/${order.id}`} className="font-medium text-primary hover:underline cursor-pointer">
+                          {order.orderId}
                         </Link>
                     </TableCell>
                     <TableCell><Input value={order.customerName} onChange={(e) => handleFieldChange(order.id, 'customerName', e.target.value)} className="w-40" /></TableCell>
@@ -216,5 +216,3 @@ export default function CancellationsPage() {
     </AppShell>
   );
 }
-
-    

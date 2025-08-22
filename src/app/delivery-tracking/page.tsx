@@ -191,7 +191,7 @@ export default function DeliveryTrackingPage() {
                     <CardTitle>Delivery Management</CardTitle>
                     <CardDescription>Manage dispatch details and delivery status. Click an Order ID to see full details.</CardDescription>
                 </div>
-                <Link href="/orders/new" passHref>
+                <Link href="/orders/new">
                     <Button>
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Add Order
@@ -223,8 +223,8 @@ export default function DeliveryTrackingPage() {
                   {orders.map((order) => (
                     <TableRow key={order.id}>
                       <TableCell>
-                        <Link href={`/orders/${order.id}`} passHref>
-                            <span className="font-medium text-primary hover:underline cursor-pointer">{order.orderId}</span>
+                        <Link href={`/orders/${order.id}`} className="font-medium text-primary hover:underline cursor-pointer">
+                          {order.orderId}
                         </Link>
                       </TableCell>
                       <TableCell>
