@@ -94,7 +94,7 @@ export default function SnazzifyCoinPage() {
     };
 
     return (
-        <AppShell title="Partner Pay System">
+        <AppShell title="Snazzify Coin System">
             <Tabs defaultValue="overview">
                 <TabsList className="grid w-full grid-cols-4 max-w-2xl mx-auto">
                     <TabsTrigger value="overview">
@@ -114,20 +114,21 @@ export default function SnazzifyCoinPage() {
                 <TabsContent value="overview">
                      <Card>
                         <CardHeader>
-                            <CardTitle>Partner Pay: Digital Cash Collections</CardTitle>
-                            <CardDescription>A fully digital system empowering local shopkeepers to act as cash collection points without physical inventory.</CardDescription>
+                            <CardTitle>Snazzify Coin: The Digital Cash Ecosystem</CardTitle>
+                            <CardDescription>A revolutionary system empowering local shopkeepers to act as cash collection and delivery hubs.</CardDescription>
                         </CardHeader>
                         <CardContent>
                              <Alert>
                                 <Info className="h-4 w-4" />
-                                <AlertTitle>How It Works</AlertTitle>
+                                <AlertTitle>The Win-Win-Win Business Model</AlertTitle>
                                 <AlertDescription>
                                     <ol className="list-decimal list-inside space-y-2 mt-2">
-                                        <li><b>Your local shopkeeper (Partner) is given a digital credit line or balance in the app.</b></li>
-                                        <li><b>A customer pays the partner cash for their order.</b></li>
-                                        <li><b>The partner uses this portal to generate a unique digital payment code for the exact value of the transaction.</b></li>
-                                        <li><b>The partner shares this code with the customer via SMS, WhatsApp, or a simple printed receipt.</b></li>
-                                        <li><b>The customer uses the code to confirm their payment on your website or via a phone call (IVR). The order is then marked as 'Paid' and dispatched.</b></li>
+                                        <li><b>Shopkeeper Onboarding:</b> A local shopkeeper (Partner) signs up with their business documents and bank details. After paying a small tie-up fee, they receive a digital credit balance of "Snazzify Coins" on their dedicated mobile app.</li>
+                                        <li><b>Customer Pays with Cash:</b> A customer without digital payment options pays the partner cash for their online order.</li>
+                                        <li><b>Digital Code Generation:</b> The partner uses their app to instantly generate a unique, single-use "Snazzify Coin" code for the exact transaction amount. The partner's coin balance is debited.</li>
+                                        <li><b>Code Sharing:</b> The partner shares this secure code with the customer via SMS, WhatsApp, or a simple printed receipt from their thermal printer.</li>
+                                        <li><b>Customer Confirms Order:</b> The customer uses this code on the Snazzify website or via a phone call to finalize their purchase. The order is marked as 'Paid' and is dispatched.</li>
+                                        <li><b>Logistics & Delivery Hub:</b> Logistics partners can use the trusted shopkeeper's location as a secure drop-off and pickup point for parcels in the area, creating an additional revenue stream for the partner.</li>
                                     </ol>
                                 </AlertDescription>
                             </Alert>
@@ -137,8 +138,8 @@ export default function SnazzifyCoinPage() {
                 <TabsContent value="orders">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Partner Pay Orders</CardTitle>
-                            <CardDescription>View all orders placed and secured using the Partner Pay digital code system.</CardDescription>
+                            <CardTitle>Snazzify Coin Orders</CardTitle>
+                            <CardDescription>View all orders placed and secured using the Snazzify Coin digital code system.</CardDescription>
                         </CardHeader>
                         <CardContent>
                            <Table>
@@ -173,7 +174,7 @@ export default function SnazzifyCoinPage() {
                         <CardHeader className="flex flex-row items-center justify-between">
                             <div>
                                 <CardTitle>Partner Network</CardTitle>
-                                <CardDescription>Manage your network of trusted shopkeepers and their digital balances.</CardDescription>
+                                <CardDescription>Manage your network of trusted shopkeepers and their digital coin balances.</CardDescription>
                             </div>
                              <Dialog>
                                 <DialogTrigger asChild>
@@ -206,6 +207,12 @@ export default function SnazzifyCoinPage() {
                                                 Contact No.
                                             </Label>
                                             <Input id="contact" placeholder="e.g., 9988776655" className="col-span-3" />
+                                        </div>
+                                         <div className="grid grid-cols-4 items-center gap-4">
+                                            <Label htmlFor="balance" className="text-right">
+                                                Initial Balance
+                                            </Label>
+                                            <Input id="balance" type="number" placeholder="e.g., 10000" className="col-span-3" />
                                         </div>
                                     </div>
                                     <DialogFooter>
@@ -369,5 +376,3 @@ export default function SnazzifyCoinPage() {
         </AppShell>
     )
 }
-
-    
