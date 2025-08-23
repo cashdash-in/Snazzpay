@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogOut, Wallet, Package, QrCode, Clipboard, PackageCheck, Send, MessageSquare, AlertTriangle, FileUp, Edit, ShieldCheck, CheckCircle, Copy, User, Phone } from "lucide-react";
+import { LogOut, Wallet, Package, QrCode, Clipboard, PackageCheck, Send, MessageSquare, AlertTriangle, FileUp, Edit, ShieldCheck, CheckCircle, Copy, User, Phone, Home } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +17,7 @@ import { format } from 'date-fns';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Textarea } from '@/components/ui/textarea';
+import { getRazorpayKeyId } from '@/app/actions';
 
 
 const mockPartner = {
@@ -50,15 +51,20 @@ export default function PartnerPayDashboardPage() {
     const [isSettling, setIsSettling] = useState(false);
     const [razorpayKeyId, setRazorpayKeyId] = useState<string | null>(null);
 
-    const [customerInfo, setCustomerInfo] = useState({ name: '', phone: '' });
+    const [customerInfo, setCustomerInfo] = useState({ name: '', phone: '', address: '' });
 
     const [collectorName, setCollectorName] = useState('');
     const [deliveryNotes, setDeliveryNotes] = useState('');
     
     useEffect(() => {
-        const key = localStorage.getItem('razorpay_key_id');
-        if (key) setRazorpayKeyId(key);
-    }, []);
+        getRazorpayKeyId().then(key => {
+            if (key) {
+                setRazorpayKeyId(key);
+            } else {
+                 toast({ variant: 'destructive', title: "Configuration Error", description: "Could not fetch Razorpay Key ID from the server." });
+            }
+        });
+    }, [toast]);
 
     const handleLogout = () => {
         toast({ title: "Logged Out", description: "You have been successfully logged out." });
@@ -217,6 +223,7 @@ export default function PartnerPayDashboardPage() {
                                     <Label>Customer Details (for your records)</Label>
                                     <div className="relative"><User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="customer-name" placeholder="Customer Name" value={customerInfo.name} onChange={(e) => setCustomerInfo(p => ({...p, name: e.target.value}))} className="pl-9" /></div>
                                     <div className="relative"><Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="customer-phone" placeholder="Customer Phone" value={customerInfo.phone} onChange={(e) => setCustomerInfo(p => ({...p, phone: e.target.value}))} className="pl-9" /></div>
+                                     <div className="relative"><Home className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="customer-address" placeholder="Customer Address" value={customerInfo.address} onChange={(e) => setCustomerInfo(p => ({...p, address: e.target.value}))} className="pl-9" /></div>
                                 </div>
                                 <Dialog onOpenChange={(open) => { if (!open) setConfirmedSellerTxCode('') }}>
                                     <DialogTrigger asChild>
