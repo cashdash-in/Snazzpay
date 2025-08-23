@@ -4,7 +4,7 @@
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Coins, Package, Handshake, Info, PlusCircle, Printer, Download, Loader2, QrCode, Check, X } from 'lucide-react';
+import { Coins, Package, Handshake, Info, PlusCircle, Printer, Download, Loader2, QrCode, Check, X, Eye } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
@@ -180,12 +180,13 @@ export default function PartnerPayPage() {
                                         <TableHead>Balance</TableHead>
                                         <TableHead>Total Collected</TableHead>
                                         <TableHead>Status</TableHead>
+                                        <TableHead>Details</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {partners.map(partner => (
                                         <TableRow key={partner.id}>
-                                            <TableCell className="font-medium">{partner.id}</TableCell>
+                                            <TableCell className="font-medium font-mono text-xs">{partner.id}</TableCell>
                                             <TableCell>{partner.companyName}</TableCell>
                                             <TableCell>₹{partner.balance.toFixed(2)}</TableCell>
                                             <TableCell>₹{partner.totalCollected.toFixed(2)}</TableCell>
@@ -193,6 +194,26 @@ export default function PartnerPayPage() {
                                                 <Badge variant={partner.status === 'approved' ? 'default' : 'secondary'} className={partner.status === 'approved' ? 'bg-green-100 text-green-800' : ''}>
                                                     {partner.status}
                                                 </Badge>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Dialog>
+                                                    <DialogTrigger asChild>
+                                                        <Button variant="ghost" size="icon"><Eye className="h-4 w-4" /></Button>
+                                                    </DialogTrigger>
+                                                    <DialogContent>
+                                                        <DialogHeader>
+                                                            <DialogTitle>{partner.companyName} - Details</DialogTitle>
+                                                            <DialogDescription>Full KYC and contact information for this partner.</DialogDescription>
+                                                        </DialogHeader>
+                                                        <div className="space-y-2 text-sm">
+                                                            <p><strong>Partner ID:</strong> <span className="font-mono">{partner.id}</span></p>
+                                                            <p><strong>Contact Phone:</strong> {partner.phone}</p>
+                                                            <p><strong>Address:</strong> {partner.address}</p>
+                                                            <p><strong>PAN:</strong> <span className="font-mono">{partner.pan}</span></p>
+                                                            <p><strong>Aadhaar:</strong> <span className="font-mono">{partner.aadhaar}</span></p>
+                                                        </div>
+                                                    </DialogContent>
+                                                </Dialog>
                                             </TableCell>
                                         </TableRow>
                                     ))}

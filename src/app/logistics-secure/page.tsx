@@ -8,14 +8,14 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useEffect, useMemo } from "react";
-import { PlusCircle, Save, Loader2, Trash2, MoreVertical, Search, Check, X, ShieldQuestion } from "lucide-react";
+import { PlusCircle, Save, Loader2, Trash2, MoreVertical, Search, Check, X, ShieldQuestion, Eye } from "lucide-react";
 import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import type { EditableOrder } from '../orders/page';
 import { format } from "date-fns";
 import { v4 as uuidv4 } from 'uuid';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -53,7 +53,6 @@ export default function LogisticsHubPage() {
     const [partners, setPartners] = useState<LogisticsPartnerData[]>([]);
     const [partnerRequests, setPartnerRequests] = useState<LogisticsPartnerData[]>([]);
     const [loading, setLoading] = useState(true);
-    const [newPartner, setNewPartner] = useState({ name: '', contactPerson: '', contactEmail: '' });
     const { toast } = useToast();
 
     useEffect(() => {
@@ -217,16 +216,37 @@ export default function LogisticsHubPage() {
                     </CardHeader>
                      <CardContent>
                         <Table>
-                            <TableHeader><TableRow><TableHead>Partner Name</TableHead><TableHead>Total Shipments</TableHead><TableHead>Delivered</TableHead><TableHead>Out for Delivery</TableHead><TableHead>NDR</TableHead><TableHead>RTO</TableHead></TableRow></TableHeader>
+                            <TableHeader><TableRow><TableHead>Partner ID</TableHead><TableHead>Partner Name</TableHead><TableHead>Total Shipments</TableHead><TableHead>Delivered</TableHead><TableHead>Out for Delivery</TableHead><TableHead>NDR</TableHead><TableHead>RTO</TableHead><TableHead>Details</TableHead></TableRow></TableHeader>
                             <TableBody>
                                 {partnerStats.map(p => (
                                     <TableRow key={p.id}>
+                                        <TableCell className="font-mono text-xs">{p.id}</TableCell>
                                         <TableCell><div className="font-medium">{p.companyName}</div><div className="text-xs text-muted-foreground">{p.phone}</div></TableCell>
                                         <TableCell>{p.totalShipments}</TableCell>
                                         <TableCell className="text-green-600 font-medium">{p.delivered}</TableCell>
                                         <TableCell>{p.outForDelivery}</TableCell>
                                         <TableCell className="text-red-600">{p.ndr}</TableCell>
                                         <TableCell className="text-orange-600">{p.rto}</TableCell>
+                                        <TableCell>
+                                             <Dialog>
+                                                <DialogTrigger asChild>
+                                                    <Button variant="ghost" size="icon"><Eye className="h-4 w-4" /></Button>
+                                                </DialogTrigger>
+                                                <DialogContent>
+                                                    <DialogHeader>
+                                                        <DialogTitle>{p.companyName} - Details</DialogTitle>
+                                                        <DialogDescription>Full KYC and contact information for this partner.</DialogDescription>
+                                                    </DialogHeader>
+                                                    <div className="space-y-2 text-sm">
+                                                        <p><strong>Partner ID:</strong> <span className="font-mono">{p.id}</span></p>
+                                                        <p><strong>Contact Phone:</strong> {p.phone}</p>
+                                                        <p><strong>Address:</strong> {p.address}</p>
+                                                        <p><strong>PAN:</strong> <span className="font-mono">{p.pan}</span></p>
+                                                        <p><strong>Aadhaar:</strong> <span className="font-mono">{p.aadhaar}</span></p>
+                                                    </div>
+                                                </DialogContent>
+                                            </Dialog>
+                                        </TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>

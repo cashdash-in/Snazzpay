@@ -18,13 +18,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Textarea } from '@/components/ui/textarea';
 import { getRazorpayKeyId } from '@/app/actions';
+import type { PartnerData } from '../page';
 
-
-const mockPartner = {
-    name: 'Gupta General Store',
-    balance: 7500.00,
-    totalEarnings: 1250.00
-};
 
 type TransactionStatus = 'In Process' | 'Completed' | 'Refunded' | 'Refund Requested';
 
@@ -52,7 +47,7 @@ const initialParcels = [
 export default function PartnerPayDashboardPage() {
     const { toast } = useToast();
     const router = useRouter();
-    const [partner, setPartner] = useState(mockPartner);
+    const [partner, setPartner] = useState<PartnerData | null>(null);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [parcels, setParcels] = useState(initialParcels);
     const [transactionValue, setTransactionValue] = useState('');
@@ -64,16 +59,40 @@ export default function PartnerPayDashboardPage() {
     const [deliveryNotes, setDeliveryNotes] = useState('');
 
     useEffect(() => {
+        const loggedInPartnerId = localStorage.getItem('loggedInPartnerId');
+        if (!loggedInPartnerId) {
+            router.push('/partner-pay/login');
+            return;
+        }
+
+        const allPartnersJSON = localStorage.getItem('payPartners');
+        const allPartners: PartnerData[] = allPartnersJSON ? JSON.parse(allPartnersJSON) : [];
+        const currentPartner = allPartners.find(p => p.id === loggedInPartnerId);
+
+        if (!currentPartner) {
+            toast({ variant: 'destructive', title: "Authentication Error", description: "Could not find your partner details." });
+            router.push('/partner-pay/login');
+            return;
+        }
+
+        setPartner(currentPartner);
+
         getRazorpayKeyId().then(key => setRazorpayKeyId(key));
-        const storedTransactions = localStorage.getItem('partnerTransactions');
+        
+        // Load transactions specific to this partner
+        const storedTransactions = localStorage.getItem(`partnerTransactions_${loggedInPartnerId}`);
         setTransactions(storedTransactions ? JSON.parse(storedTransactions) : initialTransactions);
-    }, []);
+
+    }, [router, toast]);
 
     useEffect(() => {
-        localStorage.setItem('partnerTransactions', JSON.stringify(transactions));
-    }, [transactions]);
+        if (partner) {
+            localStorage.setItem(`partnerTransactions_${partner.id}`, JSON.stringify(transactions));
+        }
+    }, [transactions, partner]);
     
     const handleLogout = () => {
+        localStorage.removeItem('loggedInPartnerId');
         toast({ title: "Logged Out", description: "You have been successfully logged out." });
         router.push('/partner-pay/login');
     };
@@ -84,7 +103,7 @@ export default function PartnerPayDashboardPage() {
             toast({ variant: 'destructive', title: "Invalid Value", description: "Please enter a valid transaction amount." });
             return;
         }
-        if (amount > partner.balance) {
+        if (!partner || amount > partner.balance) {
              toast({ variant: 'destructive', title: "Insufficient Balance", description: "Your Snazzify Coin balance is too low. Please request a top-up." });
              return;
         }
@@ -102,7 +121,7 @@ export default function PartnerPayDashboardPage() {
             const response = await fetch('/api/create-payment-link', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ amount: transactionValue, customerName: partner.name, isPartnerSettlement: true })
+                body: JSON.stringify({ amount: transactionValue, customerName: partner.companyName, isPartnerSettlement: true })
             });
             const result = await response.json();
             if (!response.ok) throw new Error(result.error);
@@ -124,13 +143,13 @@ export default function PartnerPayDashboardPage() {
                         sellerTransactionCode: response.razorpay_payment_id
                     };
                     setTransactions(prev => [newTransaction, ...prev]);
-                    setPartner(prev => ({ ...prev, balance: prev.balance - amount }));
+                    setPartner(prev => prev ? ({ ...prev, balance: prev.balance - amount }) : null);
                     toast({ title: "Settlement Successful!", description: `Transaction code ${response.razorpay_payment_id} is now in your transaction list.` });
                     setTransactionValue('');
                     setCustomerInfo({ name: '', phone: '', address: '' });
                     setIsSettling(false);
                 },
-                prefill: { name: partner.name },
+                prefill: { name: partner.companyName },
                 theme: { color: "#5a31f4" },
                 modal: { ondismiss: () => setIsSettling(false) }
             };
@@ -186,7 +205,7 @@ export default function PartnerPayDashboardPage() {
             const result = await response.json();
             if (!response.ok) throw new Error(result.error);
             setTransactions(prev => prev.map(t => t.id === tx.id ? {...t, status: 'Refunded'} : t));
-            setPartner(prev => ({ ...prev, balance: prev.balance + tx.value })); // Refund coins
+            setPartner(prev => prev ? ({ ...prev, balance: prev.balance + tx.value }) : null); // Refund coins
             toast({ title: "Refund Processed", description: `Refund for ₹${tx.value} has been successfully initiated.`});
         } catch (e: any) {
             toast({ variant: 'destructive', title: "Refund Failed", description: e.message });
@@ -218,6 +237,10 @@ export default function PartnerPayDashboardPage() {
         });
     }
 
+    if (!partner) {
+        return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+    }
+
     const canSettle = partner.balance >= parseFloat(transactionValue || '0');
 
     return (
@@ -225,7 +248,7 @@ export default function PartnerPayDashboardPage() {
             <div className="max-w-7xl mx-auto">
                  <header className="flex flex-col sm:flex-row justify-between sm:items-center mb-8">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-800">Welcome, {partner.name}</h1>
+                        <h1 className="text-3xl font-bold text-gray-800">Welcome, {partner.companyName}</h1>
                         <p className="text-muted-foreground">Your Partner Pay Dashboard.</p>
                     </div>
                      <Button variant="outline" onClick={handleLogout}>

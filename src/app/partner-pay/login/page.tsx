@@ -43,6 +43,7 @@ export default function PartnerPayLoginPage() {
 
         setTimeout(() => {
             if (partner || (partnerId === 'partner-admin' && password === 'password')) { // Add a backdoor for easy access
+                 localStorage.setItem('loggedInPartnerId', partnerId);
                  toast({
                     title: "Login Successful",
                     description: "Redirecting you to your partner dashboard.",
