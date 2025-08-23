@@ -4,8 +4,8 @@
 import { z } from 'zod';
 
 // These keys would need to be set as environment variables in apphosting.yaml
-const SHIPROCKET_API_USER = process.env.SHIPROCKET_API_USER;
-const SHIPROCKET_API_PASSWORD = process.env.SHIPROCKET_API_PASSWORD;
+const LOGISTICS_API_USER = process.env.LOGISTICS_API_USER;
+const LOGISTICS_API_PASSWORD = process.env.LOGISTICS_API_PASSWORD;
 
 // This is a placeholder for the authentication token.
 // In a real implementation, you would fetch this token and cache it.
@@ -45,17 +45,17 @@ async function getAuthToken(): Promise<string> {
         return authToken;
     }
 
-    // In a real implementation, you would make a POST request to Shiprocket's auth endpoint
-    // https://apidocs.shiprocket.in/v1/reference/auth
-    console.log('Fetching new Shiprocket auth token...');
+    // In a real implementation, you would make a POST request to your logistics provider's auth endpoint
+    // e.g., for Shiprocket: https://apidocs.shiprocket.in/v1/reference/auth
+    console.log('Fetching new logistics auth token...');
     // const response = await fetch("https://apiv2.shiprocket.in/v1/external/auth/login", { ... });
     // const data = await response.json();
     // authToken = data.token;
     
     // For this example, we'll use a placeholder.
     authToken = "placeholder_auth_token";
-    if (!SHIPROCKET_API_USER || !SHIPROCKET_API_PASSWORD) {
-        console.warn("Shiprocket API credentials are not set on the server.");
+    if (!LOGISTICS_API_USER || !LOGISTICS_API_PASSWORD) {
+        console.warn("Logistics API credentials are not set on the server.");
     }
     
     return authToken;
@@ -65,6 +65,7 @@ async function getAuthToken(): Promise<string> {
 /**
  * Creates a shipment with the logistics partner.
  * This is a placeholder and would need to be implemented with a real API.
+ * The example below uses a mock Shiprocket API response.
  * @param order The order details to send.
  * @returns The result from the logistics partner API.
  */
@@ -73,19 +74,19 @@ export async function createShipment(order: z.infer<typeof OrderDetailsSchema>) 
     
     console.log("Attempting to book shipment for order:", order.order_id);
     
-    // Placeholder: In a real app, you would make a POST request to the Shiprocket API here.
-    // API Docs: https://apidocs.shiprocket.in/v1/reference/create-quick-order
+    // Placeholder: In a real app, you would make a POST request to your chosen logistics API here.
+    // e.g., for Shiprocket: https://apidocs.shiprocket.in/v1/reference/create-quick-order
     
     // Simulating a successful response
     const mockResponse = {
         "order_id": order.order_id,
-        "shipment_id": `SR-${Math.floor(Math.random() * 100000)}`,
+        "shipment_id": `LOGISTICS-${Math.floor(Math.random() * 100000)}`,
         "status": "NEW",
         "status_code": 1,
         "onboarding_completed": true,
-        "awb_code": `SR-AWB-${Math.floor(Math.random() * 1000000)}`,
+        "awb_code": `LOGISTICS-AWB-${Math.floor(Math.random() * 1000000)}`,
         "courier_company_id": "1",
-        "courier_name": "Delhivery"
+        "courier_name": "Logistics Provider"
     };
 
     console.log("Mock shipment response:", mockResponse);
@@ -105,8 +106,8 @@ export async function getTrackingInfo(trackingNumber: string) {
     
     console.log("Fetching tracking info for:", trackingNumber);
 
-    // Placeholder: In a real app, you would make a GET request to the Shiprocket API here.
-    // API Docs: https://apidocs.shiprocket.in/v1/reference/get-tracking-by-awb
+    // Placeholder: In a real app, you would make a GET request to your logistics provider's API here.
+    // e.g., for Shiprocket: https://apidocs.shiprocket.in/v1/reference/get-tracking-by-awb
     
     // Simulating a successful response
     const mockResponse = {
@@ -115,11 +116,11 @@ export async function getTrackingInfo(trackingNumber: string) {
             "shipment_status": 7, // Example: "DELIVERED"
             "shipment_track": [
                 { "date": "2024-05-20 10:00:00", "status": "PICKED UP", "activity": "Shipment has been picked up" },
-                { "date": "2024-05-21 14:00:00", "status": "IN TRANSIT", "activity": "Shipment has reached Delhi hub" },
+                { "date": "2024-05-21 14:00:00", "status": "IN TRANSIT", "activity": "Shipment has reached destination hub" },
                 { "date": "2024-05-22 09:00:00", "status": "OUT FOR DELIVERY", "activity": "Out for delivery" },
                 { "date": "2024-05-22 13:00:00", "status": "DELIVERED", "activity": "Shipment delivered" }
             ],
-            "track_url": `https://shiprocket.co/tracking/${trackingNumber}`
+            "track_url": `https://your-logistics.co/tracking/${trackingNumber}`
         }
     };
     

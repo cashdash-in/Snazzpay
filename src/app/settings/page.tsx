@@ -47,13 +47,13 @@ export default function SettingsPage() {
     if (savedGmailEmail) {
         setNotificationSettings(prev => ({...prev, gmailEmail: savedGmailEmail}));
     }
-    const savedShiprocketUser = localStorage.getItem('shiprocket_api_user');
-    const savedShiprocketPassword = localStorage.getItem('shiprocket_api_password');
-     if (savedShiprocketUser) {
-      setLogisticsSettings(prev => ({ ...prev, apiUser: savedShiprocketUser }));
+    const savedLogisticsUser = localStorage.getItem('logistics_api_user');
+    const savedLogisticsPassword = localStorage.getItem('logistics_api_password');
+     if (savedLogisticsUser) {
+      setLogisticsSettings(prev => ({ ...prev, apiUser: savedLogisticsUser }));
     }
-    if (savedShiprocketPassword) {
-      setLogisticsSettings(prev => ({ ...prev, apiPassword: savedShiprocketPassword }));
+    if (savedLogisticsPassword) {
+      setLogisticsSettings(prev => ({ ...prev, apiPassword: savedLogisticsPassword }));
     }
   }, []);
 
@@ -85,8 +85,8 @@ export default function SettingsPage() {
         localStorage.setItem('gmail_app_email', notificationSettings.gmailEmail);
         localStorage.setItem('gmail_app_password', notificationSettings.gmailPassword);
     } else if (type === 'logistics') {
-        localStorage.setItem('shiprocket_api_user', logisticsSettings.apiUser);
-        localStorage.setItem('shiprocket_api_password', logisticsSettings.apiPassword);
+        localStorage.setItem('logistics_api_user', logisticsSettings.apiUser);
+        localStorage.setItem('logistics_api_password', logisticsSettings.apiPassword);
     }
 
     toast({
@@ -213,9 +213,9 @@ export default function SettingsPage() {
          <TabsContent value="logistics">
           <Card>
             <CardHeader>
-              <CardTitle>Logistics Integration (Shiprocket)</CardTitle>
+              <CardTitle>Logistics Integration</CardTitle>
               <CardDescription>
-                Connect your Shiprocket account to book shipments and track deliveries.
+                Connect your logistics account (e.g., Shiprocket, Delhivery) to book shipments and track deliveries.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -223,30 +223,30 @@ export default function SettingsPage() {
                 <Rocket className="h-4 w-4" />
                 <AlertTitle>Action Required!</AlertTitle>
                 <AlertDescription>
-                  For Shiprocket integration to work, you must set your API credentials as environment variables in `apphosting.yaml`.
+                  For logistics integration to work, you must set your API credentials as environment variables in `apphosting.yaml`. The example uses Shiprocket, but you can adapt it for any provider.
                   <ul className="list-disc pl-5 mt-2">
-                    <li><span className="font-mono text-xs">SHIPROCKET_API_USER</span> (Your Shiprocket API user email)</li>
-                    <li><span className="font-mono text-xs">SHIPROCKET_API_PASSWORD</span> (Your Shiprocket API password)</li>
+                    <li><span className="font-mono text-xs">LOGISTICS_API_USER</span> (Your logistics API user/email)</li>
+                    <li><span className="font-mono text-xs">LOGISTICS_API_PASSWORD</span> (Your logistics API password/secret)</li>
                   </ul>
                 </AlertDescription>
               </Alert>
               <div className="space-y-2">
-                <Label htmlFor="shiprocket-api-user">API User (Email)</Label>
+                <Label htmlFor="logistics-api-user">API User / Email</Label>
                 <Input 
-                  id="shiprocket-api-user" 
+                  id="logistics-api-user" 
                   name="apiUser"
-                  placeholder="Your Shiprocket account email" 
+                  placeholder="Your logistics account email or user" 
                   value={logisticsSettings.apiUser}
                   onChange={handleLogisticsChange}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="shiprocket-api-password">API Password</Label>
+                <Label htmlFor="logistics-api-password">API Password / Secret</Label>
                 <Input 
-                  id="shiprocket-api-password" 
+                  id="logistics-api-password" 
                   name="apiPassword"
                   type="password" 
-                  placeholder="Your Shiprocket API password" 
+                  placeholder="Your logistics API password or secret" 
                   value={logisticsSettings.apiPassword}
                   onChange={handleLogisticsChange}
                 />

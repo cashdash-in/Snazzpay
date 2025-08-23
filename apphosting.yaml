@@ -18,8 +18,9 @@ runConfig:
     SHOPIFY_API_SECRET: "your_shopify_api_secret_here"
     GMAIL_APP_EMAIL: "snazzycoin@gmail.com"
     GMAIL_APP_PASSWORD: "brofayfogltmomoh"
-    SHIPROCKET_API_USER: "your_shiprocket_api_user_email"
-    SHIPROCKET_API_PASSWORD: "your_shiprocket_api_password"
+    LOGISTICS_API_USER: "your_logistics_api_user_email"
+    LOGISTICS_API_PASSWORD: "your_logistics_api_password"
+
 
 
 
