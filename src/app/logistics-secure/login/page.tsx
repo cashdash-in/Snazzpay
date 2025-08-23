@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,6 @@ export default function LogisticsLoginPage() {
     const [agentId, setAgentId] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [loginSuccess, setLoginSuccess] = useState(false);
 
     const handleLogin = () => {
         setIsLoading(true);
@@ -28,21 +27,20 @@ export default function LogisticsLoginPage() {
             return;
         }
 
-        // Simulate a successful login and set state to trigger redirection
+        // Simulate a successful login and redirect
         setTimeout(() => {
             toast({
                 title: "Login Successful",
                 description: "Redirecting you to your logistics dashboard...",
             });
-            setLoginSuccess(true);
+            
+            // Use requestAnimationFrame as a workaround to ensure navigation happens
+            requestAnimationFrame(() => {
+                router.push('/logistics-secure/dashboard');
+            });
+
         }, 500);
     }
-    
-    useEffect(() => {
-        if (loginSuccess) {
-            router.push('/logistics-secure/dashboard');
-        }
-    }, [loginSuccess, router]);
 
     return (
         <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
