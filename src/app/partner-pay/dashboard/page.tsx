@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -5,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogOut, Wallet, Package, QrCode, Clipboard, Check, PackageSearch, PackageCheck, Send, MessageSquare } from "lucide-react";
+import { LogOut, Wallet, Package, QrCode, Clipboard, PackageSearch, PackageCheck, Send, MessageSquare, AlertTriangle, FileUp, Edit } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +14,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Textarea } from '@/components/ui/textarea';
+
 
 const mockPartner = {
     name: 'Gupta General Store',
@@ -25,9 +30,10 @@ const mockTransactions = [
     { id: 'SNC-E5F6', customerId: 'CUST-002', value: 1200, date: '2024-05-24 02:15 PM' },
 ];
 
-const mockParcels = [
-    { id: '#SNZ-9876', customer: 'Priya S.', status: 'Waiting for Pickup' },
-    { id: '#SNZ-9875', customer: 'Amit K.', status: 'Picked Up' },
+const initialParcels = [
+    { id: '#SNZ-9876', customer: 'Priya S.', status: 'Waiting for Pickup', awb: 'DLV123456', courier: 'Delhivery', dispatchDate: '2024-05-23', estArrival: '2024-05-25' },
+    { id: '#SNZ-9875', customer: 'Amit K.', status: 'Picked Up', awb: 'BLD789012', courier: 'BlueDart', dispatchDate: '2024-05-22', estArrival: '2024-05-24' },
+    { id: '#SNZ-9874', customer: 'Rina V.', status: 'Ready for Pickup', awb: 'XPS345678', courier: 'XpressBees', dispatchDate: '2024-05-24', estArrival: '2024-05-26' },
 ];
 
 
@@ -36,12 +42,13 @@ export default function PartnerPayDashboardPage() {
     const router = useRouter();
     const [partner] = useState(mockPartner);
     const [transactions, setTransactions] = useState(mockTransactions);
-    const [parcels, setParcels] = useState(mockParcels);
+    const [parcels, setParcels] = useState(initialParcels);
     const [generatedCode, setGeneratedCode] = useState('');
     const [transactionValue, setTransactionValue] = useState('');
+    const [collectorName, setCollectorName] = useState('');
+    const [deliveryNotes, setDeliveryNotes] = useState('');
 
     const handleLogout = () => {
-        // In a real app, you'd clear session/token
         toast({ title: "Logged Out", description: "You have been successfully logged out." });
         router.push('/partner-pay/login');
     };
@@ -67,6 +74,29 @@ export default function PartnerPayDashboardPage() {
             description: `A WhatsApp & SMS has been sent to the customer for parcel ${parcelId}.`
         });
     };
+
+    const handleMarkAsDelivered = (parcelId: string) => {
+        if (!collectorName) {
+            toast({ variant: 'destructive', title: "Missing Information", description: "Please enter the name of the person who collected the parcel." });
+            return;
+        }
+        setParcels(prev => prev.map(p => p.id === parcelId ? {...p, status: 'Delivered'} : p));
+        toast({ title: "Order Closed", description: `Parcel ${parcelId} has been marked as delivered to ${collectorName}.`});
+        setCollectorName('');
+        setDeliveryNotes('');
+        // This would typically close the dialog, which is handled by DialogClose
+    }
+    
+    const handleRequestCancellation = (parcelId: string) => {
+        setParcels(prev => prev.map(p => p.id === parcelId ? {...p, status: 'Cancellation Requested'} : p));
+        toast({ title: "Cancellation Requested", description: `A request has been sent to cancel order ${parcelId}.`});
+    }
+
+    const handleArrangeReturn = (parcelId: string) => {
+        setParcels(prev => prev.map(p => p.id === parcelId ? {...p, status: 'Return Initiated'} : p));
+        toast({ title: "Return Initiated", description: `The return process for ${parcelId} has been started.`});
+    }
+
 
     return (
         <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
@@ -139,7 +169,8 @@ export default function PartnerPayDashboardPage() {
                                             <TableHeader>
                                                 <TableRow>
                                                     <TableHead>Parcel ID</TableHead>
-                                                    <TableHead>Customer</TableHead>
+                                                    <TableHead>AWB No.</TableHead>
+                                                    <TableHead>Courier</TableHead>
                                                     <TableHead>Status</TableHead>
                                                     <TableHead className="text-right">Actions</TableHead>
                                                 </TableRow>
@@ -148,18 +179,63 @@ export default function PartnerPayDashboardPage() {
                                                 {parcels.map(p => (
                                                     <TableRow key={p.id}>
                                                         <TableCell className="font-medium">{p.id}</TableCell>
-                                                        <TableCell>{p.customer}</TableCell>
+                                                        <TableCell className="font-mono text-xs">{p.awb}</TableCell>
+                                                        <TableCell>{p.courier}</TableCell>
                                                         <TableCell>
-                                                            <Badge variant={p.status === 'Picked Up' ? 'default' : 'secondary'} className={p.status === 'Picked Up' ? 'bg-green-100 text-green-800' : ''}>
+                                                            <Badge variant={p.status === 'Picked Up' ? 'default' : 'secondary'} className={p.status === 'Picked Up' ? 'bg-green-100 text-green-800' : p.status === 'Ready for Pickup' ? 'bg-blue-100 text-blue-800' : ''}>
                                                                 {p.status}
                                                             </Badge>
                                                         </TableCell>
                                                         <TableCell className="text-right">
-                                                            {p.status === 'Waiting for Pickup' && (
-                                                                <Button size="sm" onClick={() => handleNotifyCustomer(p.id)}>
-                                                                    <MessageSquare className="mr-2 h-4 w-4" /> Notify Customer
-                                                                </Button>
-                                                            )}
+                                                            <Dialog>
+                                                                <DialogTrigger asChild>
+                                                                    <Button size="sm" variant="outline">Manage</Button>
+                                                                </DialogTrigger>
+                                                                <DialogContent>
+                                                                    <DialogHeader>
+                                                                        <DialogTitle>Manage Parcel {p.id}</DialogTitle>
+                                                                        <DialogDescription>Customer: {p.customer}</DialogDescription>
+                                                                    </DialogHeader>
+                                                                    <div className="space-y-4 py-4">
+                                                                        <div>
+                                                                            <h4 className="font-medium">Tracking Details</h4>
+                                                                            <p className="text-sm text-muted-foreground">AWB: {p.awb} ({p.courier})</p>
+                                                                            <p className="text-sm text-muted-foreground">Dispatched: {p.dispatchDate}, Est. Arrival: {p.estArrival}</p>
+                                                                        </div>
+                                                                         <div className="space-y-2">
+                                                                            <h4 className="font-medium">Close Order: Mark as Delivered</h4>
+                                                                            <Label htmlFor="collector-name">Collected By</Label>
+                                                                            <Input id="collector-name" placeholder="Customer's full name" value={collectorName} onChange={e => setCollectorName(e.target.value)} />
+                                                                            <Label htmlFor="delivery-notes">Notes / Signed Document Reference</Label>
+                                                                            <Textarea id="delivery-notes" placeholder="e.g., ID checked, document signed." value={deliveryNotes} onChange={e => setDeliveryNotes(e.target.value)} />
+                                                                            <DialogClose asChild>
+                                                                                <Button onClick={() => handleMarkAsDelivered(p.id)}><PackageCheck className="mr-2"/>Confirm Delivery</Button>
+                                                                            </DialogClose>
+                                                                        </div>
+                                                                         <div className="space-y-2 border-t pt-4">
+                                                                            <h4 className="font-medium">Other Actions</h4>
+                                                                             <AlertDialog>
+                                                                                <AlertDialogTrigger asChild>
+                                                                                    <Button variant="outline" className="w-full justify-start" disabled={p.status !== 'Waiting for Pickup' && p.status !== 'Ready for Pickup'}><Edit className="mr-2"/>Request Cancellation</Button>
+                                                                                </AlertDialogTrigger>
+                                                                                <AlertDialogContent>
+                                                                                    <AlertDialogHeader><AlertDialogTitle>Request Cancellation for {p.id}?</AlertDialogTitle><AlertDialogDescription>This action will send a cancellation request to the seller. This should only be done before the parcel is dispatched from the main warehouse.</AlertDialogDescription></AlertDialogHeader>
+                                                                                    <AlertDialogFooter><AlertDialogCancel>Close</AlertDialogCancel><AlertDialogAction onClick={() => handleRequestCancellation(p.id)}>Yes, Request Cancellation</AlertDialogAction></AlertDialogFooter>
+                                                                                </AlertDialogContent>
+                                                                            </AlertDialog>
+                                                                            <AlertDialog>
+                                                                                <AlertDialogTrigger asChild>
+                                                                                     <Button variant="destructive" className="w-full justify-start" disabled={p.status !== 'Ready for Pickup'}><AlertTriangle className="mr-2"/>Arrange Return</Button>
+                                                                                </AlertDialogTrigger>
+                                                                                <AlertDialogContent>
+                                                                                    <AlertDialogHeader><AlertDialogTitle>Arrange Return for {p.id}?</AlertDialogTitle><AlertDialogDescription>If the customer has rejected the parcel, this will initiate the return process with the logistics partner and notify the seller. Are you sure?</AlertDialogDescription></AlertDialogHeader>
+                                                                                    <AlertDialogFooter><AlertDialogCancel>Close</AlertDialogCancel><AlertDialogAction onClick={() => handleArrangeReturn(p.id)}>Yes, Arrange Return</AlertDialogAction></AlertDialogFooter>
+                                                                                </AlertDialogContent>
+                                                                            </AlertDialog>
+                                                                        </div>
+                                                                    </div>
+                                                                </DialogContent>
+                                                            </Dialog>
                                                         </TableCell>
                                                     </TableRow>
                                                 ))}
@@ -203,3 +279,5 @@ export default function PartnerPayDashboardPage() {
         </div>
     );
 }
+
+    
