@@ -34,10 +34,8 @@ export default function LogisticsLoginPage() {
                 description: "Redirecting you to your logistics dashboard...",
             });
             
-            // Use requestAnimationFrame as a workaround to ensure navigation happens
-            requestAnimationFrame(() => {
-                router.push('/logistics-secure/dashboard');
-            });
+            // Force navigation using window.location.href as a robust workaround
+            window.location.href = '/logistics-secure/dashboard';
 
         }, 500);
     }
