@@ -58,7 +58,7 @@ const coreMenuItems = [
 ];
 
 const growthMenuItems = [
-    { href: '/snazzify-coin', label: 'Partner Pay', icon: Handshake },
+    { href: '/partner-pay', label: 'Partner Pay', icon: Handshake },
     { href: '/logistics-secure', label: 'Logistics Secure', icon: Box },
 ];
 
@@ -179,5 +179,3 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
     </SidebarProvider>
   );
 };
-
-    

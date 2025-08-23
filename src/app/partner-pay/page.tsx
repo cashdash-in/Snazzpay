@@ -49,7 +49,7 @@ const initialMockCodes = [
 ];
 
 
-export default function SnazzifyCoinPage() {
+export default function PartnerPayPage() {
     const { toast } = useToast();
     const [codes, setCodes] = useState(initialMockCodes);
     const [newCodeValue, setNewCodeValue] = useState('');
@@ -94,7 +94,7 @@ export default function SnazzifyCoinPage() {
     };
 
     return (
-        <AppShell title="Snazzify Coin System">
+        <AppShell title="Partner Pay System">
             <Tabs defaultValue="overview">
                 <TabsList className="grid w-full grid-cols-4 max-w-2xl mx-auto">
                     <TabsTrigger value="overview">
@@ -351,6 +351,7 @@ export default function SnazzifyCoinPage() {
                                                 <TableHead>Partner</TableHead>
                                                 <TableHead>Date</TableHead>
                                                 <TableHead>Status</TableHead>
+                                                <TableHead className="text-right">Actions</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
@@ -362,6 +363,11 @@ export default function SnazzifyCoinPage() {
                                                     <TableCell>{code.date}</TableCell>
                                                     <TableCell>
                                                         <Badge variant={code.status === 'Used' ? 'secondary' : 'default'}>{code.status}</Badge>
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                         <Button variant="ghost" size="icon">
+                                                            <Printer className="h-4 w-4" />
+                                                         </Button>
                                                     </TableCell>
                                                 </TableRow>
                                             ))}
