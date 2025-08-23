@@ -2,20 +2,35 @@
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Coins, Package, Handshake, Info } from 'lucide-react';
+import { Coins, Package, Handshake, Info, PlusCircle, Printer, Download } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-const ComingSoonPlaceholder = ({ title }: { title: string }) => (
-    <div className="flex flex-col items-center justify-center h-96 rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/20 text-center">
-        <div className="flex items-center justify-center h-16 w-16 rounded-full bg-muted mb-4">
-            <Package className="h-8 w-8 text-muted-foreground" />
-        </div>
-        <h3 className="text-xl font-semibold text-muted-foreground">Coming Soon: {title}</h3>
-        <p className="text-sm text-muted-foreground/80 mt-2">This feature is under construction. Check back later!</p>
-    </div>
-);
+
+// Mock Data - Replace with real data later
+const mockOrders = [
+    { id: '#SC-1001', customer: 'Ravi Kumar', partner: 'Gupta General Store', coinCode: 'SNC-A1B2-C3D4', amount: '499.00', status: 'Paid' },
+    { id: '#SC-1002', customer: 'Priya Sharma', partner: 'Pooja Mobile Recharge', coinCode: 'SNC-E5F6-G7H8', amount: '1250.00', status: 'Paid' },
+];
+
+const mockPartners = [
+    { id: 'PNR-001', name: 'Gupta General Store', location: 'Jaipur, Rajasthan', totalCollected: '15,450.00', status: 'Active' },
+    { id: 'PNR-002', name: 'Pooja Mobile Recharge', location: 'Pune, Maharashtra', totalCollected: '22,100.00', status: 'Active' },
+     { id: 'PNR-003', name: 'Anil Kirana', location: 'Patna, Bihar', totalCollected: '8,200.00', status: 'Inactive' },
+];
+
+const mockBatches = [
+    { id: 'BCH-001', denomination: '500', count: 100, date: '2024-05-20', status: 'Distributed' },
+    { id: 'BCH-002', denomination: '1000', count: 50, date: '2024-05-20', status: 'Distributed' },
+    { id: 'BCH-003', denomination: '100', count: 200, date: '2024-05-22', status: 'In Stock' },
+]
 
 
 export default function SnazzifyCoinPage() {
@@ -68,31 +83,160 @@ export default function SnazzifyCoinPage() {
                             <CardDescription>View all orders placed and secured using the Snazzify Coin system.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <ComingSoonPlaceholder title="Order Management" />
+                           <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Order ID</TableHead>
+                                        <TableHead>Customer</TableHead>
+                                        <TableHead>Collection Partner</TableHead>
+                                        <TableHead>Coin Code Used</TableHead>
+                                        <TableHead>Amount</TableHead>
+                                        <TableHead>Status</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {mockOrders.map(order => (
+                                        <TableRow key={order.id}>
+                                            <TableCell className="font-medium">{order.id}</TableCell>
+                                            <TableCell>{order.customer}</TableCell>
+                                            <TableCell>{order.partner}</TableCell>
+                                            <TableCell className="font-mono text-xs">{order.coinCode}</TableCell>
+                                            <TableCell>₹{order.amount}</TableCell>
+                                            <TableCell><Badge>{order.status}</Badge></TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                           </Table>
                         </CardContent>
                     </Card>
                 </TabsContent>
                  <TabsContent value="partners">
                     <Card>
-                        <CardHeader>
-                            <CardTitle>Partner Network</CardTitle>
-                            <CardDescription>Manage your network of trusted shopkeepers.</CardDescription>
+                        <CardHeader className="flex flex-row items-center justify-between">
+                            <div>
+                                <CardTitle>Partner Network</CardTitle>
+                                <CardDescription>Manage your network of trusted shopkeepers.</CardDescription>
+                            </div>
+                             <Button>
+                                <PlusCircle className="mr-2 h-4 w-4" /> Add Partner
+                            </Button>
                         </CardHeader>
                         <CardContent>
-                           <ComingSoonPlaceholder title="Partner Management" />
+                           <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Partner ID</TableHead>
+                                        <TableHead>Name</TableHead>
+                                        <TableHead>Location</TableHead>
+                                        <TableHead>Total Collected</TableHead>
+                                        <TableHead>Status</TableHead>
+                                         <TableHead className="text-right">Actions</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {mockPartners.map(partner => (
+                                        <TableRow key={partner.id}>
+                                            <TableCell className="font-medium">{partner.id}</TableCell>
+                                            <TableCell>{partner.name}</TableCell>
+                                            <TableCell>{partner.location}</TableCell>
+                                            <TableCell>₹{partner.totalCollected}</TableCell>
+                                            <TableCell>
+                                                <Badge variant={partner.status === 'Active' ? 'default' : 'secondary'} className={partner.status === 'Active' ? 'bg-green-100 text-green-800' : ''}>
+                                                    {partner.status}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <Button variant="outline" size="sm">View Details</Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                           </Table>
                         </CardContent>
                     </Card>
                 </TabsContent>
                  <TabsContent value="inventory">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Coin Inventory & Generation</CardTitle>
-                            <CardDescription>Generate, track, and manage the inventory of physical scratch cards.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <ComingSoonPlaceholder title="Coin Inventory Management" />
-                        </CardContent>
-                    </Card>
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div className="lg:col-span-1">
+                             <Card>
+                                <CardHeader>
+                                    <CardTitle>Generate New Coin Batch</CardTitle>
+                                    <CardDescription>Create a new batch of physical scratch cards.</CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                     <div className="space-y-2">
+                                        <Label htmlFor="denomination">Coin Value (Denomination)</Label>
+                                        <Select>
+                                            <SelectTrigger id="denomination">
+                                                <SelectValue placeholder="Select a value" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="100">₹100</SelectItem>
+                                                <SelectItem value="250">₹250</SelectItem>
+                                                <SelectItem value="500">₹500</SelectItem>
+                                                <SelectItem value="1000">₹1,000</SelectItem>
+                                                <SelectItem value="2000">₹2,000</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="count">Number of Coins</Label>
+                                        <Input id="count" type="number" placeholder="e.g., 100" />
+                                    </div>
+                                </CardContent>
+                                <CardFooter>
+                                    <Button className="w-full">Generate Batch</Button>
+                                </CardFooter>
+                            </Card>
+                        </div>
+                        <div className="lg:col-span-2">
+                            <Card>
+                                <CardHeader className="flex flex-row items-center justify-between">
+                                    <div>
+                                        <CardTitle>Coin Inventory & Batches</CardTitle>
+                                        <CardDescription>Track and manage generated scratch cards.</CardDescription>
+                                    </div>
+                                    <div className="flex gap-2">
+                                         <Button variant="outline" size="sm">
+                                            <Download className="mr-2 h-4 w-4" /> Export All
+                                        </Button>
+                                    </div>
+                                </CardHeader>
+                                <CardContent>
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Batch ID</TableHead>
+                                                <TableHead>Denomination</TableHead>
+                                                <TableHead>Count</TableHead>
+                                                <TableHead>Date Generated</TableHead>
+                                                <TableHead>Status</TableHead>
+                                                <TableHead className="text-right">Actions</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {mockBatches.map(batch => (
+                                                <TableRow key={batch.id}>
+                                                    <TableCell className="font-medium">{batch.id}</TableCell>
+                                                    <TableCell>₹{batch.denomination}</TableCell>
+                                                    <TableCell>{batch.count}</TableCell>
+                                                    <TableCell>{batch.date}</TableCell>
+                                                    <TableCell>
+                                                        <Badge variant={batch.status === 'Distributed' ? 'secondary' : 'default'}>{batch.status}</Badge>
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        <Button variant="outline" size="icon">
+                                                            <Printer className="h-4 w-4" />
+                                                        </Button>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </div>
                 </TabsContent>
             </Tabs>
         </AppShell>
