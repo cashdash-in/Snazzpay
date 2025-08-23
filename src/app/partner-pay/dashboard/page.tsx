@@ -128,7 +128,9 @@ export default function PartnerPayDashboardPage() {
                         <Card className="shadow-lg">
                             <CardHeader>
                                 <CardTitle>Generate Payment Code</CardTitle>
-                                <CardDescription className="text-xs">Collect cash, use your balance to generate a code, and give it to the customer to complete their purchase.</CardDescription>
+                                <CardDescription className="text-xs">
+                                    Collect cash, then use your coin balance to generate a unique code. The customer needs this code to confirm their purchase online.
+                                </CardDescription>
                             </CardHeader>
                              <CardContent className="space-y-4">
                                 <div className="space-y-2">
@@ -286,3 +288,4 @@ export default function PartnerPayDashboardPage() {
         </div>
     );
 }
+
