@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogOut, Wallet, Package, QrCode, Clipboard, PackageSearch, PackageCheck, Send, MessageSquare, AlertTriangle, FileUp, Edit, ShieldCheck } from "lucide-react";
+import { LogOut, Wallet, Package, QrCode, Clipboard, PackageCheck, Send, MessageSquare, AlertTriangle, FileUp, Edit, ShieldCheck, CheckCircle, Copy } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
@@ -46,6 +46,9 @@ export default function PartnerPayDashboardPage() {
     const [generatedCode, setGeneratedCode] = useState('');
     const [transactionValue, setTransactionValue] = useState('');
     const [sellerTxCode, setSellerTxCode] = useState('');
+    const [confirmedSellerTxCode, setConfirmedSellerTxCode] = useState('');
+    const [isSettling, setIsSettling] = useState(false);
+
     const [collectorName, setCollectorName] = useState('');
     const [deliveryNotes, setDeliveryNotes] = useState('');
 
@@ -53,28 +56,43 @@ export default function PartnerPayDashboardPage() {
         toast({ title: "Logged Out", description: "You have been successfully logged out." });
         router.push('/partner-pay/login');
     };
-
-    const handleGenerateCode = () => {
+    
+    const handleSettleWithSeller = () => {
         if (!transactionValue || parseFloat(transactionValue) <= 0) {
             toast({ variant: 'destructive', title: "Invalid Value", description: "Please enter a valid transaction amount." });
             return;
         }
-        if (!sellerTxCode) {
-            toast({ variant: 'destructive', title: "Verification Required", description: "Please enter the transaction code from the seller." });
-            return;
-        }
-
-        const code = `SNZ-${uuidv4().substring(0, 8).toUpperCase()}`;
-        setGeneratedCode(code);
-        toast({ title: "Code Generated", description: `New code for ₹${transactionValue} created successfully.` });
+        setIsSettling(true);
+        // Simulate API call to seller's payment gateway
+        setTimeout(() => {
+            const newSellerCode = `TRNS-SELLER-${uuidv4().substring(0,8).toUpperCase()}`;
+            setConfirmedSellerTxCode(newSellerCode);
+            toast({ title: "Settlement Successful!", description: `Payment of ₹${transactionValue} to seller confirmed.` });
+            setIsSettling(false);
+        }, 1500);
     };
 
-    const handleCopyCode = () => {
-        navigator.clipboard.writeText(generatedCode);
+    const handleGenerateCustomerCode = () => {
+        if (!sellerTxCode) {
+            toast({ variant: 'destructive', title: "Verification Required", description: "Please enter the confirmed Seller Transaction Code." });
+            return;
+        }
+        // In a real app, you'd verify the sellerTxCode against a backend record.
+        // Here, we just check that it's not empty.
+        
+        const code = `SNZ-CUST-${uuidv4().substring(0, 8).toUpperCase()}`;
+        setGeneratedCode(code);
+        toast({ title: "Customer Code Generated", description: `New code for ₹${transactionValue} created successfully.` });
+    };
+
+
+    const handleCopyCode = (codeToCopy: string) => {
+        navigator.clipboard.writeText(codeToCopy);
         toast({ title: "Copied!", description: "The code has been copied to your clipboard." });
     };
     
      const handleNotifyCustomer = (parcelId: string) => {
+        setParcels(prev => prev.map(p => p.id === parcelId ? {...p, status: 'Notified'} : p));
         toast({
             title: "Notification Sent!",
             description: `A WhatsApp & SMS has been sent to the customer for parcel ${parcelId}.`
@@ -90,7 +108,6 @@ export default function PartnerPayDashboardPage() {
         toast({ title: "Order Closed", description: `Parcel ${parcelId} has been marked as delivered to ${collectorName}.`});
         setCollectorName('');
         setDeliveryNotes('');
-        // This would typically close the dialog, which is handled by DialogClose
     }
     
     const handleRequestCancellation = (parcelId: string) => {
@@ -135,7 +152,7 @@ export default function PartnerPayDashboardPage() {
                             <CardHeader>
                                 <CardTitle>Generate Payment Code</CardTitle>
                                 <CardDescription className="text-xs">
-                                   To generate a code, collect cash from the customer. First, enter the transaction code provided by the seller to authorize your system. Then, generate the final customer code.
+                                   Collect cash from the customer, settle with the seller, then generate a code for the customer to use.
                                 </CardDescription>
                             </CardHeader>
                              <CardContent className="space-y-4">
@@ -143,42 +160,79 @@ export default function PartnerPayDashboardPage() {
                                     <Label htmlFor="tx-value">Cash Collected (₹)</Label>
                                     <Input id="tx-value" type="number" placeholder="e.g., 500" value={transactionValue} onChange={(e) => setTransactionValue(e.target.value)} />
                                 </div>
-                                <Dialog>
+                                <Dialog onOpenChange={(open) => { if (!open) setConfirmedSellerTxCode('') }}>
                                     <DialogTrigger asChild>
                                          <Button className="w-full">
-                                            <QrCode className="mr-2 h-4 w-4" /> Get Customer Code
+                                            <QrCode className="mr-2 h-4 w-4" /> Settle with Seller & Get Code
                                         </Button>
                                     </DialogTrigger>
                                     <DialogContent>
-                                         <DialogHeader>
-                                            <DialogTitle>Enter Seller Transaction Code</DialogTitle>
+                                        <DialogHeader>
+                                            <DialogTitle>Step 1: Settle with Seller</DialogTitle>
                                             <DialogDescription>
-                                                To generate the final code for the customer, you must first enter the unique transaction code provided to you by the seller for this amount.
+                                                To get a customer code, you must first pay the seller ₹{transactionValue || '0.00'}. Click below to simulate a UPI payment.
                                             </DialogDescription>
                                         </DialogHeader>
-                                        <div className="py-4">
-                                            <Label htmlFor="seller-tx-code">Seller Transaction Code</Label>
-                                            <Input id="seller-tx-code" placeholder="Enter code from seller" value={sellerTxCode} onChange={(e) => setSellerTxCode(e.target.value)} />
-                                        </div>
+                                        
+                                        {!confirmedSellerTxCode ? (
+                                            <div className="py-4 text-center">
+                                                <Button onClick={handleSettleWithSeller} disabled={isSettling}>
+                                                    {isSettling ? 'Processing...' : `Pay Seller ₹${transactionValue || '0.00'} Now`}
+                                                </Button>
+                                            </div>
+                                        ) : (
+                                            <div className="py-4 space-y-3 text-center bg-green-50 p-4 rounded-lg">
+                                                <CheckCircle className="mx-auto h-10 w-10 text-green-600"/>
+                                                <h3 className="font-semibold">Payment Confirmed!</h3>
+                                                <p className="text-sm text-muted-foreground">Copy your unique Seller Transaction Code below.</p>
+                                                <div className="flex items-center gap-2 p-2 bg-background border rounded-md">
+                                                    <Input readOnly value={confirmedSellerTxCode} className="font-mono text-sm border-0 bg-transparent shadow-none focus-visible:ring-0"/>
+                                                    <Button variant="ghost" size="icon" onClick={() => handleCopyCode(confirmedSellerTxCode)}>
+                                                        <Copy className="h-4 w-4"/>
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        )}
+
                                          <DialogFooter>
                                             <DialogClose asChild>
-                                                <Button variant="outline">Cancel</Button>
-                                            </DialogClose>
-                                            <DialogClose asChild>
-                                                <Button onClick={handleGenerateCode}>Confirm & Generate</Button>
+                                                <Button variant="outline">Close</Button>
                                             </DialogClose>
                                         </DialogFooter>
                                     </DialogContent>
                                 </Dialog>
 
-                                {generatedCode && (
-                                    <div className="p-4 bg-muted rounded-lg text-center space-y-2 mt-4">
+                                {generatedCode ? (
+                                     <div className="p-4 bg-muted rounded-lg text-center space-y-2 mt-4">
                                         <Label>Your One-Time Customer Code</Label>
                                         <p className="text-2xl font-bold font-mono tracking-widest">{generatedCode}</p>
-                                        <Button size="sm" variant="outline" onClick={handleCopyCode} className="w-full">
-                                            <Clipboard className="mr-2 h-4 w-4" /> Copy Code
+                                        <Button size="sm" variant="outline" onClick={() => handleCopyCode(generatedCode)} className="w-full">
+                                            <Clipboard className="mr-2 h-4 w-4" /> Copy Customer Code
                                         </Button>
                                     </div>
+                                ) : (
+                                     <Dialog>
+                                        <DialogTrigger asChild>
+                                            <Button variant="secondary" className="w-full mt-2">I have my Seller Code</Button>
+                                        </DialogTrigger>
+                                        <DialogContent>
+                                            <DialogHeader>
+                                                <DialogTitle>Step 2: Generate Customer Code</DialogTitle>
+                                                <DialogDescription>
+                                                   Enter the confirmed Seller Transaction Code to generate the final code for your customer.
+                                                </DialogDescription>
+                                            </DialogHeader>
+                                            <div className="py-4 space-y-2">
+                                                <Label htmlFor="seller-tx-code">Seller Transaction Code</Label>
+                                                <Input id="seller-tx-code" placeholder="Paste code here e.g. TRNS-SELLER-..." value={sellerTxCode} onChange={(e) => setSellerTxCode(e.target.value)} />
+                                            </div>
+                                            <DialogFooter>
+                                                <DialogClose asChild>
+                                                    <Button onClick={handleGenerateCustomerCode}>Generate for Customer</Button>
+                                                </DialogClose>
+                                            </DialogFooter>
+                                        </DialogContent>
+                                    </Dialog>
                                 )}
                             </CardContent>
                         </Card>
@@ -219,7 +273,7 @@ export default function PartnerPayDashboardPage() {
                                                         <TableCell>{p.productName}</TableCell>
                                                         <TableCell className="font-mono text-xs">{p.awb}</TableCell>
                                                         <TableCell>
-                                                            <Badge variant={p.status === 'Picked Up' ? 'default' : 'secondary'} className={p.status === 'Picked Up' ? 'bg-green-100 text-green-800' : p.status === 'Ready for Pickup' ? 'bg-blue-100 text-blue-800' : ''}>
+                                                            <Badge variant={p.status === 'Picked Up' ? 'default' : 'secondary'} className={p.status === 'Picked Up' ? 'bg-green-100 text-green-800' : p.status === 'Ready for Pickup' ? 'bg-blue-100 text-blue-800' : p.status === 'Notified' ? 'bg-yellow-100 text-yellow-800' : ''}>
                                                                 {p.status}
                                                             </Badge>
                                                         </TableCell>
@@ -271,7 +325,7 @@ export default function PartnerPayDashboardPage() {
                                                                                      <Button variant="destructive" className="w-full justify-start"><AlertTriangle className="mr-2"/>Arrange Return</Button>
                                                                                 </AlertDialogTrigger>
                                                                                  <AlertDialogContent>
-                                                                                    <AlertDialogHeader><AlertDialogTitle>Arrange Return for {p.id}?</AlertDialogTitle><AlertDialogDescription>If the customer has rejected the parcel, this will initiate the return process with the logistics partner and notify the seller. Are you sure?</AlertDialogDescription></AlertDialogHeader>
+                                                                                    <AlertDialogHeader><AlertDialogTitle>Arrange Return for {p.id}?</AlertDialogTitle><DialogDescription>If the customer has rejected the parcel, this will initiate the return process with the logistics partner and notify the seller. Are you sure?</DialogDescription></AlertDialogHeader>
                                                                                     <AlertDialogFooter><AlertDialogCancel>Close</AlertDialogCancel><AlertDialogAction onClick={() => handleArrangeReturn(p.id)}>Yes, Arrange Return</AlertDialogAction></AlertDialogFooter>
                                                                                 </AlertDialogContent>
                                                                             </AlertDialog>
@@ -327,7 +381,3 @@ export default function PartnerPayDashboardPage() {
         </div>
     );
 }
-
-    
-
-    
