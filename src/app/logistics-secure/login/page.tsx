@@ -50,12 +50,12 @@ export default function LogisticsLoginPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="agent-id">Agent / Partner ID</Label>
+                        <Label htmlFor="agent-id">Logistics Partner ID</Label>
                         <div className="relative">
                             <Truck className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input 
                                 id="agent-id" 
-                                placeholder="Your unique Agent ID" 
+                                placeholder="Your unique Partner ID" 
                                 value={agentId}
                                 onChange={(e) => setAgentId(e.target.value)}
                                 className="pl-9" 
