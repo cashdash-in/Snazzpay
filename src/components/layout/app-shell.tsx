@@ -168,6 +168,12 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
                     <span>Partner Login</span>
                   </DropdownMenuItem>
                 </Link>
+                 <Link href="/logistics-secure/login" target="_blank">
+                  <DropdownMenuItem>
+                    <Truck className="mr-2 h-4 w-4" />
+                    <span>Logistics Login</span>
+                  </DropdownMenuItem>
+                </Link>
                 <Link href="/customer/login" target="_blank">
                   <DropdownMenuItem>
                     <LogIn className="mr-2 h-4 w-4" />
