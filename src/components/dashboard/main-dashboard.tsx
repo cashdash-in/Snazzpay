@@ -6,7 +6,7 @@ import { getOrders } from "@/services/shopify";
 import type { EditableOrder } from "@/app/orders/page";
 import { useToast } from "@/hooks/use-toast";
 import { format, subDays } from "date-fns";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { DollarSign, WalletCards, CheckCircle2, AlertTriangle, Users, CircleDollarSign } from "lucide-react";
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts"
 import { RecentOrders } from "./recent-orders";
