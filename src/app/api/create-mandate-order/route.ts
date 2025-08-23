@@ -55,10 +55,6 @@ export async function POST(request: Request) {
                 customerContact,
                 customerAddress,
                 customerPincode
-            },
-            notify: {
-                sms: true,
-                email: true
             }
         };
 
