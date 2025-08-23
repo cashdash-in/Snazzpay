@@ -4,7 +4,7 @@
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Coins, Package, Handshake, Info, PlusCircle, Printer, Download } from 'lucide-react';
+import { Coins, Package, Handshake, Info, PlusCircle, Printer, Download, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
@@ -24,6 +24,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
 
 
 // Mock Data - Replace with real data later
@@ -33,9 +34,9 @@ const mockOrders = [
 ];
 
 const mockPartners = [
-    { id: 'PNR-001', name: 'Gupta General Store', location: 'Jaipur, Rajasthan', totalCollected: '15,450.00', status: 'Active' },
-    { id: 'PNR-002', name: 'Pooja Mobile Recharge', location: 'Pune, Maharashtra', totalCollected: '22,100.00', status: 'Active' },
-     { id: 'PNR-003', name: 'Anil Kirana', location: 'Patna, Bihar', totalCollected: '8,200.00', status: 'Inactive' },
+    { id: 'PNR-001', name: 'Gupta General Store', location: 'Jaipur, Rajasthan', contact: '9988776655', totalCollected: '15,450.00', status: 'Active' },
+    { id: 'PNR-002', name: 'Pooja Mobile Recharge', location: 'Pune, Maharashtra', contact: '9876543210', totalCollected: '22,100.00', status: 'Active' },
+     { id: 'PNR-003', name: 'Anil Kirana', location: 'Patna, Bihar', contact: '9123456789', totalCollected: '8,200.00', status: 'Inactive' },
 ];
 
 const mockBatches = [
@@ -46,6 +47,21 @@ const mockBatches = [
 
 
 export default function SnazzifyCoinPage() {
+    const { toast } = useToast();
+
+    const handlePrint = (batchId: string) => {
+        toast({
+            title: "Print Job Initiated",
+            description: `A print job for batch ${batchId} has been sent.`,
+        });
+    };
+    
+    const handleExport = () => {
+         toast({
+            title: "Export Started",
+            description: `Your full coin inventory export will be downloaded shortly.`,
+        });
+    };
 
     return (
         <AppShell title="Snazzify Coin System">
@@ -195,7 +211,30 @@ export default function SnazzifyCoinPage() {
                                                 </Badge>
                                             </TableCell>
                                             <TableCell className="text-right">
-                                                <Button variant="outline" size="sm">View Details</Button>
+                                                 <Dialog>
+                                                    <DialogTrigger asChild>
+                                                        <Button variant="outline" size="sm">View Details</Button>
+                                                    </DialogTrigger>
+                                                    <DialogContent>
+                                                        <DialogHeader>
+                                                            <DialogTitle>Partner Details: {partner.name}</DialogTitle>
+                                                            <DialogDescription>
+                                                                Viewing details for partner {partner.id}.
+                                                            </DialogDescription>
+                                                        </DialogHeader>
+                                                        <div className="space-y-2 text-sm">
+                                                            <p><strong>Location:</strong> {partner.location}</p>
+                                                            <p><strong>Contact:</strong> {partner.contact}</p>
+                                                            <p><strong>Total Collected:</strong> ₹{partner.totalCollected}</p>
+                                                            <p><strong>Status:</strong> {partner.status}</p>
+                                                        </div>
+                                                        <DialogFooter>
+                                                            <DialogClose asChild>
+                                                                <Button>Close</Button>
+                                                            </DialogClose>
+                                                        </DialogFooter>
+                                                    </DialogContent>
+                                                </Dialog>
                                             </TableCell>
                                         </TableRow>
                                     ))}
@@ -234,7 +273,23 @@ export default function SnazzifyCoinPage() {
                                     </div>
                                 </CardContent>
                                 <CardFooter>
-                                    <Button className="w-full">Generate Batch</Button>
+                                     <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <Button className="w-full">Generate Batch</Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Confirm Batch Generation</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    This will generate a new batch of unique coin codes. Are you sure you want to proceed?
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                <AlertDialogAction>Yes, Generate</AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
                                 </CardFooter>
                             </Card>
                         </div>
@@ -246,7 +301,7 @@ export default function SnazzifyCoinPage() {
                                         <CardDescription>Track and manage generated scratch cards.</CardDescription>
                                     </div>
                                     <div className="flex gap-2">
-                                         <Button variant="outline" size="sm">
+                                         <Button variant="outline" size="sm" onClick={handleExport}>
                                             <Download className="mr-2 h-4 w-4" /> Export All
                                         </Button>
                                     </div>
@@ -274,7 +329,7 @@ export default function SnazzifyCoinPage() {
                                                         <Badge variant={batch.status === 'Distributed' ? 'secondary' : 'default'}>{batch.status}</Badge>
                                                     </TableCell>
                                                     <TableCell className="text-right">
-                                                        <Button variant="outline" size="icon">
+                                                        <Button variant="outline" size="icon" onClick={() => handlePrint(batch.id)}>
                                                             <Printer className="h-4 w-4" />
                                                         </Button>
                                                     </TableCell>
@@ -291,5 +346,3 @@ export default function SnazzifyCoinPage() {
         </AppShell>
     )
 }
-
-    
