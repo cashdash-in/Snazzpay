@@ -26,14 +26,14 @@ const mockPartner = {
 };
 
 const mockTransactions = [
-    { id: 'SNC-A1B2', customerId: 'CUST-001', value: 500, date: '2024-05-24 10:30 AM' },
-    { id: 'SNC-E5F6', customerId: 'CUST-002', value: 1200, date: '2024-05-24 02:15 PM' },
+    { id: 'SNC-A1B2', customerName: 'Rohan Sharma', customerPhone: '9876543210', value: 500, date: '2024-05-24 10:30 AM' },
+    { id: 'SNC-E5F6', customerName: 'Aditi Singh', customerPhone: '9123456789', value: 1200, date: '2024-05-24 02:15 PM' },
 ];
 
 const initialParcels = [
-    { id: '#SNZ-9876', customer: 'Priya S.', productName: 'Designer Watch', status: 'Waiting for Pickup', awb: 'DLV123456', courier: 'Delhivery', dispatchDate: '2024-05-23', estArrival: '2024-05-25' },
-    { id: '#SNZ-9875', customer: 'Amit K.', productName: 'Leather Handbag', status: 'Picked Up', awb: 'BLD789012', courier: 'BlueDart', dispatchDate: '2024-05-22', estArrival: '2024-05-24' },
-    { id: '#SNZ-9874', customer: 'Rina V.', productName: 'Sunglasses', status: 'Ready for Pickup', awb: 'XPS345678', courier: 'XpressBees', dispatchDate: '2024-05-24', estArrival: '2024-05-26' },
+    { id: '#SNZ-9876', customer: 'Priya S.', customerPhone: '9988776655', productName: 'Designer Watch', status: 'Waiting for Pickup', awb: 'DLV123456', courier: 'Delhivery', dispatchDate: '2024-05-23', estArrival: '2024-05-25' },
+    { id: '#SNZ-9875', customer: 'Amit K.', customerPhone: '9876543211', productName: 'Leather Handbag', status: 'Picked Up', awb: 'BLD789012', courier: 'BlueDart', dispatchDate: '2024-05-22', estArrival: '2024-05-24' },
+    { id: '#SNZ-9874', customer: 'Rina V.', customerPhone: '9123456780', productName: 'Sunglasses', status: 'Ready for Pickup', awb: 'XPS345678', courier: 'XpressBees', dispatchDate: '2024-05-24', estArrival: '2024-05-26' },
 ];
 
 
@@ -212,7 +212,10 @@ export default function PartnerPayDashboardPage() {
                                                 {parcels.map(p => (
                                                     <TableRow key={p.id}>
                                                         <TableCell className="font-medium">{p.id}</TableCell>
-                                                        <TableCell>{p.customer}</TableCell>
+                                                        <TableCell>
+                                                            <div className="font-medium">{p.customer}</div>
+                                                            <div className="text-xs text-muted-foreground">{p.customerPhone}</div>
+                                                        </TableCell>
                                                         <TableCell>{p.productName}</TableCell>
                                                         <TableCell className="font-mono text-xs">{p.awb}</TableCell>
                                                         <TableCell>
@@ -228,7 +231,7 @@ export default function PartnerPayDashboardPage() {
                                                                 <DialogContent>
                                                                     <DialogHeader>
                                                                         <DialogTitle>Manage Parcel {p.id}</DialogTitle>
-                                                                        <DialogDescription>For: {p.customer} ({p.productName})</DialogDescription>
+                                                                        <DialogDescription>For: {p.customer} ({p.customerPhone}) - {p.productName}</DialogDescription>
                                                                     </DialogHeader>
                                                                     <div className="space-y-4 py-4">
                                                                         <div>
@@ -295,6 +298,7 @@ export default function PartnerPayDashboardPage() {
                                             <TableHeader>
                                                 <TableRow>
                                                     <TableHead>Code ID</TableHead>
+                                                    <TableHead>Customer</TableHead>
                                                     <TableHead>Value</TableHead>
                                                     <TableHead>Date</TableHead>
                                                 </TableRow>
@@ -303,6 +307,10 @@ export default function PartnerPayDashboardPage() {
                                                  {transactions.map(tx => (
                                                     <TableRow key={tx.id}>
                                                         <TableCell className="font-mono">{tx.id}</TableCell>
+                                                        <TableCell>
+                                                            <div className="font-medium">{tx.customerName}</div>
+                                                            <div className="text-xs text-muted-foreground">{tx.customerPhone}</div>
+                                                        </TableCell>
                                                         <TableCell>₹{tx.value}</TableCell>
                                                         <TableCell>{tx.date}</TableCell>
                                                     </TableRow>
