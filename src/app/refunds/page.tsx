@@ -54,7 +54,7 @@ export default function RefundsPage() {
     try {
         const shopifyOrders = await getOrders();
         const shopifyEditableOrders = shopifyOrders.map(mapShopifyToEditable);
-        combinedOrders = [...shopifyEditableOrders];
+        combinedOrders = [...combinedOrders, ...shopifyEditableOrders];
     } catch (error) {
         console.error("Failed to fetch Shopify orders:", error);
         toast({
@@ -77,7 +77,6 @@ export default function RefundsPage() {
         });
     }
 
-    // De-duplication and status unification logic
     const orderGroups = new Map<string, EditableOrder[]>();
     combinedOrders.forEach(order => {
         const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
@@ -96,6 +95,11 @@ export default function RefundsPage() {
             representativeOrder.refundStatus = 'Processed';
             representativeOrder.paymentStatus = 'Refunded';
         }
+        
+        const hasVoided = group.some(o => o.paymentStatus === 'Voided' || o.cancellationStatus === 'Processed');
+        if (hasVoided) {
+            representativeOrder.paymentStatus = 'Voided';
+        }
 
         if (!representativeOrder.cancellationId) {
             representativeOrder.cancellationId = `CNCL-${uuidv4().substring(0, 8).toUpperCase()}`;
@@ -110,7 +114,7 @@ export default function RefundsPage() {
 
   useEffect(() => {
     fetchAndSetOrders();
-  }, [toast]);
+  }, []);
 
   const handleFieldChange = (orderId: string, field: keyof EditableOrder, value: string) => {
     setOrders(prevOrders => prevOrders.map(order =>
@@ -185,7 +189,12 @@ export default function RefundsPage() {
 
         const updatedOrders = orders.map(o => o.id === order.id ? {...o, refundStatus: 'Processed', paymentStatus: 'Refunded'} : o)
         setOrders(updatedOrders);
-        handleSave(order.id);
+        const orderToSave = updatedOrders.find(o => o.id === order.id);
+        if (orderToSave) {
+            const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
+            const newOverrides = { ...storedOverrides, ...orderToSave };
+            localStorage.setItem(`order-override-${order.id}`, JSON.stringify(newOverrides));
+        }
 
     } catch (error: any) {
         toast({

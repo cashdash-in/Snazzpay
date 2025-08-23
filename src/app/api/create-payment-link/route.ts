@@ -16,12 +16,6 @@ export async function POST(request: Request) {
             { status: 500, headers: { 'Content-Type': 'application/json' } }
         );
     }
-     if (!GMAIL_EMAIL || !GMAIL_PASSWORD) {
-        return new NextResponse(
-            JSON.stringify({ error: "Server configuration error: Gmail credentials are missing." }),
-            { status: 500, headers: { 'Content-Type': 'application/json' } }
-        );
-    }
     
     const razorpay = new Razorpay({
         key_id: keyId,
@@ -29,8 +23,37 @@ export async function POST(request: Request) {
     });
 
     try {
-        const { amount, customerName, customerContact, customerEmail, orderId, productName } = await request.json();
+        const { amount, customerName, customerContact, customerEmail, orderId, productName, isPartnerSettlement } = await request.json();
 
+        if (isPartnerSettlement) {
+             if (!amount) {
+                return new NextResponse(
+                    JSON.stringify({ error: "Amount is required for partner settlement." }),
+                    { status: 400, headers: { 'Content-Type': 'application/json' } }
+                );
+            }
+             // For Partner Pay settlement, we create a simple order for payment collection
+            const orderOptions = {
+                amount: Math.round(amount * 100), // Amount in paise
+                currency: 'INR',
+                receipt: `rcpt_partner_settle_${Date.now()}`.slice(0, 40),
+                notes: {
+                    type: "partner_settlement",
+                    partnerName: customerName, // In this context, customerName is the partner's name
+                }
+            };
+            const order = await razorpay.orders.create(orderOptions);
+            return NextResponse.json({ order_id: order.id, isPartnerSettlement: true });
+        }
+
+
+        // Logic for sending customer payment links (existing functionality)
+        if (!GMAIL_EMAIL || !GMAIL_PASSWORD) {
+            return new NextResponse(
+                JSON.stringify({ error: "Server configuration error: Gmail credentials are missing." }),
+                { status: 500, headers: { 'Content-Type': 'application/json' } }
+            );
+        }
         if (!amount || !customerName || !customerContact || !customerEmail || !orderId || !productName) {
             return new NextResponse(
                 JSON.stringify({ error: "Missing required fields to create a payment link." }),
@@ -38,7 +61,6 @@ export async function POST(request: Request) {
             );
         }
 
-        // The secureUrl now points back to the main Secure COD page with all parameters filled
         const secureUrl = `${APP_URL}/secure-cod?amount=${encodeURIComponent(amount)}&name=${encodeURIComponent(productName)}&order_id=${encodeURIComponent(orderId)}`;
 
         const transporter = nodemailer.createTransport({
@@ -76,7 +98,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: true, message: `A reminder to complete the order has been sent to ${customerEmail}.` });
 
     } catch (error: any) {
-        console.error("--- Create Payment Link Error ---");
+        console.error("--- Create Payment Link/Order Error ---");
         if (error.error) {
              console.error(JSON.stringify(error.error, null, 2));
         } else {
@@ -84,7 +106,7 @@ export async function POST(request: Request) {
         }
         const errorMessage = error?.error?.description || error.message || 'An unknown error occurred.';
         return new NextResponse(
-            JSON.stringify({ error: `Failed to create payment link: ${errorMessage}` }),
+            JSON.stringify({ error: `Failed to process request: ${errorMessage}` }),
             { status: 500, headers: { 'Content-Type': 'application/json' } }
         );
     }

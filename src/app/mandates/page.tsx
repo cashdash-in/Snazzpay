@@ -11,8 +11,10 @@ import type { EditableOrder } from "../orders/page";
 import { Loader2 } from "lucide-react";
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
+import { v4 as uuidv4 } from 'uuid';
 
 type Mandate = {
+  id: string;
   orderId: string;
   orderLink: string;
   customerName: string;
@@ -90,15 +92,42 @@ export default function MandatesPage() {
             });
         }
 
-        // Apply overrides
-        const ordersWithOverrides = combinedOrders.map(order => {
-          const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
-          return { ...order, ...storedOverrides };
+        const orderGroups = new Map<string, EditableOrder[]>();
+        combinedOrders.forEach(order => {
+            const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
+            const finalOrder = { ...order, ...storedOverrides };
+            const group = orderGroups.get(finalOrder.orderId) || [];
+            group.push(finalOrder);
+            orderGroups.set(finalOrder.orderId, group);
         });
 
-        const mandates: Mandate[] = ordersWithOverrides
+        const unifiedOrders: EditableOrder[] = [];
+        orderGroups.forEach((group) => {
+            let representativeOrder = group.reduce((acc, curr) => ({ ...acc, ...curr }), group[0]);
+
+            const hasVoided = group.some(o => o.paymentStatus === 'Voided' || o.cancellationStatus === 'Processed');
+            const hasRefunded = group.some(o => o.paymentStatus === 'Refunded' || o.refundStatus === 'Processed');
+
+            if (hasVoided) {
+                representativeOrder.paymentStatus = 'Voided';
+            } else if (hasRefunded) {
+                representativeOrder.paymentStatus = 'Refunded';
+            }
+            
+            const sharedCancellationId = group.find(o => o.cancellationId)?.cancellationId;
+            if (sharedCancellationId) {
+                representativeOrder.cancellationId = sharedCancellationId;
+            } else {
+                 representativeOrder.cancellationId = `CNCL-${uuidv4().substring(0, 8).toUpperCase()}`;
+            }
+
+            unifiedOrders.push(representativeOrder);
+        });
+
+        const mandates: Mandate[] = unifiedOrders
             .filter(order => ['authorized', 'paid', 'intent verified'].includes(order.paymentStatus.toLowerCase()))
             .map(order => ({
+                id: order.id,
                 orderId: order.orderId,
                 orderLink: `/orders/${order.id}`,
                 customerName: order.customerName,
@@ -144,7 +173,7 @@ export default function MandatesPage() {
             </TableHeader>
             <TableBody>
               {allMandates.map((mandate) => (
-                <TableRow key={mandate.orderId}>
+                <TableRow key={mandate.id}>
                   <TableCell>
                       <Link href={mandate.orderLink} className="font-medium text-primary hover:underline cursor-pointer">
                           {mandate.orderId}

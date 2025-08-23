@@ -15,6 +15,7 @@ import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import type { EditableOrder } from '../orders/page';
 import { format } from "date-fns";
+import { v4 as uuidv4 } from 'uuid';
 
 type OrderStatus = 'pending' | 'dispatched' | 'out-for-delivery' | 'delivered' | 'failed';
 
@@ -54,8 +55,7 @@ export default function DeliveryTrackingPage() {
             let combinedOrders: EditableOrder[] = [];
             try {
                 const shopifyOrders = await getOrders();
-                const shopifyEditableOrders = shopifyOrders.map(mapShopifyToEditable);
-                combinedOrders = [...combinedOrders];
+                combinedOrders = [...combinedOrders, ...shopifyOrders.map(mapShopifyToEditable)];
             } catch (error) {
                 console.error("Failed to fetch Shopify orders:", error);
                 toast({
@@ -78,12 +78,39 @@ export default function DeliveryTrackingPage() {
                 });
             }
 
-            const finalOrders = combinedOrders.map(order => {
+            const orderGroups = new Map<string, EditableOrder[]>();
+            combinedOrders.forEach(order => {
                 const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
-                return { ...order, ...storedOverrides };
+                const finalOrder = { ...order, ...storedOverrides };
+                const group = orderGroups.get(finalOrder.orderId) || [];
+                group.push(finalOrder);
+                orderGroups.set(finalOrder.orderId, group);
+            });
+    
+            const unifiedOrders: EditableOrder[] = [];
+            orderGroups.forEach((group) => {
+                let representativeOrder = group.reduce((acc, curr) => ({ ...acc, ...curr }), group[0]);
+    
+                const hasVoided = group.some(o => o.paymentStatus === 'Voided' || o.cancellationStatus === 'Processed');
+                const hasRefunded = group.some(o => o.paymentStatus === 'Refunded' || o.refundStatus === 'Processed');
+    
+                if (hasVoided) {
+                    representativeOrder.paymentStatus = 'Voided';
+                } else if (hasRefunded) {
+                    representativeOrder.paymentStatus = 'Refunded';
+                }
+                
+                const sharedCancellationId = group.find(o => o.cancellationId)?.cancellationId;
+                if (sharedCancellationId) {
+                    representativeOrder.cancellationId = sharedCancellationId;
+                } else {
+                     representativeOrder.cancellationId = `CNCL-${uuidv4().substring(0, 8).toUpperCase()}`;
+                }
+    
+                unifiedOrders.push(representativeOrder);
             });
 
-            setOrders(finalOrders);
+            setOrders(unifiedOrders.filter(o => o.paymentStatus !== 'Intent Verified'));
             setLoading(false);
         }
         fetchAndSetOrders();

@@ -14,6 +14,7 @@ import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import type { EditableOrder } from '../orders/page';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { v4 as uuidv4 } from 'uuid';
 
 type CancellationStatus = 'Pending' | 'Processed' | 'Failed';
 
@@ -52,7 +53,7 @@ export default function CancellationsPage() {
         try {
             const shopifyOrders = await getOrders();
             const shopifyEditableOrders = shopifyOrders.map(mapShopifyToEditable);
-            combinedOrders = [...shopifyEditableOrders];
+            combinedOrders = [...combinedOrders, ...shopifyEditableOrders];
         } catch (error) {
             console.error("Failed to fetch Shopify orders:", error);
             toast({
@@ -75,12 +76,36 @@ export default function CancellationsPage() {
             });
         }
 
-        const finalOrders = combinedOrders.map(order => {
+        const orderGroups = new Map<string, EditableOrder[]>();
+        combinedOrders.forEach(order => {
             const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
-            return { ...order, ...storedOverrides };
+            const finalOrder = { ...order, ...storedOverrides };
+            const group = orderGroups.get(finalOrder.orderId) || [];
+            group.push(finalOrder);
+            orderGroups.set(finalOrder.orderId, group);
         });
 
-        setOrders(finalOrders);
+        const unifiedOrders: EditableOrder[] = [];
+        orderGroups.forEach((group) => {
+            let representativeOrder = group.reduce((acc, curr) => ({ ...acc, ...curr }), group[0]);
+
+            const hasVoided = group.some(o => o.paymentStatus === 'Voided' || o.cancellationStatus === 'Processed');
+            if (hasVoided) {
+                representativeOrder.paymentStatus = 'Voided';
+                representativeOrder.cancellationStatus = 'Processed';
+            }
+
+            const sharedCancellationId = group.find(o => o.cancellationId)?.cancellationId;
+            if (sharedCancellationId) {
+                representativeOrder.cancellationId = sharedCancellationId;
+            } else {
+                 representativeOrder.cancellationId = `CNCL-${uuidv4().substring(0, 8).toUpperCase()}`;
+            }
+
+            unifiedOrders.push(representativeOrder);
+        });
+
+        setOrders(unifiedOrders);
         setLoading(false);
     }
     fetchAndSetOrders();
@@ -96,7 +121,6 @@ export default function CancellationsPage() {
     const orderToSave = orders.find(o => o.id === orderId);
     if (!orderToSave) return;
 
-    // Save logic is the same as orders page
     if (orderToSave.id.startsWith('gid://') || orderToSave.id.match(/^\d+$/)) {
       const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${orderId}`) || '{}');
       const newOverrides = { ...storedOverrides, ...orderToSave };

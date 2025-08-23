@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogOut, Wallet, Package, QrCode, Clipboard, PackageCheck, Send, MessageSquare, AlertTriangle, FileUp, Edit, ShieldCheck, CheckCircle, Copy } from "lucide-react";
+import { LogOut, Wallet, Package, QrCode, Clipboard, PackageCheck, Send, MessageSquare, AlertTriangle, FileUp, Edit, ShieldCheck, CheckCircle, Copy, User, Phone } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
@@ -48,28 +48,75 @@ export default function PartnerPayDashboardPage() {
     const [sellerTxCode, setSellerTxCode] = useState('');
     const [confirmedSellerTxCode, setConfirmedSellerTxCode] = useState('');
     const [isSettling, setIsSettling] = useState(false);
+    const [razorpayKeyId, setRazorpayKeyId] = useState<string | null>(null);
+
+    const [customerInfo, setCustomerInfo] = useState({ name: '', phone: '' });
 
     const [collectorName, setCollectorName] = useState('');
     const [deliveryNotes, setDeliveryNotes] = useState('');
+    
+    useEffect(() => {
+        const key = localStorage.getItem('razorpay_key_id');
+        if (key) setRazorpayKeyId(key);
+    }, []);
 
     const handleLogout = () => {
         toast({ title: "Logged Out", description: "You have been successfully logged out." });
         router.push('/partner-pay/login');
     };
     
-    const handleSettleWithSeller = () => {
+    const handleSettleWithSeller = async () => {
         if (!transactionValue || parseFloat(transactionValue) <= 0) {
             toast({ variant: 'destructive', title: "Invalid Value", description: "Please enter a valid transaction amount." });
             return;
         }
+        if (!razorpayKeyId) {
+             toast({ variant: 'destructive', title: "Configuration Error", description: "Razorpay Key ID is not set. Please configure it in the main app settings." });
+            return;
+        }
         setIsSettling(true);
-        // Simulate API call to seller's payment gateway
-        setTimeout(() => {
-            const newSellerCode = `TRNS-SELLER-${uuidv4().substring(0,8).toUpperCase()}`;
-            setConfirmedSellerTxCode(newSellerCode);
-            toast({ title: "Settlement Successful!", description: `Payment of ₹${transactionValue} to seller confirmed.` });
+        
+        try {
+            const response = await fetch('/api/create-payment-link', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    amount: transactionValue,
+                    partnerName: partner.name,
+                    isPartnerSettlement: true
+                })
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error);
+
+            const options = {
+                key: razorpayKeyId,
+                order_id: result.order_id,
+                name: "Settle with Snazzify Seller",
+                description: `Settlement of ₹${transactionValue}`,
+                handler: (response: any) => {
+                    setConfirmedSellerTxCode(response.razorpay_payment_id);
+                    toast({ title: "Settlement Successful!", description: `Payment of ₹${transactionValue} confirmed. Your Transaction Code is generated.` });
+                    setIsSettling(false);
+                },
+                prefill: {
+                    name: partner.name,
+                },
+                theme: { color: "#5a31f4" },
+                modal: {
+                    ondismiss: () => {
+                        setIsSettling(false);
+                        toast({ variant: 'destructive', title: 'Payment Cancelled' });
+                    }
+                }
+            };
+            const rzp = new (window as any).Razorpay(options);
+            rzp.open();
+
+        } catch (e: any) {
+            toast({ variant: 'destructive', title: 'Error', description: e.message });
             setIsSettling(false);
-        }, 1500);
+        }
     };
 
     const handleGenerateCustomerCode = () => {
@@ -77,11 +124,17 @@ export default function PartnerPayDashboardPage() {
             toast({ variant: 'destructive', title: "Verification Required", description: "Please enter the confirmed Seller Transaction Code." });
             return;
         }
-        // In a real app, you'd verify the sellerTxCode against a backend record.
-        // Here, we just check that it's not empty.
         
         const code = `SNZ-CUST-${uuidv4().substring(0, 8).toUpperCase()}`;
         setGeneratedCode(code);
+        const newTransaction = {
+             id: code, 
+             customerName: customerInfo.name, 
+             customerPhone: customerInfo.phone, 
+             value: parseFloat(transactionValue), 
+             date: format(new Date(), 'yyyy-MM-dd p')
+        };
+        setTransactions(prev => [newTransaction, ...prev]);
         toast({ title: "Customer Code Generated", description: `New code for ₹${transactionValue} created successfully.` });
     };
 
@@ -152,13 +205,18 @@ export default function PartnerPayDashboardPage() {
                             <CardHeader>
                                 <CardTitle>Generate Payment Code</CardTitle>
                                 <CardDescription className="text-xs">
-                                   Collect cash from the customer, settle with the seller, then generate a code for the customer to use.
+                                   Collect cash, settle with seller online, then generate a code for the customer.
                                 </CardDescription>
                             </CardHeader>
                              <CardContent className="space-y-4">
                                 <div className="space-y-2">
                                     <Label htmlFor="tx-value">Cash Collected (₹)</Label>
                                     <Input id="tx-value" type="number" placeholder="e.g., 500" value={transactionValue} onChange={(e) => setTransactionValue(e.target.value)} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Customer Details (for your records)</Label>
+                                    <div className="relative"><User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="customer-name" placeholder="Customer Name" value={customerInfo.name} onChange={(e) => setCustomerInfo(p => ({...p, name: e.target.value}))} className="pl-9" /></div>
+                                    <div className="relative"><Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="customer-phone" placeholder="Customer Phone" value={customerInfo.phone} onChange={(e) => setCustomerInfo(p => ({...p, phone: e.target.value}))} className="pl-9" /></div>
                                 </div>
                                 <Dialog onOpenChange={(open) => { if (!open) setConfirmedSellerTxCode('') }}>
                                     <DialogTrigger asChild>
@@ -170,7 +228,7 @@ export default function PartnerPayDashboardPage() {
                                         <DialogHeader>
                                             <DialogTitle>Step 1: Settle with Seller</DialogTitle>
                                             <DialogDescription>
-                                                To get a customer code, you must first pay the seller ₹{transactionValue || '0.00'}. Click below to simulate a UPI payment.
+                                                To get a customer code, you must first pay the seller ₹{transactionValue || '0.00'} online. Click below to open the payment gateway.
                                             </DialogDescription>
                                         </DialogHeader>
                                         
@@ -224,7 +282,7 @@ export default function PartnerPayDashboardPage() {
                                             </DialogHeader>
                                             <div className="py-4 space-y-2">
                                                 <Label htmlFor="seller-tx-code">Seller Transaction Code</Label>
-                                                <Input id="seller-tx-code" placeholder="Paste code here e.g. TRNS-SELLER-..." value={sellerTxCode} onChange={(e) => setSellerTxCode(e.target.value)} />
+                                                <Input id="seller-tx-code" placeholder="Paste code here e.g. pay_..." value={sellerTxCode} onChange={(e) => setSellerTxCode(e.target.value)} />
                                             </div>
                                             <DialogFooter>
                                                 <DialogClose asChild>
@@ -325,7 +383,7 @@ export default function PartnerPayDashboardPage() {
                                                                                      <Button variant="destructive" className="w-full justify-start"><AlertTriangle className="mr-2"/>Arrange Return</Button>
                                                                                 </AlertDialogTrigger>
                                                                                  <AlertDialogContent>
-                                                                                    <AlertDialogHeader><AlertDialogTitle>Arrange Return for {p.id}?</AlertDialogTitle><DialogDescription>If the customer has rejected the parcel, this will initiate the return process with the logistics partner and notify the seller. Are you sure?</DialogDescription></AlertDialogHeader>
+                                                                                    <AlertDialogHeader><AlertDialogTitle>Arrange Return for {p.id}?</AlertDialogTitle><AlertDialogDescription>If the customer has rejected the parcel, this will initiate the return process with the logistics partner and notify the seller. Are you sure?</AlertDialogDescription></AlertDialogHeader>
                                                                                     <AlertDialogFooter><AlertDialogCancel>Close</AlertDialogCancel><AlertDialogAction onClick={() => handleArrangeReturn(p.id)}>Yes, Arrange Return</AlertDialogAction></AlertDialogFooter>
                                                                                 </AlertDialogContent>
                                                                             </AlertDialog>
