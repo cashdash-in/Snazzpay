@@ -51,7 +51,7 @@ export default function PartnerPayDashboardPage() {
     const { toast } = useToast();
     const router = useRouter();
     const [partner] = useState(mockPartner);
-    const [transactions, setTransactions] = useState(mockTransactions);
+    const [transactions, setTransactions] = useState<Transaction[]>(mockTransactions);
     const [parcels, setParcels] = useState(initialParcels);
     const [generatedCode, setGeneratedCode] = useState('');
     const [transactionValue, setTransactionValue] = useState('');
@@ -113,6 +113,7 @@ export default function PartnerPayDashboardPage() {
                     setConfirmedSellerTxCode(response.razorpay_payment_id);
                     toast({ title: "Settlement Successful!", description: `Payment of ₹${transactionValue} confirmed. Your Transaction Code is generated.` });
                     setIsSettling(false);
+                    // Do not close the dialog here.
                 },
                 prefill: {
                     name: partner.name,
@@ -154,6 +155,11 @@ export default function PartnerPayDashboardPage() {
         };
         setTransactions(prev => [newTransaction, ...prev]);
         toast({ title: "Customer Code Generated", description: `New code for ₹${transactionValue} created successfully.` });
+        
+        // Reset fields after successful generation
+        setTransactionValue('');
+        setCustomerInfo({ name: '', phone: '', address: ''});
+        setConfirmedSellerTxCode('');
     };
 
 
