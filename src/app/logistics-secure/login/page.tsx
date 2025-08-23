@@ -11,16 +11,8 @@ import Link from "next/link";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Checkbox } from '@/components/ui/checkbox';
+import type { LogisticsPartnerData } from './signup/page';
 
-export type LogisticsPartnerData = {
-    id: string; // This will be the login ID
-    companyName: string;
-    pan: string;
-    aadhaar: string;
-    address: string;
-    phone: string;
-    status: 'pending' | 'approved' | 'rejected';
-};
 
 export default function LogisticsLoginPage() {
     const { toast } = useToast();
