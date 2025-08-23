@@ -55,6 +55,7 @@ export default function PartnerPayDashboardPage() {
 
     const [collectorName, setCollectorName] = useState('');
     const [deliveryNotes, setDeliveryNotes] = useState('');
+    const [isSettleDialogOpen, setIsSettleDialogOpen] = useState(false);
     
     useEffect(() => {
         getRazorpayKeyId().then(key => {
@@ -112,7 +113,9 @@ export default function PartnerPayDashboardPage() {
                 modal: {
                     ondismiss: () => {
                         setIsSettling(false);
-                        toast({ variant: 'destructive', title: 'Payment Cancelled' });
+                        if (!confirmedSellerTxCode) { // Only show cancelled if payment wasn't successful
+                            toast({ variant: 'destructive', title: 'Payment Cancelled' });
+                        }
                     }
                 }
             };
@@ -225,7 +228,7 @@ export default function PartnerPayDashboardPage() {
                                     <div className="relative"><Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="customer-phone" placeholder="Customer Phone" value={customerInfo.phone} onChange={(e) => setCustomerInfo(p => ({...p, phone: e.target.value}))} className="pl-9" /></div>
                                      <div className="relative"><Home className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="customer-address" placeholder="Customer Address" value={customerInfo.address} onChange={(e) => setCustomerInfo(p => ({...p, address: e.target.value}))} className="pl-9" /></div>
                                 </div>
-                                <Dialog onOpenChange={(open) => { if (!open) setConfirmedSellerTxCode('') }}>
+                                <Dialog open={isSettleDialogOpen} onOpenChange={(open) => { setIsSettleDialogOpen(open); if (!open) setConfirmedSellerTxCode(''); }}>
                                     <DialogTrigger asChild>
                                          <Button className="w-full">
                                             <QrCode className="mr-2 h-4 w-4" /> Settle with Seller & Get Code
