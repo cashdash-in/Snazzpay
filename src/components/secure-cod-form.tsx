@@ -293,7 +293,6 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
     };
 
     const proceedToAuthorization = () => {
-        setStep('details');
         handlePayment();
     }
 
