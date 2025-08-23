@@ -46,17 +46,22 @@ export default function LogisticsLoginPage() {
         }
         
         // In a real app, this would be a server call.
-        // For the prototype, we check against approved partners in localStorage.
+        // For this prototype, we check against approved partners in localStorage.
         const approvedPartnersJSON = localStorage.getItem('logisticsPartners');
         const approvedPartners: LogisticsPartnerData[] = approvedPartnersJSON ? JSON.parse(approvedPartnersJSON) : [];
         const partner = approvedPartners.find(p => p.id === partnerId && p.status === 'approved');
 
+        const isAdmin = partnerId === 'partner-admin';
+        const isValidPartner = partner !== undefined;
+
         // Simulate a short delay to give a "verifying" feel
         setTimeout(() => {
-            // Prototype password check
-            if ((partner || partnerId === 'partner-admin') && password === 'password') {
-                localStorage.setItem('loggedInLogisticsPartnerId', partner?.id || 'partner-admin');
-                 localStorage.setItem('loggedInLogisticsPartnerName', partner?.companyName || 'Admin Partner');
+            if (password === 'password' && (isAdmin || isValidPartner)) {
+                 const loggedInPartnerId = isAdmin ? 'partner-admin' : partner!.id;
+                 const loggedInPartnerName = isAdmin ? 'Admin Logistics Partner' : partner!.companyName;
+
+                localStorage.setItem('loggedInLogisticsPartnerId', loggedInPartnerId);
+                localStorage.setItem('loggedInLogisticsPartnerName', loggedInPartnerName);
 
                 toast({
                     title: "Login Successful",
