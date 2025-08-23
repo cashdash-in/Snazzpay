@@ -25,6 +25,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
+import { format } from "date-fns";
 
 
 // Mock Data - Replace with real data later
@@ -39,15 +41,18 @@ const mockPartners = [
      { id: 'PNR-003', name: 'Anil Kirana', location: 'Patna, Bihar', contact: '9123456789', totalCollected: '8,200.00', status: 'Inactive' },
 ];
 
-const mockBatches = [
+const initialMockBatches = [
     { id: 'BCH-001', denomination: '500', count: 100, date: '2024-05-20', status: 'Distributed' },
     { id: 'BCH-002', denomination: '1000', count: 50, date: '2024-05-20', status: 'Distributed' },
     { id: 'BCH-003', denomination: '100', count: 200, date: '2024-05-22', status: 'In Stock' },
-]
+];
 
 
 export default function SnazzifyCoinPage() {
     const { toast } = useToast();
+    const [batches, setBatches] = useState(initialMockBatches);
+    const [newDenomination, setNewDenomination] = useState('');
+    const [newCount, setNewCount] = useState('');
 
     const handlePrint = (batchId: string) => {
         toast({
@@ -61,6 +66,36 @@ export default function SnazzifyCoinPage() {
             title: "Export Started",
             description: `Your full coin inventory export will be downloaded shortly.`,
         });
+    };
+
+    const handleGenerateBatch = () => {
+        if (!newDenomination || !newCount) {
+            toast({
+                variant: 'destructive',
+                title: "Missing Information",
+                description: "Please select a coin value and enter the number of coins.",
+            });
+            return;
+        }
+
+        const newBatch = {
+            id: `BCH-00${batches.length + 1}`,
+            denomination: newDenomination,
+            count: parseInt(newCount, 10),
+            date: format(new Date(), 'yyyy-MM-dd'),
+            status: 'In Stock'
+        };
+
+        setBatches(prevBatches => [newBatch, ...prevBatches]);
+
+        toast({
+            title: "Batch Generated!",
+            description: `Successfully created batch ${newBatch.id} with ${newBatch.count} coins of ₹${newBatch.denomination}.`,
+        });
+
+        // Reset fields
+        setNewDenomination('');
+        setNewCount('');
     };
 
     return (
@@ -254,7 +289,7 @@ export default function SnazzifyCoinPage() {
                                 <CardContent className="space-y-4">
                                      <div className="space-y-2">
                                         <Label htmlFor="denomination">Coin Value (Denomination)</Label>
-                                        <Select>
+                                        <Select value={newDenomination} onValueChange={setNewDenomination}>
                                             <SelectTrigger id="denomination">
                                                 <SelectValue placeholder="Select a value" />
                                             </SelectTrigger>
@@ -269,7 +304,7 @@ export default function SnazzifyCoinPage() {
                                     </div>
                                     <div className="space-y-2">
                                         <Label htmlFor="count">Number of Coins</Label>
-                                        <Input id="count" type="number" placeholder="e.g., 100" />
+                                        <Input id="count" type="number" placeholder="e.g., 100" value={newCount} onChange={(e) => setNewCount(e.target.value)} />
                                     </div>
                                 </CardContent>
                                 <CardFooter>
@@ -286,7 +321,7 @@ export default function SnazzifyCoinPage() {
                                             </AlertDialogHeader>
                                             <AlertDialogFooter>
                                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                <AlertDialogAction>Yes, Generate</AlertDialogAction>
+                                                <AlertDialogAction onClick={handleGenerateBatch}>Yes, Generate</AlertDialogAction>
                                             </AlertDialogFooter>
                                         </AlertDialogContent>
                                     </AlertDialog>
@@ -319,7 +354,7 @@ export default function SnazzifyCoinPage() {
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
-                                            {mockBatches.map(batch => (
+                                            {batches.map(batch => (
                                                 <TableRow key={batch.id}>
                                                     <TableCell className="font-medium">{batch.id}</TableCell>
                                                     <TableCell>₹{batch.denomination}</TableCell>
