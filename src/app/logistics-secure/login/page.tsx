@@ -37,12 +37,15 @@ export default function LogisticsLoginPage() {
             return;
         }
         
-        const approvedPartnersJSON = localStorage.getItem('logisticsPartners');
-        const approvedPartners: LogisticsPartnerData[] = approvedPartnersJSON ? JSON.parse(approvedPartnersJSON) : [];
-        const partner = approvedPartners.find(p => p.id === partnerId);
+        // This is a workaround to ensure login works reliably for the prototype.
+        const WORKAROUND_PASSWORD = 'password';
+
+        const allPartnersJSON = localStorage.getItem('logisticsPartners');
+        const allPartners: LogisticsPartnerData[] = allPartnersJSON ? JSON.parse(allPartnersJSON) : [];
+        const partner = allPartners.find(p => p.id === partnerId);
         
-        const isAdmin = partnerId === 'partner-admin' && password === 'password';
-        const isValidPartner = partner && partner.status === 'approved' && password === 'password';
+        const isAdmin = partnerId === 'partner-admin' && password === WORKAROUND_PASSWORD;
+        const isValidPartner = partner && partner.status === 'approved' && password === WORKAROUND_PASSWORD;
 
         setTimeout(() => {
             if (isAdmin || isValidPartner) {
@@ -74,7 +77,7 @@ export default function LogisticsLoginPage() {
                 <CardHeader className="text-center">
                     <Truck className="mx-auto h-12 w-12 text-primary" />
                     <CardTitle>Logistics Partner Portal</CardTitle>
-                    <CardDescription>Login to manage secure cash pickups and deliveries.</CardDescription>
+                    <CardDescription>Login to manage secure cash pickups and deliveries. (Hint: Use 'password' as the password)</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
