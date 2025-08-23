@@ -31,9 +31,9 @@ const mockTransactions = [
 ];
 
 const initialParcels = [
-    { id: '#SNZ-9876', customer: 'Priya S.', status: 'Waiting for Pickup', awb: 'DLV123456', courier: 'Delhivery', dispatchDate: '2024-05-23', estArrival: '2024-05-25' },
-    { id: '#SNZ-9875', customer: 'Amit K.', status: 'Picked Up', awb: 'BLD789012', courier: 'BlueDart', dispatchDate: '2024-05-22', estArrival: '2024-05-24' },
-    { id: '#SNZ-9874', customer: 'Rina V.', status: 'Ready for Pickup', awb: 'XPS345678', courier: 'XpressBees', dispatchDate: '2024-05-24', estArrival: '2024-05-26' },
+    { id: '#SNZ-9876', customer: 'Priya S.', productName: 'Designer Watch', status: 'Waiting for Pickup', awb: 'DLV123456', courier: 'Delhivery', dispatchDate: '2024-05-23', estArrival: '2024-05-25' },
+    { id: '#SNZ-9875', customer: 'Amit K.', productName: 'Leather Handbag', status: 'Picked Up', awb: 'BLD789012', courier: 'BlueDart', dispatchDate: '2024-05-22', estArrival: '2024-05-24' },
+    { id: '#SNZ-9874', customer: 'Rina V.', productName: 'Sunglasses', status: 'Ready for Pickup', awb: 'XPS345678', courier: 'XpressBees', dispatchDate: '2024-05-24', estArrival: '2024-05-26' },
 ];
 
 
@@ -135,7 +135,7 @@ export default function PartnerPayDashboardPage() {
                             <CardHeader>
                                 <CardTitle>Generate Payment Code</CardTitle>
                                 <CardDescription className="text-xs">
-                                   To generate a code, collect cash from the customer, get a verification code from the seller, then generate the final customer code.
+                                   To generate a code, collect cash from the customer. First, enter the transaction code provided by the seller to authorize your system. Then, generate the final customer code.
                                 </CardDescription>
                             </CardHeader>
                              <CardContent className="space-y-4">
@@ -201,8 +201,9 @@ export default function PartnerPayDashboardPage() {
                                             <TableHeader>
                                                 <TableRow>
                                                     <TableHead>Parcel ID</TableHead>
+                                                    <TableHead>Customer</TableHead>
+                                                    <TableHead>Product</TableHead>
                                                     <TableHead>AWB No.</TableHead>
-                                                    <TableHead>Courier</TableHead>
                                                     <TableHead>Status</TableHead>
                                                     <TableHead className="text-right">Actions</TableHead>
                                                 </TableRow>
@@ -211,8 +212,9 @@ export default function PartnerPayDashboardPage() {
                                                 {parcels.map(p => (
                                                     <TableRow key={p.id}>
                                                         <TableCell className="font-medium">{p.id}</TableCell>
+                                                        <TableCell>{p.customer}</TableCell>
+                                                        <TableCell>{p.productName}</TableCell>
                                                         <TableCell className="font-mono text-xs">{p.awb}</TableCell>
-                                                        <TableCell>{p.courier}</TableCell>
                                                         <TableCell>
                                                             <Badge variant={p.status === 'Picked Up' ? 'default' : 'secondary'} className={p.status === 'Picked Up' ? 'bg-green-100 text-green-800' : p.status === 'Ready for Pickup' ? 'bg-blue-100 text-blue-800' : ''}>
                                                                 {p.status}
@@ -226,7 +228,7 @@ export default function PartnerPayDashboardPage() {
                                                                 <DialogContent>
                                                                     <DialogHeader>
                                                                         <DialogTitle>Manage Parcel {p.id}</DialogTitle>
-                                                                        <DialogDescription>Customer: {p.customer}</DialogDescription>
+                                                                        <DialogDescription>For: {p.customer} ({p.productName})</DialogDescription>
                                                                     </DialogHeader>
                                                                     <div className="space-y-4 py-4">
                                                                         <div>
@@ -254,7 +256,7 @@ export default function PartnerPayDashboardPage() {
                                                                             <h4 className="font-medium">Other Actions</h4>
                                                                              <AlertDialog>
                                                                                 <AlertDialogTrigger asChild>
-                                                                                    <Button variant="outline" className="w-full justify-start" disabled={p.status !== 'Waiting for Pickup' && p.status !== 'Ready for Pickup'}><Edit className="mr-2"/>Request Cancellation</Button>
+                                                                                    <Button variant="outline" className="w-full justify-start"><Edit className="mr-2"/>Request Cancellation</Button>
                                                                                 </AlertDialogTrigger>
                                                                                 <AlertDialogContent>
                                                                                     <AlertDialogHeader><AlertDialogTitle>Request Cancellation for {p.id}?</AlertDialogTitle><AlertDialogDescription>This action will send a cancellation request to the seller. This should only be done before the parcel is dispatched from the main warehouse.</AlertDialogDescription></AlertDialogHeader>
@@ -263,7 +265,7 @@ export default function PartnerPayDashboardPage() {
                                                                             </AlertDialog>
                                                                             <AlertDialog>
                                                                                 <AlertDialogTrigger asChild>
-                                                                                     <Button variant="destructive" className="w-full justify-start" disabled={p.status !== 'Ready for Pickup'}><AlertTriangle className="mr-2"/>Arrange Return</Button>
+                                                                                     <Button variant="destructive" className="w-full justify-start"><AlertTriangle className="mr-2"/>Arrange Return</Button>
                                                                                 </AlertDialogTrigger>
                                                                                  <AlertDialogContent>
                                                                                     <AlertDialogHeader><AlertDialogTitle>Arrange Return for {p.id}?</AlertDialogTitle><AlertDialogDescription>If the customer has rejected the parcel, this will initiate the return process with the logistics partner and notify the seller. Are you sure?</AlertDialogDescription></AlertDialogHeader>
@@ -317,5 +319,7 @@ export default function PartnerPayDashboardPage() {
         </div>
     );
 }
+
+    
 
     
