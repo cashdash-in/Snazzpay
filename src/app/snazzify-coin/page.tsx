@@ -4,7 +4,7 @@
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Coins, Package, Handshake, Info, PlusCircle, Printer, Download, Loader2 } from 'lucide-react';
+import { Coins, Package, Handshake, Info, PlusCircle, Printer, Download, Loader2, QrCode } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
@@ -27,79 +27,74 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { format } from "date-fns";
+import { v4 as uuidv4 } from 'uuid';
 
 
 // Mock Data - Replace with real data later
 const mockOrders = [
-    { id: '#SC-1001', customer: 'Ravi Kumar', partner: 'Gupta General Store', coinCode: 'SNC-A1B2-C3D4', amount: '499.00', status: 'Paid' },
-    { id: '#SC-1002', customer: 'Priya Sharma', partner: 'Pooja Mobile Recharge', coinCode: 'SNC-E5F6-G7H8', amount: '1250.00', status: 'Paid' },
+    { id: '#PP-1001', customer: 'Ravi Kumar', partner: 'Gupta General Store', coinCode: 'SNZ-A1B2-C3D4', amount: '499.00', status: 'Paid' },
+    { id: '#PP-1002', customer: 'Priya Sharma', partner: 'Pooja Mobile Recharge', coinCode: 'SNZ-E5F6-G7H8', amount: '1250.00', status: 'Paid' },
 ];
 
 const mockPartners = [
-    { id: 'PNR-001', name: 'Gupta General Store', location: 'Jaipur, Rajasthan', contact: '9988776655', totalCollected: '15,450.00', status: 'Active' },
-    { id: 'PNR-002', name: 'Pooja Mobile Recharge', location: 'Pune, Maharashtra', contact: '9876543210', totalCollected: '22,100.00', status: 'Active' },
-     { id: 'PNR-003', name: 'Anil Kirana', location: 'Patna, Bihar', contact: '9123456789', totalCollected: '8,200.00', status: 'Inactive' },
+    { id: 'PNR-001', name: 'Gupta General Store', location: 'Jaipur, Rajasthan', contact: '9988776655', totalCollected: '15,450.00', balance: '2500.00', status: 'Active' },
+    { id: 'PNR-002', name: 'Pooja Mobile Recharge', location: 'Pune, Maharashtra', contact: '9876543210', totalCollected: '22,100.00', balance: '5000.00', status: 'Active' },
+    { id: 'PNR-003', name: 'Anil Kirana', location: 'Patna, Bihar', contact: '9123456789', totalCollected: '8,200.00', balance: '0.00', status: 'Inactive' },
 ];
 
-const initialMockBatches = [
-    { id: 'BCH-001', denomination: '500', count: 100, date: '2024-05-20', status: 'Distributed' },
-    { id: 'BCH-002', denomination: '1000', count: 50, date: '2024-05-20', status: 'Distributed' },
-    { id: 'BCH-003', denomination: '100', count: 200, date: '2024-05-22', status: 'In Stock' },
+const initialMockCodes = [
+    { id: 'SNC-A1B2-C3D4', value: '499.00', date: '2024-05-23', partner: 'Gupta General Store', status: 'Used' },
+    { id: 'SNC-E5F6-G7H8', value: '1250.00', date: '2024-05-23', partner: 'Pooja Mobile Recharge', status: 'Used' },
+    { id: 'SNC-J9K0-L1M2', value: '100.00', date: '2024-05-22', partner: 'Gupta General Store', status: 'Unused' },
 ];
 
 
 export default function SnazzifyCoinPage() {
     const { toast } = useToast();
-    const [batches, setBatches] = useState(initialMockBatches);
-    const [newDenomination, setNewDenomination] = useState('');
-    const [newCount, setNewCount] = useState('');
+    const [codes, setCodes] = useState(initialMockCodes);
+    const [newCodeValue, setNewCodeValue] = useState('');
+    const [selectedPartner, setSelectedPartner] = useState('');
 
-    const handlePrint = (batchId: string) => {
+
+    const handleGenerateCode = () => {
+        if (!newCodeValue || !selectedPartner) {
+            toast({
+                variant: 'destructive',
+                title: "Missing Information",
+                description: "Please select a partner and enter a value for the code.",
+            });
+            return;
+        }
+
+        const newCode = {
+            id: `SNC-${uuidv4().substring(0, 4).toUpperCase()}-${uuidv4().substring(4, 8).toUpperCase()}`,
+            value: parseFloat(newCodeValue).toFixed(2),
+            date: format(new Date(), 'yyyy-MM-dd'),
+            partner: mockPartners.find(p => p.id === selectedPartner)?.name || 'Unknown Partner',
+            status: 'Unused'
+        };
+
+        setCodes(prevCodes => [newCode, ...prevCodes]);
+
         toast({
-            title: "Print Job Initiated",
-            description: `A print job for batch ${batchId} has been sent.`,
+            title: "Digital Code Generated!",
+            description: `Successfully created code ${newCode.id} for ₹${newCode.value}.`,
         });
+
+        // Reset fields
+        setNewCodeValue('');
+        setSelectedPartner('');
     };
     
     const handleExport = () => {
          toast({
             title: "Export Started",
-            description: `Your full coin inventory export will be downloaded shortly.`,
+            description: `Your full transaction code export will be downloaded shortly.`,
         });
-    };
-
-    const handleGenerateBatch = () => {
-        if (!newDenomination || !newCount) {
-            toast({
-                variant: 'destructive',
-                title: "Missing Information",
-                description: "Please select a coin value and enter the number of coins.",
-            });
-            return;
-        }
-
-        const newBatch = {
-            id: `BCH-00${batches.length + 1}`,
-            denomination: newDenomination,
-            count: parseInt(newCount, 10),
-            date: format(new Date(), 'yyyy-MM-dd'),
-            status: 'In Stock'
-        };
-
-        setBatches(prevBatches => [newBatch, ...prevBatches]);
-
-        toast({
-            title: "Batch Generated!",
-            description: `Successfully created batch ${newBatch.id} with ${newBatch.count} coins of ₹${newBatch.denomination}.`,
-        });
-
-        // Reset fields
-        setNewDenomination('');
-        setNewCount('');
     };
 
     return (
-        <AppShell title="Snazzify Coin System">
+        <AppShell title="Partner Pay System">
             <Tabs defaultValue="overview">
                 <TabsList className="grid w-full grid-cols-4 max-w-2xl mx-auto">
                     <TabsTrigger value="overview">
@@ -111,16 +106,16 @@ export default function SnazzifyCoinPage() {
                     <TabsTrigger value="partners">
                         <Handshake className="mr-2 h-4 w-4" /> Partners
                     </TabsTrigger>
-                    <TabsTrigger value="inventory">
-                        <Coins className="mr-2 h-4 w-4" /> Coin Inventory
+                    <TabsTrigger value="codes">
+                        <QrCode className="mr-2 h-4 w-4" /> Digital Codes
                     </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="overview">
                      <Card>
                         <CardHeader>
-                            <CardTitle>Snazzify Coin: Physical-to-Digital Payments</CardTitle>
-                            <CardDescription>Manage your network of local shopkeepers who act as cash collection points using a physical scratch-card system.</CardDescription>
+                            <CardTitle>Partner Pay: Digital Cash Collections</CardTitle>
+                            <CardDescription>A fully digital system empowering local shopkeepers to act as cash collection points without physical inventory.</CardDescription>
                         </CardHeader>
                         <CardContent>
                              <Alert>
@@ -128,11 +123,11 @@ export default function SnazzifyCoinPage() {
                                 <AlertTitle>How It Works</AlertTitle>
                                 <AlertDescription>
                                     <ol className="list-decimal list-inside space-y-2 mt-2">
-                                        <li><b>You distribute physical "Snazzify Coin" scratch cards to your trusted local shopkeepers (Partners).</b></li>
+                                        <li><b>Your local shopkeeper (Partner) is given a digital credit line or balance in the app.</b></li>
                                         <li><b>A customer pays the partner cash for their order.</b></li>
-                                        <li><b>The partner gives the customer a scratch card of equivalent value.</b></li>
-                                        <li><b>The customer uses the code on the card to confirm their payment, often via a simple phone call (IVR).</b></li>
-                                        <li><b>The order is marked as 'Paid' in your system, and you can dispatch it. You settle the cash with your partner later.</b></li>
+                                        <li><b>The partner uses this portal to generate a unique digital payment code for the exact value of the transaction.</b></li>
+                                        <li><b>The partner shares this code with the customer via SMS, WhatsApp, or a simple printed receipt.</b></li>
+                                        <li><b>The customer uses the code to confirm their payment on your website or via a phone call (IVR). The order is then marked as 'Paid' and dispatched.</b></li>
                                     </ol>
                                 </AlertDescription>
                             </Alert>
@@ -142,8 +137,8 @@ export default function SnazzifyCoinPage() {
                 <TabsContent value="orders">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Snazzify Coin Orders</CardTitle>
-                            <CardDescription>View all orders placed and secured using the Snazzify Coin system.</CardDescription>
+                            <CardTitle>Partner Pay Orders</CardTitle>
+                            <CardDescription>View all orders placed and secured using the Partner Pay digital code system.</CardDescription>
                         </CardHeader>
                         <CardContent>
                            <Table>
@@ -152,7 +147,7 @@ export default function SnazzifyCoinPage() {
                                         <TableHead>Order ID</TableHead>
                                         <TableHead>Customer</TableHead>
                                         <TableHead>Collection Partner</TableHead>
-                                        <TableHead>Coin Code Used</TableHead>
+                                        <TableHead>Digital Code Used</TableHead>
                                         <TableHead>Amount</TableHead>
                                         <TableHead>Status</TableHead>
                                     </TableRow>
@@ -178,7 +173,7 @@ export default function SnazzifyCoinPage() {
                         <CardHeader className="flex flex-row items-center justify-between">
                             <div>
                                 <CardTitle>Partner Network</CardTitle>
-                                <CardDescription>Manage your network of trusted shopkeepers.</CardDescription>
+                                <CardDescription>Manage your network of trusted shopkeepers and their digital balances.</CardDescription>
                             </div>
                              <Dialog>
                                 <DialogTrigger asChild>
@@ -227,7 +222,7 @@ export default function SnazzifyCoinPage() {
                                     <TableRow>
                                         <TableHead>Partner ID</TableHead>
                                         <TableHead>Name</TableHead>
-                                        <TableHead>Location</TableHead>
+                                        <TableHead>Balance</TableHead>
                                         <TableHead>Total Collected</TableHead>
                                         <TableHead>Status</TableHead>
                                          <TableHead className="text-right">Actions</TableHead>
@@ -238,7 +233,7 @@ export default function SnazzifyCoinPage() {
                                         <TableRow key={partner.id}>
                                             <TableCell className="font-medium">{partner.id}</TableCell>
                                             <TableCell>{partner.name}</TableCell>
-                                            <TableCell>{partner.location}</TableCell>
+                                            <TableCell>₹{partner.balance}</TableCell>
                                             <TableCell>₹{partner.totalCollected}</TableCell>
                                             <TableCell>
                                                 <Badge variant={partner.status === 'Active' ? 'default' : 'secondary'} className={partner.status === 'Active' ? 'bg-green-100 text-green-800' : ''}>
@@ -260,7 +255,8 @@ export default function SnazzifyCoinPage() {
                                                         <div className="space-y-2 text-sm">
                                                             <p><strong>Location:</strong> {partner.location}</p>
                                                             <p><strong>Contact:</strong> {partner.contact}</p>
-                                                            <p><strong>Total Collected:</strong> ₹{partner.totalCollected}</p>
+                                                            <p><strong>Current Balance:</strong> ₹{partner.balance}</p>
+                                                            <p><strong>Total Collected All-Time:</strong> ₹{partner.totalCollected}</p>
                                                             <p><strong>Status:</strong> {partner.status}</p>
                                                         </div>
                                                         <DialogFooter>
@@ -278,50 +274,48 @@ export default function SnazzifyCoinPage() {
                         </CardContent>
                     </Card>
                 </TabsContent>
-                 <TabsContent value="inventory">
+                 <TabsContent value="codes">
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         <div className="lg:col-span-1">
                              <Card>
                                 <CardHeader>
-                                    <CardTitle>Generate New Coin Batch</CardTitle>
-                                    <CardDescription>Create a new batch of physical scratch cards.</CardDescription>
+                                    <CardTitle>Generate Digital Code</CardTitle>
+                                    <CardDescription>Create a unique payment code for a cash transaction.</CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-4">
                                      <div className="space-y-2">
-                                        <Label htmlFor="denomination">Coin Value (Denomination)</Label>
-                                        <Select value={newDenomination} onValueChange={setNewDenomination}>
-                                            <SelectTrigger id="denomination">
-                                                <SelectValue placeholder="Select a value" />
+                                        <Label htmlFor="partner">Select Partner</Label>
+                                        <Select value={selectedPartner} onValueChange={setSelectedPartner}>
+                                            <SelectTrigger id="partner">
+                                                <SelectValue placeholder="Select a partner" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="100">₹100</SelectItem>
-                                                <SelectItem value="250">₹250</SelectItem>
-                                                <SelectItem value="500">₹500</SelectItem>
-                                                <SelectItem value="1000">₹1,000</SelectItem>
-                                                <SelectItem value="2000">₹2,000</SelectItem>
+                                                {mockPartners.filter(p=>p.status==='Active').map(p => (
+                                                  <SelectItem key={p.id} value={p.id}>{p.name} (Balance: ₹{p.balance})</SelectItem>
+                                                ))}
                                             </SelectContent>
                                         </Select>
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="count">Number of Coins</Label>
-                                        <Input id="count" type="number" placeholder="e.g., 100" value={newCount} onChange={(e) => setNewCount(e.target.value)} />
+                                        <Label htmlFor="count">Transaction Value (INR)</Label>
+                                        <Input id="count" type="number" placeholder="e.g., 499.00" value={newCodeValue} onChange={(e) => setNewCodeValue(e.target.value)} />
                                     </div>
                                 </CardContent>
                                 <CardFooter>
                                      <AlertDialog>
                                         <AlertDialogTrigger asChild>
-                                            <Button className="w-full">Generate Batch</Button>
+                                            <Button className="w-full">Generate Code</Button>
                                         </AlertDialogTrigger>
                                         <AlertDialogContent>
                                             <AlertDialogHeader>
-                                                <AlertDialogTitle>Confirm Batch Generation</AlertDialogTitle>
+                                                <AlertDialogTitle>Confirm Code Generation</AlertDialogTitle>
                                                 <AlertDialogDescription>
-                                                    This will generate a new batch of unique coin codes. Are you sure you want to proceed?
+                                                    This will generate a new digital payment code and may debit the partner's balance. Are you sure you want to proceed?
                                                 </AlertDialogDescription>
                                             </AlertDialogHeader>
                                             <AlertDialogFooter>
                                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                <AlertDialogAction onClick={handleGenerateBatch}>Yes, Generate</AlertDialogAction>
+                                                <AlertDialogAction onClick={handleGenerateCode}>Yes, Generate Code</AlertDialogAction>
                                             </AlertDialogFooter>
                                         </AlertDialogContent>
                                     </AlertDialog>
@@ -332,8 +326,8 @@ export default function SnazzifyCoinPage() {
                             <Card>
                                 <CardHeader className="flex flex-row items-center justify-between">
                                     <div>
-                                        <CardTitle>Coin Inventory & Batches</CardTitle>
-                                        <CardDescription>Track and manage generated scratch cards.</CardDescription>
+                                        <CardTitle>Generated Digital Codes</CardTitle>
+                                        <CardDescription>Track all generated payment codes.</CardDescription>
                                     </div>
                                     <div className="flex gap-2">
                                          <Button variant="outline" size="sm" onClick={handleExport}>
@@ -345,28 +339,22 @@ export default function SnazzifyCoinPage() {
                                     <Table>
                                         <TableHeader>
                                             <TableRow>
-                                                <TableHead>Batch ID</TableHead>
-                                                <TableHead>Denomination</TableHead>
-                                                <TableHead>Count</TableHead>
-                                                <TableHead>Date Generated</TableHead>
+                                                <TableHead>Code</TableHead>
+                                                <TableHead>Value</TableHead>
+                                                <TableHead>Partner</TableHead>
+                                                <TableHead>Date</TableHead>
                                                 <TableHead>Status</TableHead>
-                                                <TableHead className="text-right">Actions</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
-                                            {batches.map(batch => (
-                                                <TableRow key={batch.id}>
-                                                    <TableCell className="font-medium">{batch.id}</TableCell>
-                                                    <TableCell>₹{batch.denomination}</TableCell>
-                                                    <TableCell>{batch.count}</TableCell>
-                                                    <TableCell>{batch.date}</TableCell>
+                                            {codes.map(code => (
+                                                <TableRow key={code.id}>
+                                                    <TableCell className="font-mono text-xs">{code.id}</TableCell>
+                                                    <TableCell>₹{code.value}</TableCell>
+                                                    <TableCell>{code.partner}</TableCell>
+                                                    <TableCell>{code.date}</TableCell>
                                                     <TableCell>
-                                                        <Badge variant={batch.status === 'Distributed' ? 'secondary' : 'default'}>{batch.status}</Badge>
-                                                    </TableCell>
-                                                    <TableCell className="text-right">
-                                                        <Button variant="outline" size="icon" onClick={() => handlePrint(batch.id)}>
-                                                            <Printer className="h-4 w-4" />
-                                                        </Button>
+                                                        <Badge variant={code.status === 'Used' ? 'secondary' : 'default'}>{code.status}</Badge>
                                                     </TableCell>
                                                 </TableRow>
                                             ))}
@@ -381,3 +369,5 @@ export default function SnazzifyCoinPage() {
         </AppShell>
     )
 }
+
+    

@@ -43,6 +43,7 @@ import {
   Video,
   Store,
   Box,
+  Handshake,
 } from 'lucide-react';
 
 const coreMenuItems = [
@@ -57,7 +58,7 @@ const coreMenuItems = [
 ];
 
 const growthMenuItems = [
-    { href: '/snazzify-coin', label: 'Snazzify Coin', icon: Store },
+    { href: '/snazzify-coin', label: 'Partner Pay', icon: Handshake },
     { href: '/logistics-secure', label: 'Logistics Secure', icon: Box },
 ];
 
@@ -178,3 +179,5 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
     </SidebarProvider>
   );
 };
+
+    
