@@ -160,6 +160,12 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
                 <DropdownMenuSeparator />
                 <DropdownMenuItem>Profile</DropdownMenuItem>
                 <DropdownMenuItem>Billing</DropdownMenuItem>
+                 <Link href="/partner-pay/login" target="_blank">
+                  <DropdownMenuItem>
+                    <Handshake className="mr-2 h-4 w-4" />
+                    <span>Partner Login</span>
+                  </DropdownMenuItem>
+                </Link>
                 <Link href="/customer/login" target="_blank">
                   <DropdownMenuItem>
                     <LogIn className="mr-2 h-4 w-4" />
