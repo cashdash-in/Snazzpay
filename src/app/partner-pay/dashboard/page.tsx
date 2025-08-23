@@ -26,15 +26,24 @@ const mockPartner = {
     totalEarnings: 1250.00
 };
 
-const mockTransactions = [
-    { id: 'SNC-A1B2', customerName: 'Rohan Sharma', customerPhone: '9876543210', value: 500, date: '2024-05-24 10:30 AM' },
-    { id: 'SNC-E5F6', customerName: 'Aditi Singh', customerPhone: '9123456789', value: 1200, date: '2024-05-24 02:15 PM' },
+type Transaction = {
+    id: string;
+    customerName: string;
+    customerPhone: string;
+    customerAddress: string;
+    value: number;
+    date: string;
+};
+
+const mockTransactions: Transaction[] = [
+    { id: 'SNC-A1B2', customerName: 'Rohan Sharma', customerPhone: '9876543210', customerAddress: '12, MG Road, Bangalore', value: 500, date: '2024-05-24 10:30 AM' },
+    { id: 'SNC-E5F6', customerName: 'Aditi Singh', customerPhone: '9123456789', customerAddress: '45, Jubilee Hills, Hyderabad', value: 1200, date: '2024-05-24 02:15 PM' },
 ];
 
 const initialParcels = [
-    { id: '#SNZ-9876', customer: 'Priya S.', customerPhone: '9988776655', productName: 'Designer Watch', status: 'Waiting for Pickup', awb: 'DLV123456', courier: 'Delhivery', dispatchDate: '2024-05-23', estArrival: '2024-05-25' },
-    { id: '#SNZ-9875', customer: 'Amit K.', customerPhone: '9876543211', productName: 'Leather Handbag', status: 'Picked Up', awb: 'BLD789012', courier: 'BlueDart', dispatchDate: '2024-05-22', estArrival: '2024-05-24' },
-    { id: '#SNZ-9874', customer: 'Rina V.', customerPhone: '9123456780', productName: 'Sunglasses', status: 'Ready for Pickup', awb: 'XPS345678', courier: 'XpressBees', dispatchDate: '2024-05-24', estArrival: '2024-05-26' },
+    { id: '#SNZ-9876', customer: 'Priya S.', customerPhone: '9988776655', customerAddress: 'A-101, Rose Apartments, Mumbai', productName: 'Designer Watch', status: 'Waiting for Pickup', awb: 'DLV123456', courier: 'Delhivery', dispatchDate: '2024-05-23', estArrival: '2024-05-25' },
+    { id: '#SNZ-9875', customer: 'Amit K.', customerPhone: '9876543211', customerAddress: 'B-202, Lotus Towers, Pune', productName: 'Leather Handbag', status: 'Picked Up', awb: 'BLD789012', courier: 'BlueDart', dispatchDate: '2024-05-22', estArrival: '2024-05-24' },
+    { id: '#SNZ-9874', customer: 'Rina V.', customerPhone: '9123456780', customerAddress: 'C-303, Tulip Gardens, Delhi', productName: 'Sunglasses', status: 'Ready for Pickup', awb: 'XPS345678', courier: 'XpressBees', dispatchDate: '2024-05-24', estArrival: '2024-05-26' },
 ];
 
 
@@ -46,7 +55,6 @@ export default function PartnerPayDashboardPage() {
     const [parcels, setParcels] = useState(initialParcels);
     const [generatedCode, setGeneratedCode] = useState('');
     const [transactionValue, setTransactionValue] = useState('');
-    const [sellerTxCode, setSellerTxCode] = useState('');
     const [confirmedSellerTxCode, setConfirmedSellerTxCode] = useState('');
     const [isSettling, setIsSettling] = useState(false);
     const [razorpayKeyId, setRazorpayKeyId] = useState<string | null>(null);
@@ -129,17 +137,18 @@ export default function PartnerPayDashboardPage() {
     };
 
     const handleGenerateCustomerCode = () => {
-        if (!sellerTxCode) {
+        if (!confirmedSellerTxCode) {
             toast({ variant: 'destructive', title: "Verification Required", description: "Please enter the confirmed Seller Transaction Code." });
             return;
         }
         
         const code = `SNZ-CUST-${uuidv4().substring(0, 8).toUpperCase()}`;
         setGeneratedCode(code);
-        const newTransaction = {
+        const newTransaction: Transaction = {
              id: code, 
              customerName: customerInfo.name, 
-             customerPhone: customerInfo.phone, 
+             customerPhone: customerInfo.phone,
+             customerAddress: customerInfo.address, 
              value: parseFloat(transactionValue), 
              date: format(new Date(), 'yyyy-MM-dd p')
         };
@@ -228,7 +237,7 @@ export default function PartnerPayDashboardPage() {
                                     <div className="relative"><Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="customer-phone" placeholder="Customer Phone" value={customerInfo.phone} onChange={(e) => setCustomerInfo(p => ({...p, phone: e.target.value}))} className="pl-9" /></div>
                                      <div className="relative"><Home className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="customer-address" placeholder="Customer Address" value={customerInfo.address} onChange={(e) => setCustomerInfo(p => ({...p, address: e.target.value}))} className="pl-9" /></div>
                                 </div>
-                                <Dialog open={isSettleDialogOpen} onOpenChange={(open) => { setIsSettleDialogOpen(open); if (!open) setConfirmedSellerTxCode(''); }}>
+                                <Dialog open={isSettleDialogOpen} onOpenChange={setIsSettleDialogOpen}>
                                     <DialogTrigger asChild>
                                          <Button className="w-full">
                                             <QrCode className="mr-2 h-4 w-4" /> Settle with Seller & Get Code
@@ -261,10 +270,9 @@ export default function PartnerPayDashboardPage() {
                                                 </div>
                                             </div>
                                         )}
-
-                                         <DialogFooter>
+                                        <DialogFooter>
                                             <DialogClose asChild>
-                                                <Button variant="outline">Close</Button>
+                                                <Button variant="outline" onClick={() => { if (confirmedSellerTxCode) { setConfirmedSellerTxCode(''); } }}>Close</Button>
                                             </DialogClose>
                                         </DialogFooter>
                                     </DialogContent>
@@ -292,7 +300,7 @@ export default function PartnerPayDashboardPage() {
                                             </DialogHeader>
                                             <div className="py-4 space-y-2">
                                                 <Label htmlFor="seller-tx-code">Seller Transaction Code</Label>
-                                                <Input id="seller-tx-code" placeholder="Paste code here e.g. pay_..." value={sellerTxCode} onChange={(e) => setSellerTxCode(e.target.value)} />
+                                                <Input id="seller-tx-code" placeholder="Paste code here e.g. pay_..." value={confirmedSellerTxCode} onChange={(e) => setConfirmedSellerTxCode(e.target.value)} />
                                             </div>
                                             <DialogFooter>
                                                 <DialogClose asChild>
@@ -324,6 +332,7 @@ export default function PartnerPayDashboardPage() {
                                                 <TableRow>
                                                     <TableHead>Parcel ID</TableHead>
                                                     <TableHead>Customer</TableHead>
+                                                    <TableHead>Address</TableHead>
                                                     <TableHead>Product</TableHead>
                                                     <TableHead>AWB No.</TableHead>
                                                     <TableHead>Status</TableHead>
@@ -338,6 +347,7 @@ export default function PartnerPayDashboardPage() {
                                                             <div className="font-medium">{p.customer}</div>
                                                             <div className="text-xs text-muted-foreground">{p.customerPhone}</div>
                                                         </TableCell>
+                                                        <TableCell className="text-xs">{p.customerAddress}</TableCell>
                                                         <TableCell>{p.productName}</TableCell>
                                                         <TableCell className="font-mono text-xs">{p.awb}</TableCell>
                                                         <TableCell>
@@ -421,6 +431,7 @@ export default function PartnerPayDashboardPage() {
                                                 <TableRow>
                                                     <TableHead>Code ID</TableHead>
                                                     <TableHead>Customer</TableHead>
+                                                    <TableHead>Address</TableHead>
                                                     <TableHead>Value</TableHead>
                                                     <TableHead>Date</TableHead>
                                                 </TableRow>
@@ -433,6 +444,7 @@ export default function PartnerPayDashboardPage() {
                                                             <div className="font-medium">{tx.customerName}</div>
                                                             <div className="text-xs text-muted-foreground">{tx.customerPhone}</div>
                                                         </TableCell>
+                                                        <TableCell className="text-xs">{tx.customerAddress}</TableCell>
                                                         <TableCell>₹{tx.value}</TableCell>
                                                         <TableCell>{tx.date}</TableCell>
                                                     </TableRow>

@@ -13,7 +13,7 @@ import type { EditableOrder } from '@/app/orders/page';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Input } from '@/components/ui/input';
+import { Input } from "@/components/ui/input";
 import { Label } from '@/components/ui/label';
 import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
@@ -170,7 +170,7 @@ export default function CustomerDashboardPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                     orderId: order.orderId, 
-                    cancellationId: order.cancellationId,
+                    cancellationId: cancellationInput || order.cancellationId,
                     paymentId: paymentInfo?.paymentId,
                     amount: order.price
                 }),
