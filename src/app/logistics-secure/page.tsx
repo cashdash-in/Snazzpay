@@ -139,8 +139,11 @@ export default function LogisticsHubPage() {
         let allPartners: LogisticsPartnerData[] = allPartnersJSON ? JSON.parse(allPartnersJSON) : [];
         
         allPartners = allPartners.map(p => p.id === partnerId ? { ...p, status: newStatus } : p);
+        
+        // This is the critical fix: Save the updated list back to localStorage
         localStorage.setItem('logisticsPartners', JSON.stringify(allPartners));
         
+        // Update the component's state to reflect the change immediately
         setPartners(allPartners.filter(p => p.status === 'approved'));
         setPartnerRequests(allPartners.filter(p => p.status === 'pending'));
 
