@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useEffect, useMemo } from "react";
-import { PlusCircle, Save, Loader2, Trash2, MoreVertical, Search } from "lucide-react";
+import { PlusCircle, Save, Loader2, Trash2, MoreVertical, Search, Check, X, ShieldQuestion } from "lucide-react";
 import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
@@ -18,21 +18,11 @@ import { v4 as uuidv4 } from 'uuid';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import type { LogisticsPartnerData } from "./login/page";
+
 
 type OrderStatus = 'pending' | 'dispatched' | 'out-for-delivery' | 'delivered' | 'failed' | 'rto' | 'ndr';
-
-type LogisticsPartner = {
-    id: string;
-    name: string;
-    contactPerson: string;
-    contactEmail: string;
-};
-
-const initialPartners: LogisticsPartner[] = [
-    { id: 'partner-1', name: 'Delhivery', contactPerson: 'Suresh Gupta', contactEmail: 'suresh@delhivery.com' },
-    { id: 'partner-2', name: 'BlueDart', contactPerson: 'Anita Rao', contactEmail: 'anita.r@bluedart.com' },
-    { id: 'partner-3', name: 'XpressBees', contactPerson: 'Raj Singh', contactEmail: 'raj.singh@xpressbees.com' },
-];
 
 function formatAddress(address: ShopifyOrder['shipping_address']): string {
     if (!address) return 'N/A';
@@ -60,14 +50,23 @@ function mapShopifyToEditable(order: ShopifyOrder): EditableOrder {
 
 export default function LogisticsHubPage() {
     const [orders, setOrders] = useState<EditableOrder[]>([]);
-    const [partners, setPartners] = useState<LogisticsPartner[]>(initialPartners);
+    const [partners, setPartners] = useState<LogisticsPartnerData[]>([]);
+    const [partnerRequests, setPartnerRequests] = useState<LogisticsPartnerData[]>([]);
     const [loading, setLoading] = useState(true);
     const [newPartner, setNewPartner] = useState({ name: '', contactPerson: '', contactEmail: '' });
     const { toast } = useToast();
 
     useEffect(() => {
-        async function fetchAndSetOrders() {
+        async function fetchAndSetData() {
             setLoading(true);
+            
+            // Load Partners & Requests
+            const allPartnersJSON = localStorage.getItem('logisticsPartners');
+            const allPartners: LogisticsPartnerData[] = allPartnersJSON ? JSON.parse(allPartnersJSON) : [];
+            setPartners(allPartners.filter(p => p.status === 'approved'));
+            setPartnerRequests(allPartners.filter(p => p.status === 'pending'));
+
+            // Load Orders
             let combinedOrders: EditableOrder[] = [];
             try {
                 const shopifyOrders = await getOrders();
@@ -98,12 +97,12 @@ export default function LogisticsHubPage() {
             setOrders(unifiedOrders);
             setLoading(false);
         }
-        fetchAndSetOrders();
+        fetchAndSetData();
     }, [toast]);
     
     const partnerStats = useMemo(() => {
         return partners.map(partner => {
-            const assignedOrders = orders.filter(o => o.courierCompanyName === partner.name);
+            const assignedOrders = orders.filter(o => o.courierCompanyName === partner.companyName);
             return {
                 ...partner,
                 totalShipments: assignedOrders.length,
@@ -136,69 +135,32 @@ export default function LogisticsHubPage() {
         });
     };
     
-    const handleAddPartner = () => {
-        if (!newPartner.name || !newPartner.contactPerson || !newPartner.contactEmail) {
-            toast({ variant: 'destructive', title: 'Missing fields', description: 'Please fill out all partner details.' });
-            return;
-        }
-        const partnerToAdd = { ...newPartner, id: uuidv4() };
-        setPartners([...partners, partnerToAdd]);
-        setNewPartner({ name: '', contactPerson: '', contactEmail: '' });
-        toast({ title: 'Partner Added', description: `${partnerToAdd.name} has been added to your logistics network.` });
-    };
-    
-    const handleRemovePartner = (partnerId: string) => {
-        setPartners(partners.filter(p => p.id !== partnerId));
-        toast({ variant: 'destructive', title: 'Partner Removed', description: 'The logistics partner has been removed.' });
+    const handleUpdateRequest = (partnerId: string, newStatus: 'approved' | 'rejected') => {
+        const allPartnersJSON = localStorage.getItem('logisticsPartners');
+        let allPartners: LogisticsPartnerData[] = allPartnersJSON ? JSON.parse(allPartnersJSON) : [];
+        
+        allPartners = allPartners.map(p => p.id === partnerId ? { ...p, status: newStatus } : p);
+        localStorage.setItem('logisticsPartners', JSON.stringify(allPartners));
+        
+        setPartners(allPartners.filter(p => p.status === 'approved'));
+        setPartnerRequests(allPartners.filter(p => p.status === 'pending'));
+
+        toast({
+            title: `Request ${newStatus}`,
+            description: `The partner request has been ${newStatus}.`,
+        });
     };
 
     return (
         <AppShell title="Logistics Hub">
-            <div className="space-y-8">
-                <Card>
-                    <CardHeader>
-                        <div className="flex items-center justify-between">
-                            <CardTitle>Logistics Partner Network</CardTitle>
-                             <Dialog>
-                                <DialogTrigger asChild>
-                                    <Button><PlusCircle className="mr-2 h-4 w-4" /> Add Partner</Button>
-                                </DialogTrigger>
-                                <DialogContent>
-                                    <DialogHeader><DialogTitle>Add New Logistics Partner</DialogTitle></DialogHeader>
-                                    <div className="space-y-4 py-4">
-                                        <div className="space-y-2"><Label>Partner Company Name</Label><Input value={newPartner.name} onChange={(e) => setNewPartner(p => ({...p, name: e.target.value}))} placeholder="e.g., Delhivery" /></div>
-                                        <div className="space-y-2"><Label>Contact Person</Label><Input value={newPartner.contactPerson} onChange={(e) => setNewPartner(p => ({...p, contactPerson: e.target.value}))} placeholder="e.g., Suresh Gupta" /></div>
-                                        <div className="space-y-2"><Label>Contact Email</Label><Input type="email" value={newPartner.contactEmail} onChange={(e) => setNewPartner(p => ({...p, contactEmail: e.target.value}))} placeholder="e.g., suresh@delhivery.com" /></div>
-                                    </div>
-                                    <DialogFooter>
-                                        <DialogClose asChild><Button onClick={handleAddPartner}>Save Partner</Button></DialogClose>
-                                    </DialogFooter>
-                                </DialogContent>
-                            </Dialog>
-                        </div>
-                        <CardDescription>Manage your courier partners and view their performance at a glance.</CardDescription>
-                    </CardHeader>
-                     <CardContent>
-                        <Table>
-                            <TableHeader><TableRow><TableHead>Partner Name</TableHead><TableHead>Total Shipments</TableHead><TableHead>Delivered</TableHead><TableHead>Out for Delivery</TableHead><TableHead>NDR</TableHead><TableHead>RTO</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
-                            <TableBody>
-                                {partnerStats.map(p => (
-                                    <TableRow key={p.id}>
-                                        <TableCell><div className="font-medium">{p.name}</div><div className="text-xs text-muted-foreground">{p.contactEmail}</div></TableCell>
-                                        <TableCell>{p.totalShipments}</TableCell>
-                                        <TableCell className="text-green-600 font-medium">{p.delivered}</TableCell>
-                                        <TableCell>{p.outForDelivery}</TableCell>
-                                        <TableCell className="text-red-600">{p.ndr}</TableCell>
-                                        <TableCell className="text-orange-600">{p.rto}</TableCell>
-                                        <TableCell className="text-right"><Button variant="destructive" size="icon" onClick={() => handleRemovePartner(p.id)}><Trash2 className="h-4 w-4" /></Button></TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
-
-                <Card>
+          <Tabs defaultValue="shipments">
+            <TabsList className="grid w-full grid-cols-3 max-w-xl">
+                <TabsTrigger value="shipments">Shipment Management</TabsTrigger>
+                <TabsTrigger value="partners">Partner Network</TabsTrigger>
+                <TabsTrigger value="requests">Partner Requests <Badge className="ml-2">{partnerRequests.length}</Badge></TabsTrigger>
+            </TabsList>
+            <TabsContent value="shipments" className="mt-4">
+                 <Card>
                     <CardHeader>
                         <CardTitle>Shipment Management</CardTitle>
                         <CardDescription>Assign paid orders to logistics partners for dispatch and monitor their status.</CardDescription>
@@ -220,7 +182,7 @@ export default function LogisticsHubPage() {
                                 <TableCell>
                                     <Select value={order.courierCompanyName || ''} onValueChange={(value) => handleFieldChange(order.id, 'courierCompanyName', value)}>
                                         <SelectTrigger className="w-40"><SelectValue placeholder="Assign Partner" /></SelectTrigger>
-                                        <SelectContent>{partners.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}</SelectContent>
+                                        <SelectContent>{partners.map(p => <SelectItem key={p.id} value={p.companyName}>{p.companyName}</SelectItem>)}</SelectContent>
                                     </Select>
                                 </TableCell>
                                 <TableCell><Input placeholder="Enter Tracking No." className="w-40" value={order.trackingNumber || ''} onChange={(e) => handleFieldChange(order.id, 'trackingNumber', e.target.value)} /></TableCell>
@@ -246,7 +208,63 @@ export default function LogisticsHubPage() {
                         )}
                     </CardContent>
                 </Card>
-            </div>
+            </TabsContent>
+            <TabsContent value="partners" className="mt-4">
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Logistics Partner Network</CardTitle>
+                        <CardDescription>Manage your approved courier partners and view their performance.</CardDescription>
+                    </CardHeader>
+                     <CardContent>
+                        <Table>
+                            <TableHeader><TableRow><TableHead>Partner Name</TableHead><TableHead>Total Shipments</TableHead><TableHead>Delivered</TableHead><TableHead>Out for Delivery</TableHead><TableHead>NDR</TableHead><TableHead>RTO</TableHead></TableRow></TableHeader>
+                            <TableBody>
+                                {partnerStats.map(p => (
+                                    <TableRow key={p.id}>
+                                        <TableCell><div className="font-medium">{p.companyName}</div><div className="text-xs text-muted-foreground">{p.phone}</div></TableCell>
+                                        <TableCell>{p.totalShipments}</TableCell>
+                                        <TableCell className="text-green-600 font-medium">{p.delivered}</TableCell>
+                                        <TableCell>{p.outForDelivery}</TableCell>
+                                        <TableCell className="text-red-600">{p.ndr}</TableCell>
+                                        <TableCell className="text-orange-600">{p.rto}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+            </TabsContent>
+            <TabsContent value="requests" className="mt-4">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Partner Signup Requests</CardTitle>
+                        <CardDescription>Review and approve new logistics partners who want to join your network.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader><TableRow><TableHead>Company</TableHead><TableHead>Phone</TableHead><TableHead>Address</TableHead><TableHead>PAN</TableHead><TableHead>Aadhaar</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                            <TableBody>
+                                {partnerRequests.length > 0 ? partnerRequests.map(req => (
+                                <TableRow key={req.id}>
+                                    <TableCell className="font-medium">{req.companyName}</TableCell>
+                                    <TableCell>{req.phone}</TableCell>
+                                    <TableCell className="text-xs">{req.address}</TableCell>
+                                    <TableCell className="font-mono text-xs">{req.pan}</TableCell>
+                                    <TableCell className="font-mono text-xs">{req.aadhaar}</TableCell>
+                                    <TableCell className="text-right space-x-2">
+                                        <Button size="sm" variant="outline" className="text-green-600 border-green-600 hover:bg-green-50 hover:text-green-700" onClick={() => handleUpdateRequest(req.id, 'approved')}><Check className="mr-2 h-4 w-4" />Approve</Button>
+                                        <Button size="sm" variant="destructive" onClick={() => handleUpdateRequest(req.id, 'rejected')}><X className="mr-2 h-4 w-4" />Reject</Button>
+                                    </TableCell>
+                                </TableRow>
+                                )) : (
+                                <TableRow><TableCell colSpan={6} className="text-center h-24 text-muted-foreground">No pending requests.</TableCell></TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+            </TabsContent>
+          </Tabs>
         </AppShell>
     );
 }

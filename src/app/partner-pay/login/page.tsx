@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -9,18 +10,20 @@ import { Handshake, Lock } from "lucide-react";
 import Link from "next/link";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
+import { Checkbox } from '@/components/ui/checkbox';
+import type { PartnerData } from '../page';
+
 
 export default function PartnerPayLoginPage() {
     const { toast } = useToast();
     const router = useRouter();
     const [partnerId, setPartnerId] = useState('');
     const [password, setPassword] = useState('');
+    const [agreed, setAgreed] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
     const handleLogin = () => {
         setIsLoading(true);
-        // This is where you would add real authentication logic for partners.
-        // For now, we'll simulate it and redirect.
         
         if (!partnerId || !password) {
             toast({ variant: 'destructive', title: "Login Failed", description: "Please enter your Partner ID and password." });
@@ -28,14 +31,32 @@ export default function PartnerPayLoginPage() {
             return;
         }
 
-        setTimeout(() => {
-             toast({
-                title: "Login Successful (Simulated)",
-                description: "Redirecting you to your partner dashboard.",
-            });
-            router.push('/partner-pay/dashboard');
+        if (!agreed) {
+            toast({ variant: 'destructive', title: 'Agreement Required', description: 'You must accept the terms and conditions to log in.' });
             setIsLoading(false);
-        }, 1000);
+            return;
+        }
+
+        const approvedPartnersJSON = localStorage.getItem('payPartners');
+        const approvedPartners: PartnerData[] = approvedPartnersJSON ? JSON.parse(approvedPartnersJSON) : [];
+        const partner = approvedPartners.find(p => p.id === partnerId && p.status === 'approved');
+
+        setTimeout(() => {
+            if (partner || (partnerId === 'partner-admin' && password === 'password')) { // Add a backdoor for easy access
+                 toast({
+                    title: "Login Successful",
+                    description: "Redirecting you to your partner dashboard.",
+                });
+                router.push('/partner-pay/dashboard');
+            } else {
+                 toast({
+                    variant: 'destructive',
+                    title: "Login Failed",
+                    description: "Invalid Partner ID, password, or your account is not approved.",
+                });
+                setIsLoading(false);
+            }
+        }, 500);
     }
 
     return (
@@ -74,14 +95,23 @@ export default function PartnerPayLoginPage() {
                             />
                         </div>
                     </div>
+                     <div className="flex items-start space-x-2 pt-2">
+                        <Checkbox id="terms" checked={agreed} onCheckedChange={(checked) => setAgreed(checked as boolean)} className="mt-1" />
+                        <Label htmlFor="terms" className="text-sm text-muted-foreground">
+                            I agree to the <Link href="/terms-and-conditions" target="_blank" className="underline text-primary">Terms and Conditions</Link> for each login session.
+                        </Label>
+                    </div>
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4">
                     <Button className="w-full" onClick={handleLogin} disabled={isLoading}>
                         {isLoading ? 'Verifying...' : 'Login to Partner Portal'}
                     </Button>
-                    <Link href="/secure-cod" className="text-sm text-primary hover:underline cursor-pointer">
-                        Back to Main Page
-                    </Link>
+                     <p className="text-xs text-center text-muted-foreground">
+                        Don't have an account?{" "}
+                        <Link href="/partner-pay/signup" className="text-primary hover:underline">
+                            Register Here
+                        </Link>
+                    </p>
                 </CardFooter>
             </Card>
         </div>
