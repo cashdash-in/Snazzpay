@@ -1,12 +1,12 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Truck, Lock } from "lucide-react";
+import { Truck, Lock, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -51,8 +51,13 @@ export default function LogisticsLoginPage() {
         const approvedPartners: LogisticsPartnerData[] = approvedPartnersJSON ? JSON.parse(approvedPartnersJSON) : [];
         const partner = approvedPartners.find(p => p.id === partnerId && p.status === 'approved');
 
+        // Simulate a short delay to give a "verifying" feel
         setTimeout(() => {
-            if (partner || (partnerId === 'partner-admin' && password === 'password')) { // Add a backdoor for easy access
+            // Prototype password check
+            if ((partner || partnerId === 'partner-admin') && password === 'password') {
+                localStorage.setItem('loggedInLogisticsPartnerId', partner?.id || 'partner-admin');
+                 localStorage.setItem('loggedInLogisticsPartnerName', partner?.companyName || 'Admin Partner');
+
                 toast({
                     title: "Login Successful",
                     description: "Redirecting you to your logistics dashboard...",
@@ -114,7 +119,7 @@ export default function LogisticsLoginPage() {
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4">
                     <Button className="w-full" onClick={handleLogin} disabled={isLoading}>
-                        {isLoading ? 'Verifying...' : 'Login to Logistics Portal'}
+                        {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Verifying...</> : 'Login to Logistics Portal'}
                     </Button>
                      <p className="text-xs text-center text-muted-foreground">
                         Don't have an account?{" "}
