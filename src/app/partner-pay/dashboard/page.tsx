@@ -128,6 +128,7 @@ export default function PartnerPayDashboardPage() {
                         <Card className="shadow-lg">
                             <CardHeader>
                                 <CardTitle>Generate Payment Code</CardTitle>
+                                <CardDescription className="text-xs">Collect cash, use your balance to generate a code, and give it to the customer to complete their purchase.</CardDescription>
                             </CardHeader>
                              <CardContent className="space-y-4">
                                 <div className="space-y-2">
@@ -202,7 +203,13 @@ export default function PartnerPayDashboardPage() {
                                                                             <p className="text-sm text-muted-foreground">AWB: {p.awb} ({p.courier})</p>
                                                                             <p className="text-sm text-muted-foreground">Dispatched: {p.dispatchDate}, Est. Arrival: {p.estArrival}</p>
                                                                         </div>
-                                                                         <div className="space-y-2">
+                                                                         <div className="space-y-2 border-t pt-4">
+                                                                            <h4 className="font-medium">Customer Actions</h4>
+                                                                            <Button onClick={() => handleNotifyCustomer(p.id)} variant="secondary" className="w-full justify-start" disabled={p.status !== 'Ready for Pickup'}>
+                                                                                <MessageSquare className="mr-2"/>Notify Customer for Pickup
+                                                                            </Button>
+                                                                        </div>
+                                                                         <div className="space-y-2 border-t pt-4">
                                                                             <h4 className="font-medium">Close Order: Mark as Delivered</h4>
                                                                             <Label htmlFor="collector-name">Collected By</Label>
                                                                             <Input id="collector-name" placeholder="Customer's full name" value={collectorName} onChange={e => setCollectorName(e.target.value)} />
@@ -279,5 +286,3 @@ export default function PartnerPayDashboardPage() {
         </div>
     );
 }
-
-    
