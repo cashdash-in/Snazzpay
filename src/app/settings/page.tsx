@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Terminal, Mail, MessageSquareWarning } from "lucide-react";
+import { Terminal, Mail, MessageSquareWarning, Rocket } from "lucide-react";
 import Link from "next/link";
 
 export default function SettingsPage() {
@@ -18,6 +18,7 @@ export default function SettingsPage() {
   const [razorpaySettings, setRazorpaySettings] = useState({ keyId: '', keySecret: '' });
   const [shopifySettings, setShopifySettings] = useState({ storeUrl: '', apiKey: '', apiSecret: '' });
   const [notificationSettings, setNotificationSettings] = useState({ gmailEmail: '', gmailPassword: '' });
+  const [logisticsSettings, setLogisticsSettings] = useState({ apiUser: '', apiPassword: '' });
 
   useEffect(() => {
     // Load saved settings from localStorage for display purposes
@@ -46,6 +47,14 @@ export default function SettingsPage() {
     if (savedGmailEmail) {
         setNotificationSettings(prev => ({...prev, gmailEmail: savedGmailEmail}));
     }
+    const savedShiprocketUser = localStorage.getItem('shiprocket_api_user');
+    const savedShiprocketPassword = localStorage.getItem('shiprocket_api_password');
+     if (savedShiprocketUser) {
+      setLogisticsSettings(prev => ({ ...prev, apiUser: savedShiprocketUser }));
+    }
+    if (savedShiprocketPassword) {
+      setLogisticsSettings(prev => ({ ...prev, apiPassword: savedShiprocketPassword }));
+    }
   }, []);
 
   const handleRazorpayChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -60,7 +69,11 @@ export default function SettingsPage() {
     setNotificationSettings({ ...notificationSettings, [e.target.name]: e.target.value });
   };
 
-  const handleSaveSettings = (type: 'razorpay' | 'shopify' | 'notifications') => {
+   const handleLogisticsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setLogisticsSettings({ ...logisticsSettings, [e.target.name]: e.target.value });
+  };
+
+  const handleSaveSettings = (type: 'razorpay' | 'shopify' | 'notifications' | 'logistics') => {
     if (type === 'razorpay') {
         localStorage.setItem('razorpay_key_id', razorpaySettings.keyId);
         localStorage.setItem('razorpay_key_secret', razorpaySettings.keySecret);
@@ -71,6 +84,9 @@ export default function SettingsPage() {
     } else if (type === 'notifications') {
         localStorage.setItem('gmail_app_email', notificationSettings.gmailEmail);
         localStorage.setItem('gmail_app_password', notificationSettings.gmailPassword);
+    } else if (type === 'logistics') {
+        localStorage.setItem('shiprocket_api_user', logisticsSettings.apiUser);
+        localStorage.setItem('shiprocket_api_password', logisticsSettings.apiPassword);
     }
 
     toast({
@@ -82,9 +98,10 @@ export default function SettingsPage() {
   return (
     <AppShell title="Settings">
       <Tabs defaultValue="razorpay" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 max-w-lg mx-auto">
+        <TabsList className="grid w-full grid-cols-4 max-w-2xl mx-auto">
           <TabsTrigger value="razorpay">Razorpay</TabsTrigger>
           <TabsTrigger value="shopify">Shopify</TabsTrigger>
+          <TabsTrigger value="logistics">Logistics</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
         </TabsList>
         <TabsContent value="razorpay">
@@ -190,6 +207,53 @@ export default function SettingsPage() {
             </CardContent>
             <CardFooter>
               <Button onClick={() => handleSaveSettings('shopify')}>Save Shopify Settings to Browser</Button>
+            </CardFooter>
+          </Card>
+        </TabsContent>
+         <TabsContent value="logistics">
+          <Card>
+            <CardHeader>
+              <CardTitle>Logistics Integration (Shiprocket)</CardTitle>
+              <CardDescription>
+                Connect your Shiprocket account to book shipments and track deliveries.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+               <Alert>
+                <Rocket className="h-4 w-4" />
+                <AlertTitle>Action Required!</AlertTitle>
+                <AlertDescription>
+                  For Shiprocket integration to work, you must set your API credentials as environment variables in `apphosting.yaml`.
+                  <ul className="list-disc pl-5 mt-2">
+                    <li><span className="font-mono text-xs">SHIPROCKET_API_USER</span> (Your Shiprocket API user email)</li>
+                    <li><span className="font-mono text-xs">SHIPROCKET_API_PASSWORD</span> (Your Shiprocket API password)</li>
+                  </ul>
+                </AlertDescription>
+              </Alert>
+              <div className="space-y-2">
+                <Label htmlFor="shiprocket-api-user">API User (Email)</Label>
+                <Input 
+                  id="shiprocket-api-user" 
+                  name="apiUser"
+                  placeholder="Your Shiprocket account email" 
+                  value={logisticsSettings.apiUser}
+                  onChange={handleLogisticsChange}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="shiprocket-api-password">API Password</Label>
+                <Input 
+                  id="shiprocket-api-password" 
+                  name="apiPassword"
+                  type="password" 
+                  placeholder="Your Shiprocket API password" 
+                  value={logisticsSettings.apiPassword}
+                  onChange={handleLogisticsChange}
+                />
+              </div>
+            </CardContent>
+            <CardFooter>
+              <Button onClick={() => handleSaveSettings('logistics')}>Save Logistics Settings to Browser</Button>
             </CardFooter>
           </Card>
         </TabsContent>
