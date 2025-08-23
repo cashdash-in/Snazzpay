@@ -152,101 +152,101 @@ export default function LogisticsHubPage() {
         toast({ variant: 'destructive', title: 'Partner Removed', description: 'The logistics partner has been removed.' });
     };
 
-  return (
-    <AppShell title="Logistics Hub">
-        <div className="space-y-8">
-            <Card>
-                <CardHeader>
-                    <div className="flex items-center justify-between">
-                        <CardTitle>Logistics Partner Network</CardTitle>
-                         <Dialog>
-                            <DialogTrigger asChild>
-                                <Button><PlusCircle className="mr-2 h-4 w-4" /> Add Partner</Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                                <DialogHeader><DialogTitle>Add New Logistics Partner</DialogTitle></DialogHeader>
-                                <div className="space-y-4 py-4">
-                                    <div className="space-y-2"><Label>Partner Company Name</Label><Input value={newPartner.name} onChange={(e) => setNewPartner(p => ({...p, name: e.target.value}))} placeholder="e.g., Delhivery" /></div>
-                                    <div className="space-y-2"><Label>Contact Person</Label><Input value={newPartner.contactPerson} onChange={(e) => setNewPartner(p => ({...p, contactPerson: e.target.value}))} placeholder="e.g., Suresh Gupta" /></div>
-                                    <div className="space-y-2"><Label>Contact Email</Label><Input type="email" value={newPartner.contactEmail} onChange={(e) => setNewPartner(p => ({...p, contactEmail: e.target.value}))} placeholder="e.g., suresh@delhivery.com" /></div>
-                                </div>
-                                <DialogFooter>
-                                    <DialogClose asChild><Button onClick={handleAddPartner}>Save Partner</Button></DialogClose>
-                                </DialogFooter>
-                            </DialogContent>
+    return (
+        <AppShell title="Logistics Hub">
+            <div className="space-y-8">
+                <Card>
+                    <CardHeader>
+                        <div className="flex items-center justify-between">
+                            <CardTitle>Logistics Partner Network</CardTitle>
+                             <Dialog>
+                                <DialogTrigger asChild>
+                                    <Button><PlusCircle className="mr-2 h-4 w-4" /> Add Partner</Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                    <DialogHeader><DialogTitle>Add New Logistics Partner</DialogTitle></DialogHeader>
+                                    <div className="space-y-4 py-4">
+                                        <div className="space-y-2"><Label>Partner Company Name</Label><Input value={newPartner.name} onChange={(e) => setNewPartner(p => ({...p, name: e.target.value}))} placeholder="e.g., Delhivery" /></div>
+                                        <div className="space-y-2"><Label>Contact Person</Label><Input value={newPartner.contactPerson} onChange={(e) => setNewPartner(p => ({...p, contactPerson: e.target.value}))} placeholder="e.g., Suresh Gupta" /></div>
+                                        <div className="space-y-2"><Label>Contact Email</Label><Input type="email" value={newPartner.contactEmail} onChange={(e) => setNewPartner(p => ({...p, contactEmail: e.target.value}))} placeholder="e.g., suresh@delhivery.com" /></div>
+                                    </div>
+                                    <DialogFooter>
+                                        <DialogClose asChild><Button onClick={handleAddPartner}>Save Partner</Button></DialogClose>
+                                    </DialogFooter>
+                                </DialogContent>
+                            </Dialog>
                         </div>
-                    </div>
-                    <CardDescription>Manage your courier partners and view their performance at a glance.</CardDescription>
-                </CardHeader>
-                 <CardContent>
-                    <Table>
-                        <TableHeader><TableRow><TableHead>Partner Name</TableHead><TableHead>Total Shipments</TableHead><TableHead>Delivered</TableHead><TableHead>Out for Delivery</TableHead><TableHead>NDR</TableHead><TableHead>RTO</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
-                        <TableBody>
-                            {partnerStats.map(p => (
-                                <TableRow key={p.id}>
-                                    <TableCell><div className="font-medium">{p.name}</div><div className="text-xs text-muted-foreground">{p.contactEmail}</div></TableCell>
-                                    <TableCell>{p.totalShipments}</TableCell>
-                                    <TableCell className="text-green-600 font-medium">{p.delivered}</TableCell>
-                                    <TableCell>{p.outForDelivery}</TableCell>
-                                    <TableCell className="text-red-600">{p.ndr}</TableCell>
-                                    <TableCell className="text-orange-600">{p.rto}</TableCell>
-                                    <TableCell className="text-right"><Button variant="destructive" size="icon" onClick={() => handleRemovePartner(p.id)}><Trash2 className="h-4 w-4" /></Button></TableCell>
+                        <CardDescription>Manage your courier partners and view their performance at a glance.</CardDescription>
+                    </CardHeader>
+                     <CardContent>
+                        <Table>
+                            <TableHeader><TableRow><TableHead>Partner Name</TableHead><TableHead>Total Shipments</TableHead><TableHead>Delivered</TableHead><TableHead>Out for Delivery</TableHead><TableHead>NDR</TableHead><TableHead>RTO</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                            <TableBody>
+                                {partnerStats.map(p => (
+                                    <TableRow key={p.id}>
+                                        <TableCell><div className="font-medium">{p.name}</div><div className="text-xs text-muted-foreground">{p.contactEmail}</div></TableCell>
+                                        <TableCell>{p.totalShipments}</TableCell>
+                                        <TableCell className="text-green-600 font-medium">{p.delivered}</TableCell>
+                                        <TableCell>{p.outForDelivery}</TableCell>
+                                        <TableCell className="text-red-600">{p.ndr}</TableCell>
+                                        <TableCell className="text-orange-600">{p.rto}</TableCell>
+                                        <TableCell className="text-right"><Button variant="destructive" size="icon" onClick={() => handleRemovePartner(p.id)}><Trash2 className="h-4 w-4" /></Button></TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Shipment Management</CardTitle>
+                        <CardDescription>Assign paid orders to logistics partners for dispatch and monitor their status.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        {loading ? (
+                            <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+                        ) : (
+                        <div className="overflow-x-auto">
+                        <Table>
+                            <TableHeader><TableRow><TableHead>Order ID</TableHead><TableHead>Customer</TableHead><TableHead>Product</TableHead><TableHead>Address</TableHead><TableHead>Partner</TableHead><TableHead>Tracking No.</TableHead><TableHead>Status</TableHead><TableHead className="text-center">Actions</TableHead></TableRow></TableHeader>
+                            <TableBody>
+                            {orders.map((order) => (
+                                <TableRow key={order.id}>
+                                <TableCell><Link href={`/orders/${order.id}`} className="font-medium text-primary hover:underline cursor-pointer">{order.orderId}</Link></TableCell>
+                                <TableCell><div className="font-medium">{order.customerName}</div><div className="text-xs text-muted-foreground">{order.contactNo}</div></TableCell>
+                                <TableCell className="text-xs max-w-[200px] truncate">{order.productOrdered}</TableCell>
+                                <TableCell className="text-xs max-w-[250px] truncate">{order.customerAddress}</TableCell>
+                                <TableCell>
+                                    <Select value={order.courierCompanyName || ''} onValueChange={(value) => handleFieldChange(order.id, 'courierCompanyName', value)}>
+                                        <SelectTrigger className="w-40"><SelectValue placeholder="Assign Partner" /></SelectTrigger>
+                                        <SelectContent>{partners.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}</SelectContent>
+                                    </Select>
+                                </TableCell>
+                                <TableCell><Input placeholder="Enter Tracking No." className="w-40" value={order.trackingNumber || ''} onChange={(e) => handleFieldChange(order.id, 'trackingNumber', e.target.value)} /></TableCell>
+                                <TableCell>
+                                    <Select value={order.deliveryStatus || 'pending'} onValueChange={(value: OrderStatus) => handleFieldChange(order.id, 'deliveryStatus', value)}>
+                                    <SelectTrigger className="w-[180px]"><SelectValue placeholder="Select Status" /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="pending">Pending Dispatch</SelectItem>
+                                        <SelectItem value="dispatched">Dispatched</SelectItem>
+                                        <SelectItem value="out-for-delivery">Out for Delivery</SelectItem>
+                                        <SelectItem value="delivered">Delivered</SelectItem>
+                                        <SelectItem value="failed">Delivery Failed (NDR)</SelectItem>
+                                        <SelectItem value="rto">Return to Origin (RTO)</SelectItem>
+                                    </SelectContent>
+                                    </Select>
+                                </TableCell>
+                                <TableCell className="text-center"><Button variant="outline" size="icon" onClick={() => handleSave(order.id)}><Save className="h-4 w-4" /></Button></TableCell>
                                 </TableRow>
                             ))}
-                        </TableBody>
-                    </Table>
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>Shipment Management</CardTitle>
-                    <CardDescription>Assign paid orders to logistics partners for dispatch and monitor their status.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    {loading ? (
-                        <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-                    ) : (
-                    <div className="overflow-x-auto">
-                    <Table>
-                        <TableHeader><TableRow><TableHead>Order ID</TableHead><TableHead>Customer</TableHead><TableHead>Product</TableHead><TableHead>Address</TableHead><TableHead>Partner</TableHead><TableHead>Tracking No.</TableHead><TableHead>Status</TableHead><TableHead className="text-center">Actions</TableHead></TableRow></TableHeader>
-                        <TableBody>
-                        {orders.map((order) => (
-                            <TableRow key={order.id}>
-                            <TableCell><Link href={`/orders/${order.id}`} className="font-medium text-primary hover:underline cursor-pointer">{order.orderId}</Link></TableCell>
-                            <TableCell><div className="font-medium">{order.customerName}</div><div className="text-xs text-muted-foreground">{order.contactNo}</div></TableCell>
-                            <TableCell className="text-xs max-w-[200px] truncate">{order.productOrdered}</TableCell>
-                            <TableCell className="text-xs max-w-[250px] truncate">{order.customerAddress}</TableCell>
-                            <TableCell>
-                                <Select value={order.courierCompanyName || ''} onValueChange={(value) => handleFieldChange(order.id, 'courierCompanyName', value)}>
-                                    <SelectTrigger className="w-40"><SelectValue placeholder="Assign Partner" /></SelectTrigger>
-                                    <SelectContent>{partners.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}</SelectContent>
-                                </Select>
-                            </TableCell>
-                            <TableCell><Input placeholder="Enter Tracking No." className="w-40" value={order.trackingNumber || ''} onChange={(e) => handleFieldChange(order.id, 'trackingNumber', e.target.value)} /></TableCell>
-                            <TableCell>
-                                <Select value={order.deliveryStatus || 'pending'} onValueChange={(value: OrderStatus) => handleFieldChange(order.id, 'deliveryStatus', value)}>
-                                <SelectTrigger className="w-[180px]"><SelectValue placeholder="Select Status" /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="pending">Pending Dispatch</SelectItem>
-                                    <SelectItem value="dispatched">Dispatched</SelectItem>
-                                    <SelectItem value="out-for-delivery">Out for Delivery</SelectItem>
-                                    <SelectItem value="delivered">Delivered</SelectItem>
-                                    <SelectItem value="failed">Delivery Failed (NDR)</SelectItem>
-                                    <SelectItem value="rto">Return to Origin (RTO)</SelectItem>
-                                </SelectContent>
-                                </Select>
-                            </TableCell>
-                            <TableCell className="text-center"><Button variant="outline" size="icon" onClick={() => handleSave(order.id)}><Save className="h-4 w-4" /></Button></TableCell>
-                            </TableRow>
-                        ))}
-                        </TableBody>
-                    </Table>
-                    </div>
-                    )}
-                </CardContent>
-            </Card>
-        </div>
-    </AppShell>
-  );
+                            </TableBody>
+                        </Table>
+                        </div>
+                        )}
+                    </CardContent>
+                </Card>
+            </div>
+        </AppShell>
+    );
 }
