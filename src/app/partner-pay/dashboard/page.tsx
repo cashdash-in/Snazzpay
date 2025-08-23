@@ -135,7 +135,7 @@ export default function PartnerPayDashboardPage() {
                             <CardHeader>
                                 <CardTitle>Generate Payment Code</CardTitle>
                                 <CardDescription className="text-xs">
-                                   To generate a code, collect cash from the customer, then enter the amount and the verification code you receive from the seller after payment.
+                                   To generate a code, collect cash from the customer, get a verification code from the seller, then generate the final customer code.
                                 </CardDescription>
                             </CardHeader>
                              <CardContent className="space-y-4">
@@ -143,23 +143,23 @@ export default function PartnerPayDashboardPage() {
                                     <Label htmlFor="tx-value">Cash Collected (₹)</Label>
                                     <Input id="tx-value" type="number" placeholder="e.g., 500" value={transactionValue} onChange={(e) => setTransactionValue(e.target.value)} />
                                 </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="seller-tx-code">Seller Transaction Code</Label>
-                                    <Input id="seller-tx-code" placeholder="Enter code from seller" value={sellerTxCode} onChange={(e) => setSellerTxCode(e.target.value)} />
-                                </div>
                                 <Dialog>
                                     <DialogTrigger asChild>
                                          <Button className="w-full">
-                                            <QrCode className="mr-2 h-4 w-4" /> Generate Customer Code
+                                            <QrCode className="mr-2 h-4 w-4" /> Get Customer Code
                                         </Button>
                                     </DialogTrigger>
                                     <DialogContent>
                                          <DialogHeader>
-                                            <DialogTitle>Confirm Code Generation</DialogTitle>
-                                            <AlertDialogDescription>
-                                                This will generate a new digital payment code for the customer. Ensure the seller transaction code is correct.
-                                            </AlertDialogDescription>
+                                            <DialogTitle>Enter Seller Transaction Code</DialogTitle>
+                                            <DialogDescription>
+                                                To generate the final code for the customer, you must first enter the unique transaction code provided to you by the seller for this amount.
+                                            </DialogDescription>
                                         </DialogHeader>
+                                        <div className="py-4">
+                                            <Label htmlFor="seller-tx-code">Seller Transaction Code</Label>
+                                            <Input id="seller-tx-code" placeholder="Enter code from seller" value={sellerTxCode} onChange={(e) => setSellerTxCode(e.target.value)} />
+                                        </div>
                                          <DialogFooter>
                                             <DialogClose asChild>
                                                 <Button variant="outline">Cancel</Button>
@@ -237,7 +237,7 @@ export default function PartnerPayDashboardPage() {
                                                                          <div className="space-y-2 border-t pt-4">
                                                                             <h4 className="font-medium">Customer Actions</h4>
                                                                             <Button onClick={() => handleNotifyCustomer(p.id)} variant="secondary" className="w-full justify-start">
-                                                                                <MessageSquare className="mr-2"/>Notify Customer
+                                                                                <MessageSquare className="mr-2"/>Notify Customer for Pickup
                                                                             </Button>
                                                                         </div>
                                                                          <div className="space-y-2 border-t pt-4">
@@ -265,7 +265,7 @@ export default function PartnerPayDashboardPage() {
                                                                                 <AlertDialogTrigger asChild>
                                                                                      <Button variant="destructive" className="w-full justify-start" disabled={p.status !== 'Ready for Pickup'}><AlertTriangle className="mr-2"/>Arrange Return</Button>
                                                                                 </AlertDialogTrigger>
-                                                                                <AlertDialogContent>
+                                                                                 <AlertDialogContent>
                                                                                     <AlertDialogHeader><AlertDialogTitle>Arrange Return for {p.id}?</AlertDialogTitle><AlertDialogDescription>If the customer has rejected the parcel, this will initiate the return process with the logistics partner and notify the seller. Are you sure?</AlertDialogDescription></AlertDialogHeader>
                                                                                     <AlertDialogFooter><AlertDialogCancel>Close</AlertDialogCancel><AlertDialogAction onClick={() => handleArrangeReturn(p.id)}>Yes, Arrange Return</AlertDialogAction></AlertDialogFooter>
                                                                                 </AlertDialogContent>
