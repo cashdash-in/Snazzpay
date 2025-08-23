@@ -12,6 +12,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarInset,
+  SidebarSeparator,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import {
@@ -40,9 +41,11 @@ import {
   FileSpreadsheet,
   LogIn,
   Video,
+  Store,
+  Box,
 } from 'lucide-react';
 
-const menuItems = [
+const coreMenuItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/mandates', label: 'Mandates', icon: WalletCards },
   { href: '/orders', label: 'Orders', icon: ShoppingCart },
@@ -51,10 +54,18 @@ const menuItems = [
   { href: '/cancellations', label: 'Cancellations', icon: Ban },
   { href: '/refunds', label: 'Refunds', icon: CircleDollarSign },
   { href: '/reports', label: 'Reports', icon: FileSpreadsheet },
+];
+
+const growthMenuItems = [
+    { href: '/snazzify-coin', label: 'Snazzify Coin', icon: Store },
+    { href: '/logistics-secure', label: 'Logistics Secure', icon: Box },
+];
+
+const configMenuItems = [
   { href: '/explainer-video', label: 'Explainer Video', icon: Video },
   { href: '/cod-instructions', label: 'Embedding', icon: FileCode },
   { href: '/settings', label: 'Settings', icon: Settings },
-];
+]
 
 export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, title }) => {
   const pathname = usePathname();
@@ -72,7 +83,39 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
         </SidebarHeader>
         <SidebarContent>
           <SidebarMenu>
-            {menuItems.map((item) => (
+            {coreMenuItems.map((item) => (
+              <SidebarMenuItem key={item.label}>
+                <Link href={item.href}>
+                  <SidebarMenuButton
+                    isActive={pathname === item.href}
+                    tooltip={item.label}
+                  >
+                    <item.icon />
+                    <span>{item.label}</span>
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+          <SidebarSeparator />
+           <SidebarMenu>
+            {growthMenuItems.map((item) => (
+              <SidebarMenuItem key={item.label}>
+                <Link href={item.href}>
+                  <SidebarMenuButton
+                    isActive={pathname.startsWith(item.href)}
+                    tooltip={item.label}
+                  >
+                    <item.icon />
+                    <span>{item.label}</span>
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+           <SidebarSeparator />
+          <SidebarMenu>
+             {configMenuItems.map((item) => (
               <SidebarMenuItem key={item.label}>
                 <Link href={item.href}>
                   <SidebarMenuButton
