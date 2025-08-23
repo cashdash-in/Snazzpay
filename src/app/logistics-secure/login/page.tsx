@@ -14,15 +14,15 @@ import { useRouter } from 'next/navigation';
 export default function LogisticsLoginPage() {
     const { toast } = useToast();
     const router = useRouter();
-    const [agentId, setAgentId] = useState('');
+    const [partnerId, setPartnerId] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
     const handleLogin = () => {
         setIsLoading(true);
         
-        if (!agentId || !password) {
-            toast({ variant: 'destructive', title: "Login Failed", description: "Please enter your Agent/Partner ID and password." });
+        if (!partnerId || !password) {
+            toast({ variant: 'destructive', title: "Login Failed", description: "Please enter your Logistics Partner ID and password." });
             setIsLoading(false);
             return;
         }
@@ -50,14 +50,14 @@ export default function LogisticsLoginPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="agent-id">Logistics Partner ID</Label>
+                        <Label htmlFor="partner-id">Logistics Partner ID</Label>
                         <div className="relative">
                             <Truck className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input 
-                                id="agent-id" 
+                                id="partner-id" 
                                 placeholder="Your unique Partner ID" 
-                                value={agentId}
-                                onChange={(e) => setAgentId(e.target.value)}
+                                value={partnerId}
+                                onChange={(e) => setPartnerId(e.target.value)}
                                 className="pl-9" 
                             />
                         </div>
