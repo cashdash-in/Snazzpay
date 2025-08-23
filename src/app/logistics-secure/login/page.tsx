@@ -34,8 +34,7 @@ export default function LogisticsLoginPage() {
                 description: "Redirecting you to your logistics dashboard...",
             });
             
-            // Force navigation using window.location.href as a robust workaround
-            window.location.href = '/logistics-secure/dashboard';
+            router.push('/logistics-secure/dashboard');
 
         }, 500);
     }
