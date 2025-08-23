@@ -128,6 +128,7 @@ export default function PartnerPayDashboardPage() {
                     toast({ title: "Settlement Successful!", description: `Transaction code ${response.razorpay_payment_id} generated. Copy it below.` });
                     setTransactionValue('');
                     setCustomerInfo({ name: '', phone: '', address: '' });
+                    setIsSettleDialogOpen(true); // Keep dialog open to show code
                 },
                 prefill: { name: partner.name },
                 theme: { color: "#5a31f4" },
