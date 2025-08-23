@@ -20,8 +20,6 @@ export default function LogisticsLoginPage() {
 
     const handleLogin = () => {
         setIsLoading(true);
-        // This is where you would add real authentication logic for logistics partners.
-        // For now, we'll simulate it and redirect.
         
         if (!agentId || !password) {
             toast({ variant: 'destructive', title: "Login Failed", description: "Please enter your Agent/Partner ID and password." });
@@ -29,15 +27,18 @@ export default function LogisticsLoginPage() {
             return;
         }
 
+        // Simulate a successful login and redirect.
+        // We show the toast first, then redirect.
+        toast({
+            title: "Login Successful (Simulated)",
+            description: "Redirecting you to your logistics dashboard.",
+        });
+        
+        // Use a short timeout to allow the user to see the toast message before redirecting
         setTimeout(() => {
-             toast({
-                title: "Login Successful (Simulated)",
-                description: "Redirecting you to your logistics dashboard.",
-            });
-            // Redirect to the new, isolated dashboard
             router.push('/logistics-secure/dashboard');
-            setIsLoading(false);
-        }, 1000);
+            // We don't set isLoading to false here, as the page will be unmounted.
+        }, 500);
     }
 
     return (
