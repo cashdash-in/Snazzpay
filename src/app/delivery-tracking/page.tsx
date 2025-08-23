@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useEffect } from "react";
-import { Trash2, PlusCircle, Save, Loader2 as ButtonLoader, Send, Mail, Copy, Rocket } from "lucide-react";
+import { Trash2, PlusCircle, Save, Loader2 as ButtonLoader, Mail, Copy } from "lucide-react";
 import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -100,10 +100,7 @@ export default function DeliveryTrackingPage() {
                     representativeOrder.paymentStatus = 'Refunded';
                 }
                 
-                const sharedCancellationId = group.find(o => o.cancellationId)?.cancellationId;
-                if (sharedCancellationId) {
-                    representativeOrder.cancellationId = sharedCancellationId;
-                } else {
+                if (!representativeOrder.cancellationId) {
                      representativeOrder.cancellationId = `CNCL-${uuidv4().substring(0, 8).toUpperCase()}`;
                 }
     
@@ -127,19 +124,9 @@ export default function DeliveryTrackingPage() {
         const orderToSave = orders.find(o => o.id === orderId);
         if (!orderToSave) return;
         
-        if (orderToSave.id.startsWith('gid://') || orderToSave.id.match(/^\d+$/)) {
-          const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${orderId}`) || '{}');
-          const newOverrides = { ...storedOverrides, ...orderToSave };
-          localStorage.setItem(`order-override-${orderId}`, JSON.stringify(newOverrides));
-        } else {
-          const manualOrdersJSON = localStorage.getItem('manualOrders');
-          let manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
-          const orderIndex = manualOrders.findIndex(o => o.id === orderId);
-          if (orderIndex > -1) {
-            manualOrders[orderIndex] = orderToSave;
-            localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
-          }
-        }
+        const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${orderId}`) || '{}');
+        const newOverrides = { ...storedOverrides, ...orderToSave };
+        localStorage.setItem(`order-override-${orderId}`, JSON.stringify(newOverrides));
 
         toast({
             title: "Delivery Info Saved",
@@ -216,7 +203,7 @@ export default function DeliveryTrackingPage() {
             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                 <div>
                     <CardTitle>Delivery Management</CardTitle>
-                    <CardDescription>Manage dispatch details and delivery status. Click an Order ID to see full details.</CardDescription>
+                    <CardDescription>Manage all orders, their delivery status, and send payment links. Click an Order ID to see full details.</CardDescription>
                 </div>
                 <Link href="/orders/new">
                     <Button>
@@ -238,10 +225,7 @@ export default function DeliveryTrackingPage() {
                   <TableRow>
                     <TableHead>Order ID</TableHead>
                     <TableHead>Customer</TableHead>
-                    <TableHead>Address</TableHead>
                     <TableHead>Contact / Email</TableHead>
-                    <TableHead>Courier Company</TableHead>
-                    <TableHead>Tracking No.</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-center w-[400px]">Actions</TableHead>
                   </TableRow>
@@ -263,14 +247,6 @@ export default function DeliveryTrackingPage() {
                         />
                       </TableCell>
                       <TableCell>
-                         <Input
-                            value={order.customerAddress}
-                            onChange={(e) => handleFieldChange(order.id, 'customerAddress', e.target.value)}
-                            className="w-48 text-xs"
-                             placeholder="Shipping Address"
-                        />
-                      </TableCell>
-                      <TableCell>
                          <div className="flex flex-col gap-1">
                              <Input
                                 value={order.contactNo}
@@ -285,22 +261,6 @@ export default function DeliveryTrackingPage() {
                                 placeholder="Email Address"
                             />
                          </div>
-                      </TableCell>
-                      <TableCell>
-                        <Input 
-                            placeholder="Courier Name" 
-                            className="w-40" 
-                            value={order.courierCompanyName || ''}
-                            onChange={(e) => handleFieldChange(order.id, 'courierCompanyName', e.target.value)}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input 
-                            placeholder="Enter Tracking No." 
-                            className="w-40" 
-                            value={order.trackingNumber || ''}
-                            onChange={(e) => handleFieldChange(order.id, 'trackingNumber', e.target.value)}
-                        />
                       </TableCell>
                        <TableCell>
                         <Select
@@ -320,15 +280,6 @@ export default function DeliveryTrackingPage() {
                         </Select>
                       </TableCell>
                       <TableCell className="text-center space-x-2">
-                        <Button 
-                            variant="secondary"
-                            size="sm"
-                            disabled // This is just a placeholder
-                            title="Coming Soon: Integrate with a logistics partner"
-                        >
-                            <Rocket className="mr-2 h-4 w-4" />
-                            Book Shipment
-                        </Button>
                         <Button 
                             variant="default" 
                             size="sm" 

@@ -8,9 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useEffect } from "react";
-import { Trash2, PlusCircle, Save, Loader2 as ButtonLoader, Send, Mail, Copy, Rocket } from "lucide-react";
+import { PlusCircle, Save, Loader2 } from "lucide-react";
 import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
-import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import type { EditableOrder } from '../orders/page';
@@ -46,7 +45,6 @@ function mapShopifyToEditable(order: ShopifyOrder): EditableOrder {
 export default function LogisticsHubPage() {
     const [orders, setOrders] = useState<EditableOrder[]>([]);
     const [loading, setLoading] = useState(true);
-    const [sendingState, setSendingState] = useState<string | null>(null);
     const { toast } = useToast();
 
     useEffect(() => {
@@ -100,10 +98,7 @@ export default function LogisticsHubPage() {
                     representativeOrder.paymentStatus = 'Refunded';
                 }
                 
-                const sharedCancellationId = group.find(o => o.cancellationId)?.cancellationId;
-                if (sharedCancellationId) {
-                    representativeOrder.cancellationId = sharedCancellationId;
-                } else {
+                if (!representativeOrder.cancellationId) {
                      representativeOrder.cancellationId = `CNCL-${uuidv4().substring(0, 8).toUpperCase()}`;
                 }
     
@@ -128,46 +123,16 @@ export default function LogisticsHubPage() {
         const orderToSave = orders.find(o => o.id === orderId);
         if (!orderToSave) return;
         
-        if (orderToSave.id.startsWith('gid://') || orderToSave.id.match(/^\d+$/)) {
-          const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${orderId}`) || '{}');
-          const newOverrides = { ...storedOverrides, ...orderToSave };
-          localStorage.setItem(`order-override-${orderId}`, JSON.stringify(newOverrides));
-        } else {
-          const manualOrdersJSON = localStorage.getItem('manualOrders');
-          let manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
-          const orderIndex = manualOrders.findIndex(o => o.id === orderId);
-          if (orderIndex > -1) {
-            manualOrders[orderIndex] = orderToSave;
-            localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
-          }
-        }
-
+        const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${orderId}`) || '{}');
+        const newOverrides = { ...storedOverrides, ...orderToSave };
+        localStorage.setItem(`order-override-${orderId}`, JSON.stringify(newOverrides));
+        
         toast({
             title: "Delivery Info Saved",
             description: `Details for order ${orderToSave.orderId} have been updated.`,
         });
     };
     
-    const handleRemoveOrder = (orderId: string) => {
-        setOrders(prev => prev.filter(order => order.id !== orderId));
-        
-        const manualOrdersJSON = localStorage.getItem('manualOrders');
-        if(manualOrdersJSON) {
-            let manualOrders: EditableOrder[] = JSON.parse(manualOrdersJSON);
-            manualOrders = manualOrders.filter(o => o.id !== orderId);
-            localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
-        }
-        
-        localStorage.removeItem(`order-override-${orderId}`);
-
-        toast({
-            variant: 'destructive',
-            title: "Order Removed",
-            description: "The order has been removed from delivery tracking.",
-        });
-    };
-    
-
   return (
     <AppShell title="Logistics Hub">
       <Card>
@@ -201,7 +166,7 @@ export default function LogisticsHubPage() {
                     <TableHead>Courier Partner</TableHead>
                     <TableHead>Tracking No.</TableHead>
                     <TableHead>Delivery Status</TableHead>
-                    <TableHead className="text-center w-[250px]">Actions</TableHead>
+                    <TableHead className="text-center">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -212,25 +177,11 @@ export default function LogisticsHubPage() {
                           {order.orderId}
                         </Link>
                       </TableCell>
-                      <TableCell>
-                         <Input
-                            value={order.customerName}
-                            onChange={(e) => handleFieldChange(order.id, 'customerName', e.target.value)}
-                            className="w-40"
-                            placeholder="Customer Name"
-                        />
-                      </TableCell>
-                      <TableCell>
-                         <Input
-                            value={order.customerAddress}
-                            onChange={(e) => handleFieldChange(order.id, 'customerAddress', e.target.value)}
-                            className="w-48 text-xs"
-                             placeholder="Shipping Address"
-                        />
-                      </TableCell>
+                      <TableCell>{order.customerName}</TableCell>
+                      <TableCell>{order.customerAddress}</TableCell>
                       <TableCell>
                         <Input 
-                            placeholder="e.g. Delhivery, BlueDart" 
+                            placeholder="e.g., Delhivery, BlueDart" 
                             className="w-40" 
                             value={order.courierCompanyName || ''}
                             onChange={(e) => handleFieldChange(order.id, 'courierCompanyName', e.target.value)}
@@ -262,20 +213,8 @@ export default function LogisticsHubPage() {
                         </Select>
                       </TableCell>
                       <TableCell className="text-center space-x-2">
-                        <Button 
-                            variant="secondary"
-                            size="sm"
-                            disabled // This is just a placeholder
-                            title="Coming Soon: Integrate with a logistics partner API"
-                        >
-                            <Rocket className="mr-2 h-4 w-4" />
-                            Book Shipment API
-                        </Button>
                         <Button variant="outline" size="icon" onClick={() => handleSave(order.id)}>
                             <Save className="h-4 w-4" />
-                        </Button>
-                        <Button variant="destructive" size="icon" onClick={() => handleRemoveOrder(order.id)}>
-                            <Trash2 className="h-4 w-4" />
                         </Button>
                       </TableCell>
                     </TableRow>

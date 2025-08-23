@@ -34,7 +34,8 @@ export default function LogisticsLoginPage() {
                 title: "Login Successful (Simulated)",
                 description: "Redirecting you to your logistics dashboard.",
             });
-            router.push('/logistics-secure');
+            // Redirect to the new, isolated dashboard
+            router.push('/logistics-secure/dashboard');
             setIsLoading(false);
         }, 1000);
     }

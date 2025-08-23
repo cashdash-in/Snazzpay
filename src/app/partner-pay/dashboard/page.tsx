@@ -40,10 +40,7 @@ type Transaction = {
     customerCode?: string;
 };
 
-const initialTransactions: Transaction[] = [
-    { id: 'SNC-A1B2', customerName: 'Rohan Sharma', customerPhone: '9876543210', customerAddress: '12, MG Road, Bangalore', value: 500, date: new Date().toISOString(), status: 'Completed', sellerTransactionCode: 'pay_xxxxxxxxxxxxxx', customerCode: 'CUST-ABC-123' },
-    { id: 'SNC-E5F6', customerName: 'Aditi Singh', customerPhone: '9123456789', customerAddress: '45, Jubilee Hills, Hyderabad', value: 1200, date: '2024-05-24T14:15:00.000Z', status: 'Completed', sellerTransactionCode: 'pay_yyyyyyyyyyyyyy', customerCode: 'CUST-DEF-456' },
-];
+const initialTransactions: Transaction[] = [];
 
 const initialParcels = [
     { id: '#SNZ-9876', customer: 'Priya S.', customerPhone: '9988776655', customerAddress: 'A-101, Rose Apartments, Mumbai', productName: 'Designer Watch', status: 'Waiting for Pickup', awb: 'DLV123456', courier: 'Delhivery', dispatchDate: '2024-05-23', estArrival: '2024-05-25' },
@@ -55,7 +52,7 @@ const initialParcels = [
 export default function PartnerPayDashboardPage() {
     const { toast } = useToast();
     const router = useRouter();
-    const [partner] = useState(mockPartner);
+    const [partner, setPartner] = useState(mockPartner);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [parcels, setParcels] = useState(initialParcels);
     const [transactionValue, setTransactionValue] = useState('');
@@ -65,8 +62,6 @@ export default function PartnerPayDashboardPage() {
     const [customerInfo, setCustomerInfo] = useState({ name: '', phone: '', address: '' });
     const [collectorName, setCollectorName] = useState('');
     const [deliveryNotes, setDeliveryNotes] = useState('');
-    const [isSettleDialogOpen, setIsSettleDialogOpen] = useState(false);
-    const [confirmedSellerTxCode, setConfirmedSellerTxCode] = useState('');
 
     useEffect(() => {
         getRazorpayKeyId().then(key => setRazorpayKeyId(key));
@@ -84,12 +79,17 @@ export default function PartnerPayDashboardPage() {
     };
     
     const handleSettleWithSeller = async () => {
-        if (!transactionValue || parseFloat(transactionValue) <= 0) {
+        const amount = parseFloat(transactionValue);
+        if (!transactionValue || amount <= 0) {
             toast({ variant: 'destructive', title: "Invalid Value", description: "Please enter a valid transaction amount." });
             return;
         }
+        if (amount > partner.balance) {
+             toast({ variant: 'destructive', title: "Insufficient Balance", description: "Your Snazzify Coin balance is too low. Please request a top-up." });
+             return;
+        }
         if (!razorpayKeyId) {
-             toast({ variant: 'destructive', title: "Configuration Error", description: "Razorpay Key ID is not set. Please configure it in the main app settings." });
+             toast({ variant: 'destructive', title: "Configuration Error", description: "Razorpay Key ID is not set. Please contact support." });
             return;
         }
         if (!customerInfo.name || !customerInfo.phone || !customerInfo.address) {
@@ -124,11 +124,11 @@ export default function PartnerPayDashboardPage() {
                         sellerTransactionCode: response.razorpay_payment_id
                     };
                     setTransactions(prev => [newTransaction, ...prev]);
-                    setConfirmedSellerTxCode(response.razorpay_payment_id);
-                    toast({ title: "Settlement Successful!", description: `Transaction code ${response.razorpay_payment_id} generated. Copy it below.` });
+                    setPartner(prev => ({ ...prev, balance: prev.balance - amount }));
+                    toast({ title: "Settlement Successful!", description: `Transaction code ${response.razorpay_payment_id} is now in your transaction list.` });
                     setTransactionValue('');
                     setCustomerInfo({ name: '', phone: '', address: '' });
-                    setIsSettleDialogOpen(true); // Keep dialog open to show code
+                    setIsSettling(false);
                 },
                 prefill: { name: partner.name },
                 theme: { color: "#5a31f4" },
@@ -139,7 +139,7 @@ export default function PartnerPayDashboardPage() {
 
         } catch (e: any) {
             toast({ variant: 'destructive', title: 'Error', description: e.message });
-            setIsSettling(false); // Only set false on error or dismiss, not success
+            setIsSettling(false);
         }
     };
 
@@ -149,14 +149,20 @@ export default function PartnerPayDashboardPage() {
             return;
         }
         
+        let txFound = false;
         setTransactions(prev => prev.map(tx => {
             if (tx.sellerTransactionCode === sellerCodeToProcess && tx.status === 'In Process') {
+                txFound = true;
                 const customerCode = `CUST-${uuidv4().substring(0, 8).toUpperCase()}`;
                 toast({ title: "Customer Code Generated!", description: `Share this code with the customer: ${customerCode}` });
                 return { ...tx, status: 'Completed', customerCode: customerCode };
             }
             return tx;
         }));
+
+        if (!txFound) {
+            toast({ variant: 'destructive', title: 'Transaction Not Found', description: 'Could not find an "In Process" transaction with that Seller Code.'})
+        }
         
         setSellerCodeToProcess('');
     };
@@ -180,6 +186,7 @@ export default function PartnerPayDashboardPage() {
             const result = await response.json();
             if (!response.ok) throw new Error(result.error);
             setTransactions(prev => prev.map(t => t.id === tx.id ? {...t, status: 'Refunded'} : t));
+            setPartner(prev => ({ ...prev, balance: prev.balance + tx.value })); // Refund coins
             toast({ title: "Refund Processed", description: `Refund for ₹${tx.value} has been successfully initiated.`});
         } catch (e: any) {
             toast({ variant: 'destructive', title: "Refund Failed", description: e.message });
@@ -203,7 +210,15 @@ export default function PartnerPayDashboardPage() {
         const diffHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
         return diffHours < 24;
     };
+    
+    const handleRequestTopUp = () => {
+        toast({
+            title: "Top-up Request Sent",
+            description: "Your request for more Snazzify Coins has been sent to the seller. You will be notified upon approval."
+        });
+    }
 
+    const canSettle = partner.balance >= parseFloat(transactionValue || '0');
 
     return (
         <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
@@ -227,6 +242,7 @@ export default function PartnerPayDashboardPage() {
                                 <Wallet className="h-6 w-6 text-primary" />
                             </CardHeader>
                             <CardContent><p className="text-4xl font-bold">₹{partner.balance.toFixed(2)}</p><p className="text-xs text-muted-foreground mt-1">Your available digital credit.</p></CardContent>
+                            <CardFooter><Button variant="secondary" className="w-full" onClick={handleRequestTopUp}>Request Top-up</Button></CardFooter>
                         </Card>
                         <Card className="shadow-lg">
                             <CardHeader><CardTitle>Generate Payment Code</CardTitle><CardDescription className="text-xs">Collect cash, settle with seller online, then generate a code for the customer.</CardDescription></CardHeader>
@@ -241,34 +257,13 @@ export default function PartnerPayDashboardPage() {
                                     <div className="relative"><Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="customer-phone" placeholder="Customer Phone" value={customerInfo.phone} onChange={(e) => setCustomerInfo(p => ({...p, phone: e.target.value}))} className="pl-9" /></div>
                                     <div className="relative"><Home className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="customer-address" placeholder="Customer Address" value={customerInfo.address} onChange={(e) => setCustomerInfo(p => ({...p, address: e.target.value}))} className="pl-9" /></div>
                                 </div>
-                                <Dialog open={isSettleDialogOpen} onOpenChange={setIsSettleDialogOpen}>
-                                    <DialogTrigger asChild><Button className="w-full"><QrCode className="mr-2 h-4 w-4" /> Settle with Seller & Get Code</Button></DialogTrigger>
-                                    <DialogContent>
-                                        <DialogHeader>
-                                            <DialogTitle>Step 1: Settle with Seller</DialogTitle>
-                                            {!confirmedSellerTxCode ? (
-                                                <>
-                                                 <DialogDescription>To get a transaction code, you must first pay the seller ₹{transactionValue || '0.00'} online. Click below to open the payment gateway.</DialogDescription>
-                                                 <div className="py-4 text-center"><Button onClick={handleSettleWithSeller} disabled={isSettling}>{isSettling ? 'Processing...' : `Pay Seller ₹${transactionValue || '0.00'} Now`}</Button></div>
-                                                </>
-                                            ) : (
-                                                 <>
-                                                  <DialogDescription>Payment successful! Here is your confirmed Seller Transaction Code. Copy this and use it in Step 2.</DialogDescription>
-                                                  <div className="py-4 space-y-2">
-                                                      <Label>Confirmed Seller Transaction Code</Label>
-                                                      <div className="flex gap-2">
-                                                        <Input value={confirmedSellerTxCode} readOnly className="font-mono" />
-                                                        <Button variant="secondary" onClick={() => handleCopyCode(confirmedSellerTxCode)}>Copy</Button>
-                                                      </div>
-                                                  </div>
-                                                  <DialogFooter>
-                                                    <DialogClose onClick={() => { setIsSettleDialogOpen(false); setConfirmedSellerTxCode(''); setIsSettling(false); }}>Close</DialogClose>
-                                                  </DialogFooter>
-                                                 </>
-                                            )}
-                                        </DialogHeader>
-                                    </DialogContent>
-                                </Dialog>
+                                
+                                <Button className="w-full" onClick={handleSettleWithSeller} disabled={isSettling || !canSettle}>
+                                    <QrCode className="mr-2 h-4 w-4" /> 
+                                    {isSettling ? 'Processing...' : `Pay Seller ₹${transactionValue || '0.00'} & Get Code`}
+                                </Button>
+                                {!canSettle && <p className="text-xs text-destructive text-center">Insufficient coin balance for this transaction.</p>}
+
                                 <Dialog>
                                     <DialogTrigger asChild><Button variant="secondary" className="w-full mt-2">I have my Seller Code</Button></DialogTrigger>
                                     <DialogContent><DialogHeader><DialogTitle>Step 2: Generate Customer Code</DialogTitle><DialogDescription>Enter the confirmed Seller Transaction Code from your transaction list to generate the final code for your customer.</DialogDescription></DialogHeader><div className="py-4 space-y-2"><Label htmlFor="seller-tx-code">Seller Transaction Code</Label><Input id="seller-tx-code" placeholder="Paste code here e.g. pay_..." value={sellerCodeToProcess} onChange={(e) => setSellerCodeToProcess(e.target.value)} /></div><DialogFooter><DialogClose asChild><Button onClick={handleGenerateCustomerCode}>Generate for Customer</Button></DialogClose></DialogFooter></DialogContent>
@@ -296,8 +291,8 @@ export default function PartnerPayDashboardPage() {
                                                         <TableCell><div className="font-medium">{tx.customerName}</div><div className="text-xs text-muted-foreground">{tx.customerPhone}</div></TableCell>
                                                         <TableCell className="text-xs">{tx.customerAddress}</TableCell>
                                                         <TableCell>₹{tx.value}</TableCell>
-                                                        <TableCell className="font-mono text-xs">{tx.sellerTransactionCode || 'N/A'}</TableCell>
-                                                        <TableCell className="font-mono text-xs">{tx.customerCode || 'N/A'}</TableCell>
+                                                        <TableCell className="font-mono text-xs flex items-center gap-1">{tx.sellerTransactionCode || 'N/A'} {tx.sellerTransactionCode && <Copy className="h-3 w-3 cursor-pointer" onClick={() => handleCopyCode(tx.sellerTransactionCode!)} />}</TableCell>
+                                                        <TableCell className="font-mono text-xs flex items-center gap-1">{tx.customerCode || 'N/A'} {tx.customerCode && <Copy className="h-3 w-3 cursor-pointer" onClick={() => handleCopyCode(tx.customerCode!)} />}</TableCell>
                                                         <TableCell><Badge variant={tx.status === 'Completed' ? 'default' : 'secondary'}>{tx.status}</Badge></TableCell>
                                                         <TableCell className="text-right">
                                                            {isActionable && (tx.status === 'Completed' || tx.status === 'In Process') && (
