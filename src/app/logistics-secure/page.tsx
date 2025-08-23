@@ -4,7 +4,7 @@
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { PackageSearch, PackageCheck, UserCog, Info, Package, RefreshCw, Truck, LogOut } from 'lucide-react';
+import { PackageSearch, PackageCheck, UserCog, Info, Package, RefreshCw, Truck, LogOut, PlusCircle, UserPlus, Bike, Car, DollarSign, Map, Star } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
@@ -13,6 +13,10 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 
 type SecureOrder = {
@@ -31,11 +35,28 @@ const initialOrders: SecureOrder[] = [
     { orderId: '#LS-1995', customer: 'Meera Desai', address: '110, Sector 17, Chandigarh', amount: '2100.00', status: 'Cash Collected', assignedTo: 'BlueDart' },
 ];
 
+type Agent = {
+  id: string;
+  name: string;
+  phone: string;
+  vehicleType: 'Bike' | 'Van';
+  cashOnHand: number;
+  pickupsToday: number;
+  status: 'Active' | 'On-Leave' | 'Inactive';
+};
+
+const initialAgents: Agent[] = [
+    { id: 'AGENT-01', name: 'Rajesh Kumar', phone: '9876543210', vehicleType: 'Bike', cashOnHand: 750.00, pickupsToday: 1, status: 'Active' },
+    { id: 'AGENT-02', name: 'Suresh Raina', phone: '9123456789', vehicleType: 'Bike', cashOnHand: 0, pickupsToday: 0, status: 'Active' },
+    { id: 'AGENT-03', name: 'Anjali Mehta', phone: '9988776655', vehicleType: 'Van', cashOnHand: 2100.00, pickupsToday: 2, status: 'Inactive' },
+];
+
 
 export default function LogisticsSecurePage() {
     const router = useRouter();
     const { toast } = useToast();
     const [orders, setOrders] = useState<SecureOrder[]>(initialOrders);
+    const [agents, setAgents] = useState<Agent[]>(initialAgents);
 
     const handleConfirmCollection = (orderId: string) => {
         setOrders(prevOrders => prevOrders.map(order => 
@@ -54,6 +75,9 @@ export default function LogisticsSecurePage() {
 
     const pendingPickups = orders.filter(o => o.status !== 'Cash Collected');
     const successfulCollections = orders.filter(o => o.status === 'Cash Collected');
+    const activeAgents = agents.filter(a => a.status === 'Active');
+
+    const leaderboard = [...agents].sort((a,b) => b.pickupsToday - a.pickupsToday);
 
     return (
         <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
@@ -179,20 +203,85 @@ export default function LogisticsSecurePage() {
                         </Card>
                     </TabsContent>
                      <TabsContent value="my-fleet" className="mt-6">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Manage Your Fleet</CardTitle>
-                                <CardDescription>View and manage your delivery agents. (Coming Soon)</CardDescription>
-                            </CardHeader>
-                            <CardContent className="text-center text-muted-foreground py-16">
-                                <Truck className="mx-auto h-12 w-12 mb-4" />
-                                <p>This feature will allow you to add and manage your delivery agents,</p>
-                                <p>assign pickups, and track their performance.</p>
-                            </CardContent>
-                        </Card>
+                        <div className="grid lg:grid-cols-3 gap-6">
+                            <div className="lg:col-span-2">
+                                 <Card>
+                                    <CardHeader className="flex flex-row items-center justify-between">
+                                        <div>
+                                            <CardTitle>Fleet Agents</CardTitle>
+                                            <CardDescription>Manage your delivery agents and their cash balances.</CardDescription>
+                                        </div>
+                                         <Dialog>
+                                            <DialogTrigger asChild><Button><UserPlus className="mr-2 h-4 w-4"/>Add Agent</Button></DialogTrigger>
+                                            <DialogContent><DialogHeader><DialogTitle>Add New Delivery Agent</DialogTitle></DialogHeader>
+                                            {/* Add Agent Form would go here */}
+                                            <p className="py-4">Agent creation form placeholder.</p>
+                                            <DialogFooter><DialogClose asChild><Button>Save Agent</Button></DialogClose></DialogFooter>
+                                            </DialogContent>
+                                        </Dialog>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <Table>
+                                            <TableHeader><TableRow><TableHead>Agent</TableHead><TableHead>Vehicle</TableHead><TableHead>Status</TableHead><TableHead>Cash on Hand</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                                            <TableBody>
+                                                {agents.map(agent => (
+                                                    <TableRow key={agent.id}>
+                                                        <TableCell><div className="font-medium">{agent.name}</div><div className="text-xs text-muted-foreground">{agent.phone}</div></TableCell>
+                                                        <TableCell>{agent.vehicleType === 'Bike' ? <Bike className="h-5 w-5"/> : <Car className="h-5 w-5"/>}</TableCell>
+                                                        <TableCell><Badge variant={agent.status === 'Active' ? 'default' : 'secondary'} className={agent.status === 'Active' ? 'bg-green-100 text-green-800' : ''}>{agent.status}</Badge></TableCell>
+                                                        <TableCell className="font-mono">₹{agent.cashOnHand.toFixed(2)}</TableCell>
+                                                        <TableCell className="text-right">
+                                                            <Dialog>
+                                                                <DialogTrigger asChild><Button size="sm" variant="outline" disabled={agent.cashOnHand === 0}>Settle Cash</Button></DialogTrigger>
+                                                                <DialogContent>
+                                                                    <DialogHeader><DialogTitle>Settle Daily Cash</DialogTitle><DialogDescription>Confirm that you have received ₹{agent.cashOnHand.toFixed(2)} from {agent.name}. This will reset their cash-on-hand to zero for the next day.</DialogDescription></DialogHeader>
+                                                                    <DialogFooter><DialogClose asChild><Button variant="secondary">Cancel</Button></DialogClose><DialogClose asChild><Button>Confirm Settlement</Button></DialogClose></DialogFooter>
+                                                                </DialogContent>
+                                                            </Dialog>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    </CardContent>
+                                </Card>
+                            </div>
+                            <div className="space-y-6">
+                                <Card>
+                                    <CardHeader><CardTitle>Pickup Assignment</CardTitle><CardDescription>Assign pending pickups to active agents.</CardDescription></CardHeader>
+                                    <CardContent>
+                                        <Image src="https://placehold.co/600x400.png" width={600} height={400} alt="Map of pickups" className="rounded-md" data-ai-hint="city map" />
+                                        <div className="mt-4 space-y-2">
+                                            <Label htmlFor="pickup-select">Select a Pickup</Label>
+                                            <Select><SelectTrigger><SelectValue placeholder="Select pending order..."/></SelectTrigger><SelectContent>{pendingPickups.map(p=><SelectItem key={p.orderId} value={p.orderId}>{p.orderId} - {p.customer}</SelectItem>)}</SelectContent></Select>
+                                            <Label htmlFor="agent-select">Assign to Agent</Label>
+                                            <Select><SelectTrigger><SelectValue placeholder="Select an agent..."/></SelectTrigger><SelectContent>{activeAgents.map(a=><SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}</SelectContent></Select>
+                                            <Button className="w-full">Assign Pickup</Button>
+                                            <Button variant="secondary" className="w-full">Generate Optimized Route</Button>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                                <Card>
+                                     <CardHeader><CardTitle>Top Agent Leaderboard</CardTitle><CardDescription>Today's top performing agents.</CardDescription></CardHeader>
+                                     <CardContent>
+                                        <div className="space-y-4">
+                                            {leaderboard.map((agent, index) => (
+                                                <div key={agent.id} className="flex items-center">
+                                                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold mr-4">{index + 1}</div>
+                                                    <div className="flex-1"><p className="font-medium">{agent.name}</p><p className="text-xs text-muted-foreground">{agent.pickupsToday} Pickups | ₹{agents.find(a => a.id === agent.id)?.cashOnHand.toFixed(2)} Collected</p></div>
+                                                    {index === 0 && <Star className="h-5 w-5 text-yellow-400" />}
+                                                </div>
+                                            ))}
+                                        </div>
+                                     </CardContent>
+                                </Card>
+                            </div>
+                        </div>
                     </TabsContent>
                 </Tabs>
             </div>
         </div>
     )
 }
+
+    
