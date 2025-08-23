@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useEffect } from "react";
-import { Trash2, PlusCircle, Save, Loader2 as ButtonLoader, Send, Mail, Copy } from "lucide-react";
+import { Trash2, PlusCircle, Save, Loader2 as ButtonLoader, Send, Mail, Copy, Rocket } from "lucide-react";
 import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -293,6 +293,15 @@ export default function DeliveryTrackingPage() {
                         </Select>
                       </TableCell>
                       <TableCell className="text-center space-x-2">
+                        <Button 
+                            variant="secondary"
+                            size="sm"
+                            disabled // This is just a placeholder
+                            title="Coming Soon: Integrate with a logistics partner"
+                        >
+                            <Rocket className="mr-2 h-4 w-4" />
+                            Book Shipment
+                        </Button>
                         <Button 
                             variant="default" 
                             size="sm" 
