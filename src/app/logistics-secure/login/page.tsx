@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,7 @@ export default function LogisticsLoginPage() {
     const [agentId, setAgentId] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [loginSuccess, setLoginSuccess] = useState(false);
 
     const handleLogin = () => {
         setIsLoading(true);
@@ -27,19 +28,21 @@ export default function LogisticsLoginPage() {
             return;
         }
 
-        // Simulate a successful login and redirect.
-        // We show the toast first, then redirect.
-        toast({
-            title: "Login Successful (Simulated)",
-            description: "Redirecting you to your logistics dashboard.",
-        });
-        
-        // Use a short timeout to allow the user to see the toast message before redirecting
+        // Simulate a successful login and set state to trigger redirection
         setTimeout(() => {
-            router.push('/logistics-secure/dashboard');
-            // We don't set isLoading to false here, as the page will be unmounted.
+            toast({
+                title: "Login Successful",
+                description: "Redirecting you to your logistics dashboard...",
+            });
+            setLoginSuccess(true);
         }, 500);
     }
+    
+    useEffect(() => {
+        if (loginSuccess) {
+            router.push('/logistics-secure/dashboard');
+        }
+    }, [loginSuccess, router]);
 
     return (
         <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
@@ -82,8 +85,8 @@ export default function LogisticsLoginPage() {
                     <Button className="w-full" onClick={handleLogin} disabled={isLoading}>
                         {isLoading ? 'Verifying...' : 'Login to Logistics Portal'}
                     </Button>
-                    <Link href="/secure-cod" className="text-sm text-primary hover:underline cursor-pointer">
-                        Back to Main Page
+                    <Link href="/secure-cod">
+                        <span className="text-sm text-primary hover:underline cursor-pointer">Back to Main Page</span>
                     </Link>
                 </CardFooter>
             </Card>
