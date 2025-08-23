@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogOut, Wallet, Package, QrCode, Clipboard, PackageSearch, PackageCheck, Send, MessageSquare, AlertTriangle, FileUp, Edit } from "lucide-react";
+import { LogOut, Wallet, Package, QrCode, Clipboard, PackageSearch, PackageCheck, Send, MessageSquare, AlertTriangle, FileUp, Edit, ShieldCheck } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
@@ -45,6 +45,7 @@ export default function PartnerPayDashboardPage() {
     const [parcels, setParcels] = useState(initialParcels);
     const [generatedCode, setGeneratedCode] = useState('');
     const [transactionValue, setTransactionValue] = useState('');
+    const [sellerTxCode, setSellerTxCode] = useState('');
     const [collectorName, setCollectorName] = useState('');
     const [deliveryNotes, setDeliveryNotes] = useState('');
 
@@ -58,9 +59,14 @@ export default function PartnerPayDashboardPage() {
             toast({ variant: 'destructive', title: "Invalid Value", description: "Please enter a valid transaction amount." });
             return;
         }
+        if (!sellerTxCode) {
+            toast({ variant: 'destructive', title: "Verification Required", description: "Please enter the transaction code from the seller." });
+            return;
+        }
+
         const code = `SNZ-${uuidv4().substring(0, 8).toUpperCase()}`;
         setGeneratedCode(code);
-        toast({ title: "Code Generated", description: `New code for ₹${transactionValue} created.` });
+        toast({ title: "Code Generated", description: `New code for ₹${transactionValue} created successfully.` });
     };
 
     const handleCopyCode = () => {
@@ -129,7 +135,7 @@ export default function PartnerPayDashboardPage() {
                             <CardHeader>
                                 <CardTitle>Generate Payment Code</CardTitle>
                                 <CardDescription className="text-xs">
-                                    Collect cash, then use your coin balance to generate a unique code. The customer needs this code to confirm their purchase online.
+                                   To generate a code, collect cash from the customer, then enter the amount and the verification code you receive from the seller after payment.
                                 </CardDescription>
                             </CardHeader>
                              <CardContent className="space-y-4">
@@ -137,9 +143,37 @@ export default function PartnerPayDashboardPage() {
                                     <Label htmlFor="tx-value">Cash Collected (₹)</Label>
                                     <Input id="tx-value" type="number" placeholder="e.g., 500" value={transactionValue} onChange={(e) => setTransactionValue(e.target.value)} />
                                 </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="seller-tx-code">Seller Transaction Code</Label>
+                                    <Input id="seller-tx-code" placeholder="Enter code from seller" value={sellerTxCode} onChange={(e) => setSellerTxCode(e.target.value)} />
+                                </div>
+                                <Dialog>
+                                    <DialogTrigger asChild>
+                                         <Button className="w-full">
+                                            <QrCode className="mr-2 h-4 w-4" /> Generate Customer Code
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                         <DialogHeader>
+                                            <DialogTitle>Confirm Code Generation</DialogTitle>
+                                            <AlertDialogDescription>
+                                                This will generate a new digital payment code for the customer. Ensure the seller transaction code is correct.
+                                            </AlertDialogDescription>
+                                        </DialogHeader>
+                                         <DialogFooter>
+                                            <DialogClose asChild>
+                                                <Button variant="outline">Cancel</Button>
+                                            </DialogClose>
+                                            <DialogClose asChild>
+                                                <Button onClick={handleGenerateCode}>Confirm & Generate</Button>
+                                            </DialogClose>
+                                        </DialogFooter>
+                                    </DialogContent>
+                                </Dialog>
+
                                 {generatedCode && (
-                                    <div className="p-4 bg-muted rounded-lg text-center space-y-2">
-                                        <Label>Your One-Time Code</Label>
+                                    <div className="p-4 bg-muted rounded-lg text-center space-y-2 mt-4">
+                                        <Label>Your One-Time Customer Code</Label>
                                         <p className="text-2xl font-bold font-mono tracking-widest">{generatedCode}</p>
                                         <Button size="sm" variant="outline" onClick={handleCopyCode} className="w-full">
                                             <Clipboard className="mr-2 h-4 w-4" /> Copy Code
@@ -147,11 +181,6 @@ export default function PartnerPayDashboardPage() {
                                     </div>
                                 )}
                             </CardContent>
-                            <CardFooter>
-                                <Button className="w-full" onClick={handleGenerateCode}>
-                                    <QrCode className="mr-2 h-4 w-4" /> Generate Code
-                                </Button>
-                            </CardFooter>
                         </Card>
                     </div>
 
@@ -207,8 +236,8 @@ export default function PartnerPayDashboardPage() {
                                                                         </div>
                                                                          <div className="space-y-2 border-t pt-4">
                                                                             <h4 className="font-medium">Customer Actions</h4>
-                                                                            <Button onClick={() => handleNotifyCustomer(p.id)} variant="secondary" className="w-full justify-start" disabled={p.status !== 'Ready for Pickup'}>
-                                                                                <MessageSquare className="mr-2"/>Notify Customer for Pickup
+                                                                            <Button onClick={() => handleNotifyCustomer(p.id)} variant="secondary" className="w-full justify-start">
+                                                                                <MessageSquare className="mr-2"/>Notify Customer
                                                                             </Button>
                                                                         </div>
                                                                          <div className="space-y-2 border-t pt-4">
@@ -289,3 +318,4 @@ export default function PartnerPayDashboardPage() {
     );
 }
 
+    
