@@ -79,10 +79,11 @@ export default function CustomerDashboardPage() {
                 });
 
                 const customerSnazzPayOrders = allSnazzPayOrders.filter(order => {
-                    const normalize = (phone: string = '') => phone.replace(/[^0-9]/g, '');
+                    const normalize = (phone: string = '') => (phone || '').replace(/[^0-9]/g, '');
                     const orderContact = normalize(order.contactNo);
                     const loggedInContact = normalize(loggedInMobile);
                     if (!orderContact || !loggedInContact) return false;
+                    // Check if one number ends with the other, for flexibility (e.g. with or without country code)
                     return orderContact.endsWith(loggedInContact) || loggedInContact.endsWith(orderContact);
                 });
 
