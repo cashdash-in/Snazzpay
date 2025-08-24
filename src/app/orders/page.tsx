@@ -36,6 +36,7 @@ export type EditableOrder = {
   cancellationId?: string;
   cancellationReason?: string;
   cancellationStatus?: 'Pending' | 'Processed' | 'Failed';
+  cancellationFee?: string;
   refundAmount?: string;
   refundReason?: string;
   refundStatus?: 'Pending' | 'Processed' | 'Failed';

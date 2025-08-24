@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Wallet, ShoppingCart, ShieldAlert, LogOut, CheckCircle, Clock, Mail, MessageSquare, PackageCheck, FileText, Calendar, Truck, ArrowRight, CircleDotDashed } from "lucide-react";
+import { Wallet, ShoppingCart, ShieldAlert, LogOut, CheckCircle, Clock, Mail, MessageSquare, PackageCheck, FileText, Calendar, Truck, ArrowRight, CircleDotDashed, AlertTriangle } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
@@ -101,11 +101,14 @@ export default function CustomerDashboardPage() {
                     
                     const hasVoided = group.some(o => o.paymentStatus === 'Voided' || o.cancellationStatus === 'Processed');
                     const hasRefunded = group.some(o => o.paymentStatus === 'Refunded' || o.refundStatus === 'Processed');
+                    const hasFeeCharged = group.some(o => o.paymentStatus === 'Fee Charged');
 
                     if (hasVoided) {
                         representativeOrder.paymentStatus = 'Voided';
                     } else if (hasRefunded) {
                         representativeOrder.paymentStatus = 'Refunded';
+                    } else if (hasFeeCharged) {
+                        representativeOrder.paymentStatus = 'Fee Charged';
                     }
                     
                     const sharedCancellationId = group.find(o => o.cancellationId)?.cancellationId;
@@ -284,7 +287,7 @@ export default function CustomerDashboardPage() {
                                                 {orders.length > 0 ? orders.map((order) => {
                                                     const paymentInfo = paymentInfos.get(order.orderId);
                                                     const canSelfCancel = order.paymentStatus === 'Authorized' && paymentInfo && isWithin24Hours(paymentInfo.authorizedAt);
-                                                    const isCancelled = ['Voided', 'Cancelled', 'Refunded'].includes(order.paymentStatus);
+                                                    const isCancelled = ['Voided', 'Cancelled', 'Refunded', 'Fee Charged'].includes(order.paymentStatus);
 
                                                     return (
                                                         <TableRow key={order.id}>
@@ -296,11 +299,12 @@ export default function CustomerDashboardPage() {
                                                                 <Badge variant={order.paymentStatus === 'Paid' ? 'default' : 'secondary'} className={
                                                                     order.paymentStatus === 'Paid' ? 'bg-green-100 text-green-800' : 
                                                                     order.paymentStatus === 'Authorized' ? 'bg-yellow-100 text-yellow-800' :
+                                                                    order.paymentStatus === 'Fee Charged' ? 'bg-orange-100 text-orange-800' :
                                                                     isCancelled ? 'bg-red-100 text-red-800' :
                                                                     'bg-gray-100 text-gray-800'
                                                                 }>
                                                                     {order.paymentStatus === 'Paid' ? <CheckCircle className="mr-1 h-3 w-3" /> : <Clock className="mr-1 h-3 w-3" />}
-                                                                    {order.paymentStatus}
+                                                                    {order.paymentStatus === 'Fee Charged' ? `Fee of ₹${order.cancellationFee} Charged` : order.paymentStatus}
                                                                 </Badge>
                                                             </TableCell>
                                                             <TableCell>
@@ -384,19 +388,20 @@ export default function CustomerDashboardPage() {
                                             const authorizedDate = paymentInfo?.authorizedAt ? format(new Date(paymentInfo.authorizedAt), 'PPp') : format(new Date(order.date), 'PPp');
                                             
                                             const isPaid = order.paymentStatus === 'Paid';
-                                            // A bit of a hack: Assume payment capture happens close to dispatch or on a specific event
                                             const finalizationDate = isPaid ? (order.readyForDispatchDate ? format(new Date(order.readyForDispatchDate), 'PPp') : `Funds Transferred`) : null;
                                             
-                                            const isRefunded = order.paymentStatus === 'Voided' || order.paymentStatus === 'Refunded';
-                                            const refundDate = isRefunded ? `Refund Processed` : null;
+                                            const isCancelled = ['Voided', 'Refunded', 'Fee Charged'].includes(order.paymentStatus);
+                                            const cancellationDate = isCancelled ? `Refund / Cancellation Processed` : null;
+                                            const feeChargedDate = order.paymentStatus === 'Fee Charged' ? `Fee Processed` : null;
 
                                             const events = [
                                                 { icon: CircleDotDashed, title: "Order Placed & Payment Authorized", date: authorizedDate },
+                                                { icon: AlertTriangle, title: `Cancellation Fee Charged: ₹${order.cancellationFee}`, date: feeChargedDate },
                                                 { icon: ArrowRight, title: "Funds Transferred", date: finalizationDate },
                                                 { icon: PackageCheck, title: "Order Dispatched", date: order.readyForDispatchDate ? format(new Date(order.readyForDispatchDate), 'PPp') : null, children: order.trackingNumber && `Tracking No: ${order.trackingNumber}` },
                                                 { icon: Truck, title: "Delivered", date: order.deliveryStatus === 'delivered' && order.estDelivery ? format(new Date(order.estDelivery), 'PPp') : null },
-                                                { icon: ShieldAlert, title: "Refunded / Cancelled", date: refundDate }
-                                            ].filter(e => e.date); // Only show events that have a date
+                                                { icon: ShieldAlert, title: "Refunded / Cancelled", date: cancellationDate }
+                                            ].filter(e => e.date);
 
 
                                             return (

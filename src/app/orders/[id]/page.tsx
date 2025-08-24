@@ -162,24 +162,19 @@ function OrderDetailContent() {
         });
     };
     
-    const savePaymentStatusChange = (newStatus: string) => {
-         if (!order) return;
-        const updatedOrder = { ...order, paymentStatus: newStatus };
+    const saveStatusAndFeeChange = (newStatus: string, fee?: string) => {
+        if (!order) return;
+        const updatedOrderData: Partial<EditableOrder> = { paymentStatus: newStatus };
+        if (fee !== undefined) {
+            updatedOrderData.cancellationFee = fee;
+        }
+
+        const updatedOrder = { ...order, ...updatedOrderData };
         setOrder(updatedOrder);
 
-        if (updatedOrder.id.startsWith('gid://') || /^\d+$/.test(updatedOrder.id)) {
-            const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${updatedOrder.id}`) || '{}');
-            const newOverrides = { ...storedOverrides, paymentStatus: newStatus };
-            localStorage.setItem(`order-override-${updatedOrder.id}`, JSON.stringify(newOverrides));
-        } else {
-             const manualOrdersJSON = localStorage.getItem('manualOrders');
-            let manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
-            const orderIndex = manualOrders.findIndex(o => o.id === updatedOrder.id);
-            if (orderIndex > -1) {
-                manualOrders[orderIndex].paymentStatus = newStatus;
-                localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
-            }
-        }
+        const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
+        const newOverrides = { ...storedOverrides, ...updatedOrderData };
+        localStorage.setItem(`order-override-${order.id}`, JSON.stringify(newOverrides));
     };
 
     const handleChargePayment = async () => {
@@ -201,7 +196,7 @@ function OrderDetailContent() {
                 throw new Error(result.error || 'Failed to charge payment.');
             }
             
-            savePaymentStatusChange('Paid');
+            saveStatusAndFeeChange('Paid');
 
             toast({
                 title: "Charge Successful!",
@@ -224,7 +219,7 @@ function OrderDetailContent() {
         setIsCharging(true);
         // Simulate a short delay
         setTimeout(() => {
-            savePaymentStatusChange('Paid');
+            saveStatusAndFeeChange('Paid');
             toast({
                 title: "Charge Simulated",
                 description: `Status for manual order ${order.orderId} changed to 'Paid'.`,
@@ -301,7 +296,7 @@ function OrderDetailContent() {
             if (!response.ok) {
                 throw new Error(result.error);
             }
-            savePaymentStatusChange('Fee Charged');
+            saveStatusAndFeeChange('Fee Charged', cancellationFee);
             toast({ title: "Success", description: result.message });
         } catch (error: any) {
             toast({ variant: 'destructive', title: "Fee Processing Failed", description: error.message });
