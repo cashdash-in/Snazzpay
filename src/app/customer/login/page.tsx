@@ -26,17 +26,15 @@ export default function CustomerLoginPage() {
             setIsLoading(false);
             return;
         }
-
-        // This is a simulated login. In a real app, you would have proper authentication.
-        // The setTimeout was causing issues, so we'll redirect immediately.
         
+        // This is a simulated login. In a real app, you would have proper authentication.
         try {
             localStorage.setItem('loggedInUserMobile', mobileNumber);
             toast({
                 title: "Login Successful",
                 description: "Redirecting you to your customer dashboard.",
             });
-            // Redirect immediately
+            // The router push should be the last call in the success path.
             router.push('/customer/dashboard');
         } catch (error) {
             console.error("Login failed:", error);
