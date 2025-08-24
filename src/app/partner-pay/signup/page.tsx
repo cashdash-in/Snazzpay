@@ -107,7 +107,7 @@ export default function PartnerPaySignupPage() {
                       <div className="flex items-start space-x-2 pt-2">
                         <Checkbox id="terms" checked={agreed} onCheckedChange={(checked) => setAgreed(checked as boolean)} className="mt-1" />
                         <Label htmlFor="terms" className="text-sm text-muted-foreground">
-                            I agree to the <Link href="/terms-and-conditions" target="_blank" className="underline text-primary">Partner Terms and Conditions</Link>.
+                            I agree to the <Link href="/terms/partner-pay" target="_blank" className="underline text-primary">Partner Terms and Conditions</Link>.
                         </Label>
                     </div>
                 </CardContent>

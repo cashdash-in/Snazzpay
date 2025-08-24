@@ -8,7 +8,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, Save, ExternalLink, CreditCard, Send, Loader2 as ButtonLoader, Mail, Printer, Copy, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, Loader2, Save, ExternalLink, CreditCard, Send, Loader2 as ButtonLoader, Mail, Printer, Copy, ShieldAlert, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { EditableOrder } from '../page';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -71,6 +71,9 @@ function OrderDetailContent() {
     const [loading, setLoading] = useState(true);
     const [isCharging, setIsCharging] = useState(false);
     const [isSendingLink, setIsSendingLink] = useState(false);
+    const [cancellationFee, setCancellationFee] = useState('');
+    const [isProcessingFee, setIsProcessingFee] = useState(false);
+
 
     const isManualOrder = order ? !order.id.startsWith('gid://') && !/^\d+$/.test(order.id) : false;
 
@@ -271,6 +274,42 @@ function OrderDetailContent() {
         }
     };
 
+    const handleProcessCancellationFee = async () => {
+        if (!order || !paymentInfo) {
+            toast({ variant: 'destructive', title: "Error", description: "Order or payment details are missing." });
+            return;
+        }
+        const fee = parseFloat(cancellationFee);
+        if (isNaN(fee) || fee <= 0) {
+            toast({ variant: 'destructive', title: "Invalid Fee", description: "Please enter a valid cancellation fee amount." });
+            return;
+        }
+
+        setIsProcessingFee(true);
+        try {
+            const response = await fetch('/api/charge-cancellation-fee', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    paymentId: paymentInfo.paymentId,
+                    totalAmount: parseFloat(order.price),
+                    feeAmount: fee,
+                    reason: `Cancellation fee for order ${order.orderId}`
+                }),
+            });
+            const result = await response.json();
+            if (!response.ok) {
+                throw new Error(result.error);
+            }
+            savePaymentStatusChange('Fee Charged');
+            toast({ title: "Success", description: result.message });
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: "Fee Processing Failed", description: error.message });
+        } finally {
+            setIsProcessingFee(false);
+        }
+    };
+
 
     if (loading) {
         return (
@@ -300,6 +339,7 @@ function OrderDetailContent() {
     }
     
     const showChargeButton = order.paymentStatus.toLowerCase() === 'authorized';
+    const showCancellationFeeCard = order.paymentStatus.toLowerCase() === 'voided' && paymentInfo;
 
 
     return (
@@ -405,6 +445,47 @@ function OrderDetailContent() {
                         </CardContent>
                     </Card>
                 )}
+                
+                {showCancellationFeeCard && (
+                     <Card className="border-amber-500">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><AlertTriangle className="text-amber-500"/>Process Cancellation Fee</CardTitle>
+                            <CardDescription>This order was cancelled after payment authorization. You can charge a service/shipping fee by performing a partial refund. The remaining amount will be returned to the customer.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="flex items-end gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="cancellation-fee">Fee to Charge (INR)</Label>
+                                <Input 
+                                    id="cancellation-fee"
+                                    type="number"
+                                    placeholder="e.g., 150"
+                                    value={cancellationFee}
+                                    onChange={(e) => setCancellationFee(e.target.value)}
+                                />
+                            </div>
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                     <Button variant="destructive" disabled={isProcessingFee || !cancellationFee}>
+                                        {isProcessingFee ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                        Process Charges
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Confirm Cancellation Charges</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            This will charge the customer <strong className="text-foreground">₹{cancellationFee}</strong> and refund the rest of the authorized amount. This action is final. Are you sure?
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={handleProcessCancellationFee}>Yes, Process Charges</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        </CardContent>
+                    </Card>
+                )}
 
 
                 <Card>
@@ -466,6 +547,7 @@ function OrderDetailContent() {
                                     <SelectItem value="Refunded">Refunded</SelectItem>
                                     <SelectItem value="Partially Paid">Partially Paid</SelectItem>
                                     <SelectItem value="Voided">Voided</SelectItem>
+                                    <SelectItem value="Fee Charged">Fee Charged</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
