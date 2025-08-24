@@ -41,7 +41,6 @@ export default function LogisticsLoginPage() {
         const allPartners: LogisticsPartnerData[] = allPartnersJSON ? JSON.parse(allPartnersJSON) : [];
         const partner = allPartners.find(p => p.id === partnerId);
         
-        // This is a workaround for the prototype. In a real app, use hashed passwords.
         const WORKAROUND_PASSWORD = 'password';
 
         const isAdmin = partnerId === 'partner-admin' && password === WORKAROUND_PASSWORD;
