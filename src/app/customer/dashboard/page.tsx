@@ -391,25 +391,18 @@ export default function CustomerDashboardPage() {
                                         <CardDescription>A complete timeline of each order's journey.</CardDescription>
                                     </CardHeader>
                                     <CardContent className="space-y-6">
-                                        {orders.length > 0 ? orders.map((order, orderIndex) => {
+                                        {orders.length > 0 ? orders.map((order) => {
                                             const paymentInfo = paymentInfos.get(order.orderId);
                                             const authorizedDate = paymentInfo?.authorizedAt ? format(new Date(paymentInfo.authorizedAt), 'PPp') : format(new Date(order.date), 'PPp');
                                             
-                                            const isPaid = order.paymentStatus === 'Paid';
-                                            const finalizationDate = isPaid ? (order.readyForDispatchDate ? format(new Date(order.readyForDispatchDate), 'PPp') : `Funds Transferred`) : null;
-                                            
-                                            const isCancelled = ['Voided', 'Refunded', 'Fee Charged'].includes(order.paymentStatus);
-                                            const cancellationDate = isCancelled ? `Refund / Cancellation Processed` : null;
-                                            const feeChargedDate = order.paymentStatus === 'Fee Charged' ? `Fee Processed` : null;
-
                                             const events = [
                                                 { icon: CircleDotDashed, title: "Order Placed & Payment Authorized", date: authorizedDate },
-                                                { icon: AlertTriangle, title: `Cancellation Fee Charged: ₹${order.cancellationFee}`, date: feeChargedDate },
-                                                { icon: ArrowRight, title: "Funds Transferred", date: finalizationDate },
-                                                { icon: PackageCheck, title: "Order Dispatched", date: order.readyForDispatchDate ? format(new Date(order.readyForDispatchDate), 'PPp') : null, children: order.trackingNumber && `Tracking No: ${order.trackingNumber}` },
-                                                { icon: Truck, title: "Delivered", date: order.deliveryStatus === 'delivered' && order.estDelivery ? format(new Date(order.estDelivery), 'PPp') : null },
-                                                { icon: ShieldAlert, title: "Refunded / Cancelled", date: cancellationDate }
-                                            ].filter(e => e.date);
+                                                order.paymentStatus === 'Fee Charged' && { icon: AlertTriangle, title: `Cancellation Fee Charged: ₹${order.cancellationFee}`, date: 'Fee Processed' },
+                                                order.paymentStatus === 'Paid' && { icon: ArrowRight, title: "Funds Transferred", date: order.readyForDispatchDate ? format(new Date(order.readyForDispatchDate), 'PPp') : 'Funds Transferred' },
+                                                order.readyForDispatchDate && { icon: PackageCheck, title: "Order Dispatched", date: format(new Date(order.readyForDispatchDate), 'PPp'), children: order.trackingNumber && `Tracking No: ${order.trackingNumber}` },
+                                                order.deliveryStatus === 'delivered' && order.estDelivery && { icon: Truck, title: "Delivered", date: format(new Date(order.estDelivery), 'PPp') },
+                                                ['Voided', 'Refunded', 'Fee Charged'].includes(order.paymentStatus) && { icon: ShieldAlert, title: "Refunded / Cancelled", date: 'Refund / Cancellation Processed' }
+                                            ].filter(Boolean) as { icon: React.ElementType; title: string; date: string | null; children?: React.ReactNode; isLast?: boolean; }[];
 
 
                                             return (
