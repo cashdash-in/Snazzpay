@@ -35,6 +35,14 @@ type Transaction = {
     customerCode?: string;
 };
 
+type CashCode = {
+    code: string;
+    amount: number;
+    partnerId: string;
+    partnerName: string;
+    status: 'Pending' | 'Settled';
+};
+
 const initialTransactions: Transaction[] = [];
 
 const initialParcels = [
@@ -57,6 +65,7 @@ export default function PartnerPayDashboardPage() {
     const [customerInfo, setCustomerInfo] = useState({ name: '', phone: '', address: '' });
     const [collectorName, setCollectorName] = useState('');
     const [deliveryNotes, setDeliveryNotes] = useState('');
+    const [cashAmount, setCashAmount] = useState('');
 
     useEffect(() => {
         const loggedInPartnerId = localStorage.getItem('loggedInPartnerId');
@@ -185,6 +194,32 @@ export default function PartnerPayDashboardPage() {
         
         setSellerCodeToProcess('');
     };
+    
+    const handleGenerateCashCode = () => {
+        const amount = parseFloat(cashAmount);
+        if (!cashAmount || amount <= 0 || !partner) {
+            toast({ variant: 'destructive', title: "Invalid Amount", description: "Please enter a valid cash amount." });
+            return;
+        }
+
+        const newCode: CashCode = {
+            code: `CASH-${uuidv4().substring(0, 4).toUpperCase()}`,
+            amount: amount,
+            partnerId: partner.id,
+            partnerName: partner.companyName,
+            status: 'Pending',
+        };
+
+        const existingCodes = JSON.parse(localStorage.getItem('cashCodes') || '[]');
+        localStorage.setItem('cashCodes', JSON.stringify([...existingCodes, newCode]));
+
+        toast({
+            title: "Cash Collection Code Generated!",
+            description: `Code ${newCode.code} for ₹${newCode.amount} created. Provide this to the logistics agent.`
+        });
+
+        setCashAmount('');
+    };
 
     const handleCopyCode = (codeToCopy: string) => {
         navigator.clipboard.writeText(codeToCopy);
@@ -296,7 +331,7 @@ export default function PartnerPayDashboardPage() {
                     </div>
                     <div className="lg:col-span-2">
                         <Tabs defaultValue="transactions" className="w-full">
-                            <TabsList className="grid w-full grid-cols-2"><TabsTrigger value="transactions"><Wallet className="mr-2 h-4 w-4" /> Transactions</TabsTrigger><TabsTrigger value="logistics"><Package className="mr-2 h-4 w-4" /> Logistics Hub</TabsTrigger></TabsList>
+                            <TabsList className="grid w-full grid-cols-3"><TabsTrigger value="transactions"><Wallet className="mr-2 h-4 w-4" /> Transactions</TabsTrigger><TabsTrigger value="human-qr"><Clipboard className="mr-2 h-4 w-4" /> Human QR Code</TabsTrigger><TabsTrigger value="logistics"><Package className="mr-2 h-4 w-4" /> Logistics Hub</TabsTrigger></TabsList>
                             <TabsContent value="transactions">
                                 <Card className="shadow-lg">
                                     <CardHeader><CardTitle>Recent Transactions</CardTitle><CardDescription>History of codes generated from your account.</CardDescription></CardHeader>
@@ -347,6 +382,30 @@ export default function PartnerPayDashboardPage() {
                                             </TableBody>
                                         </Table>
                                     </CardContent>
+                                </Card>
+                            </TabsContent>
+                             <TabsContent value="human-qr">
+                                <Card className="shadow-lg">
+                                    <CardHeader>
+                                        <CardTitle>Human QR Code: Cash Collection</CardTitle>
+                                        <CardDescription>Generate a one-time code for cash collected from a customer. A logistics agent will use this code to settle the amount with you and top up your coin balance.</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
+                                         <div className="space-y-2">
+                                            <Label htmlFor="cash-amount">Cash Amount Collected (₹)</Label>
+                                            <Input 
+                                                id="cash-amount" 
+                                                type="number" 
+                                                placeholder="e.g., 1250.50" 
+                                                value={cashAmount}
+                                                onChange={(e) => setCashAmount(e.target.value)}
+                                            />
+                                        </div>
+                                        <Button className="w-full" onClick={handleGenerateCashCode}>Generate Collection Code</Button>
+                                    </CardContent>
+                                     <CardFooter>
+                                        <p className="text-xs text-muted-foreground">This system allows you to convert physical cash into Snazzify Coins without needing a bank deposit. The logistics agent acts as the bridge.</p>
+                                    </CardFooter>
                                 </Card>
                             </TabsContent>
                             <TabsContent value="logistics">

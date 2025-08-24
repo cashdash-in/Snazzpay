@@ -46,6 +46,7 @@ import {
   Handshake,
   ShieldAlert,
   Combine,
+  SendToBack,
 } from 'lucide-react';
 
 const coreMenuItems = [
@@ -61,6 +62,7 @@ const coreMenuItems = [
 
 const growthMenuItems = [
     { href: '/partner-pay', label: 'Partner Pay', icon: Handshake },
+    { href: '/settle', label: 'Settle Code', icon: SendToBack },
     { href: '/partner-cancellations', label: 'Partner Cancellations', icon: ShieldAlert },
     { href: '/logistics-secure', label: 'Logistics Hub', icon: Combine },
 ];
