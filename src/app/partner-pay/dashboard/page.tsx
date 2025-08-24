@@ -1,24 +1,25 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogOut, Wallet, Package, QrCode, Clipboard, PackageCheck, Send, MessageSquare, AlertTriangle, FileUp, Edit, ShieldCheck, CheckCircle, Copy, User, Phone, Home, Loader2, Coins } from "lucide-react";
+import { LogOut, Wallet, Package, QrCode, Clipboard, PackageCheck, Send, MessageSquare, AlertTriangle, FileUp, Edit, ShieldCheck, CheckCircle, Copy, User, Phone, Home, Loader2, Coins, BarChart3, TrendingUp, TrendingDown } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { v4 as uuidv4 } from 'uuid';
-import { format } from 'date-fns';
+import { format, subMonths } from 'date-fns';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Textarea } from '@/components/ui/textarea';
 import { getRazorpayKeyId } from '@/app/actions';
 import type { PartnerData } from '../page';
+import { ResponsiveContainer, BarChart, XAxis, YAxis, Tooltip, Bar } from 'recharts';
 
 
 type TransactionStatus = 'In Process' | 'Completed' | 'Refunded' | 'Refund Requested';
@@ -33,6 +34,7 @@ type Transaction = {
     status: TransactionStatus;
     sellerTransactionCode?: string;
     customerCode?: string;
+    commission: number; // Profit from this transaction
 };
 
 type CashCode = {
@@ -107,7 +109,6 @@ export default function PartnerPayDashboardPage() {
 
         getRazorpayKeyId().then(key => setRazorpayKeyId(key));
         
-        // Load transactions specific to this partner
         const storedTransactions = localStorage.getItem(`partnerTransactions_${loggedInPartnerId}`);
         setTransactions(storedTransactions ? JSON.parse(storedTransactions) : initialTransactions);
 
@@ -116,13 +117,34 @@ export default function PartnerPayDashboardPage() {
     useEffect(() => {
         if (partner) {
             localStorage.setItem(`partnerTransactions_${partner.id}`, JSON.stringify(transactions));
-            // Also update the master partner list with the latest balance
             const allPartnersJSON = localStorage.getItem('payPartners');
             let allPartners: PartnerData[] = allPartnersJSON ? JSON.parse(allPartnersJSON) : [];
             allPartners = allPartners.map(p => p.id === partner.id ? partner : p);
             localStorage.setItem('payPartners', JSON.stringify(allPartners));
         }
     }, [transactions, partner]);
+
+    const profitData = useMemo(() => {
+        const monthlyProfit: { [key: string]: number } = {};
+        transactions.forEach(tx => {
+            if (tx.status === 'Completed') {
+                const month = format(new Date(tx.date), 'MMM yyyy');
+                monthlyProfit[month] = (monthlyProfit[month] || 0) + tx.commission;
+            }
+        });
+
+        // Ensure last 3 months are present
+        for (let i = 2; i >= 0; i--) {
+            const monthKey = format(subMonths(new Date(), i), 'MMM yyyy');
+            if (!monthlyProfit[monthKey]) {
+                monthlyProfit[monthKey] = 0;
+            }
+        }
+
+        return Object.entries(monthlyProfit)
+            .map(([name, total]) => ({ name: name.split(' ')[0], total }))
+            .slice(-3); // Get last 3 months
+    }, [transactions]);
     
     const handleLogout = () => {
         localStorage.removeItem('loggedInPartnerId');
@@ -173,7 +195,8 @@ export default function PartnerPayDashboardPage() {
                         value: parseFloat(transactionValue),
                         date: new Date().toISOString(),
                         status: 'In Process',
-                        sellerTransactionCode: response.razorpay_payment_id
+                        sellerTransactionCode: response.razorpay_payment_id,
+                        commission: parseFloat(transactionValue) * 0.02, // 2% commission example
                     };
                     setTransactions(prev => [newTransaction, ...prev]);
                     setPartner(prev => prev ? ({ ...prev, balance: prev.balance - amount }) : null);
@@ -347,6 +370,9 @@ export default function PartnerPayDashboardPage() {
     }
 
     const canSettle = partner.balance >= parseFloat(transactionValue || '0');
+    const totalProfit = transactions.reduce((acc, tx) => tx.status === 'Completed' ? acc + tx.commission : acc, 0);
+    const totalRevenue = transactions.reduce((acc, tx) => tx.status === 'Completed' ? acc + tx.value : acc, 0);
+    const totalRefunds = transactions.reduce((acc, tx) => tx.status === 'Refunded' ? acc + tx.value : acc, 0);
 
     return (
         <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
@@ -433,13 +459,13 @@ export default function PartnerPayDashboardPage() {
                     </div>
                     <div className="lg:col-span-2">
                         <Tabs defaultValue="transactions" className="w-full">
-                            <TabsList className="grid w-full grid-cols-3"><TabsTrigger value="transactions"><Wallet className="mr-2 h-4 w-4" /> Transactions</TabsTrigger><TabsTrigger value="human-qr"><Clipboard className="mr-2 h-4 w-4" /> Human QR Code</TabsTrigger><TabsTrigger value="logistics"><Package className="mr-2 h-4 w-4" /> Logistics Hub</TabsTrigger></TabsList>
+                            <TabsList className="grid w-full grid-cols-4"><TabsTrigger value="transactions"><Wallet className="mr-2 h-4 w-4" /> Transactions</TabsTrigger><TabsTrigger value="human-qr"><Clipboard className="mr-2 h-4 w-4" /> Human QR Code</TabsTrigger><TabsTrigger value="logistics"><Package className="mr-2 h-4 w-4" /> Logistics Hub</TabsTrigger><TabsTrigger value="pnl"><BarChart3 className="mr-2 h-4 w-4" /> P&amp;L</TabsTrigger></TabsList>
                             <TabsContent value="transactions">
                                 <Card className="shadow-lg">
                                     <CardHeader><CardTitle>Recent Transactions</CardTitle><CardDescription>History of codes generated from your account.</CardDescription></CardHeader>
                                     <CardContent>
                                         <Table>
-                                            <TableHeader><TableRow><TableHead>Customer</TableHead><TableHead>Address</TableHead><TableHead>Value</TableHead><TableHead>Seller Tx Code</TableHead><TableHead>Customer Code</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                                            <TableHeader><TableRow><TableHead>Customer</TableHead><TableHead>Value</TableHead><TableHead>Commission</TableHead><TableHead>Seller Tx Code</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
                                             <TableBody>
                                                  {transactions.map(tx => {
                                                     const isCancellable = isWithin24Hours(tx.date);
@@ -449,17 +475,16 @@ export default function PartnerPayDashboardPage() {
                                                     return (
                                                     <TableRow key={tx.id}>
                                                         <TableCell><div className="font-medium">{tx.customerName}</div><div className="text-xs text-muted-foreground">{tx.customerPhone}</div></TableCell>
-                                                        <TableCell className="text-xs">{tx.customerAddress}</TableCell>
-                                                        <TableCell>₹{tx.value}</TableCell>
+                                                        <TableCell>₹{tx.value.toFixed(2)}</TableCell>
+                                                        <TableCell className="text-green-600 font-medium">+ ₹{tx.commission.toFixed(2)}</TableCell>
                                                         <TableCell className="font-mono text-xs flex items-center gap-1">{tx.sellerTransactionCode || 'N/A'} {tx.sellerTransactionCode && <Copy className="h-3 w-3 cursor-pointer" onClick={() => handleCopyCode(tx.sellerTransactionCode!)} />}</TableCell>
-                                                        <TableCell className="font-mono text-xs flex items-center gap-1">{tx.customerCode || 'N/A'} {tx.customerCode && <Copy className="h-3 w-3 cursor-pointer" onClick={() => handleCopyCode(tx.customerCode!)} />}</TableCell>
                                                         <TableCell><Badge variant={tx.status === 'Completed' ? 'default' : 'secondary'}>{tx.status}</Badge></TableCell>
                                                         <TableCell className="text-right">
                                                            {isActionable && (tx.status === 'Completed' || tx.status === 'In Process') && (
                                                                 <AlertDialog>
                                                                     <AlertDialogTrigger asChild>
                                                                         <Button variant="destructive" size="sm">
-                                                                            {isCancellable ? 'Cancel & Refund' : 'Request Refund'}
+                                                                            {isCancellable ? 'Cancel &amp; Refund' : 'Request Refund'}
                                                                         </Button>
                                                                     </AlertDialogTrigger>
                                                                     <AlertDialogContent>
@@ -541,6 +566,41 @@ export default function PartnerPayDashboardPage() {
                                     </CardContent>
                                 </Card>
                             </TabsContent>
+                             <TabsContent value="pnl">
+                                <Card className="shadow-lg">
+                                    <CardHeader>
+                                        <CardTitle>Profit &amp; Loss</CardTitle>
+                                        <CardDescription>An overview of your earnings and transaction history.</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="space-y-6">
+                                        <div className="grid grid-cols-3 gap-4 text-center">
+                                            <div className="p-4 bg-green-50 rounded-lg">
+                                                <dt className="text-sm font-medium text-green-700 flex items-center justify-center gap-1"><TrendingUp className="h-4 w-4"/>Total Profit</dt>
+                                                <dd className="text-2xl font-bold text-green-800">₹{totalProfit.toFixed(2)}</dd>
+                                            </div>
+                                            <div className="p-4 bg-blue-50 rounded-lg">
+                                                <dt className="text-sm font-medium text-blue-700">Total Revenue</dt>
+                                                <dd className="text-2xl font-bold text-blue-800">₹{totalRevenue.toFixed(2)}</dd>
+                                            </div>
+                                             <div className="p-4 bg-red-50 rounded-lg">
+                                                <dt className="text-sm font-medium text-red-700 flex items-center justify-center gap-1"><TrendingDown className="h-4 w-4"/>Total Refunds</dt>
+                                                <dd className="text-2xl font-bold text-red-800">₹{totalRefunds.toFixed(2)}</dd>
+                                            </div>
+                                        </div>
+                                         <div>
+                                            <h4 className="font-semibold text-lg mb-2">Monthly Profit</h4>
+                                            <ResponsiveContainer width="100%" height={250}>
+                                                <BarChart data={profitData}>
+                                                    <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+                                                    <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `₹${value}`} />
+                                                    <Tooltip cursor={{ fill: 'hsl(var(--muted))' }} />
+                                                    <Bar dataKey="total" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                                                </BarChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                             </TabsContent>
                         </Tabs>
                     </div>
                  </main>

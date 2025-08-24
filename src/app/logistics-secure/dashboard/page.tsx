@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogOut, Wallet, Package, QrCode, Clipboard, PackageCheck, Send, MessageSquare, AlertTriangle, FileUp, Edit, ShieldCheck, CheckCircle, Copy, User, Phone, Home, Truck, Map, UserCheck, Users, Upload, Crown, Loader2 } from "lucide-react";
+import { LogOut, Wallet, Package, QrCode, Clipboard, PackageCheck, Send, MessageSquare, AlertTriangle, FileUp, Edit, ShieldCheck, CheckCircle, Copy, User, Phone, Home, Truck, Map, UserCheck, Users, Upload, Crown, Loader2, PlusCircle, Trash2, MapPin } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { v4 as uuidv4 } from 'uuid';
 
 type Agent = {
     id: string;
@@ -22,6 +23,8 @@ type Agent = {
     status: 'Active' | 'Inactive';
     cashOnHand: number;
     pickupsToday: number;
+    area: string;
+    task: 'Idle' | 'On Pickup' | 'On Delivery';
 };
 
 type Pickup = {
@@ -34,6 +37,14 @@ type Pickup = {
     assignedTo?: string;
 };
 
+type ServicePartner = {
+    id: string;
+    name: string;
+    contact: string;
+    coverageArea: string;
+    status: 'Active' | 'On-Hold';
+};
+
 export default function LogisticsDashboardPage() {
     const router = useRouter();
     const { toast } = useToast();
@@ -41,7 +52,10 @@ export default function LogisticsDashboardPage() {
     const [loading, setLoading] = useState(true);
     const [fleet, setFleet] = useState<Agent[]>([]);
     const [pickups, setPickups] = useState<Pickup[]>([]);
+    const [servicePartners, setServicePartners] = useState<ServicePartner[]>([]);
     const [selectedPickup, setSelectedPickup] = useState<Pickup | null>(null);
+    const [newAgent, setNewAgent] = useState({ name: '', phone: '', area: '' });
+    const [newServicePartner, setNewServicePartner] = useState({ name: '', contact: '', coverageArea: '' });
 
     useEffect(() => {
         const loggedInPartnerId = localStorage.getItem('loggedInLogisticsPartnerId');
@@ -54,20 +68,19 @@ export default function LogisticsDashboardPage() {
         }
         setPartnerName(loggedInPartnerName);
         
-        // Load or initialize data from localStorage
+        // Load data from localStorage
         const storedFleet = localStorage.getItem(`logistics_fleet_${loggedInPartnerId}`);
         const storedPickups = localStorage.getItem(`logistics_pickups_${loggedInPartnerId}`);
+        const storedServicePartners = localStorage.getItem(`logistics_service_partners_${loggedInPartnerId}`);
 
         if (storedFleet) {
             setFleet(JSON.parse(storedFleet));
         } else {
-            // Mock initial data for a new partner
             const initialFleet = [
-                { id: `AGENT-${loggedInPartnerId}-01`, name: 'Rajesh Kumar', phone: '9876543210', status: 'Active', cashOnHand: 0, pickupsToday: 0 },
-                { id: `AGENT-${loggedInPartnerId}-02`, name: 'Sunita Devi', phone: '9123456789', status: 'Active', cashOnHand: 0, pickupsToday: 0 },
+                { id: `AGENT-${loggedInPartnerId}-01`, name: 'Rajesh Kumar', phone: '9876543210', status: 'Active', cashOnHand: 0, pickupsToday: 0, area: 'Mumbai South', task: 'Idle' },
+                { id: `AGENT-${loggedInPartnerId}-02`, name: 'Sunita Devi', phone: '9123456789', status: 'Active', cashOnHand: 0, pickupsToday: 0, area: 'Pune Central', task: 'On Delivery' },
             ];
             setFleet(initialFleet);
-            localStorage.setItem(`logistics_fleet_${loggedInPartnerId}`, JSON.stringify(initialFleet));
         }
 
         if (storedPickups) {
@@ -78,7 +91,15 @@ export default function LogisticsDashboardPage() {
                 { id: '#SNZ-PICKUP-002', customer: 'Priya Mehta', address: '456, Orchid Heights, Pune', amount: 450.50, status: 'Pending Assignment', aiVerification: 'Pending' },
             ];
             setPickups(initialPickups);
-            localStorage.setItem(`logistics_pickups_${loggedInPartnerId}`, JSON.stringify(initialPickups));
+        }
+        
+         if (storedServicePartners) {
+            setServicePartners(JSON.parse(storedServicePartners));
+        } else {
+             const initialServicePartners = [
+                { id: `SP-${loggedInPartnerId}-01`, name: 'Ganesh Logistics', contact: '9000011111', coverageArea: 'Rural Thane', status: 'Active' }
+            ];
+            setServicePartners(initialServicePartners);
         }
 
         setLoading(false);
@@ -90,8 +111,9 @@ export default function LogisticsDashboardPage() {
         if (partnerId && !loading) {
             localStorage.setItem(`logistics_fleet_${partnerId}`, JSON.stringify(fleet));
             localStorage.setItem(`logistics_pickups_${partnerId}`, JSON.stringify(pickups));
+            localStorage.setItem(`logistics_service_partners_${partnerId}`, JSON.stringify(servicePartners));
         }
-    }, [fleet, pickups, loading]);
+    }, [fleet, pickups, servicePartners, loading]);
 
     const handleLogout = () => {
         localStorage.removeItem('loggedInLogisticsPartnerId');
@@ -129,6 +151,57 @@ export default function LogisticsDashboardPage() {
         toast({ title: "Cash Collection Confirmed", description: `Status for ${pickupId} updated.` });
     };
 
+    const handleAddNewAgent = () => {
+        if (!newAgent.name || !newAgent.phone || !newAgent.area) {
+            toast({ variant: 'destructive', title: 'Missing Fields', description: 'Please fill in all details for the new agent.' });
+            return;
+        }
+        const loggedInPartnerId = localStorage.getItem('loggedInLogisticsPartnerId');
+        const newAgentData: Agent = {
+            id: `AGENT-${loggedInPartnerId}-${uuidv4().substring(0, 4)}`,
+            ...newAgent,
+            status: 'Active',
+            cashOnHand: 0,
+            pickupsToday: 0,
+            task: 'Idle'
+        };
+        setFleet(prev => [...prev, newAgentData]);
+        setNewAgent({ name: '', phone: '', area: '' }); // Reset form
+        toast({ title: 'Agent Added', description: `${newAgent.name} has been added to your fleet.` });
+        document.getElementById('close-add-agent-dialog')?.click();
+    };
+    
+    const handleAddNewServicePartner = () => {
+        if (!newServicePartner.name || !newServicePartner.contact || !newServicePartner.coverageArea) {
+            toast({ variant: 'destructive', title: 'Missing Fields', description: 'Please fill in all details for the new service partner.' });
+            return;
+        }
+        const loggedInPartnerId = localStorage.getItem('loggedInLogisticsPartnerId');
+        const newPartnerData: ServicePartner = {
+            id: `SP-${loggedInPartnerId}-${uuidv4().substring(0, 4)}`,
+            ...newServicePartner,
+            status: 'Active',
+        };
+        setServicePartners(prev => [...prev, newPartnerData]);
+        setNewServicePartner({ name: '', contact: '', coverageArea: '' }); // Reset form
+        toast({ title: 'Service Partner Added', description: `${newServicePartner.name} has been added to your network.` });
+        document.getElementById('close-add-sp-dialog')?.click();
+    };
+
+    const handleRemoveAgent = (agentId: string) => {
+        setFleet(prev => prev.filter(agent => agent.id !== agentId));
+        toast({ variant: 'destructive', title: 'Agent Removed', description: 'The agent has been removed from your fleet.' });
+    };
+    
+     const handleRemoveServicePartner = (partnerId: string) => {
+        setServicePartners(prev => prev.filter(sp => sp.id !== partnerId));
+        toast({ variant: 'destructive', title: 'Service Partner Removed', description: 'The partner has been removed from your network.' });
+    };
+
+    const handleFieldChange = (agentId: string, field: keyof Agent, value: string) => {
+        setFleet(prev => prev.map(agent => agent.id === agentId ? { ...agent, [field]: value } : agent));
+    };
+
     if (loading) {
         return <div className="flex justify-center items-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>
     }
@@ -152,30 +225,56 @@ export default function LogisticsDashboardPage() {
 
                 <main>
                     <Tabs defaultValue="fleet">
-                        <TabsList className="grid w-full grid-cols-3">
+                        <TabsList className="grid w-full grid-cols-4">
                             <TabsTrigger value="fleet"><Users className="mr-2 h-4 w-4" /> My Fleet</TabsTrigger>
                             <TabsTrigger value="pickups"><Package className="mr-2 h-4 w-4" /> Cash Pickups</TabsTrigger>
+                            <TabsTrigger value="service_partners"><UserCheck className="mr-2 h-4 w-4"/> Service Partners</TabsTrigger>
                             <TabsTrigger value="performance"><Crown className="mr-2 h-4 w-4" /> Performance</TabsTrigger>
                         </TabsList>
                         <TabsContent value="fleet">
                             <Card className="shadow-lg">
-                                <CardHeader>
-                                    <CardTitle>Fleet Management & Live Cash Tracking</CardTitle>
-                                    <CardDescription>Monitor your delivery agents and their real-time cash collections.</CardDescription>
+                                <CardHeader className="flex flex-row justify-between items-start">
+                                    <div>
+                                        <CardTitle>Fleet Management &amp; Live Cash Tracking</CardTitle>
+                                        <CardDescription>Monitor your delivery agents and their real-time cash collections.</CardDescription>
+                                    </div>
+                                    <Dialog>
+                                        <DialogTrigger asChild>
+                                            <Button><PlusCircle className="mr-2 h-4 w-4" /> Add Agent</Button>
+                                        </DialogTrigger>
+                                        <DialogContent>
+                                            <DialogHeader><DialogTitle>Add New Fleet Agent</DialogTitle></DialogHeader>
+                                            <div className="py-4 space-y-4">
+                                                <div className="space-y-2"><Label htmlFor="agent-name">Agent Name</Label><Input id="agent-name" value={newAgent.name} onChange={(e) => setNewAgent(p => ({ ...p, name: e.target.value }))} /></div>
+                                                <div className="space-y-2"><Label htmlFor="agent-phone">Agent Phone</Label><Input id="agent-phone" value={newAgent.phone} onChange={(e) => setNewAgent(p => ({ ...p, phone: e.target.value }))} /></div>
+                                                <div className="space-y-2"><Label htmlFor="agent-area">Area of Operation</Label><Input id="agent-area" value={newAgent.area} onChange={(e) => setNewAgent(p => ({ ...p, area: e.target.value }))} /></div>
+                                            </div>
+                                            <DialogFooter>
+                                                <Button onClick={handleAddNewAgent}>Save Agent</Button>
+                                                <DialogClose asChild><Button variant="outline" id="close-add-agent-dialog">Cancel</Button></DialogClose>
+                                            </DialogFooter>
+                                        </DialogContent>
+                                    </Dialog>
                                 </CardHeader>
                                 <CardContent>
                                     <Table>
-                                        <TableHeader><TableRow><TableHead>Agent ID</TableHead><TableHead>Name</TableHead><TableHead>Live Cash on Hand</TableHead><TableHead>Pickups Today</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                                        <TableHeader><TableRow><TableHead>Agent</TableHead><TableHead>Area of Operation</TableHead><TableHead>Current Task</TableHead><TableHead>Live Cash on Hand</TableHead><TableHead>Pickups Today</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
                                         <TableBody>
                                             {fleet.map(agent => (
                                                 <TableRow key={agent.id}>
-                                                    <TableCell className="font-mono text-xs">{agent.id}</TableCell>
                                                     <TableCell><div className="font-medium">{agent.name}</div><div className="text-xs text-muted-foreground">{agent.phone}</div></TableCell>
+                                                    <TableCell><div className="flex items-center gap-1"><MapPin className="h-3 w-3 text-muted-foreground" /><Input className="h-8" value={agent.area} onChange={e => handleFieldChange(agent.id, 'area', e.target.value)} /></div></TableCell>
+                                                    <TableCell>
+                                                         <Select value={agent.task} onValueChange={(value: 'Idle' | 'On Pickup' | 'On Delivery') => handleFieldChange(agent.id, 'task', value)}>
+                                                            <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+                                                            <SelectContent><SelectItem value="Idle">Idle</SelectItem><SelectItem value="On Pickup">On Pickup</SelectItem><SelectItem value="On Delivery">On Delivery</SelectItem></SelectContent>
+                                                        </Select>
+                                                    </TableCell>
                                                     <TableCell className="font-semibold">₹{agent.cashOnHand.toFixed(2)}</TableCell>
                                                     <TableCell className="font-medium text-center">{agent.pickupsToday}</TableCell>
-                                                    <TableCell><Badge variant={agent.status === 'Active' ? 'default' : 'secondary'}>{agent.status}</Badge></TableCell>
-                                                    <TableCell className="text-right">
-                                                        <Button size="sm" onClick={() => handleSettleCash(agent.id)} disabled={agent.cashOnHand === 0}>Settle Daily Cash</Button>
+                                                    <TableCell className="text-right space-x-2">
+                                                        <Button size="sm" onClick={() => handleSettleCash(agent.id)} disabled={agent.cashOnHand === 0}>Settle Cash</Button>
+                                                        <Button size="icon" variant="destructive" onClick={() => handleRemoveAgent(agent.id)}><Trash2 className="h-4 w-4" /></Button>
                                                     </TableCell>
                                                 </TableRow>
                                             ))}
@@ -229,6 +328,51 @@ export default function LogisticsDashboardPage() {
                                 </CardContent>
                             </Card>
                         </TabsContent>
+                         <TabsContent value="service_partners">
+                            <Card className="shadow-lg">
+                                <CardHeader className="flex flex-row justify-between items-start">
+                                    <div>
+                                        <CardTitle>Service Partner Network</CardTitle>
+                                        <CardDescription>Manage your network of sub-contracted service partners or freelancers for extended reach.</CardDescription>
+                                    </div>
+                                    <Dialog>
+                                        <DialogTrigger asChild>
+                                            <Button><PlusCircle className="mr-2 h-4 w-4"/> Add Service Partner</Button>
+                                        </DialogTrigger>
+                                        <DialogContent>
+                                            <DialogHeader><DialogTitle>Add New Service Partner</DialogTitle></DialogHeader>
+                                            <div className="py-4 space-y-4">
+                                                <div className="space-y-2"><Label>Partner Name</Label><Input value={newServicePartner.name} onChange={(e) => setNewServicePartner(p => ({ ...p, name: e.target.value }))} /></div>
+                                                <div className="space-y-2"><Label>Partner Contact</Label><Input value={newServicePartner.contact} onChange={(e) => setNewServicePartner(p => ({ ...p, contact: e.target.value }))} /></div>
+                                                <div className="space-y-2"><Label>Coverage Area</Label><Input value={newServicePartner.coverageArea} onChange={(e) => setNewServicePartner(p => ({ ...p, coverageArea: e.target.value }))} /></div>
+                                            </div>
+                                            <DialogFooter>
+                                                <Button onClick={handleAddNewServicePartner}>Save Partner</Button>
+                                                <DialogClose asChild><Button id="close-add-sp-dialog" variant="outline">Cancel</Button></DialogClose>
+                                            </DialogFooter>
+                                        </DialogContent>
+                                    </Dialog>
+                                </CardHeader>
+                                <CardContent>
+                                     <Table>
+                                        <TableHeader><TableRow><TableHead>Partner Name</TableHead><TableHead>Contact</TableHead><TableHead>Coverage Area</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                                        <TableBody>
+                                            {servicePartners.map(sp => (
+                                                <TableRow key={sp.id}>
+                                                    <TableCell className="font-medium">{sp.name}</TableCell>
+                                                    <TableCell>{sp.contact}</TableCell>
+                                                    <TableCell>{sp.coverageArea}</TableCell>
+                                                    <TableCell><Badge variant={sp.status === 'Active' ? 'default' : 'secondary'}>{sp.status}</Badge></TableCell>
+                                                    <TableCell className="text-right space-x-2">
+                                                        <Button size="sm" variant="destructive" onClick={() => handleRemoveServicePartner(sp.id)}>Remove</Button>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </CardContent>
+                            </Card>
+                         </TabsContent>
                          <TabsContent value="performance">
                             <div className="grid md:grid-cols-2 gap-8">
                                 <Card className="shadow-lg">

@@ -15,7 +15,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
 import type { EditableOrder } from '@/app/orders/page';
 import { ScratchCard } from '@/components/scratch-card';
-import { AnimatedCodSteps } from '@/components/animated-cod-steps';
 
 interface SecureCodFormProps {
     razorpayKeyId: string | null;
@@ -412,11 +411,6 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                     </div>
                 </CardFooter>
             </Card>
-
-            <div className="w-full mt-8">
-                 <h2 className="text-2xl font-bold text-center mb-4">Your Secure Shopping Journey</h2>
-                 <AnimatedCodSteps />
-            </div>
         </div>
     );
 }
