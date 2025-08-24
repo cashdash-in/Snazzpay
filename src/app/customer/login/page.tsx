@@ -20,9 +20,6 @@ export default function CustomerLoginPage() {
 
     const handleLogin = () => {
         setIsLoading(true);
-        // This is where you would add real authentication logic.
-        // For now, we'll simulate it, save the mobile number to localStorage,
-        // and redirect to the dashboard.
         
         if (mobileNumber.length < 10) {
             toast({ variant: 'destructive', title: "Invalid Mobile Number", description: "Please enter a valid 10-digit mobile number." });
@@ -30,15 +27,26 @@ export default function CustomerLoginPage() {
             return;
         }
 
-        setTimeout(() => {
+        // This is a simulated login. In a real app, you would have proper authentication.
+        // The setTimeout was causing issues, so we'll redirect immediately.
+        
+        try {
             localStorage.setItem('loggedInUserMobile', mobileNumber);
-             toast({
-                title: "Login Successful (Simulated)",
+            toast({
+                title: "Login Successful",
                 description: "Redirecting you to your customer dashboard.",
             });
+            // Redirect immediately
             router.push('/customer/dashboard');
+        } catch (error) {
+            console.error("Login failed:", error);
+            toast({
+                variant: 'destructive',
+                title: "Login Error",
+                description: "An unexpected error occurred during login."
+            });
             setIsLoading(false);
-        }, 1000);
+        }
     }
 
     return (
