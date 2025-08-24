@@ -15,6 +15,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
 import type { EditableOrder } from '@/app/orders/page';
 import { ScratchCard } from '@/components/scratch-card';
+import { AnimatedCodSteps } from '@/components/animated-cod-steps';
 
 interface SecureCodFormProps {
     razorpayKeyId: string | null;
@@ -375,6 +376,7 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                     <Zap className="mx-auto h-8 w-8 text-primary" />
                     <CardTitle>Modern, Secure Payment</CardTitle>
                     <CardDescription>{paymentStep === 'intent' ? 'First, verify your intent with a ₹1 payment.' : 'Pay now and your funds are held in a Trust Wallet until dispatch.'}</CardDescription>
+                    <AnimatedCodSteps />
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-3">
