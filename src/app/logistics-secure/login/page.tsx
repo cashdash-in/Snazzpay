@@ -41,10 +41,8 @@ export default function LogisticsLoginPage() {
         const allPartners: LogisticsPartnerData[] = allPartnersJSON ? JSON.parse(allPartnersJSON) : [];
         const partner = allPartners.find(p => p.id === partnerId);
         
-        const WORKAROUND_PASSWORD = 'password';
-
-        const isAdmin = partnerId === 'partner-admin' && password === WORKAROUND_PASSWORD;
-        const isValidPartner = partner && partner.status === 'approved' && password === WORKAROUND_PASSWORD;
+        const isAdmin = partnerId === 'partner-admin' && password === 'password';
+        const isValidPartner = partner && partner.status === 'approved' && password === 'password';
 
         setTimeout(() => {
             if (isAdmin || isValidPartner) {
