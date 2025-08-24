@@ -16,14 +16,11 @@ export default function CustomerLoginPage() {
     const router = useRouter();
     const [mobileNumber, setMobileNumber] = useState('');
     const [password, setPassword] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
+    // isLoading state is removed as it was causing the component to get stuck.
 
     const handleLogin = () => {
-        setIsLoading(true);
-        
-        if (mobileNumber.length < 10) {
-            toast({ variant: 'destructive', title: "Invalid Mobile Number", description: "Please enter a valid 10-digit mobile number." });
-            setIsLoading(false);
+        if (mobileNumber.length < 10 || !password) {
+            toast({ variant: 'destructive', title: "Invalid Input", description: "Please enter a valid 10-digit mobile number and password." });
             return;
         }
         
@@ -34,7 +31,7 @@ export default function CustomerLoginPage() {
                 title: "Login Successful",
                 description: "Redirecting you to your customer dashboard.",
             });
-            // The router push should be the last call in the success path.
+            // The router push is now the primary action.
             router.push('/customer/dashboard');
         } catch (error) {
             console.error("Login failed:", error);
@@ -43,7 +40,6 @@ export default function CustomerLoginPage() {
                 title: "Login Error",
                 description: "An unexpected error occurred during login."
             });
-            setIsLoading(false);
         }
     }
 
@@ -89,8 +85,8 @@ export default function CustomerLoginPage() {
                     </p>
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4">
-                    <Button className="w-full" onClick={handleLogin} disabled={isLoading || !mobileNumber || !password}>
-                        {isLoading ? 'Processing...' : 'Login or Register'}
+                    <Button className="w-full" onClick={handleLogin} disabled={!mobileNumber || !password}>
+                        Login or Register
                     </Button>
                     <Link href="/secure-cod" className="text-sm text-primary hover:underline cursor-pointer">
                         Back to Main Page
