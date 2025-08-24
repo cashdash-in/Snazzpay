@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogOut, Wallet, Package, QrCode, Clipboard, PackageCheck, Send, MessageSquare, AlertTriangle, FileUp, Edit, ShieldCheck, CheckCircle, Copy, User, Phone, Home, Loader2 } from "lucide-react";
+import { LogOut, Wallet, Package, QrCode, Clipboard, PackageCheck, Send, MessageSquare, AlertTriangle, FileUp, Edit, ShieldCheck, CheckCircle, Copy, User, Phone, Home, Loader2, Coins } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
@@ -43,12 +43,30 @@ type CashCode = {
     status: 'Pending' | 'Settled';
 };
 
+type TopUpRequest = {
+    id: string;
+    partnerId: string;
+    partnerName: string;
+    coinsRequested: number;
+    amountPaid: number;
+    paymentId: string;
+    status: 'Pending Approval' | 'Approved';
+    requestDate: string;
+};
+
+
 const initialTransactions: Transaction[] = [];
 
 const initialParcels = [
     { id: '#SNZ-9876', customer: 'Priya S.', customerPhone: '9988776655', customerAddress: 'A-101, Rose Apartments, Mumbai', productName: 'Designer Watch', status: 'Waiting for Pickup', awb: 'DLV123456', courier: 'Delhivery', dispatchDate: '2024-05-23', estArrival: '2024-05-25' },
     { id: '#SNZ-9875', customer: 'Amit K.', customerPhone: '9876543211', customerAddress: 'B-202, Lotus Towers, Pune', productName: 'Leather Handbag', status: 'Picked Up', awb: 'BLD789012', courier: 'BlueDart', dispatchDate: '2024-05-22', estArrival: '2024-05-24' },
     { id: '#SNZ-9874', customer: 'Rina V.', customerPhone: '9123456780', customerAddress: 'C-303, Tulip Gardens, Delhi', productName: 'Sunglasses', status: 'Ready for Pickup', awb: 'XPS345678', courier: 'XpressBees', dispatchDate: '2024-05-24', estArrival: '2024-05-26' },
+];
+
+const coinPackages = [
+    { coins: 10000, price: 100, label: "10,000 Coins" },
+    { coins: 50000, price: 500, label: "50,000 Coins" },
+    { coins: 100000, price: 1000, label: "1,00,000 Coins" },
 ];
 
 
@@ -66,6 +84,7 @@ export default function PartnerPayDashboardPage() {
     const [collectorName, setCollectorName] = useState('');
     const [deliveryNotes, setDeliveryNotes] = useState('');
     const [cashAmount, setCashAmount] = useState('');
+    const [isToppingUp, setIsToppingUp] = useState(false);
 
     useEffect(() => {
         const loggedInPartnerId = localStorage.getItem('loggedInPartnerId');
@@ -97,6 +116,11 @@ export default function PartnerPayDashboardPage() {
     useEffect(() => {
         if (partner) {
             localStorage.setItem(`partnerTransactions_${partner.id}`, JSON.stringify(transactions));
+            // Also update the master partner list with the latest balance
+            const allPartnersJSON = localStorage.getItem('payPartners');
+            let allPartners: PartnerData[] = allPartnersJSON ? JSON.parse(allPartnersJSON) : [];
+            allPartners = allPartners.map(p => p.id === partner.id ? partner : p);
+            localStorage.setItem('payPartners', JSON.stringify(allPartners));
         }
     }, [transactions, partner]);
     
@@ -265,12 +289,58 @@ export default function PartnerPayDashboardPage() {
         return diffHours < 24;
     };
     
-    const handleRequestTopUp = () => {
-        toast({
-            title: "Top-up Request Sent",
-            description: "Your request for more Snazzify Coins has been sent to the seller. You will be notified upon approval."
-        });
-    }
+    const handleTopUp = async (coins: number, price: number) => {
+        if (!partner || !razorpayKeyId) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Partner details or Razorpay key not available.' });
+            return;
+        }
+        setIsToppingUp(true);
+
+        try {
+            const response = await fetch('/api/create-payment-link', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ amount: price, customerName: partner.companyName, isPartnerSettlement: true })
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error);
+
+            const options = {
+                key: razorpayKeyId,
+                order_id: result.order_id,
+                amount: price * 100,
+                name: "Snazzify Coin Top-up",
+                description: `Purchase ${coins.toLocaleString()} Snazzify Coins`,
+                handler: (response: any) => {
+                    const newTopUpRequest: TopUpRequest = {
+                        id: uuidv4(),
+                        partnerId: partner.id,
+                        partnerName: partner.companyName,
+                        coinsRequested: coins,
+                        amountPaid: price,
+                        paymentId: response.razorpay_payment_id,
+                        status: 'Pending Approval',
+                        requestDate: new Date().toISOString(),
+                    };
+
+                    const existingRequests = JSON.parse(localStorage.getItem('topUpRequests') || '[]');
+                    localStorage.setItem('topUpRequests', JSON.stringify([...existingRequests, newTopUpRequest]));
+
+                    toast({ title: "Payment Successful!", description: `Your request for ${coins.toLocaleString()} coins has been sent for approval.` });
+                    setIsToppingUp(false);
+                    document.getElementById('close-topup-dialog')?.click();
+                },
+                prefill: { name: partner.companyName },
+                theme: { color: "#5a31f4" },
+                modal: { ondismiss: () => setIsToppingUp(false) }
+            };
+            const rzp = new (window as any).Razorpay(options);
+            rzp.open();
+        } catch (e: any) {
+            toast({ variant: 'destructive', title: 'Error', description: e.message });
+            setIsToppingUp(false);
+        }
+    };
 
     if (!partner) {
         return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -300,7 +370,39 @@ export default function PartnerPayDashboardPage() {
                                 <Wallet className="h-6 w-6 text-primary" />
                             </CardHeader>
                             <CardContent><p className="text-4xl font-bold">₹{partner.balance.toFixed(2)}</p><p className="text-xs text-muted-foreground mt-1">Your available digital credit.</p></CardContent>
-                            <CardFooter><Button variant="secondary" className="w-full" onClick={handleRequestTopUp}>Request Top-up</Button></CardFooter>
+                            <CardFooter>
+                                <Dialog>
+                                    <DialogTrigger asChild>
+                                        <Button variant="secondary" className="w-full">
+                                            <Coins className="mr-2 h-4 w-4" /> Request Top-up
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                        <DialogHeader>
+                                            <DialogTitle>Top-up Snazzify Coins</DialogTitle>
+                                            <DialogDescription>Select a package to add coins to your balance. Payment is processed securely via Razorpay.</DialogDescription>
+                                        </DialogHeader>
+                                        <div className="py-4 space-y-4">
+                                            {coinPackages.map(pkg => (
+                                                <Card key={pkg.coins} className="hover:shadow-md transition-shadow">
+                                                    <CardContent className="p-4 flex justify-between items-center">
+                                                        <div>
+                                                            <p className="font-bold text-lg">{pkg.label}</p>
+                                                            <p className="text-sm text-muted-foreground">Pay ₹{pkg.price} to get credits</p>
+                                                        </div>
+                                                        <Button onClick={() => handleTopUp(pkg.coins, pkg.price)} disabled={isToppingUp}>
+                                                            {isToppingUp ? <Loader2 className="h-4 w-4 animate-spin"/> : `Pay ₹${pkg.price}`}
+                                                        </Button>
+                                                    </CardContent>
+                                                </Card>
+                                            ))}
+                                        </div>
+                                        <DialogFooter>
+                                            <DialogClose asChild><Button variant="outline" id="close-topup-dialog">Close</Button></DialogClose>
+                                        </DialogFooter>
+                                    </DialogContent>
+                                </Dialog>
+                            </CardFooter>
                         </Card>
                         <Card className="shadow-lg">
                             <CardHeader><CardTitle>Generate Payment Code</CardTitle><CardDescription className="text-xs">Collect cash, settle with seller online, then generate a code for the customer.</CardDescription></CardHeader>

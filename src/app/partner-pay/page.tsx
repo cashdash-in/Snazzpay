@@ -4,7 +4,7 @@
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Coins, Package, Handshake, Info, PlusCircle, Printer, Download, Loader2, QrCode, Check, X, Eye } from 'lucide-react';
+import { Coins, Package, Handshake, Info, PlusCircle, Printer, Download, Loader2, QrCode, Check, X, Eye, ShoppingBasket, BadgeCheck } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
@@ -41,6 +41,17 @@ export type PartnerData = {
     totalCollected: number;
 };
 
+type TopUpRequest = {
+    id: string;
+    partnerId: string;
+    partnerName: string;
+    coinsRequested: number;
+    amountPaid: number;
+    paymentId: string;
+    status: 'Pending Approval' | 'Approved';
+    requestDate: string;
+};
+
 // Mock Data - Replace with real data later
 const mockOrders = [
     { id: '#PP-1001', customer: 'Ravi Kumar', partner: 'Gupta General Store', coinCode: 'SNZ-A1B2-C3D4', amount: '499.00', status: 'Paid' },
@@ -59,6 +70,7 @@ export default function PartnerPayPage() {
     const [codes, setCodes] = useState(initialMockCodes);
     const [partners, setPartners] = useState<PartnerData[]>([]);
     const [partnerRequests, setPartnerRequests] = useState<PartnerData[]>([]);
+    const [topUpRequests, setTopUpRequests] = useState<TopUpRequest[]>([]);
     const [newCodeValue, setNewCodeValue] = useState('');
     const [selectedPartner, setSelectedPartner] = useState('');
 
@@ -67,6 +79,10 @@ export default function PartnerPayPage() {
         const allPartners: PartnerData[] = allPartnersJSON ? JSON.parse(allPartnersJSON) : [];
         setPartners(allPartners.filter(p => p.status === 'approved'));
         setPartnerRequests(allPartners.filter(p => p.status === 'pending'));
+
+        const allTopUpsJSON = localStorage.getItem('topUpRequests');
+        const allTopUps: TopUpRequest[] = allTopUpsJSON ? JSON.parse(allTopUpsJSON) : [];
+        setTopUpRequests(allTopUps);
     }, []);
 
     const handleGenerateCode = () => {
@@ -120,11 +136,41 @@ export default function PartnerPayPage() {
             description: `The partner request has been ${newStatus}.`,
         });
     };
+    
+    const handleApproveTopUp = (requestId: string) => {
+        let allRequests: TopUpRequest[] = JSON.parse(localStorage.getItem('topUpRequests') || '[]');
+        let allPartners: PartnerData[] = JSON.parse(localStorage.getItem('payPartners') || '[]');
+        
+        const request = allRequests.find(r => r.id === requestId);
+        if(!request || request.status === 'Approved') return;
+
+        // Approve the request
+        request.status = 'Approved';
+        
+        // Update the partner's balance
+        allPartners = allPartners.map(p => {
+            if (p.id === request.partnerId) {
+                return { ...p, balance: p.balance + request.coinsRequested };
+            }
+            return p;
+        });
+
+        localStorage.setItem('topUpRequests', JSON.stringify(allRequests));
+        localStorage.setItem('payPartners', JSON.stringify(allPartners));
+
+        setTopUpRequests(allRequests);
+        setPartners(allPartners.filter(p => p.status === 'approved'));
+
+        toast({
+            title: "Top-up Approved!",
+            description: `${request.coinsRequested} coins added to ${request.partnerName}'s balance.`
+        });
+    };
 
     return (
         <AppShell title="Partner Pay System">
             <Tabs defaultValue="overview">
-                <TabsList className="grid w-full grid-cols-4 max-w-2xl mx-auto">
+                <TabsList className="grid w-full grid-cols-5 max-w-3xl mx-auto">
                     <TabsTrigger value="overview">
                         <Info className="mr-2 h-4 w-4" /> Overview
                     </TabsTrigger>
@@ -133,6 +179,9 @@ export default function PartnerPayPage() {
                     </TabsTrigger>
                      <TabsTrigger value="requests">
                         Partner Requests <Badge className="ml-2">{partnerRequests.length}</Badge>
+                    </TabsTrigger>
+                     <TabsTrigger value="topups">
+                        Top-up Requests <Badge className="ml-2">{topUpRequests.filter(r => r.status === 'Pending Approval').length}</Badge>
                     </TabsTrigger>
                     <TabsTrigger value="codes">
                         <QrCode className="mr-2 h-4 w-4" /> Digital Codes
@@ -255,6 +304,48 @@ export default function PartnerPayPage() {
                                         </TableRow>
                                    )) : (
                                      <TableRow><TableCell colSpan={6} className="text-center h-24 text-muted-foreground">No pending requests.</TableCell></TableRow>
+                                   )}
+                                </TableBody>
+                           </Table>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+                 <TabsContent value="topups">
+                     <Card>
+                        <CardHeader>
+                            <CardTitle>Partner Coin Top-up Requests</CardTitle>
+                            <CardDescription>Review paid top-up requests from partners and approve to credit their coin balance.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                           <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Date</TableHead>
+                                        <TableHead>Partner</TableHead>
+                                        <TableHead>Coins Requested</TableHead>
+                                        <TableHead>Amount Paid</TableHead>
+                                        <TableHead>Payment ID</TableHead>
+                                        <TableHead>Status</TableHead>
+                                        <TableHead className="text-right">Actions</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                   {topUpRequests.length > 0 ? topUpRequests.map(req => (
+                                        <TableRow key={req.id}>
+                                            <TableCell>{format(new Date(req.requestDate), 'PPp')}</TableCell>
+                                            <TableCell className="font-medium">{req.partnerName} <span className="text-xs text-muted-foreground font-mono">({req.partnerId})</span></TableCell>
+                                            <TableCell className="font-medium text-blue-600">{req.coinsRequested.toLocaleString()}</TableCell>
+                                            <TableCell className="font-medium text-green-600">₹{req.amountPaid.toFixed(2)}</TableCell>
+                                            <TableCell className="font-mono text-xs">{req.paymentId}</TableCell>
+                                            <TableCell><Badge variant={req.status === 'Approved' ? 'default' : 'secondary'}>{req.status}</Badge></TableCell>
+                                            <TableCell className="text-right">
+                                                <Button size="sm" onClick={() => handleApproveTopUp(req.id)} disabled={req.status === 'Approved'}>
+                                                    {req.status === 'Approved' ? <><BadgeCheck className="mr-2 h-4 w-4" />Approved</> : <><Check className="mr-2 h-4 w-4" />Approve</>}
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                   )) : (
+                                     <TableRow><TableCell colSpan={7} className="text-center h-24 text-muted-foreground">No pending top-up requests.</TableCell></TableRow>
                                    )}
                                 </TableBody>
                            </Table>

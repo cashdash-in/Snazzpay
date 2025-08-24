@@ -15,12 +15,15 @@ import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
 import type { EditableOrder } from '@/app/orders/page';
 import { ScratchCard } from '@/components/scratch-card';
+import { AnimatedCodSteps } from '@/components/animated-cod-steps';
 
 interface SecureCodFormProps {
     razorpayKeyId: string | null;
 }
 
-type Step = 'details' | 'complete';
+type Step = 'details' | 'scratch' | 'complete';
+type PaymentStep = 'intent' | 'authorization';
+
 
 function SnazzifyCoinCard({ customerName, orderId }: { customerName: string, orderId: string }) {
     return (
@@ -53,6 +56,7 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
     const { toast } = useToast();
 
     const [step, setStep] = useState<Step>('details');
+    const [paymentStep, setPaymentStep] = useState<PaymentStep>('intent');
     const [orderDetails, setOrderDetails] = useState({
         productName: '',
         baseAmount: 0,
@@ -128,20 +132,21 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
     };
 
     const totalAmount = orderDetails.baseAmount * orderDetails.quantity;
+    const paymentAmount = paymentStep === 'intent' ? 1 : totalAmount;
 
     const createOrderApi = async () => {
         const response = await fetch('/api/create-mandate-order', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                amount: totalAmount,
+                amount: paymentAmount,
                 productName: orderDetails.productName,
                 customerName: customerDetails.name,
                 customerEmail: customerDetails.email,
                 customerContact: customerDetails.contact,
                 customerAddress: customerDetails.address,
                 customerPincode: customerDetails.pincode,
-                isAuthorization: true, // This is now always an authorization
+                isAuthorization: paymentStep === 'authorization',
             }),
         });
 
@@ -157,8 +162,8 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         const options = {
             key: razorpayKeyId,
             order_id: order_id,
-            name: "Snazzify Trust Wallet",
-            description: `Pay ₹${totalAmount.toFixed(2)} - Held in Trust`,
+            name: paymentStep === 'intent' ? "Snazzify Intent Verification" : "Snazzify Trust Wallet",
+            description: paymentStep === 'intent' ? `Pay ₹1.00 to verify your order` : `Pay ₹${totalAmount.toFixed(2)} - Held in Trust`,
             handler: handler,
             prefill: {
                 name: customerDetails.name,
@@ -200,7 +205,34 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         
         try {
             const { order_id } = await createOrderApi();
-            const handler = (response: any) => {
+
+            const intentHandler = (response: any) => {
+                const leadData: EditableOrder = {
+                    id: uuidv4(),
+                    orderId: orderDetails.orderId,
+                    customerName: customerDetails.name,
+                    customerEmail: customerDetails.email,
+                    customerAddress: customerDetails.address,
+                    pincode: customerDetails.pincode,
+                    contactNo: customerDetails.contact,
+                    productOrdered: orderDetails.productName,
+                    quantity: orderDetails.quantity,
+                    price: totalAmount.toFixed(2),
+                    paymentStatus: 'Intent Verified',
+                    date: format(new Date(), 'yyyy-MM-dd'),
+                };
+                setActiveLead(leadData);
+
+                const existingLeads = JSON.parse(localStorage.getItem('leads') || '[]');
+                localStorage.setItem('leads', JSON.stringify([...existingLeads, leadData]));
+
+                toast({ title: 'Verification Successful!', description: 'Please proceed to secure your order.' });
+                setPaymentStep('authorization');
+                setStep('scratch');
+                setIsProcessing(false);
+            };
+
+            const authorizationHandler = (response: any) => {
                  const paymentInfo = {
                     paymentId: response.razorpay_payment_id,
                     orderId: orderDetails.orderId,
@@ -212,7 +244,6 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                 localStorage.setItem(`payment_info_${orderDetails.orderId}`, JSON.stringify(paymentInfo));
                 
                 try {
-                    // Add to manual orders
                     const newOrder: EditableOrder = {
                         id: uuidv4(),
                         orderId: orderDetails.orderId,
@@ -231,6 +262,16 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                     const existingOrders: EditableOrder[] = existingOrdersJSON ? JSON.parse(existingOrdersJSON) : [];
                     localStorage.setItem('manualOrders', JSON.stringify([...existingOrders, newOrder]));
 
+                    // Remove from leads
+                    if (activeLead) {
+                        const existingLeadsJSON = localStorage.getItem('leads');
+                        if (existingLeadsJSON) {
+                            const existingLeads: EditableOrder[] = JSON.parse(existingLeadsJSON);
+                            const updatedLeads = existingLeads.filter(lead => lead.id !== activeLead.id);
+                            localStorage.setItem('leads', JSON.stringify(updatedLeads));
+                        }
+                    }
+
                 } catch(e) {
                     console.error("Failed to update local storage after authorization", e);
                 }
@@ -241,13 +282,51 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                 setStep('complete');
                 setIsProcessing(false);
             };
+
+            const handler = paymentStep === 'intent' ? intentHandler : authorizationHandler;
             openRazorpayCheckout(order_id, handler);
+
         } catch (e: any) {
             setError(e.message);
             toast({ variant: 'destructive', title: 'Error', description: e.message });
             setIsProcessing(false);
         }
     };
+
+    const proceedToAuthorization = () => {
+        handlePayment();
+    }
+
+    const renderScratchState = () => (
+         <Card className="w-full max-w-md shadow-lg text-center bg-transparent border-0">
+            <CardHeader className="pb-4">
+                <BadgeCheck className="mx-auto h-12 w-12 text-green-500" />
+                <CardTitle>Verification Successful!</CardTitle>
+                <CardDescription>Scratch below to reveal a special offer for your next purchase!</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col items-center justify-center space-y-4">
+                 <ScratchCard
+                    width={320}
+                    height={180}
+                    scratchImageSrc="https://placehold.co/320x180.png"
+                    data-ai-hint="abstract pattern"
+                >
+                    <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-yellow-300 to-orange-400 text-gray-800 p-4 rounded-lg">
+                        <p className="text-lg font-bold">Congratulations!</p>
+                        <p className="text-4xl font-black">10% OFF</p>
+                        <p className="mt-2 text-xs">On your next order with code:</p>
+                        <p className="font-mono text-lg bg-white/30 px-2 py-1 rounded">SNAZZY10</p>
+                    </div>
+                </ScratchCard>
+            </CardContent>
+            <CardFooter>
+                 <Button className="w-full" onClick={proceedToAuthorization} disabled={isProcessing}>
+                    {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CreditCard className="mr-2 h-4 w-4" />}
+                    Proceed to Pay ₹{totalAmount.toFixed(2)}
+                </Button>
+            </CardFooter>
+        </Card>
+    );
 
     const renderCompleteState = () => (
         <Card className="w-full max-w-md shadow-lg text-center bg-transparent border-0">
@@ -283,17 +362,20 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         )
     }
 
+    if (step === 'scratch') {
+        return <div className="flex items-center justify-center min-h-screen bg-transparent p-4">{renderScratchState()}</div>;
+    }
     if (step === 'complete') {
         return <div className="flex items-center justify-center min-h-screen bg-transparent p-4">{renderCompleteState()}</div>;
     }
 
     return (
-        <div className="flex items-center justify-center min-h-screen bg-transparent p-4">
-            <Card className="w-full max-w-md shadow-lg">
+        <div className="flex flex-col items-center justify-center min-h-screen bg-transparent p-4">
+             <Card className="w-full max-w-md shadow-lg mb-8">
                 <CardHeader className="text-center">
                     <Zap className="mx-auto h-8 w-8 text-primary" />
                     <CardTitle>Modern, Secure Payment</CardTitle>
-                    <CardDescription>Pay now and your funds are held in a Trust Wallet until dispatch.</CardDescription>
+                    <CardDescription>{paymentStep === 'intent' ? 'First, verify your intent with a ₹1 payment.' : 'Pay now and your funds are held in a Trust Wallet until dispatch.'}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-3">
@@ -318,18 +400,23 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                 <CardFooter className="flex flex-col gap-4">
                     <Button className="w-full" onClick={handlePayment} disabled={!agreed || isProcessing}>
                         {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CreditCard className="mr-2 h-4 w-4" />}
-                        Pay ₹{totalAmount.toFixed(2)} Now
+                        {paymentStep === 'intent' ? 'Verify with ₹1.00' : `Pay ₹${totalAmount.toFixed(2)} Now`}
                     </Button>
                     <div className="flex items-center justify-center space-x-4 text-sm">
-                        <Link href="/customer/login" className="text-primary hover:underline cursor-pointer inline-flex items-center gap-1">
-                            <LogIn className="h-4 w-4" />Customer Login
+                        <Link href="/customer/login" passHref>
+                            <span className="text-primary hover:underline cursor-pointer inline-flex items-center gap-1"><LogIn className="h-4 w-4" />Customer Login</span>
                         </Link>
-                        <Link href="/faq" className="text-primary hover:underline cursor-pointer inline-flex items-center gap-1">
-                            <HelpCircle className="h-4 w-4" />How does this work?
+                        <Link href="/faq" passHref>
+                            <span className="text-primary hover:underline cursor-pointer inline-flex items-center gap-1"><HelpCircle className="h-4 w-4" />How does this work?</span>
                         </Link>
                     </div>
                 </CardFooter>
             </Card>
+
+            <div className="w-full mt-8">
+                 <h2 className="text-2xl font-bold text-center mb-4">Your Secure Shopping Journey</h2>
+                 <AnimatedCodSteps />
+            </div>
         </div>
     );
 }
