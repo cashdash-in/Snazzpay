@@ -133,11 +133,17 @@ export default function CustomerDashboardPage() {
 
                 const activeTrustValue = finalOrders
                     .filter(o => ['Pending', 'Authorized'].includes(o.paymentStatus))
-                    .reduce((sum, o) => sum + parseFloat(o.price || '0'), 0);
+                    .reduce((sum, o) => {
+                        const price = parseFloat(o.price);
+                        return isNaN(price) ? sum : sum + price;
+                    }, 0);
                 
                 const confirmedValue = finalOrders
                     .filter(o => o.paymentStatus === 'Paid')
-                    .reduce((sum, o) => sum + parseFloat(o.price || '0'), 0);
+                    .reduce((sum, o) => {
+                        const price = parseFloat(o.price);
+                        return isNaN(price) ? sum : sum + price;
+                    }, 0);
                 
                 setTrustWalletValue(activeTrustValue);
                 setConfirmedOrderValue(confirmedValue);
@@ -289,13 +295,14 @@ export default function CustomerDashboardPage() {
                                                     const paymentInfo = paymentInfos.get(order.orderId);
                                                     const canSelfCancel = order.paymentStatus === 'Authorized' && paymentInfo && isWithin24Hours(paymentInfo.authorizedAt);
                                                     const isCancelled = ['Voided', 'Cancelled', 'Refunded', 'Fee Charged'].includes(order.paymentStatus);
+                                                    const price = parseFloat(order.price);
 
                                                     return (
                                                         <TableRow key={order.id}>
                                                             <TableCell className="font-medium">{order.orderId}</TableCell>
                                                             <TableCell>{order.date}</TableCell>
                                                             <TableCell>{order.productOrdered}</TableCell>
-                                                            <TableCell>₹{parseFloat(order.price).toFixed(2)}</TableCell>
+                                                            <TableCell>₹{isNaN(price) ? '0.00' : price.toFixed(2)}</TableCell>
                                                             <TableCell>
                                                                 <Badge variant={order.paymentStatus === 'Paid' ? 'default' : 'secondary'} className={
                                                                     order.paymentStatus === 'Paid' ? 'bg-green-100 text-green-800' : 
