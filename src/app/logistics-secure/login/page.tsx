@@ -37,13 +37,13 @@ export default function LogisticsLoginPage() {
             return;
         }
         
-        // This is a workaround to ensure login works reliably for the prototype.
-        const WORKAROUND_PASSWORD = 'password';
-
         const allPartnersJSON = localStorage.getItem('logisticsPartners');
         const allPartners: LogisticsPartnerData[] = allPartnersJSON ? JSON.parse(allPartnersJSON) : [];
         const partner = allPartners.find(p => p.id === partnerId);
         
+        // This is a workaround for the prototype. In a real app, use hashed passwords.
+        const WORKAROUND_PASSWORD = 'password';
+
         const isAdmin = partnerId === 'partner-admin' && password === WORKAROUND_PASSWORD;
         const isValidPartner = partner && partner.status === 'approved' && password === WORKAROUND_PASSWORD;
 
