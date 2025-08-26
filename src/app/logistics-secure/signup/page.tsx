@@ -11,7 +11,7 @@ import Link from "next/link";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Checkbox } from '@/components/ui/checkbox';
-import type { LogisticsPartnerData } from '../login/page';
+import type { LogisticsPartnerData } from '../dashboard/page';
 import { v4 as uuidv4 } from 'uuid';
 
 export default function LogisticsSignupPage() {

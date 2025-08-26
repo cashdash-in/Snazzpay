@@ -91,7 +91,7 @@ export default function SettingsPage() {
 
     toast({
       title: "Settings Saved to Browser",
-      description: `Your ${type} settings have been saved in this browser. For server operations to work, you must also set these as environment variables in apphosting.yaml.`,
+      description: `Your ${type} settings have been saved in this browser. For server operations to work, you must also set these as environment variables in your deployment configuration.`,
     });
   };
 
@@ -127,10 +127,11 @@ export default function SettingsPage() {
                 <Terminal className="h-4 w-4" />
                 <AlertTitle>Action Required!</AlertTitle>
                 <AlertDescription>
-                  For Razorpay integration to work, you must set your keys as environment variables in `apphosting.yaml`. The fields below save to your browser but are not used by the server.
+                  For Razorpay integration to work, you must set your keys as environment variables in your hosting environment (e.g., Netlify, Vercel). The fields below save to your browser for local testing but are not used by the deployed server.
                   <ul className="list-disc pl-5 mt-2">
                     <li><span className="font-mono text-xs">RAZORPAY_KEY_ID</span></li>
                     <li><span className="font-mono text-xs">RAZORPAY_KEY_SECRET</span></li>
+                    <li><span className="font-mono text-xs">NEXT_PUBLIC_RAZORPAY_KEY_ID</span> (must be the same as above)</li>
                   </ul>
                 </AlertDescription>
               </Alert>
@@ -174,7 +175,7 @@ export default function SettingsPage() {
                 <Terminal className="h-4 w-4" />
                 <AlertTitle>Action Required!</AlertTitle>
                 <AlertDescription>
-                  For Shopify integration to work, you must set your store details as environment variables in `apphosting.yaml`.
+                  For Shopify integration to work, you must set your store details as environment variables in your hosting environment.
                   <ul className="list-disc pl-5 mt-2">
                     <li><span className="font-mono text-xs">SHOPIFY_STORE_URL</span> (e.g., your-store.myshopify.com)</li>
                     <li><span className="font-mono text-xs">SHOPIFY_API_KEY</span> (Your Admin API access token)</li>
@@ -233,7 +234,7 @@ export default function SettingsPage() {
                 <Rocket className="h-4 w-4" />
                 <AlertTitle>Action Required!</AlertTitle>
                 <AlertDescription>
-                  For logistics integration to work, you must set your API credentials as environment variables in `apphosting.yaml`. The example uses Shiprocket, but you can adapt it for any provider.
+                  For logistics integration to work, you must set your API credentials as environment variables. The example uses Shiprocket, but you can adapt it for any provider.
                   <ul className="list-disc pl-5 mt-2">
                     <li><span className="font-mono text-xs">LOGISTICS_API_USER</span> (Your logistics API user/email)</li>
                     <li><span className="font-mono text-xs">LOGISTICS_API_PASSWORD</span> (Your logistics API password/secret)</li>
@@ -280,7 +281,7 @@ export default function SettingsPage() {
                     <Mail className="h-4 w-4" />
                     <AlertTitle>How to Enable Email Notifications</AlertTitle>
                     <AlertDescription>
-                        <p>To send emails, you must configure your Gmail account credentials as environment variables in `apphosting.yaml`. This is the most reliable method for sending notifications.</p>
+                        <p>To send emails, you must configure your Gmail account credentials as environment variables. This is the most reliable method for sending notifications.</p>
                         <p className="font-semibold mt-2">Step 1: Generate a Gmail App Password</p>
                         <ol className="list-decimal pl-5 mt-1 text-xs">
                             <li>Go to your Google Account settings: <Link href="https://myaccount.google.com/" target="_blank" className="underline">myaccount.google.com</Link></li>
@@ -291,7 +292,7 @@ export default function SettingsPage() {
                             <li>Copy the 16-character password that is generated. This is your App Password.</li>
                         </ol>
                          <p className="font-semibold mt-2">Step 2: Set Environment Variables</p>
-                         <p>In `apphosting.yaml`, set the following variables:</p>
+                         <p>In your hosting environment, set the following variables:</p>
                         <ul className="list-disc pl-5 mt-1 font-mono text-xs">
                            <li>GMAIL_APP_EMAIL: "your-email@gmail.com"</li>
                            <li>GMAIL_APP_PASSWORD: "your-16-character-app-password"</li>

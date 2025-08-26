@@ -114,6 +114,7 @@ export default function RefundsPage() {
 
   useEffect(() => {
     fetchAndSetOrders();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleFieldChange = (orderId: string, field: keyof EditableOrder, value: string) => {

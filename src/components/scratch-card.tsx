@@ -25,7 +25,7 @@ export function ScratchCard({ width, height, scratchImageSrc, children, 'data-ai
     if (!context) return;
 
     const image = new window.Image();
-    image.crossOrigin = 'anonymous'; // Required for placehold.co images
+    image.crossOrigin = 'anonymous'; // Required for picsum photos
     image.src = scratchImageSrc;
 
     image.onload = () => {

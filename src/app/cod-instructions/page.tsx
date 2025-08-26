@@ -96,5 +96,3 @@ document.addEventListener('DOMContentLoaded', function() {
     </AppShell>
   );
 }
-
-    

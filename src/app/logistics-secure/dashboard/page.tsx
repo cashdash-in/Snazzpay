@@ -45,6 +45,16 @@ type ServicePartner = {
     status: 'Active' | 'On-Hold';
 };
 
+export type LogisticsPartnerData = {
+    id: string;
+    companyName: string;
+    pan: string;
+    aadhaar: string;
+    address: string;
+    phone: string;
+    status: 'pending' | 'approved' | 'rejected';
+};
+
 export default function LogisticsDashboardPage() {
     const router = useRouter();
     const { toast } = useToast();

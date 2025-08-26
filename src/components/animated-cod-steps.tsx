@@ -48,7 +48,7 @@ const TimelineEvent = ({ step, index, isVisible }: { step: (typeof steps)[0], in
             <div className="hidden sm:flex flex-col items-center">
                  <div className="flex-shrink-0 w-32 h-32 relative">
                     <Image 
-                        src="https://picsum.photos/200/200"
+                        src={`https://picsum.photos/200/200?random=${index}`}
                         alt="Cartoon character showing a step"
                         layout="fill"
                         objectFit="contain"

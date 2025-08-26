@@ -44,7 +44,7 @@ const OrdersResponseSchema = z.object({
 export type Order = z.infer<typeof OrderSchema>;
 
 async function shopifyFetch(endpoint: string, options: RequestInit = {}) {
-    if (!SHOPIFY_STORE_URL || !SHOPIFY_API_KEY || SHOPIFY_API_KEY === 'shpat_xxxxxxxxxxxxxxxx') {
+    if (!SHOPIFY_STORE_URL || !SHOPIFY_API_KEY || SHOPIFY_API_KEY.startsWith('shpat_xx')) {
         throw new Error('Shopify API keys are not configured on the server. Please set SHOPIFY_STORE_URL and SHOPIFY_API_KEY environment variables.');
     }
     
