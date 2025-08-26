@@ -415,8 +415,23 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
     );
 }
 
-async function PageContent() {
-    const razorpayKeyId = await getRazorpayKeyId();
+function PageContent() {
+    const [razorpayKeyId, setRazorpayKeyId] = useState<string | null>(null);
+
+    useEffect(() => {
+        async function fetchKey() {
+            const key = await getRazorpayKeyId();
+            setRazorpayKeyId(key);
+        }
+        fetchKey();
+    }, []);
+
+    if (razorpayKeyId === null) {
+        // You can return a loading spinner or some placeholder here
+        // until the key is fetched.
+        return <div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+    }
+    
     return (
        <div className="relative min-h-screen w-full">
             <SecureCodForm razorpayKeyId={razorpayKeyId} />
@@ -432,3 +447,5 @@ export default function Page() {
     </Suspense>
   );
 }
+
+    
