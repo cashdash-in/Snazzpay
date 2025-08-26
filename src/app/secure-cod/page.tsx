@@ -1,6 +1,6 @@
 
 import { SecureCodForm } from '../secure-cod-form';
-import { CancellationForm } from '../cancellation-form';
+import { CancellationForm } from '@/components/cancellation-form';
 import { Suspense } from 'react';
 import { getRazorpayKeyId } from '../actions';
 
