@@ -29,10 +29,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-// Vercel specific config to increase function timeout
-export const config = {
-  maxDuration: 120, // 2 minutes
-};
-
-
 export default nextConfig;
