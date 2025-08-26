@@ -20,12 +20,8 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     serverActions: {
-      bodySizeLimit: '2mb', // Default is 1mb, increase for video uploads if needed
+      bodySizeLimit: '10mb', // Accommodate base64 encoded videos
     },
-  },
-  // Increase the timeout for server actions, as video generation can be slow
-  serverActions: {
-    bodySizeLimit: '10mb', // Accommodate base64 encoded videos
   },
 };
 
