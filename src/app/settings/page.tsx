@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Terminal, Mail, MessageSquareWarning, Rocket } from "lucide-react";
+import { Terminal, Mail, MessageSquareWarning, Rocket, Download } from "lucide-react";
 import Link from "next/link";
 
 export default function SettingsPage() {
@@ -95,14 +95,24 @@ export default function SettingsPage() {
     });
   };
 
+  const handleDownload = () => {
+    toast({
+        variant: 'destructive',
+        title: 'Feature Not Available',
+        description: 'This button is a placeholder. Project download functionality is not implemented in this version.'
+    });
+  };
+
+
   return (
     <AppShell title="Settings">
       <Tabs defaultValue="razorpay" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 max-w-2xl mx-auto">
+        <TabsList className="grid w-full grid-cols-5 max-w-3xl mx-auto">
           <TabsTrigger value="razorpay">Razorpay</TabsTrigger>
           <TabsTrigger value="shopify">Shopify</TabsTrigger>
           <TabsTrigger value="logistics">Logistics</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
+          <TabsTrigger value="project">Project</TabsTrigger>
         </TabsList>
         <TabsContent value="razorpay">
           <Card>
@@ -296,6 +306,28 @@ export default function SettingsPage() {
                     </AlertDescription>
                 </Alert>
             </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="project">
+           <Card>
+            <CardHeader>
+              <CardTitle>Project Actions</CardTitle>
+              <CardDescription>
+                Actions related to the entire project.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="space-y-2">
+                    <Label>Download Project</Label>
+                    <p className="text-sm text-muted-foreground">Download a .zip file of all your project code. This is useful for backups or for deploying to another service.</p>
+                </div>
+            </CardContent>
+            <CardFooter>
+              <Button onClick={handleDownload}>
+                <Download className="mr-2 h-4 w-4" />
+                Download Project Code
+              </Button>
+            </CardFooter>
           </Card>
         </TabsContent>
       </Tabs>
