@@ -1,29 +1,25 @@
 
-
-import { getRazorpayKeyId } from '@/app/actions';
-import { SecureCodForm } from '@/components/secure-cod-form';
-import { CancellationForm } from '@/components/cancellation-form';
+import { SecureCodForm } from '../secure-cod-form';
+import { CancellationForm } from '../cancellation-form';
 import { Suspense } from 'react';
+import { getRazorpayKeyId } from '../actions';
 
-function SecureCodContent() {
-    const razorpayKeyId = getRazorpayKeyId();
 
-    return (
-        <Suspense fallback={<div>Loading...</div>}>
-            <PageContent razorpayKeyIdPromise={razorpayKeyId} />
-        </Suspense>
-    );
-}
-
-async function PageContent({ razorpayKeyIdPromise }: { razorpayKeyIdPromise: Promise<string | null> }) {
-    const razorpayKeyId = await razorpayKeyIdPromise;
+async function PageContent() {
+    const razorpayKeyId = await getRazorpayKeyId();
 
     return (
-        <>
+       <div className="relative min-h-screen w-full">
             <SecureCodForm razorpayKeyId={razorpayKeyId} />
             <CancellationForm />
-        </>
+        </div>
     )
 }
 
-export default SecureCodContent;
+export default function SecureCodPage() {
+  return (
+    <Suspense fallback={<div className="flex h-screen w-full items-center justify-center">Loading...</div>}>
+        <PageContent />
+    </Suspense>
+  );
+}

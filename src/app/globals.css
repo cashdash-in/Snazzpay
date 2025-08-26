@@ -33,14 +33,6 @@ body {
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
     --radius: 0.5rem;
-    --sidebar-background: 270 51% 40%; /* Deep Indigo */
-    --sidebar-foreground: 0 0% 95%;
-    --sidebar-primary: 0 0% 98%;
-    --sidebar-primary-foreground: 270 51% 10%;
-    --sidebar-accent: 270 40% 53%; /* Soft Purple */
-    --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 270 51% 35%;
-    --sidebar-ring: 270 40% 60%;
   }
   .dark {
     --background: 270 10% 10%;
@@ -67,14 +59,6 @@ body {
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
-    --sidebar-background: 270 10% 10%;
-    --sidebar-foreground: 270 10% 95%;
-    --sidebar-primary: 270 51% 60%;
-    --sidebar-primary-foreground: 270 51% 10%;
-    --sidebar-accent: 270 40% 53%;
-    --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 270 10% 25%;
-    --sidebar-ring: 270 41% 50%;
   }
 }
 
