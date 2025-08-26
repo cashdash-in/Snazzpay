@@ -345,7 +345,7 @@ export function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
     }
 
     if (loading) {
-        return <div className="flex items-center justify-center min-h-screen bg-gray-100"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+        return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
     }
     if (error && !isProcessing) {
         return (
