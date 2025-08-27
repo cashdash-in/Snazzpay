@@ -1,0 +1,115 @@
+
+import { NextResponse } from 'next/server';
+import nodemailer from 'nodemailer';
+import type { EditableOrder } from '@/app/orders/page';
+
+const GMAIL_EMAIL = process.env.GMAIL_APP_EMAIL;
+const GMAIL_PASSWORD = process.env.GMAIL_APP_PASSWORD;
+
+function getEmailContent(type: string, order: EditableOrder) {
+    let subject = '';
+    let html = '';
+
+    switch (type) {
+        case 'dispatch':
+            subject = `Your Snazzify Order #${order.orderId} has been shipped!`;
+            html = `
+                <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+                    <h2>Your Order is on its way!</h2>
+                    <p>Dear ${order.customerName},</p>
+                    <p>Great news! Your order #${order.orderId} has been dispatched and is now on its way to you.</p>
+                    <p><strong>Tracking Details:</strong></p>
+                    <ul>
+                        <li><strong>Courier:</strong> ${order.courierCompanyName || 'Our Logistics Partner'}</li>
+                        <li><strong>Tracking Number:</strong> ${order.trackingNumber}</li>
+                    </ul>
+                    <p>You can typically start tracking your order within 24-48 hours. If you have any questions, please contact our support team.</p>
+                    <p>Thank you for shopping with us,<br/>The Snazzify Team</p>
+                </div>
+            `;
+            break;
+        case 'cancellation':
+            subject = `Confirmation of Cancellation for Order #${order.orderId}`;
+            html = `
+                <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+                    <h2>Order Cancellation Confirmed</h2>
+                    <p>Dear ${order.customerName},</p>
+                    <p>This email confirms that your order #${order.orderId} has been successfully cancelled as per your request.</p>
+                    <p>If a payment was made, a refund will be processed to your original payment method within 5-7 business days. If you had only authorized a payment, the authorization has been voided.</p>
+                    <p>If you have any questions, please feel free to contact us.</p>
+                    <p>We hope to see you again soon,<br/>The Snazzify Team</p>
+                </div>
+            `;
+            break;
+        case 'refund':
+            subject = `Refund Processed for Order #${order.orderId}`;
+            html = `
+                <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+                    <h2>Refund Processed</h2>
+                    <p>Dear ${order.customerName},</p>
+                    <p>We have processed a refund for your order #${order.orderId}.</p>
+                    <p><strong>Refund Amount:</strong> ₹${order.refundAmount || order.price}</p>
+                    <p>Please allow 5-7 business days for the amount to reflect in your original payment account. The exact time can vary depending on your bank.</p>
+                    <p>If you have any questions about your refund, please contact our support team.</p>
+                    <p>Thank you,<br/>The Snazzify Team</p>
+                </div>
+            `;
+            break;
+        default:
+            throw new Error('Invalid notification type specified.');
+    }
+    return { subject, html };
+}
+
+export async function POST(request: Request) {
+    if (!GMAIL_EMAIL || !GMAIL_PASSWORD) {
+        return new NextResponse(
+            JSON.stringify({ error: "Email service is not configured on the server. Please set GMAIL_APP_EMAIL and GMAIL_APP_PASSWORD." }),
+            { status: 500, headers: { 'Content-Type': 'application/json' } }
+        );
+    }
+    
+    try {
+        const { order, type }: { order: EditableOrder, type: string } = await request.json();
+
+        if (!order || !type || !order.customerEmail) {
+             return new NextResponse(
+                JSON.stringify({ error: "Missing order data, notification type, or customer email." }),
+                { status: 400, headers: { 'Content-Type': 'application/json' } }
+            );
+        }
+        
+        const { subject, html } = getEmailContent(type, order);
+
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: GMAIL_EMAIL,
+                pass: GMAIL_PASSWORD,
+            },
+        });
+
+        const mailOptions = {
+            from: `"Snazzify" <${GMAIL_EMAIL}>`,
+            to: order.customerEmail,
+            subject: subject,
+            html: html,
+        };
+
+        await transporter.sendMail(mailOptions);
+        return NextResponse.json({ success: true, message: `A '${type}' notification email has been sent to ${order.customerEmail}.` });
+
+    } catch (error: any) {
+        console.error("Nodemailer error:", error);
+        if (error.code === 'EAUTH') {
+             return new NextResponse(
+                JSON.stringify({ error: `Failed to send email: Incorrect Gmail credentials. Please double-check your GMAIL_APP_EMAIL and GMAIL_APP_PASSWORD in your hosting environment variables. Ensure the password is the 16-digit App Password from Google, not your regular password.` }),
+                { status: 500, headers: { 'Content-Type': 'application/json' } }
+            );
+        }
+        return new NextResponse(
+            JSON.stringify({ error: `Failed to send email: ${error.message}` }),
+            { status: 500, headers: { 'Content-Type': 'application/json' } }
+        );
+    }
+}

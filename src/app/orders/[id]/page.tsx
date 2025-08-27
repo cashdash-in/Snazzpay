@@ -209,51 +209,44 @@ function OrderDetailContent() {
         }
     };
 
-    const copyAuthLink = (orderToCopy: EditableOrder) => {
-        const baseUrl = window.location.origin;
-        const secureUrl = `${baseUrl}/secure-cod?amount=${encodeURIComponent(orderToCopy.price)}&name=${encodeURIComponent(orderToCopy.productOrdered)}&order_id=${encodeURIComponent(orderToCopy.orderId)}`;
-        navigator.clipboard.writeText(secureUrl);
-        toast({
-            title: "Link Copied!",
-            description: "The secure COD authorization link has been copied to your clipboard.",
-        });
-    };
+    const sendNotificationEmail = async () => {
+        if (!order) return;
 
-    const sendAuthLink = async (orderToSend: EditableOrder, method: 'email') => {
+        let notificationType = '';
+        if (order.deliveryStatus === 'dispatched' && order.trackingNumber) {
+            notificationType = 'dispatch';
+        } else if (order.cancellationStatus === 'Processed') {
+            notificationType = 'cancellation';
+        } else if (order.refundStatus === 'Processed') {
+            notificationType = 'refund';
+        } else {
+            toast({
+                variant: 'destructive',
+                title: "Cannot Send Email",
+                description: "No specific action (dispatch, cancellation, refund) to notify the customer about.",
+            });
+            return;
+        }
+
         setIsSendingLink(true);
         try {
-            const response = await fetch('/api/send-auth-link', {
+            const response = await fetch('/api/send-notification', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ order: orderToSend, method }),
+                body: JSON.stringify({ order, type: notificationType }),
             });
 
             const result = await response.json();
 
             if (!response.ok) {
-                throw new Error(result.error || `Failed to send link via ${method}.`);
+                throw new Error(result.error);
             }
-
-            toast({
-                title: "Link Sent Successfully!",
-                description: result.message,
-            });
-
+            toast({ title: "Notification Sent", description: result.message });
         } catch (error: any) {
-             toast({
-                variant: 'destructive',
-                title: `Error Sending Link`,
-                description: error.message,
-            });
+            toast({ variant: 'destructive', title: "Email Failed", description: error.message });
         } finally {
             setIsSendingLink(false);
         }
-    };
-    
-    const sendWhatsAppNotification = (order: EditableOrder) => {
-        const message = `Hi ${order.customerName}, regarding your Snazzify order ${order.orderId}: `;
-        const whatsappUrl = `https://wa.me/${order.contactNo}?text=${encodeURIComponent(message)}`;
-        window.open(whatsappUrl, '_blank');
     };
 
     const handleProcessCancellationFee = async () => {
@@ -545,28 +538,14 @@ function OrderDetailContent() {
                     </CardContent>
                      <CardFooter className="gap-2">
                         <Button 
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => sendWhatsAppNotification(order)}
-                            disabled={!order.contactNo}
-                            title={!order.contactNo ? "Contact number is required" : "Send WhatsApp Notification"}
-                        >
-                            <MessageSquare className="mr-2 h-4 w-4" />
-                            WhatsApp
-                        </Button>
-                        <Button 
-                            variant="default" 
+                            variant="secondary" 
                             size="sm" 
-                            onClick={() => sendAuthLink(order, 'email')}
+                            onClick={sendNotificationEmail}
                             disabled={isSendingLink || !order.customerEmail}
-                            title={!order.customerEmail ? "Customer email is required to send link" : "Send Authorization Link"}
+                            title={!order.customerEmail ? "Customer email is required" : "Send contextual email notification"}
                         >
                           {isSendingLink ? <ButtonLoader className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
-                          Send Email Link
-                        </Button>
-                         <Button variant="secondary" size="sm" onClick={() => copyAuthLink(order)}>
-                            <Copy className="mr-2 h-4 w-4" />
-                            Copy Auth Link
+                          Notify Customer
                         </Button>
                     </CardFooter>
                 </Card>
