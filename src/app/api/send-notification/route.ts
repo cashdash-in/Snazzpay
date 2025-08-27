@@ -12,12 +12,12 @@ function getEmailContent(type: string, order: EditableOrder) {
 
     switch (type) {
         case 'dispatch':
-            subject = `Your Snazzify Order #${order.orderId} has been shipped!`;
+            subject = `Shipped! Your Snazzify Order #${order.orderId} is on its way.`;
             html = `
                 <div style="font-family: Arial, sans-serif; line-height: 1.6;">
                     <h2>Your Order is on its way!</h2>
                     <p>Dear ${order.customerName},</p>
-                    <p>Great news! Your order #${order.orderId} has been dispatched and is now on its way to you.</p>
+                    <p>Great news! Your order #${order.orderId} has been dispatched. As part of our Secure COD process, the funds held in your Trust Wallet have now been transferred to us.</p>
                     <p><strong>Tracking Details:</strong></p>
                     <ul>
                         <li><strong>Courier:</strong> ${order.courierCompanyName || 'Our Logistics Partner'}</li>
@@ -35,7 +35,7 @@ function getEmailContent(type: string, order: EditableOrder) {
                     <h2>Order Cancellation Confirmed</h2>
                     <p>Dear ${order.customerName},</p>
                     <p>This email confirms that your order #${order.orderId} has been successfully cancelled as per your request.</p>
-                    <p>If a payment was made, a refund will be processed to your original payment method within 5-7 business days. If you had only authorized a payment, the authorization has been voided.</p>
+                    <p>If a payment was made, a refund will be processed to your original payment method within 5-7 business days. If you had only authorized a payment, the authorization has been voided and the funds of ₹${order.price} have been released back to your account.</p>
                     <p>If you have any questions, please feel free to contact us.</p>
                     <p>We hope to see you again soon,<br/>The Snazzify Team</p>
                 </div>

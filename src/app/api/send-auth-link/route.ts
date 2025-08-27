@@ -43,15 +43,15 @@ export async function POST(request: Request) {
                 <div style="font-family: Arial, sans-serif; line-height: 1.6;">
                     <h2>Confirm Your Order #${order.orderId}</h2>
                     <p>Dear ${order.customerName},</p>
-                    <p>Thank you for your order. To confirm your order and ensure faster processing, please complete the secure payment by clicking the link below.</p>
-                    <p><strong>This is a modern, secure payment method.</strong> Your funds will be held in your personal Snazzify Trust Wallet. The amount is only transferred to us after your product has been dispatched. You can cancel your order anytime before dispatch for a full refund (less a small service fee).</p>
+                    <p>Thank you for your order! To confirm it and ensure faster processing, please complete your payment using our modern Secure COD link below.</p>
+                    <p><strong>What is this?</strong> Instead of handling cash, you pay now and we hold your funds securely in your personal Snazzify Trust Wallet. The money is only transferred to us after your order is dispatched. It's safer for you and gets your order on its way faster.</p>
                     <p><strong>Order Details:</strong></p>
                     <ul>
                         <li><strong>Product:</strong> ${order.productOrdered}</li>
                         <li><strong>Amount:</strong> ₹${order.price}</li>
                     </ul>
                     <a href="${secureUrl}" style="background-color: #663399; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 20px 0;">Complete Secure Payment</a>
-                    <p>If you did not place this order, please disregard this email.</p>
+                    <p>If you have any questions, please contact our support team.</p>
                     <p>Thank you,<br/>The Snazzify Team</p>
                 </div>
             `

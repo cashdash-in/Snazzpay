@@ -219,14 +219,19 @@ export default function OrdersPage() {
   };
 
   const sendWhatsAppNotification = (order: EditableOrder) => {
-    let message = `Hi ${order.customerName}, this is a notification regarding your Snazzify order #${order.orderId}.`;
+    let message = '';
+    const secureUrl = `${window.location.origin}/secure-cod?amount=${encodeURIComponent(order.price)}&name=${encodeURIComponent(order.productOrdered)}&order_id=${encodeURIComponent(order.orderId)}`;
 
-    if (order.cancellationStatus === 'Processed' || order.paymentStatus === 'Voided') {
-        message = `Hi ${order.customerName}, this is to confirm that your order #${order.orderId} has been successfully cancelled.`
-    } else if (order.refundStatus === 'Processed' || order.paymentStatus === 'Refunded') {
-        message = `Hi ${order.customerName}, your refund for order #${order.orderId} has been processed. You should see the amount in your account within 5-7 business days.`
+    if (order.paymentStatus === 'Pending') {
+        message = `Hi ${order.customerName}! Thanks for your order #${order.orderId} from Snazzify. Please click this link to confirm your payment with our modern & secure COD process. Your funds are held in a Trust Wallet and only released on dispatch for 100% safety. ${secureUrl}`;
     } else if (order.deliveryStatus === 'dispatched' && order.trackingNumber) {
-        message = `Hi ${order.customerName}, great news! Your Snazzify order #${order.orderId} has been dispatched. You can track it with number: ${order.trackingNumber}`;
+        message = `Great news, ${order.customerName}! Your Snazzify order #${order.orderId} has been shipped with ${order.courierCompanyName || 'our courier'}, tracking no. ${order.trackingNumber}. Your secure payment has now been finalized. Thank you for shopping with us!`;
+    } else if (order.cancellationStatus === 'Processed' || order.paymentStatus === 'Voided') {
+        message = `Hi ${order.customerName}, this confirms the cancellation of your Snazzify order #${order.orderId}. Your payment authorization has been voided. We hope to see you again!`;
+    } else if (order.refundStatus === 'Processed' || order.paymentStatus === 'Refunded') {
+        message = `Hi ${order.customerName}, your refund for order #${order.orderId} has been processed. You should see the amount in your account within 5-7 business days.`;
+    } else {
+        message = `Hi ${order.customerName}, this is a notification regarding your Snazzify order #${order.orderId}.`;
     }
 
     const whatsappUrl = `https://wa.me/${sanitizePhoneNumber(order.contactNo)}?text=${encodeURIComponent(message)}`;

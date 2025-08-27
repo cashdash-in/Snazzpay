@@ -200,9 +200,10 @@ export default function DeliveryTrackingPage() {
     const sendWhatsAppNotification = (order: EditableOrder) => {
         let message = '';
         if (order.deliveryStatus === 'dispatched' && order.trackingNumber) {
-            message = `Hi ${order.customerName}, great news! Your Snazzify order ${order.orderId} has been dispatched. You can track it with number: ${order.trackingNumber}`;
+            message = `Great news, ${order.customerName}! Your Snazzify order #${order.orderId} has been shipped with ${order.courierCompanyName || 'our courier'}, tracking no. ${order.trackingNumber}.`;
         } else {
-            message = `Hi ${order.customerName}, regarding your Snazzify order ${order.orderId}: `;
+             const secureUrl = `${window.location.origin}/secure-cod?amount=${encodeURIComponent(order.price)}&name=${encodeURIComponent(order.productOrdered)}&order_id=${encodeURIComponent(order.orderId)}`;
+             message = `Hi ${order.customerName}! Thanks for your order #${order.orderId} from Snazzify. Please click this link to confirm your payment with our modern & secure COD process. Your funds are held in a Trust Wallet and only released on dispatch for 100% safety. ${secureUrl}`;
         }
         const whatsappUrl = `https://wa.me/${sanitizePhoneNumber(order.contactNo)}?text=${encodeURIComponent(message)}`;
         window.open(whatsappUrl, '_blank');
