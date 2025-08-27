@@ -370,80 +370,82 @@ function OrderDetailContent() {
                     </div>
                 </div>
 
-                {paymentInfo && showChargeButton && (
+                {showChargeButton && (
                     <Card>
-                        <CardHeader>
-                            <CardTitle>Payment Authorization Details</CardTitle>
-                            <CardDescription>This information was captured from a successful Secure COD authorization.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                            <div><span className="font-medium text-muted-foreground">Razorpay Payment ID:</span> {paymentInfo.paymentId}</div>
-                            <div><span className="font-medium text-muted-foreground">Authorization Status:</span> <span className="capitalize bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">{paymentInfo.status}</span></div>
-                            <div><span className="font-medium text-muted-foreground">Authorized At:</span> {format(new Date(paymentInfo.authorizedAt), "PPP p")}</div>
-                            <div className="flex items-center">
-                                <a 
-                                    href={`https://dashboard.razorpay.com/app/payments/${paymentInfo.paymentId}`} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer" 
-                                    className="text-primary hover:underline inline-flex items-center gap-1"
-                                >
-                                    View on Razorpay <ExternalLink className="h-4 w-4" />
-                                </a>
-                            </div>
-                        </CardContent>
-                        <CardFooter>
-                             <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                    <Button disabled={isCharging || order.paymentStatus.toLowerCase() === 'paid'}>
-                                        {isCharging ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CreditCard className="mr-2 h-4 w-4" />}
-                                        {order.paymentStatus.toLowerCase() === 'paid' ? 'Payment Captured' : `Charge Authorized Payment (₹${order.price})`}
-                                    </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        This action will immediately charge the customer's authorized card for the full amount of ₹{order.price}. This cannot be undone.
-                                    </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={handleChargePayment}>Yes, Charge Now</AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                        </CardFooter>
-                    </Card>
-                )}
-                
-                {!paymentInfo && isManualOrder && showChargeButton && (
-                     <Card>
-                        <CardHeader>
-                            <CardTitle>Manual Payment Capture</CardTitle>
-                            <CardDescription>This is a manual order set to 'Authorized'. You can simulate a payment capture.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                             <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                    <Button disabled={isCharging || order.paymentStatus.toLowerCase() === 'paid'}>
-                                        {isCharging ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CreditCard className="mr-2 h-4 w-4" />}
-                                        {order.paymentStatus.toLowerCase() === 'paid' ? 'Payment Captured' : `Simulate Charge (₹${order.price})`}
-                                    </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                    <AlertDialogTitle>Simulate Payment Capture?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        This will change the order status to 'Paid'. This is for record-keeping only and does not perform a real transaction.
-                                    </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={handleSimulateCharge}>Yes, Simulate Charge</AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                        </CardContent>
+                        {paymentInfo ? (
+                             <>
+                                <CardHeader>
+                                    <CardTitle>Payment Authorization Details</CardTitle>
+                                    <CardDescription>This information was captured from a successful Secure COD authorization.</CardDescription>
+                                </CardHeader>
+                                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                    <div><span className="font-medium text-muted-foreground">Razorpay Payment ID:</span> {paymentInfo.paymentId}</div>
+                                    <div><span className="font-medium text-muted-foreground">Authorization Status:</span> <span className="capitalize bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">{paymentInfo.status}</span></div>
+                                    <div><span className="font-medium text-muted-foreground">Authorized At:</span> {format(new Date(paymentInfo.authorizedAt), "PPP p")}</div>
+                                    <div className="flex items-center">
+                                        <a 
+                                            href={`https://dashboard.razorpay.com/app/payments/${paymentInfo.paymentId}`} 
+                                            target="_blank" 
+                                            rel="noopener noreferrer" 
+                                            className="text-primary hover:underline inline-flex items-center gap-1"
+                                        >
+                                            View on Razorpay <ExternalLink className="h-4 w-4" />
+                                        </a>
+                                    </div>
+                                </CardContent>
+                                <CardFooter>
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <Button disabled={isCharging}>
+                                                {isCharging ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CreditCard className="mr-2 h-4 w-4" />}
+                                                Charge Authorized Payment (₹${order.price})
+                                            </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    This action will immediately charge the customer's authorized card for the full amount of ₹{order.price}. This cannot be undone.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                <AlertDialogAction onClick={handleChargePayment}>Yes, Charge Now</AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                </CardFooter>
+                             </>
+                        ) : (
+                             <>
+                                <CardHeader>
+                                    <CardTitle>Manual Payment Capture</CardTitle>
+                                    <CardDescription>This is a manual order set to 'Authorized'. You can simulate a payment capture.</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <Button disabled={isCharging}>
+                                                {isCharging ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CreditCard className="mr-2 h-4 w-4" />}
+                                                Simulate Charge (₹${order.price})
+                                            </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Simulate Payment Capture?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    This will change the order status to 'Paid'. This is for record-keeping only and does not perform a real transaction.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                <AlertDialogAction onClick={handleSimulateCharge}>Yes, Simulate Charge</AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                </CardContent>
+                            </>
+                        )}
                     </Card>
                 )}
                 
