@@ -8,17 +8,20 @@ import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import { format } from "date-fns";
 import { useEffect, useState } from "react";
 import type { EditableOrder } from "../orders/page";
-import { Loader2 } from "lucide-react";
+import { Loader2, MessageSquare } from "lucide-react";
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
+import { Button } from "@/components/ui/button";
 
 type Mandate = {
   id: string;
   orderId: string;
   orderLink: string;
   customerName: string;
+  contactNo: string;
   amount: string;
+  productOrdered: string;
   status: 'active' | 'pending' | 'failed' | 'completed' | 'halted' | 'cancelled' | 'created' | 'intent-verified';
   createdAt: string;
   nextBilling: string;
@@ -125,13 +128,14 @@ export default function MandatesPage() {
         });
 
         const mandates: Mandate[] = unifiedOrders
-            .filter(order => ['authorized', 'paid', 'intent verified'].includes(order.paymentStatus.toLowerCase()))
             .map(order => ({
                 id: order.id,
                 orderId: order.orderId,
                 orderLink: `/orders/${order.id}`,
                 customerName: order.customerName,
+                contactNo: order.contactNo,
                 amount: order.price,
+                productOrdered: order.productOrdered,
                 status: mapPaymentStatusToMandateStatus(order.paymentStatus),
                 createdAt: order.date,
                 nextBilling: 'N/A' // This data isn't available on the order
@@ -142,6 +146,13 @@ export default function MandatesPage() {
     }
     fetchAndSetOrders();
   }, [toast]);
+
+    const sendWhatsAppReminder = (mandate: Mandate) => {
+        const secureUrl = `${window.location.origin}/secure-cod?amount=${encodeURIComponent(mandate.amount)}&name=${encodeURIComponent(mandate.productOrdered)}&order_id=${encodeURIComponent(mandate.orderId)}`;
+        const message = `Hi ${mandate.customerName}, please complete the payment for your Snazzify order ${mandate.orderId} by clicking this secure link: ${secureUrl}`;
+        const whatsappUrl = `https://wa.me/${mandate.contactNo}?text=${encodeURIComponent(message)}`;
+        window.open(whatsappUrl, '_blank');
+    };
 
   return (
     <AppShell title="Mandates">
@@ -168,7 +179,7 @@ export default function MandatesPage() {
                 <TableHead>Max Amount</TableHead>
                 <TableHead className="text-center">Status</TableHead>
                 <TableHead>Created At</TableHead>
-                <TableHead>Next Billing</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -185,7 +196,19 @@ export default function MandatesPage() {
                     <MandateStatus status={mandate.status} />
                   </TableCell>
                   <TableCell>{mandate.createdAt}</TableCell>
-                  <TableCell>{mandate.nextBilling}</TableCell>
+                  <TableCell className="text-right">
+                    {mandate.status === 'intent-verified' && (
+                        <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => sendWhatsAppReminder(mandate)}
+                            disabled={!mandate.contactNo}
+                        >
+                            <MessageSquare className="mr-2 h-4 w-4" />
+                            Remind
+                        </Button>
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

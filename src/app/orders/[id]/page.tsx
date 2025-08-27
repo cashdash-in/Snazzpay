@@ -8,7 +8,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, Save, ExternalLink, CreditCard, Send, Loader2 as ButtonLoader, Mail, Printer, Copy, ShieldAlert, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Loader2, Save, ExternalLink, CreditCard, Send, Loader2 as ButtonLoader, Mail, Printer, Copy, ShieldAlert, AlertTriangle, MessageSquare } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { EditableOrder } from '../page';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -267,6 +267,12 @@ function OrderDetailContent() {
         } finally {
             setIsSendingLink(false);
         }
+    };
+    
+    const sendWhatsAppNotification = (order: EditableOrder) => {
+        let message = `Hi ${order.customerName}, regarding your Snazzify order ${order.orderId}: `;
+        const whatsappUrl = `https://wa.me/${order.contactNo}?text=${encodeURIComponent(message)}`;
+        window.open(whatsappUrl, '_blank');
     };
 
     const handleProcessCancellationFee = async () => {
@@ -551,8 +557,8 @@ function OrderDetailContent() {
 
                  <Card>
                     <CardHeader>
-                        <CardTitle>Delivery Tracking</CardTitle>
-                        <CardDescription>Send authorization link to customer via Email or copy it to send via other channels like WhatsApp.</CardDescription>
+                        <CardTitle>Delivery &amp; Communication</CardTitle>
+                        <CardDescription>Update tracking info or send notifications to the customer.</CardDescription>
                     </CardHeader>
                     <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="space-y-2">
@@ -588,6 +594,16 @@ function OrderDetailContent() {
                         </div>
                     </CardContent>
                      <CardFooter className="gap-2">
+                        <Button 
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => sendWhatsAppNotification(order)}
+                            disabled={!order.contactNo}
+                            title={!order.contactNo ? "Contact number is required" : "Send WhatsApp Notification"}
+                        >
+                            <MessageSquare className="mr-2 h-4 w-4" />
+                            WhatsApp
+                        </Button>
                         <Button 
                             variant="default" 
                             size="sm" 

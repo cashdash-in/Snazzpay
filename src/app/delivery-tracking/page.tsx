@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useEffect } from "react";
-import { Trash2, PlusCircle, Save, Loader2 as ButtonLoader, Mail, Copy } from "lucide-react";
+import { Trash2, PlusCircle, Save, Loader2 as ButtonLoader, Mail, Copy, MessageSquare } from "lucide-react";
 import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -195,6 +195,16 @@ export default function DeliveryTrackingPage() {
         });
     };
     
+    const sendWhatsAppNotification = (order: EditableOrder) => {
+        let message = '';
+        if (order.deliveryStatus === 'dispatched' && order.trackingNumber) {
+            message = `Hi ${order.customerName}, great news! Your Snazzify order ${order.orderId} has been dispatched. You can track it with number: ${order.trackingNumber}`;
+        } else {
+            message = `Hi ${order.customerName}, regarding your Snazzify order ${order.orderId}: `;
+        }
+        const whatsappUrl = `https://wa.me/${order.contactNo}?text=${encodeURIComponent(message)}`;
+        window.open(whatsappUrl, '_blank');
+    };
 
   return (
     <AppShell title="Delivery Tracking">
@@ -227,7 +237,7 @@ export default function DeliveryTrackingPage() {
                     <TableHead>Customer</TableHead>
                     <TableHead>Contact / Email</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="text-center w-[400px]">Actions</TableHead>
+                    <TableHead className="text-center w-[450px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -280,6 +290,16 @@ export default function DeliveryTrackingPage() {
                         </Select>
                       </TableCell>
                       <TableCell className="text-center space-x-2">
+                        <Button 
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => sendWhatsAppNotification(order)}
+                            disabled={!order.contactNo}
+                            title={!order.contactNo ? "Contact number is required" : "Send WhatsApp Notification"}
+                        >
+                            <MessageSquare className="mr-2 h-4 w-4" />
+                            WhatsApp
+                        </Button>
                         <Button 
                             variant="default" 
                             size="sm" 

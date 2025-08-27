@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import { format } from "date-fns";
 import { useState, useEffect } from "react";
-import { Loader2, PlusCircle, Trash2, Save } from "lucide-react";
+import { Loader2, PlusCircle, Trash2, Save, MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { v4 as uuidv4 } from 'uuid';
@@ -234,6 +234,12 @@ export default function OrdersPage() {
     });
   };
 
+  const sendWhatsAppNotification = (order: EditableOrder) => {
+    const message = `Hi ${order.customerName}, regarding your Snazzify order ${order.orderId}: `;
+    const whatsappUrl = `https://wa.me/${order.contactNo}?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
+  };
+
 
   return (
     <AppShell title="All Orders">
@@ -265,9 +271,7 @@ export default function OrdersPage() {
                   <TableHead>Order ID</TableHead>
                   <TableHead>Customer</TableHead>
                   <TableHead>Address</TableHead>
-                  <TableHead>Pincode</TableHead>
                   <TableHead>Contact</TableHead>
-                  <TableHead>Product(s)</TableHead>
                   <TableHead>Qty</TableHead>
                   <TableHead>Price</TableHead>
                   <TableHead>Payment Status</TableHead>
@@ -285,14 +289,21 @@ export default function OrdersPage() {
                     </TableCell>
                     <TableCell><Input value={order.customerName} onChange={(e) => handleFieldChange(order.id, 'customerName', e.target.value)} className="w-40" /></TableCell>
                     <TableCell><Input value={order.customerAddress} onChange={(e) => handleFieldChange(order.id, 'customerAddress', e.target.value)} className="w-48 text-xs" /></TableCell>
-                    <TableCell><Input value={order.pincode} onChange={(e) => handleFieldChange(order.id, 'pincode', e.target.value)} className="w-24" /></TableCell>
                     <TableCell><Input value={order.contactNo} onChange={(e) => handleFieldChange(order.id, 'contactNo', e.target.value)} className="w-32" /></TableCell>
-                    <TableCell><Input value={order.productOrdered} onChange={(e) => handleFieldChange(order.id, 'productOrdered', e.target.value)} className="w-48" /></TableCell>
                     <TableCell><Input type="number" value={order.quantity} onChange={(e) => handleFieldChange(order.id, 'quantity', parseInt(e.target.value, 10) || 0)} className="w-20" /></TableCell>
                     <TableCell><Input value={order.price} onChange={(e) => handleFieldChange(order.id, 'price', e.target.value)} className="w-24" /></TableCell>
                     <TableCell><Input value={order.paymentStatus} onChange={(e) => handleFieldChange(order.id, 'paymentStatus', e.target.value)} className="w-32" /></TableCell>
                     <TableCell><Input type="date" value={order.date} onChange={(e) => handleFieldChange(order.id, 'date', e.target.value)} className="w-32" /></TableCell>
                     <TableCell className="text-center space-x-2">
+                        <Button 
+                            variant="secondary" 
+                            size="icon" 
+                            onClick={() => sendWhatsAppNotification(order)}
+                            disabled={!order.contactNo}
+                            title="Notify on WhatsApp"
+                        >
+                            <MessageSquare className="h-4 w-4" />
+                        </Button>
                         <Button variant="outline" size="icon" onClick={() => handleSaveOrder(order.id)}>
                             <Save className="h-4 w-4" />
                         </Button>
