@@ -10,7 +10,9 @@ export default function CodInstructionsPage() {
     const [embedCode, setEmbedCode] = useState('');
 
     useEffect(() => {
-        const origin = typeof window !== 'undefined' ? window.location.origin : '';
+        // Use the application's current origin dynamically.
+        // This ensures it will work on localhost, Netlify, or any other deployment.
+        const origin = typeof window !== 'undefined' ? window.location.origin : 'https://snazzpay.netlify.app';
         const url = `${origin}/secure-cod`;
         const secureCodInfoUrl = `${origin}/secure-cod-info`;
 

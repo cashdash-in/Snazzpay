@@ -19,7 +19,7 @@ import { CancellationForm } from '@/components/cancellation-form';
 import { getRazorpayKeyId } from '../actions';
 
 interface SecureCodFormProps {
-    razorpayKeyId: string | null;
+    razorpayKeyId: string;
 }
 
 type Step = 'details' | 'scratch' | 'complete';
@@ -415,33 +415,43 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
     );
 }
 
-function PageContent() {
+function Page() {
     const [razorpayKeyId, setRazorpayKeyId] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         async function fetchKey() {
-            const key = await getRazorpayKeyId();
-            setRazorpayKeyId(key);
+            try {
+                const key = await getRazorpayKeyId();
+                setRazorpayKeyId(key);
+            } catch (error) {
+                console.error("Failed to fetch razorpay key", error);
+            } finally {
+                setLoading(false);
+            }
         }
         fetchKey();
     }, []);
 
-    if (razorpayKeyId === null && !useSearchParams().get('action')) {
-        return <div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
-    }
-    
+    const searchParams = useSearchParams();
+    const action = searchParams.get('action');
+
+    // Display loader only if we are not in cancellation mode and the key is still being fetched.
+    const showLoader = !action && loading;
+
     return (
        <div className="relative min-h-screen w-full bg-gradient-to-br from-purple-50 via-white to-indigo-50">
-            <SecureCodForm razorpayKeyId={razorpayKeyId} />
+            {showLoader && <div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}
+            {!showLoader && razorpayKeyId && <SecureCodForm razorpayKeyId={razorpayKeyId} />}
             <CancellationForm />
         </div>
     );
 }
 
-export default function Page() {
+export default function SuspendedPage() {
   return (
     <Suspense fallback={<div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
-        <PageContent />
+        <Page />
     </Suspense>
   );
 }
