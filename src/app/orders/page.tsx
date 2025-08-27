@@ -153,8 +153,6 @@ export default function OrdersPage() {
     orderGroups.forEach((group) => {
         let representativeOrder = group.reduce((acc, curr) => ({ ...acc, ...curr }), group[0]);
         
-        // Let the most recent status override others.
-        // This is a simplification; a more robust system would use timestamps.
         const hasVoided = group.some(o => o.paymentStatus === 'Voided' || o.cancellationStatus === 'Processed');
         const hasRefunded = group.some(o => o.paymentStatus === 'Refunded' || o.refundStatus === 'Processed');
         const hasFeeCharged = group.some(o => o.paymentStatus === 'Fee Charged');
@@ -163,7 +161,6 @@ export default function OrdersPage() {
         if (hasRefunded) representativeOrder.paymentStatus = 'Refunded';
         if (hasFeeCharged) representativeOrder.paymentStatus = 'Fee Charged';
 
-        // Ensure cancellation ID exists
         if (!representativeOrder.cancellationId) {
              representativeOrder.cancellationId = `CNCL-${uuidv4().substring(0, 8).toUpperCase()}`;
         }

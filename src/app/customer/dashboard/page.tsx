@@ -296,6 +296,7 @@ export default function CustomerDashboardPage() {
                                                     const canSelfCancel = order.paymentStatus === 'Authorized' && paymentInfo && isWithin24Hours(paymentInfo.authorizedAt);
                                                     const isCancelled = ['Voided', 'Cancelled', 'Refunded', 'Fee Charged'].includes(order.paymentStatus);
                                                     const price = parseFloat(order.price);
+                                                    const contactSupportLink = `https://wa.me/9920320790?text=${encodeURIComponent(`Hi, I need a Cancellation ID for my Snazzify order #${order.orderId}.`)}`;
 
                                                     return (
                                                         <TableRow key={order.id}>
@@ -349,7 +350,7 @@ export default function CustomerDashboardPage() {
                                                                                     <div className="mt-4 text-xs text-muted-foreground space-y-1">
                                                                                         <p>Contact support to get your ID:</p>
                                                                                         <div className='flex items-center gap-2'><Mail className="h-3 w-3" /> <a href="mailto:customer.service@snazzify.co.in" className="text-primary hover:underline">customer.service@snazzify.co.in</a></div>
-                                                                                        <div className='flex items-center gap-2'><MessageSquare className="h-3 w-3" /> <a href="https://wa.me/9920320790" target="_blank" className="text-primary hover:underline">WhatsApp: 9920320790</a></div>
+                                                                                        <div className='flex items-center gap-2'><MessageSquare className="h-3 w-3" /> <a href={contactSupportLink} target="_blank" className="text-primary hover:underline">WhatsApp Support</a></div>
                                                                                     </div>
                                                                                 </AlertDialogDescription>
                                                                             </AlertDialogHeader>
