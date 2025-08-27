@@ -152,20 +152,19 @@ export default function OrdersPage() {
     const unifiedOrders: EditableOrder[] = [];
     orderGroups.forEach((group) => {
         let representativeOrder = group.reduce((acc, curr) => ({ ...acc, ...curr }), group[0]);
-
+        
+        // Let the most recent status override others.
+        // This is a simplification; a more robust system would use timestamps.
         const hasVoided = group.some(o => o.paymentStatus === 'Voided' || o.cancellationStatus === 'Processed');
         const hasRefunded = group.some(o => o.paymentStatus === 'Refunded' || o.refundStatus === 'Processed');
-
-        if (hasVoided) {
-            representativeOrder.paymentStatus = 'Voided';
-        } else if (hasRefunded) {
-            representativeOrder.paymentStatus = 'Refunded';
-        }
+        const hasFeeCharged = group.some(o => o.paymentStatus === 'Fee Charged');
         
-        const sharedCancellationId = group.find(o => o.cancellationId)?.cancellationId;
-        if (sharedCancellationId) {
-            representativeOrder.cancellationId = sharedCancellationId;
-        } else {
+        if (hasVoided) representativeOrder.paymentStatus = 'Voided';
+        if (hasRefunded) representativeOrder.paymentStatus = 'Refunded';
+        if (hasFeeCharged) representativeOrder.paymentStatus = 'Fee Charged';
+
+        // Ensure cancellation ID exists
+        if (!representativeOrder.cancellationId) {
              representativeOrder.cancellationId = `CNCL-${uuidv4().substring(0, 8).toUpperCase()}`;
         }
 
@@ -222,12 +221,14 @@ export default function OrdersPage() {
   };
 
   const sendWhatsAppNotification = (order: EditableOrder) => {
-    let message = `Hi ${order.customerName}, regarding your Snazzify order ${order.orderId}: `;
+    let message = `Hi ${order.customerName}, this is a notification regarding your Snazzify order #${order.orderId}.`;
 
-    if (order.cancellationStatus === 'Processed') {
-        message = `Hi ${order.customerName}, your cancellation request for order ${order.orderId} has been successfully processed.`
-    } else if (order.refundStatus === 'Processed') {
-        message = `Hi ${order.customerName}, your refund for order ${order.orderId} has been processed. You should see the amount in your account within 5-7 business days.`
+    if (order.cancellationStatus === 'Processed' || order.paymentStatus === 'Voided') {
+        message = `Hi ${order.customerName}, this is to confirm that your order #${order.orderId} has been successfully cancelled.`
+    } else if (order.refundStatus === 'Processed' || order.paymentStatus === 'Refunded') {
+        message = `Hi ${order.customerName}, your refund for order #${order.orderId} has been processed. You should see the amount in your account within 5-7 business days.`
+    } else if (order.deliveryStatus === 'dispatched' && order.trackingNumber) {
+        message = `Hi ${order.customerName}, great news! Your Snazzify order #${order.orderId} has been dispatched. You can track it with number: ${order.trackingNumber}`;
     }
 
     const whatsappUrl = `https://wa.me/${order.contactNo}?text=${encodeURIComponent(message)}`;
@@ -401,3 +402,5 @@ export default function OrdersPage() {
     </AppShell>
   );
 }
+
+    
