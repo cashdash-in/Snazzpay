@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
@@ -77,56 +77,52 @@ function OrderDetailContent() {
 
     const isManualOrder = order ? !order.id.startsWith('gid://') && !/^\d+$/.test(order.id) : false;
 
-    useEffect(() => {
+    const loadOrderData = useCallback(async () => {
         if (!orderIdParam) return;
         setLoading(true);
         
-        async function loadOrder() {
-            let foundOrder: EditableOrder | null = null;
-            
-            // 1. Fetch all orders (Shopify and Manual)
-            let allOrders: EditableOrder[] = [];
-             try {
-                const shopifyOrders = await getOrders();
-                allOrders = allOrders.concat(shopifyOrders.map(mapShopifyOrderToEditableOrder));
-            } catch (e) {
-                console.error("Could not fetch Shopify orders", e);
-            }
-            const manualOrdersJSON = localStorage.getItem('manualOrders');
-            if (manualOrdersJSON) {
-                allOrders = allOrders.concat(JSON.parse(manualOrdersJSON));
-            }
-            
-            // 2. Find the correct order by matching the internal `id`
-            foundOrder = allOrders.find(o => o.id === orderIdParam) || null;
-
-            // 3. Apply any saved overrides from localStorage using the internal ID
-            if (foundOrder) {
-                 const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${foundOrder.id}`) || '{}');
-                 foundOrder = {...foundOrder, ...storedOverrides};
-                 // Generate cancellationId if it does not exist and save it back
-                 if (!foundOrder.cancellationId) {
-                    foundOrder.cancellationId = `CNCL-${uuidv4().substring(0, 8).toUpperCase()}`;
-                    localStorage.setItem(`order-override-${foundOrder.id}`, JSON.stringify({ ...storedOverrides, cancellationId: foundOrder.cancellationId }));
-                 }
-            }
-            
-            setOrder(foundOrder);
-
-            // 4. Check for payment info using the order's display ID (e.g., #1001)
-            if (foundOrder) {
-                const paymentInfoJSON = localStorage.getItem(`payment_info_${foundOrder.orderId}`);
-                if (paymentInfoJSON) {
-                    setPaymentInfo(JSON.parse(paymentInfoJSON));
-                }
-            }
-
-            setLoading(false);
+        let foundOrder: EditableOrder | null = null;
+        
+        let allOrders: EditableOrder[] = [];
+         try {
+            const shopifyOrders = await getOrders();
+            allOrders = allOrders.concat(shopifyOrders.map(mapShopifyOrderToEditableOrder));
+        } catch (e) {
+            console.error("Could not fetch Shopify orders", e);
+        }
+        const manualOrdersJSON = localStorage.getItem('manualOrders');
+        if (manualOrdersJSON) {
+            allOrders = allOrders.concat(JSON.parse(manualOrdersJSON));
         }
         
-        loadOrder();
+        foundOrder = allOrders.find(o => o.id === orderIdParam) || null;
 
+        if (foundOrder) {
+             const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${foundOrder.id}`) || '{}');
+             foundOrder = {...foundOrder, ...storedOverrides};
+             if (!foundOrder.cancellationId) {
+                foundOrder.cancellationId = `CNCL-${uuidv4().substring(0, 8).toUpperCase()}`;
+                localStorage.setItem(`order-override-${foundOrder.id}`, JSON.stringify({ ...storedOverrides, cancellationId: foundOrder.cancellationId }));
+             }
+        }
+        
+        setOrder(foundOrder);
+
+        if (foundOrder) {
+            const paymentInfoJSON = localStorage.getItem(`payment_info_${foundOrder.orderId}`);
+            if (paymentInfoJSON) {
+                setPaymentInfo(JSON.parse(paymentInfoJSON));
+            } else {
+                setPaymentInfo(null);
+            }
+        }
+
+        setLoading(false);
     }, [orderIdParam]);
+    
+    useEffect(() => {
+        loadOrderData();
+    }, [loadOrderData]);
 
     const handleInputChange = (field: keyof EditableOrder, value: string | number) => {
         if (!order) return;
@@ -141,7 +137,6 @@ function OrderDetailContent() {
     const handleSave = () => {
         if (!order) return;
 
-        // Use the internal `id` for saving, not the display `orderId`
         if (order.id.startsWith('gid://') || /^\d+$/.test(order.id)) {
           const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
           const newOverrides = { ...storedOverrides, ...order };
@@ -256,7 +251,7 @@ function OrderDetailContent() {
     };
     
     const sendWhatsAppNotification = (order: EditableOrder) => {
-        let message = `Hi ${order.customerName}, regarding your Snazzify order ${order.orderId}: `;
+        const message = `Hi ${order.customerName}, regarding your Snazzify order ${order.orderId}: `;
         const whatsappUrl = `https://wa.me/${order.contactNo}?text=${encodeURIComponent(message)}`;
         window.open(whatsappUrl, '_blank');
     };
@@ -325,8 +320,8 @@ function OrderDetailContent() {
         );
     }
     
-    const showChargeButton = order.paymentStatus.toLowerCase() === 'authorized' && paymentInfo;
-    const showCancellationFeeCard = order.paymentStatus.toLowerCase() === 'voided' && paymentInfo;
+    const showChargeButton = order.paymentStatus === 'Authorized' && paymentInfo;
+    const showCancellationFeeCard = order.paymentStatus === 'Voided' && paymentInfo;
 
 
     return (
@@ -382,7 +377,7 @@ function OrderDetailContent() {
                                 <AlertDialogTrigger asChild>
                                     <Button disabled={isCharging}>
                                         {isCharging ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CreditCard className="mr-2 h-4 w-4" />}
-                                        Charge Authorized Payment (₹${order.price})
+                                        Charge Authorized Payment (₹{order.price})
                                     </Button>
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>

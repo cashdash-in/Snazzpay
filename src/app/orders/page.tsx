@@ -9,11 +9,12 @@ import { Button } from "@/components/ui/button";
 import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import { format } from "date-fns";
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, PlusCircle, Trash2, Save, MessageSquare, RefreshCw, CreditCard } from "lucide-react";
+import { Loader2, PlusCircle, Trash2, Save, MessageSquare, RefreshCw, CreditCard, Ban, CircleDollarSign } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { v4 as uuidv4 } from 'uuid';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 
 export type EditableOrder = {
   id: string; // Internal unique ID for React key
@@ -139,22 +140,17 @@ export default function OrdersPage() {
 
     let combinedOrders = [...manualOrders, ...shopifyEditableOrders];
 
-    // Apply any stored overrides to all orders first
-    combinedOrders = combinedOrders.map(order => {
-        const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
-        return { ...order, ...storedOverrides };
-    });
-    
-    // De-duplication and status unification logic
     const orderGroups = new Map<string, EditableOrder[]>();
     combinedOrders.forEach(order => {
-        const group = orderGroups.get(order.orderId) || [];
-        group.push(order);
-        orderGroups.set(order.orderId, group);
+        const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
+        const finalOrder = { ...order, ...storedOverrides };
+        const group = orderGroups.get(finalOrder.orderId) || [];
+        group.push(finalOrder);
+        orderGroups.set(finalOrder.orderId, group);
     });
 
     const unifiedOrders: EditableOrder[] = [];
-    orderGroups.forEach((group, orderId) => {
+    orderGroups.forEach((group) => {
         let representativeOrder = group.reduce((acc, curr) => ({ ...acc, ...curr }), group[0]);
 
         const hasVoided = group.some(o => o.paymentStatus === 'Voided' || o.cancellationStatus === 'Processed');
@@ -196,19 +192,9 @@ export default function OrdersPage() {
     const orderToSave = orders.find(o => o.id === orderId);
     if (!orderToSave) return;
 
-    if (orderToSave.id.startsWith('gid://') || orderToSave.id.match(/^\d+$/)) {
-      const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${orderId}`) || '{}');
-      const newOverrides = { ...storedOverrides, ...orderToSave };
-      localStorage.setItem(`order-override-${orderId}`, JSON.stringify(newOverrides));
-    } else {
-      const manualOrdersJSON = localStorage.getItem('manualOrders');
-      let manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
-      const orderIndex = manualOrders.findIndex(o => o.id === orderId);
-      if (orderIndex > -1) {
-        manualOrders[orderIndex] = orderToSave;
-        localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
-      }
-    }
+    const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${orderId}`) || '{}');
+    const newOverrides = { ...storedOverrides, ...orderToSave };
+    localStorage.setItem(`order-override-${orderId}`, JSON.stringify(newOverrides));
 
     toast({
         title: "Changes Saved",
@@ -236,7 +222,14 @@ export default function OrdersPage() {
   };
 
   const sendWhatsAppNotification = (order: EditableOrder) => {
-    const message = `Hi ${order.customerName}, regarding your Snazzify order ${order.orderId}: `;
+    let message = `Hi ${order.customerName}, regarding your Snazzify order ${order.orderId}: `;
+
+    if (order.cancellationStatus === 'Processed') {
+        message = `Hi ${order.customerName}, your cancellation request for order ${order.orderId} has been successfully processed.`
+    } else if (order.refundStatus === 'Processed') {
+        message = `Hi ${order.customerName}, your refund for order ${order.orderId} has been processed. You should see the amount in your account within 5-7 business days.`
+    }
+
     const whatsappUrl = `https://wa.me/${order.contactNo}?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
   };
@@ -326,9 +319,6 @@ export default function OrdersPage() {
                 <TableRow>
                   <TableHead>Order ID</TableHead>
                   <TableHead>Customer</TableHead>
-                  <TableHead>Address</TableHead>
-                  <TableHead>Contact</TableHead>
-                  <TableHead>Qty</TableHead>
                   <TableHead>Price</TableHead>
                   <TableHead>Payment Status</TableHead>
                   <TableHead>Date</TableHead>
@@ -348,11 +338,18 @@ export default function OrdersPage() {
                                 </Link>
                             </TableCell>
                             <TableCell><Input value={order.customerName} onChange={(e) => handleFieldChange(order.id, 'customerName', e.target.value)} className="w-40" /></TableCell>
-                            <TableCell><Input value={order.customerAddress} onChange={(e) => handleFieldChange(order.id, 'customerAddress', e.target.value)} className="w-48 text-xs" /></TableCell>
-                            <TableCell><Input value={order.contactNo} onChange={(e) => handleFieldChange(order.id, 'contactNo', e.target.value)} className="w-32" /></TableCell>
-                            <TableCell><Input type="number" value={order.quantity} onChange={(e) => handleFieldChange(order.id, 'quantity', parseInt(e.target.value, 10) || 0)} className="w-20" /></TableCell>
                             <TableCell><Input value={order.price} onChange={(e) => handleFieldChange(order.id, 'price', e.target.value)} className="w-24" /></TableCell>
-                            <TableCell><Input value={order.paymentStatus} onChange={(e) => handleFieldChange(order.id, 'paymentStatus', e.target.value)} className="w-32" /></TableCell>
+                            <TableCell>
+                                <div className="flex flex-col gap-1">
+                                    <Input value={order.paymentStatus} onChange={(e) => handleFieldChange(order.id, 'paymentStatus', e.target.value)} className="w-32 h-8" />
+                                    {order.cancellationStatus === 'Processed' && (
+                                        <Badge variant="destructive" className="w-fit"><Ban className="mr-1 h-3 w-3"/>Cancelled</Badge>
+                                    )}
+                                    {order.refundStatus === 'Processed' && (
+                                        <Badge variant="destructive" className="w-fit"><CircleDollarSign className="mr-1 h-3 w-3"/>Refunded</Badge>
+                                    )}
+                                </div>
+                            </TableCell>
                             <TableCell><Input type="date" value={order.date} onChange={(e) => handleFieldChange(order.id, 'date', e.target.value)} className="w-32" /></TableCell>
                             <TableCell className="text-center space-x-2">
                                 {isAuthorized && (
