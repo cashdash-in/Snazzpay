@@ -1,3 +1,4 @@
+
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 
@@ -7,14 +8,21 @@ export function cn(...inputs: ClassValue[]) {
 
 export function sanitizePhoneNumber(phone: string): string {
   if (!phone) return '';
-  // Remove all non-digit characters
-  let sanitized = phone.replace(/\D/g, '');
-  // If the number is 10 digits long and doesn't start with 91, prepend 91 (for India)
-  if (sanitized.length === 10 && !sanitized.startsWith('91')) {
-    sanitized = `91${sanitized}`;
+  // Remove all characters that are not digits
+  const digitsOnly = phone.replace(/\D/g, '');
+
+  // If the number starts with '91' and has 12 digits, it's likely correct
+  if (digitsOnly.startsWith('91') && digitsOnly.length === 12) {
+    return digitsOnly;
   }
-  // If number includes 91 but is 12 digits long, it's correct.
-  // If it's longer than 12 (e.g. includes other country codes), we might need more complex logic,
-  // but for now, we'll assume Indian numbers.
-  return sanitized;
+  
+  // If the number is 10 digits long, it's a standard Indian mobile number. Prepend '91'.
+  if (digitsOnly.length === 10) {
+    return `91${digitsOnly}`;
+  }
+
+  // Fallback for any other case (e.g., already formatted, or different country code)
+  // This will return the cleaned number, which may or may not be valid for WhatsApp,
+  // but it's the best guess we can make.
+  return digitsOnly;
 }
