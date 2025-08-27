@@ -7,8 +7,8 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useState, useEffect } from "react";
-import { Trash2, PlusCircle, Save, Loader2 as ButtonLoader, Mail, Copy, MessageSquare } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Trash2, PlusCircle, Save, Loader2 as ButtonLoader, Mail, Copy, MessageSquare, RefreshCw } from "lucide-react";
 import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -49,69 +49,70 @@ export default function DeliveryTrackingPage() {
     const [sendingState, setSendingState] = useState<string | null>(null);
     const { toast } = useToast();
 
-    useEffect(() => {
-        async function fetchAndSetOrders() {
-            setLoading(true);
-            let combinedOrders: EditableOrder[] = [];
-            try {
-                const shopifyOrders = await getOrders();
-                combinedOrders = [...combinedOrders, ...shopifyOrders.map(mapShopifyToEditable)];
-            } catch (error) {
-                console.error("Failed to fetch Shopify orders:", error);
-                toast({
-                    variant: 'destructive',
-                    title: "Failed to load Shopify Orders",
-                    description: "Displaying manually added orders only. Check Shopify API keys in Settings.",
-                });
-            }
-
-            try {
-                const manualOrdersJSON = localStorage.getItem('manualOrders');
-                const manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
-                combinedOrders = [...combinedOrders, ...manualOrders];
-            } catch (error) {
-                console.error("Failed to load manual orders:", error);
-                toast({
-                    variant: 'destructive',
-                    title: "Error loading manual orders",
-                    description: "Could not load orders from local storage.",
-                });
-            }
-
-            const orderGroups = new Map<string, EditableOrder[]>();
-            combinedOrders.forEach(order => {
-                const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
-                const finalOrder = { ...order, ...storedOverrides };
-                const group = orderGroups.get(finalOrder.orderId) || [];
-                group.push(finalOrder);
-                orderGroups.set(finalOrder.orderId, group);
+    const fetchAndSetOrders = useCallback(async () => {
+        setLoading(true);
+        let combinedOrders: EditableOrder[] = [];
+        try {
+            const shopifyOrders = await getOrders();
+            combinedOrders = [...combinedOrders, ...shopifyOrders.map(mapShopifyToEditable)];
+        } catch (error) {
+            console.error("Failed to fetch Shopify orders:", error);
+            toast({
+                variant: 'destructive',
+                title: "Failed to load Shopify Orders",
+                description: "Displaying manually added orders only. Check Shopify API keys in Settings.",
             });
-    
-            const unifiedOrders: EditableOrder[] = [];
-            orderGroups.forEach((group) => {
-                let representativeOrder = group.reduce((acc, curr) => ({ ...acc, ...curr }), group[0]);
-    
-                const hasVoided = group.some(o => o.paymentStatus === 'Voided' || o.cancellationStatus === 'Processed');
-                const hasRefunded = group.some(o => o.paymentStatus === 'Refunded' || o.refundStatus === 'Processed');
-    
-                if (hasVoided) {
-                    representativeOrder.paymentStatus = 'Voided';
-                } else if (hasRefunded) {
-                    representativeOrder.paymentStatus = 'Refunded';
-                }
-                
-                if (!representativeOrder.cancellationId) {
-                     representativeOrder.cancellationId = `CNCL-${uuidv4().substring(0, 8).toUpperCase()}`;
-                }
-    
-                unifiedOrders.push(representativeOrder);
-            });
-
-            setOrders(unifiedOrders.filter(o => o.paymentStatus !== 'Intent Verified'));
-            setLoading(false);
         }
-        fetchAndSetOrders();
+
+        try {
+            const manualOrdersJSON = localStorage.getItem('manualOrders');
+            const manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
+            combinedOrders = [...combinedOrders, ...manualOrders];
+        } catch (error) {
+            console.error("Failed to load manual orders:", error);
+            toast({
+                variant: 'destructive',
+                title: "Error loading manual orders",
+                description: "Could not load orders from local storage.",
+            });
+        }
+
+        const orderGroups = new Map<string, EditableOrder[]>();
+        combinedOrders.forEach(order => {
+            const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
+            const finalOrder = { ...order, ...storedOverrides };
+            const group = orderGroups.get(finalOrder.orderId) || [];
+            group.push(finalOrder);
+            orderGroups.set(finalOrder.orderId, group);
+        });
+
+        const unifiedOrders: EditableOrder[] = [];
+        orderGroups.forEach((group) => {
+            let representativeOrder = group.reduce((acc, curr) => ({ ...acc, ...curr }), group[0]);
+
+            const hasVoided = group.some(o => o.paymentStatus === 'Voided' || o.cancellationStatus === 'Processed');
+            const hasRefunded = group.some(o => o.paymentStatus === 'Refunded' || o.refundStatus === 'Processed');
+
+            if (hasVoided) {
+                representativeOrder.paymentStatus = 'Voided';
+            } else if (hasRefunded) {
+                representativeOrder.paymentStatus = 'Refunded';
+            }
+            
+            if (!representativeOrder.cancellationId) {
+                 representativeOrder.cancellationId = `CNCL-${uuidv4().substring(0, 8).toUpperCase()}`;
+            }
+
+            unifiedOrders.push(representativeOrder);
+        });
+
+        setOrders(unifiedOrders.filter(o => o.paymentStatus !== 'Intent Verified'));
+        setLoading(false);
     }, [toast]);
+
+    useEffect(() => {
+        fetchAndSetOrders();
+    }, [fetchAndSetOrders]);
 
     const handleFieldChange = (orderId: string, field: keyof EditableOrder, value: string) => {
         const updatedOrders = orders.map(order =>
@@ -215,12 +216,18 @@ export default function DeliveryTrackingPage() {
                     <CardTitle>Delivery Management</CardTitle>
                     <CardDescription>Manage all orders, their delivery status, and send payment links. Click an Order ID to see full details.</CardDescription>
                 </div>
-                <Link href="/orders/new">
-                    <Button>
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        Add Order
+                <div className="flex gap-2">
+                    <Button variant="outline" onClick={fetchAndSetOrders}>
+                        <RefreshCw className="mr-2 h-4 w-4"/>
+                        Refresh
                     </Button>
-                </Link>
+                    <Link href="/orders/new">
+                        <Button>
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            Add Order
+                        </Button>
+                    </Link>
+                </div>
           </div>
         </CardHeader>
         <CardContent>

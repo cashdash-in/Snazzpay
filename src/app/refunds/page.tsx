@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import { format } from "date-fns";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Loader2, PlusCircle, Trash2, Save, RefreshCw, Loader2 as ButtonLoader } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
@@ -48,7 +48,7 @@ export default function RefundsPage() {
   const [processingRefundId, setProcessingRefundId] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const fetchAndSetOrders = async () => {
+  const fetchAndSetOrders = useCallback(async () => {
     setLoading(true);
     let combinedOrders: EditableOrder[] = [];
     try {
@@ -110,12 +110,11 @@ export default function RefundsPage() {
 
     setOrders(unifiedOrders);
     setLoading(false);
-  }
+  }, [toast]);
 
   useEffect(() => {
     fetchAndSetOrders();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fetchAndSetOrders]);
 
   const handleFieldChange = (orderId: string, field: keyof EditableOrder, value: string) => {
     setOrders(prevOrders => prevOrders.map(order =>

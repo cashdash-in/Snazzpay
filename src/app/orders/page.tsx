@@ -8,11 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import { format } from "date-fns";
-import { useState, useEffect } from "react";
-import { Loader2, PlusCircle, Trash2, Save, MessageSquare } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Loader2, PlusCircle, Trash2, Save, MessageSquare, RefreshCw, CreditCard } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { v4 as uuidv4 } from 'uuid';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 export type EditableOrder = {
   id: string; // Internal unique ID for React key
@@ -86,104 +87,104 @@ const TEST_ORDER_ID = '#TEST-1001';
 export default function OrdersPage() {
   const [orders, setOrders] = useState<EditableOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [processingChargeId, setProcessingChargeId] = useState<string | null>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
-    async function fetchAndSetOrders() {
-        setLoading(true);
-        let shopifyEditableOrders: EditableOrder[] = [];
-        try {
-            const shopifyOrders = await getOrders();
-            shopifyEditableOrders = shopifyOrders.map(mapShopifyOrderToEditableOrder);
-        } catch (error) {
-            console.error("Failed to fetch Shopify orders:", error);
-            toast({
-                variant: 'destructive',
-                title: "Failed to load Shopify Orders",
-                description: "Displaying manually added orders only. Check Shopify API keys in Settings.",
-            });
-        }
-
-        let manualOrders: EditableOrder[] = [];
-        try {
-            const manualOrdersJSON = localStorage.getItem('manualOrders');
-            manualOrders = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
-            
-            const testOrderExists = manualOrders.some(order => order.orderId === TEST_ORDER_ID);
-            if (!testOrderExists) {
-                 manualOrders.unshift({
-                    id: uuidv4(),
-                    orderId: TEST_ORDER_ID,
-                    customerName: 'Test Customer',
-                    customerEmail: 'test@example.com',
-                    customerAddress: '123 Test Street, Testville',
-                    pincode: '12345',
-                    contactNo: '9876543210',
-                    productOrdered: 'Sample Product for Testing',
-                    quantity: 1,
-                    price: '499.00',
-                    paymentStatus: 'Pending',
-                    date: format(new Date(), 'yyyy-MM-dd'),
-                });
-                localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
-            }
-        } catch (error) {
-            console.error("Failed to load manual orders:", error);
-            toast({
-                variant: 'destructive',
-                title: "Error loading manual orders",
-                description: "Could not load orders from local storage.",
-            });
-        }
-
-        let combinedOrders = [...manualOrders, ...shopifyEditableOrders];
-
-        // Apply any stored overrides to all orders first
-        combinedOrders = combinedOrders.map(order => {
-            const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
-            return { ...order, ...storedOverrides };
+  const fetchAndSetOrders = useCallback(async () => {
+    setLoading(true);
+    let shopifyEditableOrders: EditableOrder[] = [];
+    try {
+        const shopifyOrders = await getOrders();
+        shopifyEditableOrders = shopifyOrders.map(mapShopifyOrderToEditableOrder);
+    } catch (error) {
+        console.error("Failed to fetch Shopify orders:", error);
+        toast({
+            variant: 'destructive',
+            title: "Failed to load Shopify Orders",
+            description: "Displaying manually added orders only. Check Shopify API keys in Settings.",
         });
-        
-        // De-duplication and status unification logic
-        const orderGroups = new Map<string, EditableOrder[]>();
-        combinedOrders.forEach(order => {
-            const group = orderGroups.get(order.orderId) || [];
-            group.push(order);
-            orderGroups.set(order.orderId, group);
-        });
-
-        const unifiedOrders: EditableOrder[] = [];
-        const statusPriority = ['Voided', 'Refunded', 'Cancelled'];
-
-        orderGroups.forEach((group, orderId) => {
-            let representativeOrder = group.reduce((acc, curr) => ({ ...acc, ...curr }), group[0]);
-
-            const hasVoided = group.some(o => o.paymentStatus === 'Voided' || o.cancellationStatus === 'Processed');
-            const hasRefunded = group.some(o => o.paymentStatus === 'Refunded' || o.refundStatus === 'Processed');
-
-            if (hasVoided) {
-                representativeOrder.paymentStatus = 'Voided';
-            } else if (hasRefunded) {
-                representativeOrder.paymentStatus = 'Refunded';
-            }
-            
-            const sharedCancellationId = group.find(o => o.cancellationId)?.cancellationId;
-            if (sharedCancellationId) {
-                representativeOrder.cancellationId = sharedCancellationId;
-            } else {
-                 representativeOrder.cancellationId = `CNCL-${uuidv4().substring(0, 8).toUpperCase()}`;
-            }
-
-            unifiedOrders.push(representativeOrder);
-        });
-
-        const finalOrders = unifiedOrders.filter(o => o.paymentStatus !== 'Intent Verified');
-
-        setOrders(finalOrders);
-        setLoading(false);
     }
-    fetchAndSetOrders();
+
+    let manualOrders: EditableOrder[] = [];
+    try {
+        const manualOrdersJSON = localStorage.getItem('manualOrders');
+        manualOrders = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
+        
+        const testOrderExists = manualOrders.some(order => order.orderId === TEST_ORDER_ID);
+        if (!testOrderExists) {
+             manualOrders.unshift({
+                id: uuidv4(),
+                orderId: TEST_ORDER_ID,
+                customerName: 'Test Customer',
+                customerEmail: 'test@example.com',
+                customerAddress: '123 Test Street, Testville',
+                pincode: '12345',
+                contactNo: '9876543210',
+                productOrdered: 'Sample Product for Testing',
+                quantity: 1,
+                price: '499.00',
+                paymentStatus: 'Pending',
+                date: format(new Date(), 'yyyy-MM-dd'),
+            });
+            localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
+        }
+    } catch (error) {
+        console.error("Failed to load manual orders:", error);
+        toast({
+            variant: 'destructive',
+            title: "Error loading manual orders",
+            description: "Could not load orders from local storage.",
+        });
+    }
+
+    let combinedOrders = [...manualOrders, ...shopifyEditableOrders];
+
+    // Apply any stored overrides to all orders first
+    combinedOrders = combinedOrders.map(order => {
+        const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
+        return { ...order, ...storedOverrides };
+    });
+    
+    // De-duplication and status unification logic
+    const orderGroups = new Map<string, EditableOrder[]>();
+    combinedOrders.forEach(order => {
+        const group = orderGroups.get(order.orderId) || [];
+        group.push(order);
+        orderGroups.set(order.orderId, group);
+    });
+
+    const unifiedOrders: EditableOrder[] = [];
+    orderGroups.forEach((group, orderId) => {
+        let representativeOrder = group.reduce((acc, curr) => ({ ...acc, ...curr }), group[0]);
+
+        const hasVoided = group.some(o => o.paymentStatus === 'Voided' || o.cancellationStatus === 'Processed');
+        const hasRefunded = group.some(o => o.paymentStatus === 'Refunded' || o.refundStatus === 'Processed');
+
+        if (hasVoided) {
+            representativeOrder.paymentStatus = 'Voided';
+        } else if (hasRefunded) {
+            representativeOrder.paymentStatus = 'Refunded';
+        }
+        
+        const sharedCancellationId = group.find(o => o.cancellationId)?.cancellationId;
+        if (sharedCancellationId) {
+            representativeOrder.cancellationId = sharedCancellationId;
+        } else {
+             representativeOrder.cancellationId = `CNCL-${uuidv4().substring(0, 8).toUpperCase()}`;
+        }
+
+        unifiedOrders.push(representativeOrder);
+    });
+
+    const finalOrders = unifiedOrders.filter(o => o.paymentStatus !== 'Intent Verified');
+
+    setOrders(finalOrders);
+    setLoading(false);
   }, [toast]);
+
+  useEffect(() => {
+    fetchAndSetOrders();
+  }, [fetchAndSetOrders]);
 
   const handleFieldChange = (orderId: string, field: keyof EditableOrder, value: string | number) => {
     setOrders(prevOrders => prevOrders.map(order =>
@@ -240,6 +241,55 @@ export default function OrdersPage() {
     window.open(whatsappUrl, '_blank');
   };
 
+    const handleQuickCapture = async (order: EditableOrder) => {
+        setProcessingChargeId(order.id);
+        const paymentInfoJSON = localStorage.getItem(`payment_info_${order.orderId}`);
+        if (!paymentInfoJSON) {
+            toast({
+                variant: 'destructive',
+                title: "Payment Info Not Found",
+                description: `Cannot charge order ${order.orderId}. No payment authorization found.`,
+            });
+            setProcessingChargeId(null);
+            return;
+        }
+
+        const paymentInfo = JSON.parse(paymentInfoJSON);
+
+        try {
+            const response = await fetch('/api/charge-mandate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    paymentId: paymentInfo.paymentId,
+                    amount: parseFloat(order.price)
+                })
+            });
+
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || 'Failed to charge payment.');
+
+            const updatedOrder = { ...order, paymentStatus: 'Paid' };
+            setOrders(prev => prev.map(o => o.id === order.id ? updatedOrder : o));
+
+            const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
+            localStorage.setItem(`order-override-${order.id}`, JSON.stringify({ ...storedOverrides, paymentStatus: 'Paid' }));
+
+            toast({
+                title: "Charge Successful!",
+                description: `Successfully charged ₹${order.price} for order ${order.orderId}.`,
+            });
+
+        } catch (error: any) {
+            toast({
+                variant: 'destructive',
+                title: "Charge Failed",
+                description: error.message,
+            });
+        } finally {
+            setProcessingChargeId(null);
+        }
+    };
 
   return (
     <AppShell title="All Orders">
@@ -250,12 +300,18 @@ export default function OrdersPage() {
                 <CardTitle>All Orders</CardTitle>
                 <CardDescription>View and manage all orders. Click an Order ID to see full details.</CardDescription>
             </div>
-            <Link href="/orders/new">
-              <Button>
-                  <PlusCircle className="mr-2 h-4 w-4" />
-                  Add Order
-              </Button>
-            </Link>
+             <div className="flex gap-2">
+                <Button variant="outline" onClick={fetchAndSetOrders}>
+                    <RefreshCw className="mr-2 h-4 w-4"/>
+                    Refresh
+                </Button>
+                <Link href="/orders/new">
+                <Button>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Add Order
+                </Button>
+                </Link>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -280,39 +336,65 @@ export default function OrdersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {orders.map((order) => (
-                  <TableRow key={order.id}>
-                    <TableCell>
-                        <Link href={`/orders/${order.id}`} className="font-medium text-primary hover:underline cursor-pointer">
-                            {order.orderId}
-                        </Link>
-                    </TableCell>
-                    <TableCell><Input value={order.customerName} onChange={(e) => handleFieldChange(order.id, 'customerName', e.target.value)} className="w-40" /></TableCell>
-                    <TableCell><Input value={order.customerAddress} onChange={(e) => handleFieldChange(order.id, 'customerAddress', e.target.value)} className="w-48 text-xs" /></TableCell>
-                    <TableCell><Input value={order.contactNo} onChange={(e) => handleFieldChange(order.id, 'contactNo', e.target.value)} className="w-32" /></TableCell>
-                    <TableCell><Input type="number" value={order.quantity} onChange={(e) => handleFieldChange(order.id, 'quantity', parseInt(e.target.value, 10) || 0)} className="w-20" /></TableCell>
-                    <TableCell><Input value={order.price} onChange={(e) => handleFieldChange(order.id, 'price', e.target.value)} className="w-24" /></TableCell>
-                    <TableCell><Input value={order.paymentStatus} onChange={(e) => handleFieldChange(order.id, 'paymentStatus', e.target.value)} className="w-32" /></TableCell>
-                    <TableCell><Input type="date" value={order.date} onChange={(e) => handleFieldChange(order.id, 'date', e.target.value)} className="w-32" /></TableCell>
-                    <TableCell className="text-center space-x-2">
-                        <Button 
-                            variant="secondary" 
-                            size="icon" 
-                            onClick={() => sendWhatsAppNotification(order)}
-                            disabled={!order.contactNo}
-                            title="Notify on WhatsApp"
-                        >
-                            <MessageSquare className="h-4 w-4" />
-                        </Button>
-                        <Button variant="outline" size="icon" onClick={() => handleSaveOrder(order.id)}>
-                            <Save className="h-4 w-4" />
-                        </Button>
-                        <Button variant="destructive" size="icon" onClick={() => handleRemoveOrder(order.id)}>
-                            <Trash2 className="h-4 w-4" />
-                        </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {orders.map((order) => {
+                    const isAuthorized = order.paymentStatus === 'Authorized';
+                    const isProcessing = processingChargeId === order.id;
+
+                    return (
+                        <TableRow key={order.id}>
+                            <TableCell>
+                                <Link href={`/orders/${order.id}`} className="font-medium text-primary hover:underline cursor-pointer">
+                                    {order.orderId}
+                                </Link>
+                            </TableCell>
+                            <TableCell><Input value={order.customerName} onChange={(e) => handleFieldChange(order.id, 'customerName', e.target.value)} className="w-40" /></TableCell>
+                            <TableCell><Input value={order.customerAddress} onChange={(e) => handleFieldChange(order.id, 'customerAddress', e.target.value)} className="w-48 text-xs" /></TableCell>
+                            <TableCell><Input value={order.contactNo} onChange={(e) => handleFieldChange(order.id, 'contactNo', e.target.value)} className="w-32" /></TableCell>
+                            <TableCell><Input type="number" value={order.quantity} onChange={(e) => handleFieldChange(order.id, 'quantity', parseInt(e.target.value, 10) || 0)} className="w-20" /></TableCell>
+                            <TableCell><Input value={order.price} onChange={(e) => handleFieldChange(order.id, 'price', e.target.value)} className="w-24" /></TableCell>
+                            <TableCell><Input value={order.paymentStatus} onChange={(e) => handleFieldChange(order.id, 'paymentStatus', e.target.value)} className="w-32" /></TableCell>
+                            <TableCell><Input type="date" value={order.date} onChange={(e) => handleFieldChange(order.id, 'date', e.target.value)} className="w-32" /></TableCell>
+                            <TableCell className="text-center space-x-2">
+                                {isAuthorized && (
+                                     <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <Button size="icon" variant="outline" disabled={isProcessing} title="Capture Payment">
+                                                {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+                                            </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Capture Payment for {order.orderId}?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    This will charge the customer's authorized card for the full amount of ₹{order.price}. This action cannot be undone.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => handleQuickCapture(order)}>Yes, Charge Now</AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                )}
+                                <Button 
+                                    variant="secondary" 
+                                    size="icon" 
+                                    onClick={() => sendWhatsAppNotification(order)}
+                                    disabled={!order.contactNo}
+                                    title="Notify on WhatsApp"
+                                >
+                                    <MessageSquare className="h-4 w-4" />
+                                </Button>
+                                <Button variant="outline" size="icon" onClick={() => handleSaveOrder(order.id)}>
+                                    <Save className="h-4 w-4" />
+                                </Button>
+                                <Button variant="destructive" size="icon" onClick={() => handleRemoveOrder(order.id)}>
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                            </TableCell>
+                        </TableRow>
+                    )
+                })}
               </TableBody>
             </Table>
             </div>

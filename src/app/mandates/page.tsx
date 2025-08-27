@@ -6,9 +6,9 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
 import { MandateStatus } from "@/components/mandate-status";
 import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import { format } from "date-fns";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import type { EditableOrder } from "../orders/page";
-import { Loader2, MessageSquare } from "lucide-react";
+import { Loader2, MessageSquare, RefreshCw } from "lucide-react";
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
@@ -53,99 +53,100 @@ export default function MandatesPage() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  useEffect(() => {
-    async function fetchAndSetOrders() {
-        setLoading(true);
-        let combinedOrders: EditableOrder[] = [];
-        try {
-            const shopifyOrders = await getOrders();
-            const shopifyEditableOrders: EditableOrder[] = shopifyOrders.map(o => ({
-                id: o.id.toString(),
-                orderId: o.name,
-                customerName: `${o.customer?.first_name || ''} ${o.customer?.last_name || ''}`.trim(),
-                customerAddress: '',
-                pincode: '',
-                contactNo: o.customer?.phone || 'N/A',
-                productOrdered: o.line_items.map(item => item.title).join(', '),
-                quantity: o.line_items.reduce((sum, item) => sum + item.quantity, 0),
-                price: o.total_price,
-                paymentStatus: o.financial_status || 'pending',
-                date: format(new Date(o.created_at), "yyyy-MM-dd"),
-            }));
-            combinedOrders = [...shopifyEditableOrders];
-        } catch (error) {
-            console.error("Failed to fetch Shopify orders:", error);
-            toast({
-                variant: 'destructive',
-                title: "Failed to load Shopify Orders",
-                description: "Displaying manually added orders only. Check Shopify API keys in Settings.",
-            });
-        }
-
-        try {
-            const manualOrdersJSON = localStorage.getItem('manualOrders');
-            const manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
-            combinedOrders = [...combinedOrders, ...manualOrders];
-        } catch (error) {
-            console.error("Failed to load manual orders:", error);
-            toast({
-                variant: 'destructive',
-                title: "Error loading manual orders",
-                description: "Could not load orders from local storage.",
-            });
-        }
-
-        const orderGroups = new Map<string, EditableOrder[]>();
-        combinedOrders.forEach(order => {
-            const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
-            const finalOrder = { ...order, ...storedOverrides };
-            const group = orderGroups.get(finalOrder.orderId) || [];
-            group.push(finalOrder);
-            orderGroups.set(finalOrder.orderId, group);
+  const fetchAndSetOrders = useCallback(async () => {
+    setLoading(true);
+    let combinedOrders: EditableOrder[] = [];
+    try {
+        const shopifyOrders = await getOrders();
+        const shopifyEditableOrders: EditableOrder[] = shopifyOrders.map(o => ({
+            id: o.id.toString(),
+            orderId: o.name,
+            customerName: `${o.customer?.first_name || ''} ${o.customer?.last_name || ''}`.trim(),
+            customerAddress: '',
+            pincode: '',
+            contactNo: o.customer?.phone || 'N/A',
+            productOrdered: o.line_items.map(item => item.title).join(', '),
+            quantity: o.line_items.reduce((sum, item) => sum + item.quantity, 0),
+            price: o.total_price,
+            paymentStatus: o.financial_status || 'pending',
+            date: format(new Date(o.created_at), "yyyy-MM-dd"),
+        }));
+        combinedOrders = [...shopifyEditableOrders];
+    } catch (error) {
+        console.error("Failed to fetch Shopify orders:", error);
+        toast({
+            variant: 'destructive',
+            title: "Failed to load Shopify Orders",
+            description: "Displaying manually added orders only. Check Shopify API keys in Settings.",
         });
-
-        const unifiedOrders: EditableOrder[] = [];
-        orderGroups.forEach((group) => {
-            let representativeOrder = group.reduce((acc, curr) => ({ ...acc, ...curr }), group[0]);
-
-            const hasVoided = group.some(o => o.paymentStatus === 'Voided' || o.cancellationStatus === 'Processed');
-            const hasRefunded = group.some(o => o.paymentStatus === 'Refunded' || o.refundStatus === 'Processed');
-
-            if (hasVoided) {
-                representativeOrder.paymentStatus = 'Voided';
-            } else if (hasRefunded) {
-                representativeOrder.paymentStatus = 'Refunded';
-            }
-            
-            const sharedCancellationId = group.find(o => o.cancellationId)?.cancellationId;
-            if (sharedCancellationId) {
-                representativeOrder.cancellationId = sharedCancellationId;
-            } else {
-                 representativeOrder.cancellationId = `CNCL-${uuidv4().substring(0, 8).toUpperCase()}`;
-            }
-
-            unifiedOrders.push(representativeOrder);
-        });
-
-        const mandates: Mandate[] = unifiedOrders
-            .map(order => ({
-                id: order.id,
-                orderId: order.orderId,
-                orderLink: `/orders/${order.id}`,
-                customerName: order.customerName,
-                contactNo: order.contactNo,
-                amount: order.price,
-                productOrdered: order.productOrdered,
-                status: mapPaymentStatusToMandateStatus(order.paymentStatus),
-                createdAt: order.date,
-                nextBilling: 'N/A' // This data isn't available on the order
-            }));
-
-        setAllMandates(mandates);
-        setLoading(false);
     }
-    fetchAndSetOrders();
+
+    try {
+        const manualOrdersJSON = localStorage.getItem('manualOrders');
+        const manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
+        combinedOrders = [...combinedOrders, ...manualOrders];
+    } catch (error) {
+        console.error("Failed to load manual orders:", error);
+        toast({
+            variant: 'destructive',
+            title: "Error loading manual orders",
+            description: "Could not load orders from local storage.",
+        });
+    }
+
+    const orderGroups = new Map<string, EditableOrder[]>();
+    combinedOrders.forEach(order => {
+        const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
+        const finalOrder = { ...order, ...storedOverrides };
+        const group = orderGroups.get(finalOrder.orderId) || [];
+        group.push(finalOrder);
+        orderGroups.set(finalOrder.orderId, group);
+    });
+
+    const unifiedOrders: EditableOrder[] = [];
+    orderGroups.forEach((group) => {
+        let representativeOrder = group.reduce((acc, curr) => ({ ...acc, ...curr }), group[0]);
+
+        const hasVoided = group.some(o => o.paymentStatus === 'Voided' || o.cancellationStatus === 'Processed');
+        const hasRefunded = group.some(o => o.paymentStatus === 'Refunded' || o.refundStatus === 'Processed');
+
+        if (hasVoided) {
+            representativeOrder.paymentStatus = 'Voided';
+        } else if (hasRefunded) {
+            representativeOrder.paymentStatus = 'Refunded';
+        }
+        
+        const sharedCancellationId = group.find(o => o.cancellationId)?.cancellationId;
+        if (sharedCancellationId) {
+            representativeOrder.cancellationId = sharedCancellationId;
+        } else {
+             representativeOrder.cancellationId = `CNCL-${uuidv4().substring(0, 8).toUpperCase()}`;
+        }
+
+        unifiedOrders.push(representativeOrder);
+    });
+
+    const mandates: Mandate[] = unifiedOrders
+        .map(order => ({
+            id: order.id,
+            orderId: order.orderId,
+            orderLink: `/orders/${order.id}`,
+            customerName: order.customerName,
+            contactNo: order.contactNo,
+            amount: order.price,
+            productOrdered: order.productOrdered,
+            status: mapPaymentStatusToMandateStatus(order.paymentStatus),
+            createdAt: order.date,
+            nextBilling: 'N/A' // This data isn't available on the order
+        }));
+
+    setAllMandates(mandates);
+    setLoading(false);
   }, [toast]);
+
+  useEffect(() => {
+    fetchAndSetOrders();
+  }, [fetchAndSetOrders]);
 
     const sendWhatsAppReminder = (mandate: Mandate) => {
         const secureUrl = `${window.location.origin}/secure-cod?amount=${encodeURIComponent(mandate.amount)}&name=${encodeURIComponent(mandate.productOrdered)}&order_id=${encodeURIComponent(mandate.orderId)}`;
@@ -163,6 +164,10 @@ export default function MandatesPage() {
               <CardTitle>Mandate Management</CardTitle>
               <CardDescription>View status of all payment authorizations. Includes 'Intent Verified', 'Authorized', and 'Paid' orders.</CardDescription>
             </div>
+             <Button variant="outline" onClick={fetchAndSetOrders}>
+                <RefreshCw className="mr-2 h-4 w-4"/>
+                Refresh
+            </Button>
           </div>
         </CardHeader>
         <CardContent>

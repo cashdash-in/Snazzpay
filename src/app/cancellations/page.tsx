@@ -8,8 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import { format } from "date-fns";
-import { useState, useEffect } from "react";
-import { Loader2, PlusCircle, Trash2, Save } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Loader2, PlusCircle, Trash2, Save, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import type { EditableOrder } from '../orders/page';
@@ -46,70 +46,71 @@ export default function CancellationsPage() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  useEffect(() => {
-    async function fetchAndSetOrders() {
-        setLoading(true);
-        let combinedOrders: EditableOrder[] = [];
-        try {
-            const shopifyOrders = await getOrders();
-            const shopifyEditableOrders = shopifyOrders.map(mapShopifyToEditable);
-            combinedOrders = [...combinedOrders, ...shopifyEditableOrders];
-        } catch (error) {
-            console.error("Failed to fetch Shopify orders:", error);
-            toast({
-                variant: 'destructive',
-                title: "Failed to load Shopify Orders",
-                description: "Displaying manually added orders only. Check Shopify API keys in Settings.",
-            });
-        }
-
-        try {
-            const manualOrdersJSON = localStorage.getItem('manualOrders');
-            const manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
-            combinedOrders = [...combinedOrders, ...manualOrders];
-        } catch (error) {
-            console.error("Failed to load manual orders:", error);
-            toast({
-                variant: 'destructive',
-                title: "Error loading manual orders",
-                description: "Could not load orders from local storage.",
-            });
-        }
-
-        const orderGroups = new Map<string, EditableOrder[]>();
-        combinedOrders.forEach(order => {
-            const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
-            const finalOrder = { ...order, ...storedOverrides };
-            const group = orderGroups.get(finalOrder.orderId) || [];
-            group.push(finalOrder);
-            orderGroups.set(finalOrder.orderId, group);
+  const fetchAndSetOrders = useCallback(async () => {
+    setLoading(true);
+    let combinedOrders: EditableOrder[] = [];
+    try {
+        const shopifyOrders = await getOrders();
+        const shopifyEditableOrders = shopifyOrders.map(mapShopifyToEditable);
+        combinedOrders = [...combinedOrders, ...shopifyEditableOrders];
+    } catch (error) {
+        console.error("Failed to fetch Shopify orders:", error);
+        toast({
+            variant: 'destructive',
+            title: "Failed to load Shopify Orders",
+            description: "Displaying manually added orders only. Check Shopify API keys in Settings.",
         });
-
-        const unifiedOrders: EditableOrder[] = [];
-        orderGroups.forEach((group) => {
-            let representativeOrder = group.reduce((acc, curr) => ({ ...acc, ...curr }), group[0]);
-
-            const hasVoided = group.some(o => o.paymentStatus === 'Voided' || o.cancellationStatus === 'Processed');
-            if (hasVoided) {
-                representativeOrder.paymentStatus = 'Voided';
-                representativeOrder.cancellationStatus = 'Processed';
-            }
-
-            const sharedCancellationId = group.find(o => o.cancellationId)?.cancellationId;
-            if (sharedCancellationId) {
-                representativeOrder.cancellationId = sharedCancellationId;
-            } else {
-                 representativeOrder.cancellationId = `CNCL-${uuidv4().substring(0, 8).toUpperCase()}`;
-            }
-
-            unifiedOrders.push(representativeOrder);
-        });
-
-        setOrders(unifiedOrders);
-        setLoading(false);
     }
-    fetchAndSetOrders();
+
+    try {
+        const manualOrdersJSON = localStorage.getItem('manualOrders');
+        const manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
+        combinedOrders = [...combinedOrders, ...manualOrders];
+    } catch (error) {
+        console.error("Failed to load manual orders:", error);
+        toast({
+            variant: 'destructive',
+            title: "Error loading manual orders",
+            description: "Could not load orders from local storage.",
+        });
+    }
+
+    const orderGroups = new Map<string, EditableOrder[]>();
+    combinedOrders.forEach(order => {
+        const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
+        const finalOrder = { ...order, ...storedOverrides };
+        const group = orderGroups.get(finalOrder.orderId) || [];
+        group.push(finalOrder);
+        orderGroups.set(finalOrder.orderId, group);
+    });
+
+    const unifiedOrders: EditableOrder[] = [];
+    orderGroups.forEach((group) => {
+        let representativeOrder = group.reduce((acc, curr) => ({ ...acc, ...curr }), group[0]);
+
+        const hasVoided = group.some(o => o.paymentStatus === 'Voided' || o.cancellationStatus === 'Processed');
+        if (hasVoided) {
+            representativeOrder.paymentStatus = 'Voided';
+            representativeOrder.cancellationStatus = 'Processed';
+        }
+
+        const sharedCancellationId = group.find(o => o.cancellationId)?.cancellationId;
+        if (sharedCancellationId) {
+            representativeOrder.cancellationId = sharedCancellationId;
+        } else {
+             representativeOrder.cancellationId = `CNCL-${uuidv4().substring(0, 8).toUpperCase()}`;
+        }
+
+        unifiedOrders.push(representativeOrder);
+    });
+
+    setOrders(unifiedOrders);
+    setLoading(false);
   }, [toast]);
+
+  useEffect(() => {
+    fetchAndSetOrders();
+  }, [fetchAndSetOrders]);
 
   const handleFieldChange = (orderId: string, field: keyof EditableOrder, value: string) => {
     setOrders(prevOrders => prevOrders.map(order =>
@@ -169,12 +170,18 @@ export default function CancellationsPage() {
                 <CardTitle>Cancellation Management</CardTitle>
                 <CardDescription>View and manage all order cancellations. Click an Order ID to see full details.</CardDescription>
             </div>
-            <Link href="/orders/new">
-              <Button>
-                  <PlusCircle className="mr-2 h-4 w-4" />
-                  Add Order
-              </Button>
-            </Link>
+            <div className="flex gap-2">
+                <Button variant="outline" onClick={fetchAndSetOrders}>
+                    <RefreshCw className="mr-2 h-4 w-4"/>
+                    Refresh
+                </Button>
+                <Link href="/orders/new">
+                <Button>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Add Order
+                </Button>
+                </Link>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
