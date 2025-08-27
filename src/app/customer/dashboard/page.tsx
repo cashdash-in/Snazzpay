@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label';
 import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
+import { sanitizePhoneNumber } from '@/lib/utils';
 
 type PaymentInfo = {
     paymentId: string;
@@ -296,7 +297,7 @@ export default function CustomerDashboardPage() {
                                                     const canSelfCancel = order.paymentStatus === 'Authorized' && paymentInfo && isWithin24Hours(paymentInfo.authorizedAt);
                                                     const isCancelled = ['Voided', 'Cancelled', 'Refunded', 'Fee Charged'].includes(order.paymentStatus);
                                                     const price = parseFloat(order.price);
-                                                    const contactSupportLink = `https://wa.me/9920320790?text=${encodeURIComponent(`Hi, I need a Cancellation ID for my Snazzify order #${order.orderId}.`)}`;
+                                                    const contactSupportLink = `https://wa.me/${sanitizePhoneNumber('9920320790')}?text=${encodeURIComponent(`Hi, I need a Cancellation ID for my Snazzify order #${order.orderId}.`)}`;
 
                                                     return (
                                                         <TableRow key={order.id}>

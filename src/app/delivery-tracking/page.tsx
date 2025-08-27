@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { EditableOrder } from '../orders/page';
 import { format } from "date-fns";
 import { v4 as uuidv4 } from 'uuid';
+import { sanitizePhoneNumber } from "@/lib/utils";
 
 type OrderStatus = 'pending' | 'dispatched' | 'out-for-delivery' | 'delivered' | 'failed';
 
@@ -203,7 +204,7 @@ export default function DeliveryTrackingPage() {
         } else {
             message = `Hi ${order.customerName}, regarding your Snazzify order ${order.orderId}: `;
         }
-        const whatsappUrl = `https://wa.me/${order.contactNo}?text=${encodeURIComponent(message)}`;
+        const whatsappUrl = `https://wa.me/${sanitizePhoneNumber(order.contactNo)}?text=${encodeURIComponent(message)}`;
         window.open(whatsappUrl, '_blank');
     };
 

@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { v4 as uuidv4 } from 'uuid';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
+import { sanitizePhoneNumber } from "@/lib/utils";
 
 export type EditableOrder = {
   id: string; // Internal unique ID for React key
@@ -228,7 +229,7 @@ export default function OrdersPage() {
         message = `Hi ${order.customerName}, great news! Your Snazzify order #${order.orderId} has been dispatched. You can track it with number: ${order.trackingNumber}`;
     }
 
-    const whatsappUrl = `https://wa.me/${order.contactNo}?text=${encodeURIComponent(message)}`;
+    const whatsappUrl = `https://wa.me/${sanitizePhoneNumber(order.contactNo)}?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
   };
 
