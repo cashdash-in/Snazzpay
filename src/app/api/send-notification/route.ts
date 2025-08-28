@@ -1,4 +1,6 @@
 
+'use server';
+
 import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 import type { EditableOrder } from '@/app/orders/page';
