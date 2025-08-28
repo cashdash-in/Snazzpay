@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Wallet, ShoppingCart, ShieldAlert, LogOut, CheckCircle, Clock, Mail, MessageSquare, PackageCheck, FileText, Calendar, Truck, ArrowRight, CircleDotDashed, AlertTriangle } from "lucide-react";
+import { Wallet, ShoppingCart, ShieldAlert, LogOut, CheckCircle, Clock, Mail, MessageSquare, PackageCheck, FileText, Calendar, Truck, ArrowRight, CircleDotDashed, AlertTriangle, RefreshCw } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
@@ -14,7 +14,7 @@ import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label';
+import { Label } from "@/components/ui/label";
 import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
 import { sanitizePhoneNumber } from '@/lib/utils';
@@ -61,107 +61,105 @@ export default function CustomerDashboardPage() {
     const [selectedOrderForCancellation, setSelectedOrderForCancellation] = useState<EditableOrder | null>(null);
     const [paymentInfos, setPaymentInfos] = useState<Map<string, PaymentInfo>>(new Map());
 
-    useEffect(() => {
-        const loggedInMobile = localStorage.getItem('loggedInUserMobile');
-        if (!loggedInMobile) {
-            router.push('/customer/login');
-            return;
-        }
-
-        async function loadCustomerData() {
-            setIsLoading(true);
-            try {
-                const manualOrdersJSON = localStorage.getItem('manualOrders');
-                let allSnazzPayOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
-
-                allSnazzPayOrders = allSnazzPayOrders.map(order => {
-                    const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
-                    return { ...order, ...storedOverrides };
-                });
-
-                const customerSnazzPayOrders = allSnazzPayOrders.filter(order => {
-                    const normalize = (phone: string = '') => (phone || '').replace(/[^0-9]/g, '');
-                    const orderContact = normalize(order.contactNo);
-                    const loggedInContact = normalize(loggedInMobile);
-                    if (!orderContact || !loggedInContact) return false;
-                    // Check if one number ends with the other, for flexibility (e.g. with or without country code)
-                    return orderContact.endsWith(loggedInContact) || loggedInContact.endsWith(orderContact);
-                });
-
-                const orderGroups = new Map<string, EditableOrder[]>();
-                customerSnazzPayOrders.forEach(order => {
-                    const group = orderGroups.get(order.orderId) || [];
-                    group.push(order);
-                    orderGroups.set(order.orderId, group);
-                });
-
-                const unifiedOrders: EditableOrder[] = [];
-                const loadedPaymentInfos = new Map<string, PaymentInfo>();
-
-                orderGroups.forEach((group) => {
-                    let representativeOrder = group.reduce((acc, curr) => ({ ...acc, ...curr }), group[0]);
-                    
-                    const hasVoided = group.some(o => o.paymentStatus === 'Voided' || o.cancellationStatus === 'Processed');
-                    const hasRefunded = group.some(o => o.paymentStatus === 'Refunded' || o.refundStatus === 'Processed');
-                    const hasFeeCharged = group.some(o => o.paymentStatus === 'Fee Charged');
-
-                    if (hasVoided) {
-                        representativeOrder.paymentStatus = 'Voided';
-                    } else if (hasRefunded) {
-                        representativeOrder.paymentStatus = 'Refunded';
-                    } else if (hasFeeCharged) {
-                        representativeOrder.paymentStatus = 'Fee Charged';
-                    }
-                    
-                    const sharedCancellationId = group.find(o => o.cancellationId)?.cancellationId;
-                    if (sharedCancellationId) {
-                        representativeOrder.cancellationId = sharedCancellationId;
-                    } else {
-                         representativeOrder.cancellationId = `CNCL-${uuidv4().substring(0, 8).toUpperCase()}`;
-                    }
-
-                    unifiedOrders.push(representativeOrder);
-
-                    const paymentInfoJSON = localStorage.getItem(`payment_info_${representativeOrder.orderId}`);
-                    if (paymentInfoJSON) {
-                        loadedPaymentInfos.set(representativeOrder.orderId, JSON.parse(paymentInfoJSON));
-                    }
-                });
-                
-                const finalOrders = unifiedOrders.filter(o => o.paymentStatus !== 'Intent Verified');
-                const customerName = finalOrders.length > 0 ? finalOrders[0].customerName : 'Valued Customer';
-                setUser({ name: customerName, mobile: loggedInMobile });
-
-                const activeTrustValue = finalOrders
-                    .filter(o => ['Pending', 'Authorized'].includes(o.paymentStatus))
-                    .reduce((sum, o) => {
-                        const price = parseFloat(o.price);
-                        return isNaN(price) ? sum : sum + price;
-                    }, 0);
-                
-                const confirmedValue = finalOrders
-                    .filter(o => o.paymentStatus === 'Paid')
-                    .reduce((sum, o) => {
-                        const price = parseFloat(o.price);
-                        return isNaN(price) ? sum : sum + price;
-                    }, 0);
-                
-                setTrustWalletValue(activeTrustValue);
-                setConfirmedOrderValue(confirmedValue);
-                setOrders(finalOrders);
-                setPaymentInfos(loadedPaymentInfos);
-
-            } catch (error) {
-                console.error("Error loading customer data:", error);
-                toast({ variant: 'destructive', title: "Error", description: "Could not load your account details." });
-            } finally {
-                setIsLoading(false);
+    const loadCustomerData = async () => {
+        setIsLoading(true);
+        try {
+            const loggedInMobile = localStorage.getItem('loggedInUserMobile');
+            if (!loggedInMobile) {
+                router.push('/customer/login');
+                return;
             }
-        }
-        
-        loadCustomerData();
 
-    }, [router, toast]);
+            const manualOrdersJSON = localStorage.getItem('manualOrders');
+            let allSnazzPayOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
+
+            allSnazzPayOrders = allSnazzPayOrders.map(order => {
+                const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
+                return { ...order, ...storedOverrides };
+            });
+
+            const customerSnazzPayOrders = allSnazzPayOrders.filter(order => {
+                const normalize = (phone: string = '') => (phone || '').replace(/[^0-9]/g, '');
+                const orderContact = normalize(order.contactNo);
+                const loggedInContact = normalize(loggedInMobile);
+                if (!orderContact || !loggedInContact) return false;
+                return orderContact.endsWith(loggedInContact) || loggedInContact.endsWith(orderContact);
+            });
+
+            const orderGroups = new Map<string, EditableOrder[]>();
+            customerSnazzPayOrders.forEach(order => {
+                const group = orderGroups.get(order.orderId) || [];
+                group.push(order);
+                orderGroups.set(order.orderId, group);
+            });
+
+            const unifiedOrders: EditableOrder[] = [];
+            const loadedPaymentInfos = new Map<string, PaymentInfo>();
+
+            orderGroups.forEach((group) => {
+                let representativeOrder = group.reduce((acc, curr) => ({ ...acc, ...curr }), group[0]);
+                
+                const hasVoided = group.some(o => o.paymentStatus === 'Voided' || o.cancellationStatus === 'Processed');
+                const hasRefunded = group.some(o => o.paymentStatus === 'Refunded' || o.refundStatus === 'Processed');
+                const hasFeeCharged = group.some(o => o.paymentStatus === 'Fee Charged');
+
+                if (hasVoided) {
+                    representativeOrder.paymentStatus = 'Voided';
+                } else if (hasRefunded) {
+                    representativeOrder.paymentStatus = 'Refunded';
+                } else if (hasFeeCharged) {
+                    representativeOrder.paymentStatus = 'Fee Charged';
+                }
+                
+                const sharedCancellationId = group.find(o => o.cancellationId)?.cancellationId;
+                if (sharedCancellationId) {
+                    representativeOrder.cancellationId = sharedCancellationId;
+                } else {
+                     representativeOrder.cancellationId = `CNCL-${uuidv4().substring(0, 8).toUpperCase()}`;
+                }
+
+                unifiedOrders.push(representativeOrder);
+
+                const paymentInfoJSON = localStorage.getItem(`payment_info_${representativeOrder.orderId}`);
+                if (paymentInfoJSON) {
+                    loadedPaymentInfos.set(representativeOrder.orderId, JSON.parse(paymentInfoJSON));
+                }
+            });
+            
+            const finalOrders = unifiedOrders.filter(o => o.paymentStatus !== 'Intent Verified');
+            const customerName = finalOrders.length > 0 ? finalOrders[0].customerName : 'Valued Customer';
+            setUser({ name: customerName, mobile: loggedInMobile });
+
+            const activeTrustValue = finalOrders
+                .filter(o => ['Pending', 'Authorized'].includes(o.paymentStatus))
+                .reduce((sum, o) => {
+                    const price = parseFloat(o.price);
+                    return isNaN(price) ? sum : sum + price;
+                }, 0);
+            
+            const confirmedValue = finalOrders
+                .filter(o => o.paymentStatus === 'Paid')
+                .reduce((sum, o) => {
+                    const price = parseFloat(o.price);
+                    return isNaN(price) ? sum : sum + price;
+                }, 0);
+            
+            setTrustWalletValue(activeTrustValue);
+            setConfirmedOrderValue(confirmedValue);
+            setOrders(finalOrders);
+            setPaymentInfos(loadedPaymentInfos);
+
+        } catch (error) {
+            console.error("Error loading customer data:", error);
+            toast({ variant: 'destructive', title: "Error", description: "Could not load your account details." });
+        } finally {
+            setIsLoading(false);
+        }
+    }
+        
+    useEffect(() => {
+        loadCustomerData();
+    }, []);
     
     const handleLogout = () => {
         localStorage.removeItem('loggedInUserMobile');
@@ -228,10 +226,16 @@ export default function CustomerDashboardPage() {
                         <h1 className="text-3xl font-bold text-gray-800">Welcome, {user.name}</h1>
                         <p className="text-muted-foreground">Here's an overview of your Snazzify account.</p>
                     </div>
-                     <Button variant="outline" onClick={handleLogout}>
-                        <LogOut className="mr-2 h-4 w-4" />
-                        Logout
-                    </Button>
+                     <div className="flex items-center gap-2 mt-4 sm:mt-0">
+                        <Button variant="outline" onClick={loadCustomerData}>
+                            <RefreshCw className="mr-2 h-4 w-4"/>
+                            Refresh
+                        </Button>
+                        <Button variant="outline" onClick={handleLogout}>
+                            <LogOut className="mr-2 h-4 w-4" />
+                            Logout
+                        </Button>
+                    </div>
                 </header>
                 
                 <main className="grid grid-cols-1 lg:grid-cols-3 gap-8">
