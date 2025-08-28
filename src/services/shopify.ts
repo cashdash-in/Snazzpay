@@ -50,7 +50,10 @@ async function shopifyFetch(endpoint: string, options: RequestInit = {}) {
         return null;
     }
     
-    const url = `https://${SHOPIFY_STORE_URL}/admin/api/2023-10/${endpoint}`;
+    // Add a unique timestamp to the endpoint to prevent caching
+    const cacheBuster = `&t=${new Date().getTime()}`;
+    const finalEndpoint = endpoint.includes('?') ? `${endpoint}${cacheBuster}` : `${endpoint}?${cacheBuster}`;
+    const url = `https://${SHOPIFY_STORE_URL}/admin/api/2023-10/${finalEndpoint}`;
 
     const response = await fetch(url, {
         ...options,
