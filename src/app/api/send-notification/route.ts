@@ -35,7 +35,7 @@ function getEmailContent(type: string, order: EditableOrder) {
                     <h2>Order Cancellation Confirmed</h2>
                     <p>Dear ${order.customerName},</p>
                     <p>This email confirms that your order #${order.orderId} has been successfully cancelled as per your request.</p>
-                    <p>If a payment was made, a refund will be processed to your original payment method within 5-7 business days. If you had only authorized a payment, the authorization has been voided and the funds of ₹${order.price} have been released back to your account.</p>
+                    <p>The payment authorization for ₹${order.price} has been voided, and the funds have been released back to your account. You will not be charged.</p>
                     <p>If you have any questions, please feel free to contact us.</p>
                     <p>We hope to see you again soon,<br/>The Snazzify Team</p>
                 </div>
