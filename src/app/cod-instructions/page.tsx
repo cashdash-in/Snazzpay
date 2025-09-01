@@ -5,16 +5,20 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { CodeBlock } from "@/components/code-block";
 import { useEffect, useState } from 'react';
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Terminal } from "lucide-react";
 
 export default function CodInstructionsPage() {
     const [embedCode, setEmbedCode] = useState('');
+    const [appUrl, setAppUrl] = useState('');
 
     useEffect(() => {
-        // Use the application's current origin dynamically.
-        // This ensures it will work on localhost, Netlify, or any other deployment.
-        const origin = typeof window !== 'undefined' ? window.location.origin : 'https://snazzpay.netlify.app';
+        // Use the application's current origin dynamically on the client.
+        const origin = typeof window !== 'undefined' ? window.location.origin : '';
         const url = `${origin}/secure-cod`;
         const secureCodInfoUrl = `${origin}/secure-cod-info`;
+
+        setAppUrl(origin);
 
         const code = `<div style="margin-top: 15px; width: 100%;">
   <a id="secure-cod-link" href="#" target="_blank" style="text-decoration: none; display: block; width: 100%;">
@@ -72,6 +76,14 @@ document.addEventListener('DOMContentLoaded', function() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          <Alert>
+            <Terminal className="h-4 w-4" />
+            <AlertTitle>Important: Set Your App URL</AlertTitle>
+            <AlertDescription>
+                <p>For server-side features like sending email links to work correctly, you must set your live application URL as an environment variable.</p>
+                <p className="mt-2">In your hosting provider's settings (e.g., Netlify, Vercel), add a variable named <span className="font-mono bg-muted p-1 rounded-md">NEXT_PUBLIC_APP_URL</span> and set its value to <strong className="font-mono">{appUrl || 'your-live-app-url.com'}</strong>.</p>
+            </AlertDescription>
+          </Alert>
           <div className="space-y-2">
             <h3 className="text-lg font-semibold">Step 1: Go to your Shopify Theme Editor</h3>
             <p className="text-muted-foreground">

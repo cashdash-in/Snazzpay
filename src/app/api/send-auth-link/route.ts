@@ -10,7 +10,7 @@ export async function POST(request: Request) {
 
     const GMAIL_EMAIL = process.env.GMAIL_APP_EMAIL;
     const GMAIL_PASSWORD = process.env.GMAIL_APP_PASSWORD;
-    const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002';
+    const APP_URL = process.env.NEXT_PUBLIC_APP_URL;
 
     if (method === 'email') {
         if (!order.customerEmail) {
@@ -23,6 +23,13 @@ export async function POST(request: Request) {
         if (!GMAIL_EMAIL || !GMAIL_PASSWORD) {
             return new NextResponse(
                 JSON.stringify({ error: "Email service is not configured on the server." }),
+                { status: 500, headers: { 'Content-Type': 'application/json' } }
+            );
+        }
+
+        if (!APP_URL) {
+            return new NextResponse(
+                JSON.stringify({ error: "Server configuration error: NEXT_PUBLIC_APP_URL is not set." }),
                 { status: 500, headers: { 'Content-Type': 'application/json' } }
             );
         }
