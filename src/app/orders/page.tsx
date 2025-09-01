@@ -9,13 +9,14 @@ import { Button } from "@/components/ui/button";
 import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import { format } from "date-fns";
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, PlusCircle, Trash2, Save, MessageSquare, RefreshCw, CreditCard, Ban, CircleDollarSign } from "lucide-react";
+import { Loader2, PlusCircle, Trash2, Save, MessageSquare, CreditCard, Ban, CircleDollarSign } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { v4 as uuidv4 } from 'uuid';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { sanitizePhoneNumber } from "@/lib/utils";
+import { usePageRefresh } from "@/hooks/usePageRefresh";
 
 export type EditableOrder = {
   id: string; // Internal unique ID for React key
@@ -91,6 +92,7 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true);
   const [processingChargeId, setProcessingChargeId] = useState<string | null>(null);
   const { toast } = useToast();
+  const { refreshKey } = usePageRefresh();
 
   const fetchAndSetOrders = useCallback(async () => {
     setLoading(true);
@@ -177,7 +179,7 @@ export default function OrdersPage() {
 
   useEffect(() => {
     fetchAndSetOrders();
-  }, [fetchAndSetOrders]);
+  }, [fetchAndSetOrders, refreshKey]);
 
   const handleFieldChange = (orderId: string, field: keyof EditableOrder, value: string | number) => {
     setOrders(prevOrders => prevOrders.map(order =>
@@ -298,10 +300,6 @@ export default function OrdersPage() {
                 <CardDescription>View and manage all orders. Click an Order ID to see full details.</CardDescription>
             </div>
              <div className="flex gap-2">
-                <Button variant="outline" onClick={fetchAndSetOrders}>
-                    <RefreshCw className="mr-2 h-4 w-4"/>
-                    Refresh
-                </Button>
                 <Link href="/orders/new">
                 <Button>
                     <PlusCircle className="mr-2 h-4 w-4" />
@@ -405,5 +403,3 @@ export default function OrdersPage() {
     </AppShell>
   );
 }
-
-    

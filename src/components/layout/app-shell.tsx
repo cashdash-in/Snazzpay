@@ -47,7 +47,9 @@ import {
   ShieldAlert,
   Combine,
   SendToBack,
+  RefreshCw,
 } from 'lucide-react';
+import { usePageRefresh } from '@/hooks/usePageRefresh';
 
 const coreMenuItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -75,6 +77,7 @@ const configMenuItems = [
 
 export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, title }) => {
   const pathname = usePathname();
+  const { triggerRefresh } = usePageRefresh();
 
   return (
     <SidebarProvider>
@@ -147,6 +150,10 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
             <h2 className="text-xl font-semibold text-card-foreground">{title}</h2>
           </div>
           <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={triggerRefresh}>
+              <RefreshCw className="h-5 w-5" />
+              <span className="sr-only">Refresh Data</span>
+            </Button>
             <Button variant="ghost" size="icon">
               <Bell className="h-5 w-5" />
               <span className="sr-only">Notifications</span>

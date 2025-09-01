@@ -3,6 +3,7 @@ import type {Metadata} from 'next';
 import './globals.css';
 import { Inter } from 'next/font/google';
 import { Toaster } from "@/components/ui/toaster"
+import { PageRefreshProvider } from '@/hooks/usePageRefresh';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
@@ -25,8 +26,10 @@ export default function RootLayout({
         <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
       </head>
       <body className="font-body antialiased h-full">
-        {children}
-        <Toaster />
+        <PageRefreshProvider>
+            {children}
+            <Toaster />
+        </PageRefreshProvider>
       </body>
     </html>
   );

@@ -50,21 +50,17 @@ async function shopifyFetch(endpoint: string, options: RequestInit = {}) {
         return null;
     }
     
-    // Add a unique timestamp to the endpoint to prevent caching
-    const cacheBuster = `&t=${new Date().getTime()}`;
-    const finalEndpoint = endpoint.includes('?') ? `${endpoint}${cacheBuster}` : `${endpoint}?${cacheBuster.substring(1)}`;
-    const url = `https://${SHOPIFY_STORE_URL}/admin/api/2023-10/${finalEndpoint}`;
+    const url = `https://${SHOPIFY_STORE_URL}/admin/api/2023-10/${endpoint}`;
 
     const response = await fetch(url, {
         ...options,
         headers: {
             'X-Shopify-Access-Token': SHOPIFY_API_KEY,
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0',
+            'Content-Type': 'application/json',
             ...options.headers,
         },
-        cache: 'no-store', // Ensure fresh data
+        // Re-add no-cache to ensure fresh data for every call, especially when triggered by a refresh.
+        cache: 'no-store', 
     });
     
     if (!response.ok) {
@@ -79,7 +75,9 @@ async function shopifyFetch(endpoint: string, options: RequestInit = {}) {
 
 export async function getOrders(): Promise<Order[]> {
     try {
-        const jsonResponse = await shopifyFetch('orders.json?status=any');
+        // Add a cache-busting parameter to the request URL
+        const timestamp = new Date().getTime();
+        const jsonResponse = await shopifyFetch(`orders.json?status=any&t=${timestamp}`);
         
         // If shopifyFetch returned null due to missing keys or an API error, return an empty array.
         if (!jsonResponse) {

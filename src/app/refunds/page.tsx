@@ -9,13 +9,14 @@ import { Button } from "@/components/ui/button";
 import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import { format } from "date-fns";
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, PlusCircle, Trash2, Save, RefreshCw, Loader2 as ButtonLoader } from "lucide-react";
+import { Loader2, PlusCircle, Trash2, Save, Loader2 as ButtonLoader } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import type { EditableOrder } from '../orders/page';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { v4 as uuidv4 } from 'uuid';
+import { usePageRefresh } from "@/hooks/usePageRefresh";
 
 
 type RefundStatus = 'Pending' | 'Processed' | 'Failed';
@@ -47,6 +48,7 @@ export default function RefundsPage() {
   const [loading, setLoading] = useState(true);
   const [processingRefundId, setProcessingRefundId] = useState<string | null>(null);
   const { toast } = useToast();
+  const { refreshKey } = usePageRefresh();
 
   const fetchAndSetOrders = useCallback(async () => {
     setLoading(true);
@@ -114,7 +116,7 @@ export default function RefundsPage() {
 
   useEffect(() => {
     fetchAndSetOrders();
-  }, [fetchAndSetOrders]);
+  }, [fetchAndSetOrders, refreshKey]);
 
   const handleFieldChange = (orderId: string, field: keyof EditableOrder, value: string) => {
     setOrders(prevOrders => prevOrders.map(order =>
@@ -217,10 +219,6 @@ export default function RefundsPage() {
                 <CardDescription>View and manage all order refunds. Note: For post-dispatch cancellations, capture Rs. 300 from the mandate.</CardDescription>
             </div>
             <div className="flex gap-2">
-                <Button variant="outline" onClick={fetchAndSetOrders}>
-                    <RefreshCw className="mr-2 h-4 w-4"/>
-                    Refresh
-                </Button>
                 <Link href="/orders/new">
                 <Button>
                     <PlusCircle className="mr-2 h-4 w-4" />
@@ -321,5 +319,3 @@ export default function RefundsPage() {
     </AppShell>
   );
 }
-
-    

@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useEffect, useCallback } from "react";
-import { Trash2, PlusCircle, Save, Loader2 as ButtonLoader, Mail, Copy, MessageSquare, RefreshCw } from "lucide-react";
+import { Trash2, PlusCircle, Save, Loader2 as ButtonLoader, Mail, Copy, MessageSquare } from "lucide-react";
 import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -17,6 +17,7 @@ import type { EditableOrder } from '../orders/page';
 import { format } from "date-fns";
 import { v4 as uuidv4 } from 'uuid';
 import { sanitizePhoneNumber } from "@/lib/utils";
+import { usePageRefresh } from "@/hooks/usePageRefresh";
 
 type OrderStatus = 'pending' | 'dispatched' | 'out-for-delivery' | 'delivered' | 'failed';
 
@@ -49,6 +50,7 @@ export default function DeliveryTrackingPage() {
     const [loading, setLoading] = useState(true);
     const [sendingState, setSendingState] = useState<string | null>(null);
     const { toast } = useToast();
+    const { refreshKey } = usePageRefresh();
 
     const fetchAndSetOrders = useCallback(async () => {
         setLoading(true);
@@ -113,7 +115,7 @@ export default function DeliveryTrackingPage() {
 
     useEffect(() => {
         fetchAndSetOrders();
-    }, [fetchAndSetOrders]);
+    }, [fetchAndSetOrders, refreshKey]);
 
     const handleFieldChange = (orderId: string, field: keyof EditableOrder, value: string) => {
         const updatedOrders = orders.map(order =>
@@ -219,10 +221,6 @@ export default function DeliveryTrackingPage() {
                     <CardDescription>Manage all orders, their delivery status, and send payment links. Click an Order ID to see full details.</CardDescription>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" onClick={fetchAndSetOrders}>
-                        <RefreshCw className="mr-2 h-4 w-4"/>
-                        Refresh
-                    </Button>
                     <Link href="/orders/new">
                         <Button>
                             <PlusCircle className="mr-2 h-4 w-4" />
@@ -341,5 +339,3 @@ export default function DeliveryTrackingPage() {
     </AppShell>
   );
 }
-
-    

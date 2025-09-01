@@ -8,11 +8,12 @@ import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import { format } from "date-fns";
 import { useEffect, useState, useCallback } from "react";
 import type { EditableOrder } from "../orders/page";
-import { Loader2, MessageSquare, RefreshCw } from "lucide-react";
+import { Loader2, MessageSquare } from "lucide-react";
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
 import { Button } from "@/components/ui/button";
+import { usePageRefresh } from "@/hooks/usePageRefresh";
 
 type Mandate = {
   id: string;
@@ -52,6 +53,7 @@ export default function MandatesPage() {
   const [allMandates, setAllMandates] = useState<Mandate[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { refreshKey } = usePageRefresh();
 
   const fetchAndSetOrders = useCallback(async () => {
     setLoading(true);
@@ -146,7 +148,7 @@ export default function MandatesPage() {
 
   useEffect(() => {
     fetchAndSetOrders();
-  }, [fetchAndSetOrders]);
+  }, [fetchAndSetOrders, refreshKey]);
 
     const sendWhatsAppReminder = (mandate: Mandate) => {
         const secureUrl = `${window.location.origin}/secure-cod?amount=${encodeURIComponent(mandate.amount)}&name=${encodeURIComponent(mandate.productOrdered)}&order_id=${encodeURIComponent(mandate.orderId)}`;
@@ -164,10 +166,6 @@ export default function MandatesPage() {
               <CardTitle>Mandate Management</CardTitle>
               <CardDescription>View status of all payment authorizations. Includes 'Intent Verified', 'Authorized', and 'Paid' orders.</CardDescription>
             </div>
-             <Button variant="outline" onClick={fetchAndSetOrders}>
-                <RefreshCw className="mr-2 h-4 w-4"/>
-                Refresh
-            </Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -224,5 +222,3 @@ export default function MandatesPage() {
     </AppShell>
   );
 }
-
-    

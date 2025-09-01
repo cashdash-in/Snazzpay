@@ -6,16 +6,18 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, Trash2, Send, Loader2 as ButtonLoader, RefreshCw } from "lucide-react";
+import { Loader2, Trash2, Send, Loader2 as ButtonLoader } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { EditableOrder } from '../orders/page';
 import { format } from "date-fns";
+import { usePageRefresh } from "@/hooks/usePageRefresh";
 
 export default function LeadsPage() {
   const [leads, setLeads] = useState<EditableOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [sendingLinkId, setSendingLinkId] = useState<string | null>(null);
   const { toast } = useToast();
+  const { refreshKey } = usePageRefresh();
 
   const fetchAndSetLeads = useCallback(() => {
     setLoading(true);
@@ -36,7 +38,7 @@ export default function LeadsPage() {
 
   useEffect(() => {
     fetchAndSetLeads();
-  }, [fetchAndSetLeads]);
+  }, [fetchAndSetLeads, refreshKey]);
   
   const handleRemoveLead = (leadId: string) => {
     const updatedLeads = leads.filter(lead => lead.id !== leadId);
@@ -125,10 +127,6 @@ export default function LeadsPage() {
               <CardTitle>Intent Verified Leads</CardTitle>
               <CardDescription>Customers who completed ₹1 verification but did not complete the final authorization. Follow up to convert them!</CardDescription>
             </div>
-             <Button variant="outline" onClick={fetchAndSetLeads}>
-                <RefreshCw className="mr-2 h-4 w-4"/>
-                Refresh
-            </Button>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -194,5 +192,3 @@ export default function LeadsPage() {
     </AppShell>
   );
 }
-
-    

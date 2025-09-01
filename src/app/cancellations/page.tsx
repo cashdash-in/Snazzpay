@@ -9,12 +9,13 @@ import { Button } from "@/components/ui/button";
 import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import { format } from "date-fns";
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, PlusCircle, Trash2, Save, RefreshCw } from "lucide-react";
+import { Loader2, PlusCircle, Trash2, Save } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import type { EditableOrder } from '../orders/page';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { v4 as uuidv4 } from 'uuid';
+import { usePageRefresh } from "@/hooks/usePageRefresh";
 
 type CancellationStatus = 'Pending' | 'Processed' | 'Failed';
 
@@ -45,6 +46,7 @@ export default function CancellationsPage() {
   const [orders, setOrders] = useState<EditableOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { refreshKey } = usePageRefresh();
 
   const fetchAndSetOrders = useCallback(async () => {
     setLoading(true);
@@ -110,7 +112,7 @@ export default function CancellationsPage() {
 
   useEffect(() => {
     fetchAndSetOrders();
-  }, [fetchAndSetOrders]);
+  }, [fetchAndSetOrders, refreshKey]);
 
   const handleFieldChange = (orderId: string, field: keyof EditableOrder, value: string) => {
     setOrders(prevOrders => prevOrders.map(order =>
@@ -171,10 +173,6 @@ export default function CancellationsPage() {
                 <CardDescription>View and manage all order cancellations. Click an Order ID to see full details.</CardDescription>
             </div>
             <div className="flex gap-2">
-                <Button variant="outline" onClick={fetchAndSetOrders}>
-                    <RefreshCw className="mr-2 h-4 w-4"/>
-                    Refresh
-                </Button>
                 <Link href="/orders/new">
                 <Button>
                     <PlusCircle className="mr-2 h-4 w-4" />
@@ -247,5 +245,3 @@ export default function CancellationsPage() {
     </AppShell>
   );
 }
-
-    
