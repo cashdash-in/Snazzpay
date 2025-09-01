@@ -52,13 +52,16 @@ async function shopifyFetch(endpoint: string, options: RequestInit = {}) {
     
     // Add a unique timestamp to the endpoint to prevent caching
     const cacheBuster = `&t=${new Date().getTime()}`;
-    const finalEndpoint = endpoint.includes('?') ? `${endpoint}${cacheBuster}` : `${endpoint}?${cacheBuster}`;
+    const finalEndpoint = endpoint.includes('?') ? `${endpoint}${cacheBuster}` : `${endpoint}?${cacheBuster.substring(1)}`;
     const url = `https://${SHOPIFY_STORE_URL}/admin/api/2023-10/${finalEndpoint}`;
 
     const response = await fetch(url, {
         ...options,
         headers: {
             'X-Shopify-Access-Token': SHOPIFY_API_KEY,
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
             ...options.headers,
         },
         cache: 'no-store', // Ensure fresh data
