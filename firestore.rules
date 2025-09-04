@@ -1,0 +1,21 @@
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Sellers Collection
+    // - Anyone can create a seller profile (for signup).
+    // - Only the authenticated seller can read, update, or delete their own profile.
+    match /sellers/{userId} {
+      allow create: if request.auth != null;
+      allow read, update, delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Add rules for other collections here as we build them.
+    // For example:
+    // match /orders/{orderId} {
+    //   allow read, write: if request.auth != null && request.auth.uid == resource.data.sellerId;
+    // }
+  }
+}

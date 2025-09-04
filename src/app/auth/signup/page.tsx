@@ -13,6 +13,7 @@ import { useRouter } from 'next/navigation';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { doc, setDoc } from "firebase/firestore";
+import { FirebaseError } from 'firebase/app';
 
 export default function SellerSignupPage() {
     const { toast } = useToast();
@@ -26,6 +27,12 @@ export default function SellerSignupPage() {
         setIsLoading(true);
         if (!email || !password || !companyName) {
             toast({ variant: 'destructive', title: "Missing Fields", description: "Please fill out all required fields." });
+            setIsLoading(false);
+            return;
+        }
+
+        if (!auth || !db) {
+            toast({ variant: 'destructive', title: "Firebase Not Configured", description: "Please check your Firebase configuration settings." });
             setIsLoading(false);
             return;
         }
@@ -55,16 +62,33 @@ export default function SellerSignupPage() {
 
         } catch (error: any) {
             console.error("Signup failed:", error);
-            let errorMessage = 'An unexpected error occurred during signup.';
-            if (error.code === 'auth/email-already-in-use') {
-                errorMessage = 'This email address is already in use.';
-            } else if (error.code === 'auth/weak-password') {
-                errorMessage = 'The password is too weak. It must be at least 6 characters long.';
+            let title = "Signup Failed";
+            let description = 'An unexpected error occurred during signup.';
+            
+            if (error instanceof FirebaseError) {
+                switch (error.code) {
+                    case 'auth/email-already-in-use':
+                        description = 'This email address is already in use by another account.';
+                        break;
+                    case 'auth/weak-password':
+                        description = 'The password is too weak. It must be at least 6 characters long.';
+                        break;
+                    case 'auth/invalid-email':
+                        description = 'The email address is not valid.';
+                        break;
+                    case 'permission-denied':
+                        title = 'Firestore Security Error';
+                        description = "Could not create seller profile. Please ensure your Firestore security rules allow 'create' on the 'sellers' collection and that you have enabled Firestore in the Firebase console.";
+                        break;
+                    default:
+                        description = `An error occurred: ${error.message}`;
+                }
             }
+            
             toast({
                 variant: 'destructive',
-                title: "Signup Failed",
-                description: errorMessage,
+                title: title,
+                description: description,
             });
             setIsLoading(false);
         }
