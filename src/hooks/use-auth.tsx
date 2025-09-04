@@ -30,16 +30,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
+    // Only subscribe to auth state changes if Firebase was successfully initialized
+    if (auth) {
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            setUser(user);
+            setLoading(false);
+        });
+        return () => unsubscribe();
+    } else {
+        // If Firebase is not configured, treat as logged out
+        setUser(null);
+        setLoading(false);
+    }
   }, []);
 
   const signOut = async () => {
-    await firebaseSignOut(auth);
+    // Only try to sign out if auth is available
+    if(auth) {
+        await firebaseSignOut(auth);
+    }
     router.push('/auth/login');
   };
 

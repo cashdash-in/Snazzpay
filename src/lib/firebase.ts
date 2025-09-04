@@ -1,7 +1,7 @@
 
-import { initializeApp, getApps, getApp, type FirebaseOptions } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { initializeApp, getApps, getApp, type FirebaseOptions, type FirebaseApp } from 'firebase/app';
+import { getAuth, type Auth } from 'firebase/auth';
+import { getFirestore, type Firestore } from 'firebase/firestore';
 
 const firebaseConfig: FirebaseOptions = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -12,15 +12,14 @@ const firebaseConfig: FirebaseOptions = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// A function to safely initialize Firebase
+// A function to safely initialize Firebase and export its services
 function initializeFirebase() {
-    // Check if all necessary environment variables are set.
-    // This prevents the app from crashing on the server or client if the keys are missing.
-    if (
-        !firebaseConfig.apiKey ||
-        !firebaseConfig.authDomain ||
-        !firebaseConfig.projectId
-    ) {
+    const isConfigured =
+        firebaseConfig.apiKey &&
+        firebaseConfig.authDomain &&
+        firebaseConfig.projectId;
+
+    if (!isConfigured) {
         console.warn(`
         ********************************************************************************
         *                                                                              *
@@ -29,11 +28,9 @@ function initializeFirebase() {
         *   Please add your Firebase project configuration to your environment         *
         *   variables to enable authentication and database features.                  *
         *                                                                              *
-        *   You can get these values from your Firebase project settings.              *
-        *                                                                              *
         ********************************************************************************
         `);
-        // Return nulls so the app doesn't crash
+        // Return nulls so the consuming hooks and components can handle the uninitialized state
         return { app: null, auth: null, db: null };
     }
 
@@ -47,3 +44,4 @@ function initializeFirebase() {
 const { app, auth, db } = initializeFirebase();
 
 export { app, auth, db };
+export type { FirebaseApp, Auth, Firestore };
