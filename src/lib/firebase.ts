@@ -25,8 +25,8 @@ function initializeFirebase() {
         *                                                                              *
         *           FIREBASE IS NOT CONFIGURED!                                        *
         *                                                                              *
-        *   Please add your Firebase project configuration to your environment         *
-        *   variables to enable authentication and database features.                  *
+        *   Please add your Firebase project configuration to your .env file           *
+        *   to enable authentication and database features.                            *
         *                                                                              *
         ********************************************************************************
         `);
