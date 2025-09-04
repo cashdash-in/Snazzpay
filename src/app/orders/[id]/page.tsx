@@ -27,6 +27,7 @@ import {
 import { getOrders, type Order as ShopifyOrder } from '@/services/shopify';
 import Link from 'next/link';
 import { v4 as uuidv4 } from 'uuid';
+import { sanitizePhoneNumber } from '@/lib/utils';
 
 type PaymentInfo = {
     paymentId: string;
@@ -208,45 +209,57 @@ function OrderDetailContent() {
             setIsCharging(false);
         }
     };
-
-    const sendNotificationEmail = async () => {
+    
+    const sendAuthLink = async (order: EditableOrder, method: 'email') => {
         if (!order) return;
-
-        let notificationType = '';
-        if (order.deliveryStatus === 'dispatched' && order.trackingNumber) {
-            notificationType = 'dispatch';
-        } else if (order.cancellationStatus === 'Processed') {
-            notificationType = 'cancellation';
-        } else if (order.refundStatus === 'Processed') {
-            notificationType = 'refund';
-        } else {
-            toast({
-                variant: 'destructive',
-                title: "Cannot Send Email",
-                description: "No specific action (dispatch, cancellation, refund) to notify the customer about.",
-            });
-            return;
-        }
-
         setIsSendingLink(true);
+        
         try {
-            const response = await fetch('/api/send-notification', {
+            const response = await fetch('/api/send-auth-link', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ order, type: notificationType }),
+                body: JSON.stringify({ order, method }),
             });
 
             const result = await response.json();
 
             if (!response.ok) {
-                throw new Error(result.error);
+                throw new Error(result.error || `Failed to send link via ${method}.`);
             }
-            toast({ title: "Notification Sent", description: result.message });
+
+            toast({
+                title: "Link Sent Successfully!",
+                description: result.message,
+            });
+
         } catch (error: any) {
-            toast({ variant: 'destructive', title: "Email Failed", description: error.message });
+             toast({
+                variant: 'destructive',
+                title: `Error Sending Link`,
+                description: error.message,
+            });
         } finally {
             setIsSendingLink(false);
         }
+    };
+
+    const copyAuthLink = (order: EditableOrder) => {
+        if (!order) return;
+        const baseUrl = window.location.origin;
+        const secureUrl = `${baseUrl}/secure-cod?amount=${encodeURIComponent(order.price)}&name=${encodeURIComponent(order.productOrdered)}&order_id=${encodeURIComponent(order.orderId)}`;
+        navigator.clipboard.writeText(secureUrl);
+        toast({
+            title: "Link Copied!",
+            description: "The secure COD authorization link has been copied to your clipboard.",
+        });
+    };
+    
+    const sendWhatsAppNotification = (order: EditableOrder) => {
+        if (!order) return;
+        const secureUrl = `${window.location.origin}/secure-cod?amount=${encodeURIComponent(order.price)}&name=${encodeURIComponent(order.productOrdered)}&order_id=${encodeURIComponent(order.orderId)}`;
+        const message = `Hi ${order.customerName}! Thanks for your order #${order.orderId} from Snazzify. Please click this link to confirm your payment with our modern & secure COD process. Your funds are held in a Trust Wallet and only released on dispatch for 100% safety. ${secureUrl}`;
+        const whatsappUrl = `https://wa.me/${sanitizePhoneNumber(order.contactNo)}?text=${encodeURIComponent(message)}`;
+        window.open(whatsappUrl, '_blank');
     };
 
     const handleProcessCancellationFee = async () => {
@@ -501,7 +514,7 @@ function OrderDetailContent() {
                  <Card>
                     <CardHeader>
                         <CardTitle>Delivery &amp; Communication</CardTitle>
-                        <CardDescription>Update tracking info or send notifications to the customer.</CardDescription>
+                        <CardDescription>Update tracking info or send payment authorization links to the customer.</CardDescription>
                     </CardHeader>
                     <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="space-y-2">
@@ -538,14 +551,28 @@ function OrderDetailContent() {
                     </CardContent>
                      <CardFooter className="gap-2">
                         <Button 
-                            variant="secondary" 
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => sendWhatsAppNotification(order)}
+                            disabled={!order.contactNo}
+                            title={!order.contactNo ? "Contact number is required" : "Send WhatsApp Notification"}
+                        >
+                            <MessageSquare className="mr-2 h-4 w-4" />
+                            WhatsApp
+                        </Button>
+                        <Button 
+                            variant="default" 
                             size="sm" 
-                            onClick={sendNotificationEmail}
+                            onClick={() => sendAuthLink(order, 'email')}
                             disabled={isSendingLink || !order.customerEmail}
-                            title={!order.customerEmail ? "Customer email is required" : "Send contextual email notification"}
+                            title={!order.customerEmail ? "Customer email is required" : "Send Authorization Link via Email"}
                         >
                           {isSendingLink ? <ButtonLoader className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
-                          Notify Customer
+                          Email Link
+                        </Button>
+                         <Button variant="secondary" size="sm" onClick={() => copyAuthLink(order)}>
+                            <Copy className="mr-2 h-4 w-4" />
+                            Copy Link
                         </Button>
                     </CardFooter>
                 </Card>
