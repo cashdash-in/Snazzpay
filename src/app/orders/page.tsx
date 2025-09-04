@@ -102,11 +102,6 @@ export default function OrdersPage() {
         shopifyEditableOrders = shopifyOrders.map(mapShopifyOrderToEditableOrder);
     } catch (error) {
         console.error("Failed to fetch Shopify orders:", error);
-        toast({
-            variant: 'destructive',
-            title: "Failed to load Shopify Orders",
-            description: "Displaying manually added orders only. Check Shopify API keys in Settings.",
-        });
     }
 
     let manualOrders: EditableOrder[] = [];

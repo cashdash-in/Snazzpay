@@ -276,7 +276,6 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                     const existingOrdersJSON = localStorage.getItem('manualOrders');
                     let existingOrders: EditableOrder[] = existingOrdersJSON ? JSON.parse(existingOrdersJSON) : [];
                     
-                    // Check if an order with this orderId already exists from the intent step or manually
                     const existingOrderIndex = existingOrders.findIndex(o => o.orderId === newOrder.orderId);
                     if (existingOrderIndex > -1) {
                         const orderToUpdateId = existingOrders[existingOrderIndex].id;

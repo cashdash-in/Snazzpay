@@ -60,11 +60,6 @@ export default function DeliveryTrackingPage() {
             combinedOrders = [...combinedOrders, ...shopifyOrders.map(mapShopifyToEditable)];
         } catch (error) {
             console.error("Failed to fetch Shopify orders:", error);
-            toast({
-                variant: 'destructive',
-                title: "Failed to load Shopify Orders",
-                description: "Displaying manually added orders only. Check Shopify API keys in Settings.",
-            });
         }
 
         try {
@@ -73,11 +68,6 @@ export default function DeliveryTrackingPage() {
             combinedOrders = [...combinedOrders, ...manualOrders];
         } catch (error) {
             console.error("Failed to load manual orders:", error);
-            toast({
-                variant: 'destructive',
-                title: "Error loading manual orders",
-                description: "Could not load orders from local storage.",
-            });
         }
 
         const orderGroups = new Map<string, EditableOrder[]>();
