@@ -45,8 +45,8 @@ const OrdersResponseSchema = z.object({
 export type Order = z.infer<typeof OrderSchema>;
 
 async function shopifyFetch(endpoint: string, options: RequestInit = {}) {
-    if (!SHOPIFY_STORE_URL || !SHOPIFY_API_KEY || SHOPIFY_API_KEY.startsWith('shpat_xx')) {
-        console.warn('Shopify API keys are not configured on the server. Skipping Shopify API call.');
+    if (!SHOPIFY_STORE_URL || !SHOPIFY_API_KEY || !SHOPIFY_API_KEY.startsWith('shpat_')) {
+        console.warn('Shopify API keys are not configured correctly on the server. Skipping Shopify API call.');
         // This is a special string to indicate to the caller that the request was skipped.
         return 'SKIPPED_CONFIGURATION';
     }
@@ -78,7 +78,7 @@ export async function getOrders(): Promise<Order[]> {
         const jsonResponse = await shopifyFetch('orders.json?status=any');
         
         if (jsonResponse === 'SKIPPED_CONFIGURATION') {
-            return [];
+            throw new Error("Failed to load Shopify Orders. Please ensure SHOPIFY_STORE_URL and SHOPIFY_API_KEY (Admin API access token) are set correctly in your hosting environment's settings.");
         }
 
         if (!jsonResponse) {
@@ -102,3 +102,5 @@ export async function getOrders(): Promise<Order[]> {
         throw error;
     }
 }
+
+    

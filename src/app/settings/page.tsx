@@ -16,7 +16,7 @@ import Link from "next/link";
 export default function SettingsPage() {
   const { toast } = useToast();
   const [razorpaySettings, setRazorpaySettings] = useState({ keyId: '', keySecret: '' });
-  const [shopifySettings, setShopifySettings] = useState({ storeUrl: '', apiKey: '', apiSecret: '' });
+  const [shopifySettings, setShopifySettings] = useState({ storeUrl: '', apiKey: '' });
   const [notificationSettings, setNotificationSettings] = useState({ gmailEmail: '', gmailPassword: '' });
   const [logisticsSettings, setLogisticsSettings] = useState({ apiUser: '', apiPassword: '' });
 
@@ -33,15 +33,11 @@ export default function SettingsPage() {
 
     const savedShopifyStoreUrl = localStorage.getItem('shopify_store_url');
     const savedShopifyApiKey = localStorage.getItem('shopify_api_key');
-    const savedShopifyApiSecret = localStorage.getItem('shopify_api_secret');
     if (savedShopifyStoreUrl) {
       setShopifySettings(prev => ({ ...prev, storeUrl: savedShopifyStoreUrl }));
     }
     if (savedShopifyApiKey) {
       setShopifySettings(prev => ({ ...prev, apiKey: savedShopifyApiKey }));
-    }
-    if (savedShopifyApiSecret) {
-        setShopifySettings(prev => ({ ...prev, apiSecret: savedShopifyApiSecret }));
     }
     const savedGmailEmail = localStorage.getItem('gmail_app_email');
     if (savedGmailEmail) {
@@ -80,7 +76,6 @@ export default function SettingsPage() {
     } else if (type === 'shopify') {
         localStorage.setItem('shopify_store_url', shopifySettings.storeUrl);
         localStorage.setItem('shopify_api_key', shopifySettings.apiKey);
-        localStorage.setItem('shopify_api_secret', shopifySettings.apiSecret);
     } else if (type === 'notifications') {
         localStorage.setItem('gmail_app_email', notificationSettings.gmailEmail);
         localStorage.setItem('gmail_app_password', notificationSettings.gmailPassword);
@@ -178,8 +173,7 @@ export default function SettingsPage() {
                   For Shopify integration to work, you must set your store details as environment variables in your hosting environment.
                   <ul className="list-disc pl-5 mt-2">
                     <li><span className="font-mono text-xs">SHOPIFY_STORE_URL</span> (e.g., your-store.myshopify.com)</li>
-                    <li><span className="font-mono text-xs">SHOPIFY_API_KEY</span> (Your Admin API access token)</li>
-                     <li><span className="font-mono text-xs">SHOPIFY_API_SECRET</span> (Your Shopify App's API secret key)</li>
+                    <li><span className="font-mono text-xs">SHOPIFY_API_KEY</span> (Your Admin API access token, starts with shpat_)</li>
                   </ul>
                 </AlertDescription>
               </Alert>
@@ -201,17 +195,6 @@ export default function SettingsPage() {
                   type="password"
                   placeholder="Your Shopify Admin API access token (shpat_...)" 
                   value={shopifySettings.apiKey}
-                  onChange={handleShopifyChange} 
-                />
-              </div>
-               <div className="space-y-2">
-                <Label htmlFor="shopify-api-secret">API Secret Key</Label>
-                <Input 
-                  id="shopify-api-secret"
-                  name="apiSecret" 
-                  type="password" 
-                  placeholder="Your Shopify API secret key" 
-                  value={shopifySettings.apiSecret}
                   onChange={handleShopifyChange} 
                 />
               </div>
@@ -271,7 +254,7 @@ export default function SettingsPage() {
         <TabsContent value="notifications">
           <Card>
             <CardHeader>
-              <CardTitle>Email & SMS/WhatsApp Notifications</CardTitle>
+              <CardTitle>Email &amp; SMS/WhatsApp Notifications</CardTitle>
               <CardDescription>
                 Configure how authorization links are sent to customers.
               </CardDescription>
@@ -335,3 +318,5 @@ export default function SettingsPage() {
     </AppShell>
   );
 }
+
+    
