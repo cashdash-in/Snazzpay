@@ -48,8 +48,10 @@ import {
   Combine,
   SendToBack,
   RefreshCw,
+  LogOut,
 } from 'lucide-react';
 import { usePageRefresh } from '@/hooks/usePageRefresh';
+import { useAuth } from '@/hooks/use-auth';
 
 const coreMenuItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -78,6 +80,8 @@ const configMenuItems = [
 export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, title }) => {
   const pathname = usePathname();
   const { triggerRefresh } = usePageRefresh();
+  const { user, signOut } = useAuth();
+
 
   return (
     <SidebarProvider>
@@ -162,13 +166,13 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                   <Avatar>
-                    <AvatarImage src="https://placehold.co/100x100.png" alt="User avatar" data-ai-hint="user avatar" />
-                    <AvatarFallback>SP</AvatarFallback>
+                    <AvatarImage src={user?.photoURL || "https://placehold.co/100x100.png"} alt="User avatar" data-ai-hint="user avatar" />
+                    <AvatarFallback>{user?.email?.[0].toUpperCase()}</AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <DropdownMenuLabel>{user?.email || "My Account"}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem>Profile</DropdownMenuItem>
                 <DropdownMenuItem>Billing</DropdownMenuItem>
@@ -191,7 +195,10 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
                   </DropdownMenuItem>
                 </Link>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>Logout</DropdownMenuItem>
+                <DropdownMenuItem onClick={signOut}>
+                  <LogOut className="mr-2 h-4 w-4"/>
+                  Logout
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
