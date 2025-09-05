@@ -46,6 +46,7 @@ export default function SellerLoginPage() {
                 title: "Login Error",
                 description: errorMessage
             });
+        } finally {
             setIsLoading(false);
         }
     }
