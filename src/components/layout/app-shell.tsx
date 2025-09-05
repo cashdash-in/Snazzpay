@@ -1,4 +1,3 @@
-
 'use client';
 import type {FC, PropsWithChildren} from 'react';
 import {
@@ -49,11 +48,13 @@ import {
   SendToBack,
   RefreshCw,
   LogOut,
+  Package,
+  DollarSign,
 } from 'lucide-react';
 import { usePageRefresh } from '@/hooks/usePageRefresh';
 import { useAuth } from '@/hooks/use-auth';
 
-const coreMenuItems = [
+const adminCoreMenuItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/mandates', label: 'Mandates', icon: WalletCards },
   { href: '/orders', label: 'Orders', icon: ShoppingCart },
@@ -64,23 +65,52 @@ const coreMenuItems = [
   { href: '/reports', label: 'Reports', icon: FileSpreadsheet },
 ];
 
-const growthMenuItems = [
+const adminGrowthMenuItems = [
     { href: '/partner-pay', label: 'Partner Pay', icon: Handshake },
     { href: '/settle', label: 'Settle Code', icon: SendToBack },
     { href: '/partner-cancellations', label: 'Partner Cancellations', icon: ShieldAlert },
     { href: '/logistics-secure', label: 'Logistics Hub', icon: Combine },
 ];
 
-const configMenuItems = [
+const adminConfigMenuItems = [
   { href: '/explainer-video', label: 'Explainer Video', icon: Video },
   { href: '/cod-instructions', label: 'Embedding', icon: FileCode },
   { href: '/settings', label: 'Settings', icon: Settings },
+];
+
+const sellerMenuItems = [
+    { href: '/seller/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/seller/products', label: 'Products', icon: Package },
+    { href: '/seller/orders', label: 'Orders', icon: ShoppingCart },
+    { href: '/seller/earnings', label: 'Earnings', icon: DollarSign },
+    { href: '/seller/settings', label: 'Settings', icon: Settings },
 ]
+
+const ADMIN_EMAIL = "admin@snazzpay.com";
 
 export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, title }) => {
   const pathname = usePathname();
   const { triggerRefresh } = usePageRefresh();
   const { user, signOut } = useAuth();
+  
+  const isAdmin = user?.email === ADMIN_EMAIL;
+  
+  const getMenuItems = () => {
+    if (isAdmin) {
+        return {
+            core: adminCoreMenuItems,
+            growth: adminGrowthMenuItems,
+            config: adminConfigMenuItems
+        }
+    }
+    return {
+        core: sellerMenuItems,
+        growth: [],
+        config: []
+    }
+  }
+
+  const {core, growth, config} = getMenuItems();
 
 
   return (
@@ -96,7 +126,7 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
         </SidebarHeader>
         <SidebarContent>
           <SidebarMenu>
-            {coreMenuItems.map((item) => (
+            {core.map((item) => (
               <SidebarMenuItem key={item.label}>
                 <Link href={item.href}>
                   <SidebarMenuButton
@@ -110,9 +140,11 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
               </SidebarMenuItem>
             ))}
           </SidebarMenu>
-          <SidebarSeparator />
-           <SidebarMenu>
-            {growthMenuItems.map((item) => (
+
+          {growth.length > 0 && <SidebarSeparator />}
+          
+          <SidebarMenu>
+            {growth.map((item) => (
               <SidebarMenuItem key={item.label}>
                 <Link href={item.href}>
                   <SidebarMenuButton
@@ -126,9 +158,11 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
               </SidebarMenuItem>
             ))}
           </SidebarMenu>
-           <SidebarSeparator />
+          
+          {config.length > 0 && <SidebarSeparator />}
+
           <SidebarMenu>
-             {configMenuItems.map((item) => (
+             {config.map((item) => (
               <SidebarMenuItem key={item.label}>
                 <Link href={item.href}>
                   <SidebarMenuButton
@@ -172,7 +206,7 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>{user?.email || "My Account"}</DropdownMenuLabel>
+                <DropdownMenuLabel>{user?.displayName || user?.email || "My Account"}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem>Profile</DropdownMenuItem>
                 <DropdownMenuItem>Billing</DropdownMenuItem>

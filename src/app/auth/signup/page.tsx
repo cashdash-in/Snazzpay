@@ -150,12 +150,15 @@ export default function SellerSignupPage() {
                     <Button className="w-full" onClick={handleSignup} disabled={isLoading}>
                          {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing Up...</> : "Create Account"}
                     </Button>
-                    <p className="text-xs text-center text-muted-foreground">
-                        Already have an account?{" "}
+                    <div className="text-xs text-center text-muted-foreground space-x-1">
+                        <Link href="/seller" className="text-primary hover:underline">
+                            Learn more about selling.
+                        </Link>
+                        <span>|</span>
                         <Link href="/auth/login" className="text-primary hover:underline">
                             Login Here
                         </Link>
-                    </p>
+                    </div>
                 </CardFooter>
             </Card>
         </div>
