@@ -6,16 +6,21 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ShieldCheck, Mail, Lock, Loader2 } from "lucide-react";
+import { Store, Mail, Lock, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 
-const ADMIN_EMAIL = "admin@snazzpay.com";
+type SellerUser = {
+    id: string;
+    companyName: string;
+    email: string;
+    status: 'pending' | 'approved' | 'rejected';
+};
 
-export default function AdminLoginPage() {
+export default function SellerLoginPage() {
     const { toast } = useToast();
     const router = useRouter();
     const [email, setEmail] = useState('');
@@ -24,34 +29,45 @@ export default function AdminLoginPage() {
 
     const handleLogin = async () => {
         setIsLoading(true);
-        if (email.toLowerCase() !== ADMIN_EMAIL) {
-            toast({ variant: 'destructive', title: "Access Denied", description: "This login is for administrators only." });
+        if (!email || !password) {
+            toast({ variant: 'destructive', title: "Invalid Input", description: "Please enter a valid email and password." });
             setIsLoading(false);
             return;
         }
 
         try {
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
-            const idToken = await userCredential.user.getIdToken();
+            const loggedInUser = userCredential.user;
+            
+            const allSellersJSON = localStorage.getItem('seller_users');
+            const allSellers: SellerUser[] = allSellersJSON ? JSON.parse(allSellersJSON) : [];
+            const sellerData = allSellers.find(s => s.id === loggedInUser.uid);
 
+            if (!sellerData || sellerData.status !== 'approved') {
+                 await auth.signOut();
+                 toast({ variant: 'destructive', title: "Login Denied", description: "Your seller account is not yet approved or does not exist. Please contact support." });
+                 setIsLoading(false);
+                 return;
+            }
+
+            const idToken = await loggedInUser.getIdToken();
             await fetch('/api/auth/session', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ idToken, isSeller: false }),
+                body: JSON.stringify({ idToken, isSeller: true }),
             });
             
-            toast({ title: "Admin Login Successful", description: "Redirecting to admin dashboard." });
-            router.push('/');
+            toast({ title: "Login Successful", description: "Redirecting you to your dashboard." });
+            router.push('/seller/dashboard');
             router.refresh();
 
         } catch (error: any) {
-            console.error("Admin Login Error:", error);
+            console.error("Seller Login failed:", error);
             const errorMessage = error.code === 'auth/invalid-credential' 
-                ? 'Invalid credentials for admin.' 
-                : 'An unexpected error occurred during admin login.';
-            toast({ variant: 'destructive', title: "Admin Login Error", description: errorMessage });
-        } finally {
-            setIsLoading(false);
+                ? 'Invalid email or password.' 
+                : 'An unexpected error occurred during login.';
+            toast({ variant: 'destructive', title: "Login Error", description: errorMessage });
+             setIsLoading(false);
         }
     };
 
@@ -59,19 +75,19 @@ export default function AdminLoginPage() {
         <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
             <Card className="w-full max-w-sm shadow-lg">
                 <CardHeader className="text-center">
-                    <ShieldCheck className="mx-auto h-12 w-12 text-primary" />
-                    <CardTitle>SnazzPay Admin Central</CardTitle>
-                    <CardDescription>Log in to the main dashboard.</CardDescription>
+                    <Store className="mx-auto h-12 w-12 text-primary" />
+                    <CardTitle>SnazzPay Seller Central</CardTitle>
+                    <CardDescription>Log in to your seller dashboard.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="email">Admin Email Address</Label>
+                        <Label htmlFor="email">Email Address</Label>
                         <div className="relative">
                             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input 
                                 id="email" 
                                 type="email" 
-                                placeholder="admin@snazzpay.com" 
+                                placeholder="you@example.com" 
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 className="pl-9" 
@@ -95,12 +111,12 @@ export default function AdminLoginPage() {
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4">
                     <Button className="w-full" onClick={handleLogin} disabled={isLoading}>
-                        {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Logging In...</> : "Login as Admin"}
+                        {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Logging In...</> : "Login as Seller"}
                     </Button>
                     <p className="text-xs text-center text-muted-foreground">
-                        Are you a seller?{" "}
-                        <Link href="/seller/login" className="text-primary hover:underline">
-                            Login Here
+                        Don't have an account?{" "}
+                        <Link href="/auth/signup" className="text-primary hover:underline">
+                            Sign Up Here
                         </Link>
                     </p>
                 </CardFooter>

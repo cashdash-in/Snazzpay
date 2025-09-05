@@ -94,17 +94,17 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
   const { triggerRefresh } = usePageRefresh();
   const { user, signOut } = useAuth();
   
-  const isAdmin = user?.email === ADMIN_EMAIL;
-  
+  const isSeller = !user?.email?.endsWith('@snazzpay.com');
+
   const getMenuItems = () => {
-    if (isAdmin) {
+    if (!isSeller) { // Admin view
         return {
             core: adminCoreMenuItems,
             growth: adminGrowthMenuItems,
             config: adminConfigMenuItems
         }
     }
-    // Default to seller menu items if not an admin
+    // Seller view
     return {
         core: sellerMenuItems,
         growth: [],
@@ -113,7 +113,6 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
   }
 
   const {core, growth, config} = getMenuItems();
-
 
   return (
     <SidebarProvider>
@@ -231,7 +230,7 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
                   </DropdownMenuItem>
                 </Link>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={signOut}>
+                <DropdownMenuItem onClick={() => signOut(isSeller)}>
                   <LogOut className="mr-2 h-4 w-4"/>
                   Logout
                 </DropdownMenuItem>

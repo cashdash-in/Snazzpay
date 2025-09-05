@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -16,10 +15,11 @@ import {
 import { auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 
+
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  signOut: () => void;
+  signOut: (isSeller?: boolean) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,7 +30,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
 
   useEffect(() => {
-    // Only subscribe to auth state changes if Firebase was successfully initialized
     if (auth) {
         const unsubscribe = onAuthStateChanged(auth, (user) => {
             setUser(user);
@@ -38,18 +37,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         });
         return () => unsubscribe();
     } else {
-        // If Firebase is not configured, treat as logged out
         setUser(null);
         setLoading(false);
     }
   }, []);
 
-  const signOut = async () => {
-    // Only try to sign out if auth is available
-    if(auth) {
-        await firebaseSignOut(auth);
+  const signOut = async (isSeller: boolean = false) => {
+    try {
+        if(auth) {
+            await firebaseSignOut(auth);
+        }
+        // Call the API route to clear the httpOnly cookie
+        await fetch('/api/auth/session', { method: 'DELETE' });
+    } catch (error) {
+        console.error("Error signing out:", error);
+    } finally {
+        const loginPath = isSeller ? '/seller/login' : '/auth/login';
+        router.push(loginPath);
+        router.refresh(); // This helps ensure the new state is reflected everywhere
     }
-    router.push('/auth/login');
   };
 
   return (

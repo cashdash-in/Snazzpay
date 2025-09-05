@@ -48,7 +48,7 @@ export default function SellerSignupPage() {
         }
         
         // Special case for creating the admin user
-        if (email === ADMIN_EMAIL) {
+        if (email.toLowerCase() === ADMIN_EMAIL) {
             try {
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                 await updateProfile(userCredential.user, {
@@ -108,7 +108,7 @@ export default function SellerSignupPage() {
             });
 
             await auth.signOut();
-            router.push('/auth/login');
+            router.push('/seller/login');
 
         } catch (error: any)
           {
@@ -165,7 +165,7 @@ export default function SellerSignupPage() {
                             />
                         </div>
                     </div>
-                    {email !== ADMIN_EMAIL && (
+                    {email.toLowerCase() !== ADMIN_EMAIL && (
                     <div className="space-y-2">
                         <Label htmlFor="companyName">Company Name</Label>
                         <div className="relative">
@@ -205,7 +205,7 @@ export default function SellerSignupPage() {
                             Learn more about selling.
                         </Link>
                         <span>|</span>
-                        <Link href="/auth/login" className="text-primary hover:underline">
+                        <Link href="/seller/login" className="text-primary hover:underline">
                             Login Here
                         </Link>
                     </div>
