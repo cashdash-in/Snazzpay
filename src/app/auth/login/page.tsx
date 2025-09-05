@@ -13,7 +13,13 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useAuth } from '@/hooks/use-auth';
-import type { PartnerData } from '@/app/partner-pay/page';
+
+type SellerUser = {
+    id: string;
+    companyName: string;
+    email: string;
+    status: 'pending' | 'approved' | 'rejected';
+};
 
 const ADMIN_EMAIL = "admin@snazzpay.com";
 
@@ -33,16 +39,13 @@ export default function SellerLoginPage() {
     useEffect(() => {
         if (!authLoading) {
             if (user) {
-                // User is already logged in, check their role and redirect
                 const targetPath = user.email === ADMIN_EMAIL ? '/' : '/seller/dashboard';
                 router.replace(targetPath);
             } else {
-                // No user logged in, safe to show the login form
                 setPageLoading(false);
             }
         }
     }, [user, authLoading, router]);
-
 
     const handleLogin = async () => {
         setIsLoggingIn(true);
@@ -52,7 +55,6 @@ export default function SellerLoginPage() {
             return;
         }
 
-        // Admin login check
         if (email === ADMIN_EMAIL) {
              try {
                 const userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -65,29 +67,32 @@ export default function SellerLoginPage() {
                 });
                 
                 toast({ title: "Admin Login Successful", description: "Redirecting to admin dashboard." });
-                router.push('/'); // Admin goes to root dashboard
+                router.push('/');
                 router.refresh();
                 return;
             } catch (error: any) {
-                toast({ variant: 'destructive', title: "Admin Login Error", description: 'Invalid credentials for admin.' });
+                console.error("Admin Login Error:", error);
+                 const errorMessage = error.code === 'auth/invalid-credential' 
+                    ? 'Invalid credentials for admin.' 
+                    : 'An unexpected error occurred during admin login.';
+                toast({ variant: 'destructive', title: "Admin Login Error", description: errorMessage });
                 setIsLoggingIn(false);
                 return;
             }
         }
         
-        // Seller login check
+        // Standard Seller Login
         try {
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const loggedInUser = userCredential.user;
             
-            // Check if the seller is approved
-            const allPartnersJSON = localStorage.getItem('payPartners');
-            const allPartners: PartnerData[] = allPartnersJSON ? JSON.parse(allPartnersJSON) : [];
-            const sellerData = allPartners.find(p => p.id === loggedInUser.uid);
+            const allSellersJSON = localStorage.getItem('seller_users');
+            const allSellers: SellerUser[] = allSellersJSON ? JSON.parse(allSellersJSON) : [];
+            const sellerData = allSellers.find(s => s.id === loggedInUser.uid);
 
             if (!sellerData || sellerData.status !== 'approved') {
-                 await auth.signOut(); // Log them out immediately
-                 toast({ variant: 'destructive', title: "Login Denied", description: "Your account is not approved yet. Please contact support." });
+                 await auth.signOut();
+                 toast({ variant: 'destructive', title: "Login Denied", description: "Your seller account is not yet approved. Please contact support." });
                  setIsLoggingIn(false);
                  return;
             }
@@ -100,11 +105,11 @@ export default function SellerLoginPage() {
             });
             
             toast({ title: "Login Successful", description: "Redirecting you to your dashboard." });
-            router.push('/seller/dashboard'); // Sellers go to seller dashboard
+            router.push('/seller/dashboard');
             router.refresh();
 
         } catch (error: any) {
-            console.error("Login failed:", error);
+            console.error("Seller Login failed:", error);
             const errorMessage = error.code === 'auth/invalid-credential' 
                 ? 'Invalid email or password.' 
                 : 'An unexpected error occurred during login.';

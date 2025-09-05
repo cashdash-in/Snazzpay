@@ -14,8 +14,14 @@ import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { doc, setDoc } from "firebase/firestore";
 import { FirebaseError } from 'firebase/app';
-import type { PartnerData } from '@/app/partner-pay/page';
 import { v4 as uuidv4 } from 'uuid';
+
+type SellerUser = {
+    id: string;
+    companyName: string;
+    email: string;
+    status: 'pending' | 'approved' | 'rejected';
+};
 
 export default function SellerSignupPage() {
     const { toast } = useToast();
@@ -40,7 +46,6 @@ export default function SellerSignupPage() {
         }
 
         try {
-            // First, just create the user in Firebase Auth.
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
 
@@ -48,30 +53,22 @@ export default function SellerSignupPage() {
                 displayName: companyName,
             });
 
-            // Second, instead of creating a "seller" doc directly,
-            // create a "partner request" in localStorage for the admin to approve.
-            const newPartnerRequest: PartnerData = {
-                id: user.uid, // Use Firebase UID as the unique ID
+            const newSellerRequest: SellerUser = {
+                id: user.uid,
                 companyName: companyName,
-                phone: user.phoneNumber || '', // Placeholder
-                pan: '', // These would be collected in a more detailed form
-                aadhaar: '',
-                address: '',
-                status: 'pending', // Status is pending approval
-                balance: 0,
-                totalCollected: 0
+                email: user.email || '',
+                status: 'pending',
             };
 
-            const existingRequestsJSON = localStorage.getItem('payPartners');
-            const existingRequests: PartnerData[] = existingRequestsJSON ? JSON.parse(existingRequestsJSON) : [];
-            localStorage.setItem('payPartners', JSON.stringify([...existingRequests, newPartnerRequest]));
+            const existingRequestsJSON = localStorage.getItem('seller_users');
+            const existingRequests: SellerUser[] = existingRequestsJSON ? JSON.parse(existingRequestsJSON) : [];
+            localStorage.setItem('seller_users', JSON.stringify([...existingRequests, newSellerRequest]));
 
             toast({
                 title: "Registration Submitted!",
                 description: "Your account is pending admin approval. You will be notified once it's reviewed.",
             });
 
-            // Sign the user out and redirect to login. They can't use the app until approved.
             await auth.signOut();
             router.push('/auth/login');
 
