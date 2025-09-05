@@ -8,22 +8,28 @@ export function middleware(request: NextRequest) {
 
   const publicPaths = ['/auth/login', '/auth/signup', '/secure-cod', '/secure-cod-info', '/faq', '/terms-and-conditions', '/terms/customer', '/terms/partner-pay', '/terms/logistics', '/customer/login', '/partner-pay/login', '/partner-pay/signup', '/logistics-secure/login', '/logistics-secure/signup'];
 
-  // Allow access to public paths, API routes, and static files
-  if (
-    publicPaths.some(path => pathname.startsWith(path)) ||
+  const isPublicPath = publicPaths.some(path => pathname.startsWith(path)) ||
     pathname.startsWith('/api/') ||
     pathname.startsWith('/_next/') ||
-    pathname.includes('.') // for static files like favicon.ico, images etc.
-  ) {
+    pathname.includes('.'); // for static files like favicon.ico, images etc.
+
+  // If trying to access a public path, let them through.
+  if (isPublicPath) {
     return NextResponse.next();
   }
 
-  // If there's no auth token, redirect to the login page
+  // If there's no auth token and they are trying to access a protected route, redirect to login.
   if (!token) {
     const loginUrl = new URL('/auth/login', request.url);
     loginUrl.searchParams.set('redirectedFrom', pathname);
     return NextResponse.redirect(loginUrl);
   }
+  
+  // If the user is logged in and tries to access the root, redirect to the seller dashboard
+  if (token && pathname === '/') {
+      return NextResponse.redirect(new URL('/seller/dashboard', request.url));
+  }
+
 
   return NextResponse.next();
 }
