@@ -1,3 +1,4 @@
+
 'use client';
 import type {FC, PropsWithChildren} from 'react';
 import {
@@ -103,6 +104,7 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
             config: adminConfigMenuItems
         }
     }
+    // Default to seller menu items if not an admin
     return {
         core: sellerMenuItems,
         growth: [],
