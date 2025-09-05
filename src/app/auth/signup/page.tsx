@@ -23,6 +23,8 @@ type SellerUser = {
     status: 'pending' | 'approved' | 'rejected';
 };
 
+const ADMIN_EMAIL = "admin@snazzpay.com";
+
 export default function SellerSignupPage() {
     const { toast } = useToast();
     const router = useRouter();
@@ -33,14 +35,50 @@ export default function SellerSignupPage() {
 
     const handleSignup = async () => {
         setIsLoading(true);
-        if (!email || !password || !companyName) {
-            toast({ variant: 'destructive', title: "Missing Fields", description: "Please fill out all required fields." });
+        if (!email || !password) {
+            toast({ variant: 'destructive', title: "Missing Fields", description: "Please fill out email and password." });
             setIsLoading(false);
             return;
         }
 
         if (!auth || !db) {
             toast({ variant: 'destructive', title: "Firebase Not Configured", description: "Please check your Firebase configuration settings." });
+            setIsLoading(false);
+            return;
+        }
+        
+        // Special case for creating the admin user
+        if (email === ADMIN_EMAIL) {
+            try {
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                await updateProfile(userCredential.user, {
+                    displayName: "Super Admin",
+                });
+                toast({
+                    title: "Admin Account Created!",
+                    description: "You can now log in using these credentials.",
+                });
+                await auth.signOut();
+                router.push('/auth/login');
+            } catch (error: any) {
+                let description = "An unexpected error occurred during admin creation.";
+                if (error instanceof FirebaseError && error.code === 'auth/email-already-in-use') {
+                    description = 'The admin account already exists. Please proceed to login.';
+                }
+                toast({
+                    variant: 'destructive',
+                    title: "Admin Creation Failed",
+                    description: description,
+                });
+            } finally {
+                setIsLoading(false);
+            }
+            return;
+        }
+
+        // Standard seller signup
+        if (!companyName) {
+            toast({ variant: 'destructive', title: "Missing Fields", description: "Please fill out all required fields." });
             setIsLoading(false);
             return;
         }
@@ -72,7 +110,8 @@ export default function SellerSignupPage() {
             await auth.signOut();
             router.push('/auth/login');
 
-        } catch (error: any) {
+        } catch (error: any)
+          {
             console.error("Signup failed:", error);
             let title = "Signup Failed";
             let description = 'An unexpected error occurred during signup.';
@@ -108,25 +147,11 @@ export default function SellerSignupPage() {
             <Card className="w-full max-w-sm shadow-lg">
                 <CardHeader className="text-center">
                     <ShieldCheck className="mx-auto h-12 w-12 text-primary" />
-                    <CardTitle>Create a Seller Account</CardTitle>
-                    <CardDescription>Join SnazzPay to manage your orders.</CardDescription>
+                    <CardTitle>Create an Account</CardTitle>
+                    <CardDescription>Join SnazzPay to manage your orders. Enter admin@snazzpay.com to create the admin user.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                      <div className="space-y-2">
-                        <Label htmlFor="companyName">Company Name</Label>
-                        <div className="relative">
-                            <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input 
-                                id="companyName" 
-                                type="text" 
-                                placeholder="Your Company LLC" 
-                                value={companyName}
-                                onChange={(e) => setCompanyName(e.target.value)}
-                                className="pl-9" 
-                            />
-                        </div>
-                    </div>
-                    <div className="space-y-2">
                         <Label htmlFor="email">Email Address</Label>
                         <div className="relative">
                             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -140,6 +165,22 @@ export default function SellerSignupPage() {
                             />
                         </div>
                     </div>
+                    {email !== ADMIN_EMAIL && (
+                    <div className="space-y-2">
+                        <Label htmlFor="companyName">Company Name</Label>
+                        <div className="relative">
+                            <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input 
+                                id="companyName" 
+                                type="text" 
+                                placeholder="Your Company LLC" 
+                                value={companyName}
+                                onChange={(e) => setCompanyName(e.target.value)}
+                                className="pl-9" 
+                            />
+                        </div>
+                    </div>
+                    )}
                     <div className="space-y-2">
                         <Label htmlFor="password">Password</Label>
                          <div className="relative">
