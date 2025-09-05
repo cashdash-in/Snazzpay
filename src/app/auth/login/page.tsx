@@ -14,11 +14,13 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useAuth } from '@/hooks/use-auth';
 
+const ADMIN_EMAIL = "admin@snazzpay.com";
+
 export default function SellerLoginPage() {
     const { toast } = useToast();
     const router = useRouter();
     const searchParams = useSearchParams();
-    const redirectedFrom = searchParams.get('redirectedFrom') || '/seller/dashboard';
+    const redirectedFrom = searchParams.get('redirectedFrom') || '/';
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -28,19 +30,15 @@ export default function SellerLoginPage() {
     const [pageLoading, setPageLoading] = useState(true);
 
     useEffect(() => {
-        // This effect waits for the auth state to be confirmed
-        // before showing the page content. It prevents a flash of
-        // the login form for an already logged-in user.
         if (!authLoading) {
             if (user) {
-                // If user is already logged in, redirect them away from the login page.
-                router.replace(redirectedFrom);
+                const targetPath = user.email === ADMIN_EMAIL ? '/' : '/seller/dashboard';
+                router.replace(targetPath);
             } else {
-                // If no user, stop loading and show the login form.
                 setPageLoading(false);
             }
         }
-    }, [user, authLoading, router, redirectedFrom]);
+    }, [user, authLoading, router]);
 
 
     const handleLogin = async () => {
@@ -55,26 +53,21 @@ export default function SellerLoginPage() {
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const idToken = await userCredential.user.getIdToken();
 
-            // Call the API route to set the session cookie
-            const res = await fetch('/api/auth/session', {
+            await fetch('/api/auth/session', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ idToken }),
             });
+            
+            toast({
+                title: "Login Successful",
+                description: "Redirecting you to your dashboard.",
+            });
+            
+            const targetPath = userCredential.user.email === ADMIN_EMAIL ? redirectedFrom : '/seller/dashboard';
+            router.push(targetPath);
+            router.refresh();
 
-            if (res.ok) {
-                toast({
-                    title: "Login Successful",
-                    description: "Redirecting you to the dashboard.",
-                });
-                // Redirect to the intended page, or the dashboard by default
-                router.push(redirectedFrom);
-                router.refresh(); // Force a server-side state refresh
-            } else {
-                 throw new Error('Failed to create session.');
-            }
         } catch (error: any) {
             console.error("Login failed:", error);
             const errorMessage = error.code === 'auth/invalid-credential' 
@@ -103,7 +96,7 @@ export default function SellerLoginPage() {
                 <CardHeader className="text-center">
                     <ShieldCheck className="mx-auto h-12 w-12 text-primary" />
                     <CardTitle>SnazzPay Seller Central</CardTitle>
-                    <CardDescription>Log in to your seller dashboard.</CardDescription>
+                    <CardDescription>Log in to your dashboard.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">

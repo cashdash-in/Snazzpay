@@ -1,6 +1,12 @@
 
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { auth } from '@/lib/firebase'; // Assuming admin SDK is not used here for roles
+
+// Helper to get user from token might be needed if we check roles from token claims
+// For now, we'll handle redirects on the client/login page and protect routes here.
+
+const ADMIN_EMAIL = "admin@snazzpay.com";
 
 export function middleware(request: NextRequest) {
   const token = request.cookies.get('firebaseAuthToken');
@@ -11,26 +17,25 @@ export function middleware(request: NextRequest) {
   const isPublicPath = publicPaths.some(path => pathname.startsWith(path)) ||
     pathname.startsWith('/api/') ||
     pathname.startsWith('/_next/') ||
-    pathname.includes('.'); // for static files like favicon.ico, images etc.
+    pathname.includes('.');
 
-  // If trying to access a public path, let them through.
+  // Allow access to public paths
   if (isPublicPath) {
     return NextResponse.next();
   }
 
-  // If there's no auth token and they are trying to access a protected route, redirect to login.
+  // If there's no auth token, redirect to the login page for any protected route
   if (!token) {
     const loginUrl = new URL('/auth/login', request.url);
     loginUrl.searchParams.set('redirectedFrom', pathname);
     return NextResponse.redirect(loginUrl);
   }
   
-  // If the user is logged in and tries to access the root, redirect to the seller dashboard
-  if (token && pathname === '/') {
-      return NextResponse.redirect(new URL('/seller/dashboard', request.url));
-  }
-
-
+  // Note: We cannot easily check the user's email or role from the middleware
+  // without a backend call or a more advanced session management with custom claims.
+  // The redirection logic based on role is now handled on the client-side
+  // in the login page and the root page. This middleware primarily protects routes.
+  
   return NextResponse.next();
 }
 
@@ -43,9 +48,6 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     *
-     * This is a common pattern but we will handle it in the middleware logic above.
-     * We want the middleware to run on most paths to check for the token.
      */
     '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
