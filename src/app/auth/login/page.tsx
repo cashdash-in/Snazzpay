@@ -13,6 +13,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useAuth } from '@/hooks/use-auth';
+import type { PartnerData } from '@/app/partner-pay/page';
 
 const ADMIN_EMAIL = "admin@snazzpay.com";
 
@@ -32,9 +33,11 @@ export default function SellerLoginPage() {
     useEffect(() => {
         if (!authLoading) {
             if (user) {
+                // User is already logged in, check their role and redirect
                 const targetPath = user.email === ADMIN_EMAIL ? '/' : '/seller/dashboard';
                 router.replace(targetPath);
             } else {
+                // No user logged in, safe to show the login form
                 setPageLoading(false);
             }
         }
@@ -48,24 +51,56 @@ export default function SellerLoginPage() {
             setIsLoggingIn(false);
             return;
         }
+
+        // Admin login check
+        if (email === ADMIN_EMAIL) {
+             try {
+                const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                const idToken = await userCredential.user.getIdToken();
+
+                await fetch('/api/auth/session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ idToken }),
+                });
+                
+                toast({ title: "Admin Login Successful", description: "Redirecting to admin dashboard." });
+                router.push('/'); // Admin goes to root dashboard
+                router.refresh();
+                return;
+            } catch (error: any) {
+                toast({ variant: 'destructive', title: "Admin Login Error", description: 'Invalid credentials for admin.' });
+                setIsLoggingIn(false);
+                return;
+            }
+        }
         
+        // Seller login check
         try {
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
-            const idToken = await userCredential.user.getIdToken();
+            const loggedInUser = userCredential.user;
+            
+            // Check if the seller is approved
+            const allPartnersJSON = localStorage.getItem('payPartners');
+            const allPartners: PartnerData[] = allPartnersJSON ? JSON.parse(allPartnersJSON) : [];
+            const sellerData = allPartners.find(p => p.id === loggedInUser.uid);
 
+            if (!sellerData || sellerData.status !== 'approved') {
+                 await auth.signOut(); // Log them out immediately
+                 toast({ variant: 'destructive', title: "Login Denied", description: "Your account is not approved yet. Please contact support." });
+                 setIsLoggingIn(false);
+                 return;
+            }
+
+            const idToken = await loggedInUser.getIdToken();
             await fetch('/api/auth/session', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ idToken }),
             });
             
-            toast({
-                title: "Login Successful",
-                description: "Redirecting you to your dashboard.",
-            });
-            
-            const targetPath = userCredential.user.email === ADMIN_EMAIL ? redirectedFrom : '/seller/dashboard';
-            router.push(targetPath);
+            toast({ title: "Login Successful", description: "Redirecting you to your dashboard." });
+            router.push('/seller/dashboard'); // Sellers go to seller dashboard
             router.refresh();
 
         } catch (error: any) {
@@ -73,11 +108,7 @@ export default function SellerLoginPage() {
             const errorMessage = error.code === 'auth/invalid-credential' 
                 ? 'Invalid email or password.' 
                 : 'An unexpected error occurred during login.';
-            toast({
-                variant: 'destructive',
-                title: "Login Error",
-                description: errorMessage
-            });
+            toast({ variant: 'destructive', title: "Login Error", description: errorMessage });
              setIsLoggingIn(false);
         }
     };

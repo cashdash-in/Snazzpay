@@ -14,6 +14,8 @@ import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { doc, setDoc } from "firebase/firestore";
 import { FirebaseError } from 'firebase/app';
+import type { PartnerData } from '@/app/partner-pay/page';
+import { v4 as uuidv4 } from 'uuid';
 
 export default function SellerSignupPage() {
     const { toast } = useToast();
@@ -38,6 +40,7 @@ export default function SellerSignupPage() {
         }
 
         try {
+            // First, just create the user in Firebase Auth.
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
 
@@ -45,19 +48,31 @@ export default function SellerSignupPage() {
                 displayName: companyName,
             });
 
-            // Create a document for the seller in Firestore
-            await setDoc(doc(db, "sellers", user.uid), {
-                uid: user.uid,
-                email: user.email,
+            // Second, instead of creating a "seller" doc directly,
+            // create a "partner request" in localStorage for the admin to approve.
+            const newPartnerRequest: PartnerData = {
+                id: user.uid, // Use Firebase UID as the unique ID
                 companyName: companyName,
-                createdAt: new Date().toISOString(),
-            });
+                phone: user.phoneNumber || '', // Placeholder
+                pan: '', // These would be collected in a more detailed form
+                aadhaar: '',
+                address: '',
+                status: 'pending', // Status is pending approval
+                balance: 0,
+                totalCollected: 0
+            };
+
+            const existingRequestsJSON = localStorage.getItem('payPartners');
+            const existingRequests: PartnerData[] = existingRequestsJSON ? JSON.parse(existingRequestsJSON) : [];
+            localStorage.setItem('payPartners', JSON.stringify([...existingRequests, newPartnerRequest]));
 
             toast({
-                title: "Signup Successful!",
-                description: "Your account has been created. Redirecting to login...",
+                title: "Registration Submitted!",
+                description: "Your account is pending admin approval. You will be notified once it's reviewed.",
             });
 
+            // Sign the user out and redirect to login. They can't use the app until approved.
+            await auth.signOut();
             router.push('/auth/login');
 
         } catch (error: any) {
@@ -76,10 +91,6 @@ export default function SellerSignupPage() {
                     case 'auth/invalid-email':
                         description = 'The email address is not valid.';
                         break;
-                    case 'permission-denied':
-                        title = 'Firestore Security Error';
-                        description = "Could not create seller profile. Please ensure your Firestore security rules allow 'create' on the 'sellers' collection and that you have enabled Firestore in the Firebase console.";
-                        break;
                     default:
                         description = `An error occurred: ${error.message}`;
                 }
@@ -90,6 +101,7 @@ export default function SellerSignupPage() {
                 title: title,
                 description: description,
             });
+        } finally {
             setIsLoading(false);
         }
     };
@@ -148,7 +160,7 @@ export default function SellerSignupPage() {
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4">
                     <Button className="w-full" onClick={handleSignup} disabled={isLoading}>
-                         {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing Up...</> : "Create Account"}
+                         {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing Up...</> : "Submit for Approval"}
                     </Button>
                     <div className="text-xs text-center text-muted-foreground space-x-1">
                         <Link href="/seller" className="text-primary hover:underline">
