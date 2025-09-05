@@ -61,7 +61,7 @@ export default function AdminLoginPage() {
                 <CardHeader className="text-center">
                     <ShieldCheck className="mx-auto h-12 w-12 text-primary" />
                     <CardTitle>SnazzPay Admin Central</CardTitle>
-                    <CardDescription>Log in to the main dashboard.</CardDescription>
+                    <CardDescription>Log in to the main dashboard. You must first create this user via the signup page.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">

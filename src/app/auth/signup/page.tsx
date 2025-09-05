@@ -56,7 +56,7 @@ export default function SellerSignupPage() {
                 });
                 toast({
                     title: "Admin Account Created!",
-                    description: "You can now log in using these credentials.",
+                    description: "You can now log in using these credentials on the Admin Login page.",
                 });
                 await auth.signOut();
                 router.push('/auth/login');
