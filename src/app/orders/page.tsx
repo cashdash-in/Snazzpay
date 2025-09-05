@@ -44,6 +44,7 @@ export type EditableOrder = {
   refundAmount?: string;
   refundReason?: string;
   refundStatus?: 'Pending' | 'Processed' | 'Failed';
+  source?: 'Shopify' | 'Manual' | 'Seller';
 };
 
 function formatAddress(address: ShopifyOrder['shipping_address']): string {
@@ -82,6 +83,7 @@ function mapShopifyOrderToEditableOrder(shopifyOrder: ShopifyOrder): EditableOrd
         price: shopifyOrder.total_price,
         paymentStatus,
         date: format(new Date(shopifyOrder.created_at), "yyyy-MM-dd"),
+        source: 'Shopify',
     };
 }
 
@@ -96,22 +98,25 @@ export default function OrdersPage() {
 
   const fetchAndSetOrders = useCallback(async () => {
     setLoading(true);
-    let shopifyEditableOrders: EditableOrder[] = [];
+    let combinedOrders: EditableOrder[] = [];
+    
+    // 1. Fetch Shopify Orders
     try {
         const shopifyOrders = await getOrders();
-        shopifyEditableOrders = shopifyOrders.map(mapShopifyOrderToEditableOrder);
+        combinedOrders.push(...shopifyOrders.map(mapShopifyOrderToEditableOrder));
     } catch (error) {
         console.error("Failed to fetch Shopify orders:", error);
     }
-
-    let manualOrders: EditableOrder[] = [];
+    
+    // 2. Fetch Manual Orders
     try {
         const manualOrdersJSON = localStorage.getItem('manualOrders');
-        manualOrders = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
+        const manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
+        combinedOrders.push(...manualOrders.map(o => ({...o, source: 'Manual'})));
         
         const testOrderExists = manualOrders.some(order => order.orderId === TEST_ORDER_ID);
         if (!testOrderExists) {
-             manualOrders.unshift({
+             const testOrder: EditableOrder = {
                 id: uuidv4(),
                 orderId: TEST_ORDER_ID,
                 customerName: 'Test Customer',
@@ -124,19 +129,24 @@ export default function OrdersPage() {
                 price: '499.00',
                 paymentStatus: 'Pending',
                 date: format(new Date(), 'yyyy-MM-dd'),
-            });
+                source: 'Manual',
+            };
+            manualOrders.unshift(testOrder);
+            combinedOrders.unshift(testOrder);
             localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
         }
     } catch (error) {
         console.error("Failed to load manual orders:", error);
-        toast({
-            variant: 'destructive',
-            title: "Error loading manual orders",
-            description: "Could not load orders from local storage.",
-        });
     }
-
-    let combinedOrders = [...manualOrders, ...shopifyEditableOrders];
+    
+    // 3. Fetch Seller Orders
+    try {
+        const sellerOrdersJSON = localStorage.getItem('seller_orders');
+        const sellerOrders: EditableOrder[] = sellerOrdersJSON ? JSON.parse(sellerOrdersJSON) : [];
+        combinedOrders.push(...sellerOrders.map(o => ({...o, source: 'Seller'})));
+    } catch (error) {
+        console.error("Failed to load seller orders:", error);
+    }
 
     const orderGroups = new Map<string, EditableOrder[]>();
     combinedOrders.forEach(order => {
@@ -197,13 +207,19 @@ export default function OrdersPage() {
   };
 
   const handleRemoveOrder = (orderId: string) => {
+    const orderToRemove = orders.find(o => o.id === orderId);
+    if (!orderToRemove) return;
+
     setOrders(prev => prev.filter(order => order.id !== orderId));
     
-    const manualOrdersJSON = localStorage.getItem('manualOrders');
-    if(manualOrdersJSON) {
-        let manualOrders: EditableOrder[] = JSON.parse(manualOrdersJSON);
-        manualOrders = manualOrders.filter(o => o.id !== orderId);
-        localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
+    // Determine which localStorage key to update
+    const sourceKey = orderToRemove.source === 'Seller' ? 'seller_orders' : 'manualOrders';
+    const storageJSON = localStorage.getItem(sourceKey);
+
+    if(storageJSON) {
+        let storedOrders: EditableOrder[] = JSON.parse(storageJSON);
+        storedOrders = storedOrders.filter(o => o.id !== orderId);
+        localStorage.setItem(sourceKey, JSON.stringify(storedOrders));
     }
     
     localStorage.removeItem(`order-override-${orderId}`);
@@ -319,6 +335,7 @@ export default function OrdersPage() {
                   <TableHead>Price</TableHead>
                   <TableHead>Payment Status</TableHead>
                   <TableHead>Date</TableHead>
+                  <TableHead>Source</TableHead>
                   <TableHead className="text-center">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -348,6 +365,7 @@ export default function OrdersPage() {
                                 </div>
                             </TableCell>
                             <TableCell><Input type="date" value={order.date} onChange={(e) => handleFieldChange(order.id, 'date', e.target.value)} className="w-32" /></TableCell>
+                            <TableCell><Badge variant={order.source === 'Shopify' ? 'secondary' : 'outline'}>{order.source || 'Manual'}</Badge></TableCell>
                             <TableCell className="text-center space-x-2">
                                 {isAuthorized && (
                                      <AlertDialog>
