@@ -4,7 +4,7 @@
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Coins, Package, Handshake, Info, PlusCircle, Printer, Download, Loader2, QrCode, Check, X, Eye, ShoppingBasket, BadgeCheck, Users } from 'lucide-react';
+import { Coins, Package, Handshake, Info, PlusCircle, Printer, Download, Loader2, QrCode, Check, X, Eye, ShoppingBasket, BadgeCheck, Users, Settings, Gem, Percent } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
@@ -28,6 +28,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { v4 as uuidv4 } from 'uuid';
+import type { ShaktiCardData } from "@/components/shakti-card";
 
 export type PartnerData = {
     id: string; // This will be the login ID
@@ -59,7 +60,6 @@ type TopUpRequest = {
     requestDate: string;
 };
 
-// Mock Data - Replace with real data later
 const mockOrders = [
     { id: '#PP-1001', customer: 'Ravi Kumar', partner: 'Gupta General Store', coinCode: 'SNZ-A1B2-C3D4', amount: '499.00', status: 'Paid' },
     { id: '#PP-1002', customer: 'Priya Sharma', partner: 'Pooja Mobile Recharge', coinCode: 'SNZ-E5F6-G7H8', amount: '1250.00', status: 'Paid' },
@@ -82,23 +82,32 @@ export default function PartnerHubPage() {
     const [topUpRequests, setTopUpRequests] = useState<TopUpRequest[]>([]);
     const [newCodeValue, setNewCodeValue] = useState('');
     const [selectedPartner, setSelectedPartner] = useState('');
+    const [shaktiCards, setShaktiCards] = useState<ShaktiCardData[]>([]);
+    const [rewardRules, setRewardRules] = useState({ pointsPerRupee: 0.01, cashbackPercentage: 1 });
 
      useEffect(() => {
-        // Load Pay Partners
         const allPayPartnersJSON = localStorage.getItem('payPartners');
         const allPayPartners: PartnerData[] = allPayPartnersJSON ? JSON.parse(allPayPartnersJSON) : [];
         setPayPartners(allPayPartners.filter(p => p.status === 'approved'));
         setPayPartnerRequests(allPayPartners.filter(p => p.status === 'pending'));
 
-        // Load Seller Requests
         const allSellersJSON = localStorage.getItem('seller_users');
         const allSellers: SellerUser[] = allSellersJSON ? JSON.parse(allSellersJSON) : [];
         setSellerRequests(allSellers.filter(s => s.status === 'pending'));
         
-        // Load Topup requests
         const allTopUpsJSON = localStorage.getItem('topUpRequests');
         const allTopUps: TopUpRequest[] = allTopUpsJSON ? JSON.parse(allTopUpsJSON) : [];
         setTopUpRequests(allTopUps);
+        
+        const allShaktiCardsJSON = localStorage.getItem('shakti_cards_db');
+        const allShaktiCards: ShaktiCardData[] = allShaktiCardsJSON ? JSON.parse(allShaktiCardsJSON) : [];
+        setShaktiCards(allShaktiCards);
+        
+        const storedRules = localStorage.getItem('shakti_card_rules');
+        if (storedRules) {
+            setRewardRules(JSON.parse(storedRules));
+        }
+
     }, []);
 
     const handleGenerateCode = () => {
@@ -175,10 +184,8 @@ export default function PartnerHubPage() {
         const request = allRequests.find(r => r.id === requestId);
         if(!request || request.status === 'Approved') return;
 
-        // Approve the request
         request.status = 'Approved';
         
-        // Update the partner's balance
         allPartners = allPartners.map(p => {
             if (p.id === request.partnerId) {
                 return { ...p, balance: p.balance + request.coinsRequested };
@@ -198,25 +205,21 @@ export default function PartnerHubPage() {
         });
     };
 
+    const handleSaveRules = () => {
+        localStorage.setItem('shakti_card_rules', JSON.stringify(rewardRules));
+        toast({ title: "Reward Rules Saved", description: "The new point and cashback rules have been applied." });
+    };
+
     return (
         <AppShell title="Partner Hub">
             <Tabs defaultValue="overview">
-                <TabsList className="grid w-full grid-cols-5 max-w-4xl mx-auto">
-                    <TabsTrigger value="overview">
-                        <Info className="mr-2 h-4 w-4" /> Overview
-                    </TabsTrigger>
-                     <TabsTrigger value="pay-partners">
-                        <Handshake className="mr-2 h-4 w-4" /> Partner Pay Network
-                    </TabsTrigger>
-                     <TabsTrigger value="seller-requests">
-                        Seller Requests <Badge className="ml-2">{sellerRequests.length}</Badge>
-                    </TabsTrigger>
-                     <TabsTrigger value="topups">
-                        Top-up Requests <Badge className="ml-2">{topUpRequests.filter(r => r.status === 'Pending Approval').length}</Badge>
-                    </TabsTrigger>
-                    <TabsTrigger value="codes">
-                        <QrCode className="mr-2 h-4 w-4" /> Digital Codes
-                    </TabsTrigger>
+                <TabsList className="grid w-full grid-cols-6 max-w-5xl mx-auto">
+                    <TabsTrigger value="overview"><Info className="mr-2 h-4 w-4" /> Overview</TabsTrigger>
+                     <TabsTrigger value="pay-partners"><Handshake className="mr-2 h-4 w-4" /> Partner Pay Network</TabsTrigger>
+                     <TabsTrigger value="seller-requests">Seller Requests <Badge className="ml-2">{sellerRequests.length}</Badge></TabsTrigger>
+                     <TabsTrigger value="topups">Top-up Requests <Badge className="ml-2">{topUpRequests.filter(r => r.status === 'Pending Approval').length}</Badge></TabsTrigger>
+                    <TabsTrigger value="codes"><QrCode className="mr-2 h-4 w-4" /> Digital Codes</TabsTrigger>
+                    <TabsTrigger value="shakti-admin"><Settings className="mr-2 h-4 w-4" /> Shakti Card Admin</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="overview" className="mt-4">
@@ -480,6 +483,60 @@ export default function PartnerHubPage() {
                                 </CardContent>
                             </Card>
                         </div>
+                    </div>
+                </TabsContent>
+                <TabsContent value="shakti-admin" className="mt-4">
+                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Shakti Card Reward Rules</CardTitle>
+                                <CardDescription>Set the global rules for how customers earn rewards.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="points-per-rupee">Points Earned Per Rupee Spent</Label>
+                                    <div className="flex items-center gap-2">
+                                        <Gem className="h-4 w-4 text-muted-foreground" />
+                                        <Input id="points-per-rupee" type="number" value={rewardRules.pointsPerRupee} onChange={(e) => setRewardRules(p => ({...p, pointsPerRupee: parseFloat(e.target.value)}))} placeholder="e.g., 0.01 for 1 point per ₹100" />
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">Example: 0.01 means 1 point per ₹100. 0.1 means 1 point per ₹10.</p>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="cashback-percentage">Cashback Percentage</Label>
+                                    <div className="flex items-center gap-2">
+                                        <Percent className="h-4 w-4 text-muted-foreground" />
+                                        <Input id="cashback-percentage" type="number" value={rewardRules.cashbackPercentage} onChange={(e) => setRewardRules(p => ({...p, cashbackPercentage: parseFloat(e.target.value)}))} placeholder="e.g., 1 for 1%" />
+                                    </div>
+                                     <p className="text-xs text-muted-foreground">This feature is not yet implemented.</p>
+                                </div>
+                            </CardContent>
+                            <CardFooter>
+                                <Button onClick={handleSaveRules}>Save Reward Rules</Button>
+                            </CardFooter>
+                        </Card>
+                         <Card>
+                            <CardHeader>
+                                <CardTitle>All Shakti Card Holders</CardTitle>
+                                <CardDescription>View all issued cards and their current reward balances.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <Table>
+                                    <TableHeader><TableRow><TableHead>Card Number</TableHead><TableHead>Customer</TableHead><TableHead>Points</TableHead><TableHead>Cashback</TableHead></TableRow></TableHeader>
+                                    <TableBody>
+                                        {shaktiCards.length > 0 ? shaktiCards.map(card => (
+                                            <TableRow key={card.cardNumber}>
+                                                <TableCell className="font-mono text-xs">{card.cardNumber}</TableCell>
+                                                <TableCell>{card.customerName}</TableCell>
+                                                <TableCell className="font-medium text-blue-600">{card.points}</TableCell>
+                                                <TableCell className="font-medium text-green-600">₹{card.cashback.toFixed(2)}</TableCell>
+                                            </TableRow>
+                                        )) : (
+                                            <TableRow><TableCell colSpan={4} className="text-center h-24">No Shakti Cards have been issued yet.</TableCell></TableRow>
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </CardContent>
+                        </Card>
                     </div>
                 </TabsContent>
             </Tabs>

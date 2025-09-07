@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogOut, Wallet, Package, QrCode, Clipboard, PackageCheck, Send, MessageSquare, AlertTriangle, FileUp, Edit, ShieldCheck, CheckCircle, Copy, User, Phone, Home, Loader2, Coins, BarChart3, TrendingUp, TrendingDown } from "lucide-react";
+import { LogOut, Wallet, Package, QrCode, Clipboard, PackageCheck, Send, MessageSquare, AlertTriangle, FileUp, Edit, ShieldCheck, CheckCircle, Copy, User, Phone, Home, Loader2, Coins, BarChart3, TrendingUp, TrendingDown, Search } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
@@ -20,6 +20,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { getRazorpayKeyId } from '@/app/actions';
 import type { PartnerData } from '../page';
 import { ResponsiveContainer, BarChart, XAxis, YAxis, Tooltip, Bar } from 'recharts';
+import type { ShaktiCardData } from '@/components/shakti-card';
 
 
 type TransactionStatus = 'In Process' | 'Completed' | 'Refunded' | 'Refund Requested';
@@ -35,6 +36,8 @@ type Transaction = {
     sellerTransactionCode?: string;
     customerCode?: string;
     commission: number; // Profit from this transaction
+    shaktiCardNumber?: string;
+    discountApplied?: number;
 };
 
 type CashCode = {
@@ -87,6 +90,10 @@ export default function PartnerPayDashboardPage() {
     const [deliveryNotes, setDeliveryNotes] = useState('');
     const [cashAmount, setCashAmount] = useState('');
     const [isToppingUp, setIsToppingUp] = useState(false);
+    const [shaktiCardNumber, setShaktiCardNumber] = useState('');
+    const [shaktiCardBenefits, setShaktiCardBenefits] = useState<{ points: number; cashback: number; discount: number } | null>(null);
+    const [isVerifyingCard, setIsVerifyingCard] = useState(false);
+
 
     useEffect(() => {
         const loggedInPartnerId = localStorage.getItem('loggedInPartnerId');
@@ -133,7 +140,6 @@ export default function PartnerPayDashboardPage() {
             }
         });
 
-        // Ensure last 3 months are present
         for (let i = 2; i >= 0; i--) {
             const monthKey = format(subMonths(new Date(), i), 'MMM yyyy');
             if (!monthlyProfit[monthKey]) {
@@ -143,13 +149,33 @@ export default function PartnerPayDashboardPage() {
 
         return Object.entries(monthlyProfit)
             .map(([name, total]) => ({ name: name.split(' ')[0], total }))
-            .slice(-3); // Get last 3 months
+            .slice(-3); 
     }, [transactions]);
     
     const handleLogout = () => {
         localStorage.removeItem('loggedInPartnerId');
         toast({ title: "Logged Out", description: "You have been successfully logged out." });
         router.push('/partner-pay/login');
+    };
+
+    const handleVerifyShaktiCard = () => {
+        if (!shaktiCardNumber) return;
+        setIsVerifyingCard(true);
+        // Simulate API call to fetch card benefits
+        setTimeout(() => {
+            const allCards: ShaktiCardData[] = JSON.parse(localStorage.getItem('shakti_cards_db') || '[]');
+            const foundCard = allCards.find(c => c.cardNumber === shaktiCardNumber);
+
+            if (foundCard) {
+                const discount = Math.floor(foundCard.points / 10); // 10 points = 1 Rupee discount
+                setShaktiCardBenefits({ points: foundCard.points, cashback: foundCard.cashback, discount });
+                toast({ title: "Card Verified!", description: `Customer has ₹${discount} available as discount.` });
+            } else {
+                setShaktiCardBenefits(null);
+                toast({ variant: 'destructive', title: "Invalid Card", description: "This Shakti Card number was not found." });
+            }
+            setIsVerifyingCard(false);
+        }, 500);
     };
     
     const handleSettleWithSeller = async () => {
@@ -170,13 +196,17 @@ export default function PartnerPayDashboardPage() {
             toast({ variant: 'destructive', title: "Customer Details Required", description: "Please enter the customer's name, phone, and address." });
             return;
         }
+
+        const discountToApply = shaktiCardBenefits?.discount || 0;
+        const finalAmount = amount - discountToApply;
+
         setIsSettling(true);
         
         try {
             const response = await fetch('/api/create-payment-link', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ amount: transactionValue, customerName: partner.companyName, isPartnerSettlement: true })
+                body: JSON.stringify({ amount: finalAmount, customerName: partner.companyName, isPartnerSettlement: true })
             });
             const result = await response.json();
             if (!response.ok) throw new Error(result.error);
@@ -185,7 +215,7 @@ export default function PartnerPayDashboardPage() {
                 key: razorpayKeyId,
                 order_id: result.order_id,
                 name: "Settle with Snazzify Seller",
-                description: `Settlement of ₹${transactionValue}`,
+                description: `Settlement of ₹${finalAmount.toFixed(2)}`,
                 handler: (response: any) => {
                     const newTransaction: Transaction = {
                         id: uuidv4().substring(0, 8).toUpperCase(),
@@ -196,13 +226,25 @@ export default function PartnerPayDashboardPage() {
                         date: new Date().toISOString(),
                         status: 'In Process',
                         sellerTransactionCode: response.razorpay_payment_id,
-                        commission: parseFloat(transactionValue) * 0.02, // 2% commission example
+                        commission: parseFloat(transactionValue) * 0.02,
+                        shaktiCardNumber: shaktiCardNumber || undefined,
+                        discountApplied: discountToApply,
                     };
                     setTransactions(prev => [newTransaction, ...prev]);
-                    setPartner(prev => prev ? ({ ...prev, balance: prev.balance - amount }) : null);
+                    setPartner(prev => prev ? ({ ...prev, balance: prev.balance - finalAmount }) : null);
+
+                    // Update Shakti Card points
+                    if (shaktiCardBenefits && shaktiCardNumber) {
+                        const allCards: ShaktiCardData[] = JSON.parse(localStorage.getItem('shakti_cards_db') || '[]');
+                        const updatedCards = allCards.map(c => c.cardNumber === shaktiCardNumber ? {...c, points: c.points - (discountToApply * 10)} : c);
+                        localStorage.setItem('shakti_cards_db', JSON.stringify(updatedCards));
+                    }
+
                     toast({ title: "Settlement Successful!", description: `Transaction code ${response.razorpay_payment_id} is now in your transaction list.` });
                     setTransactionValue('');
                     setCustomerInfo({ name: '', phone: '', address: '' });
+                    setShaktiCardNumber('');
+                    setShaktiCardBenefits(null);
                     setIsSettling(false);
                 },
                 prefill: { name: partner.companyName },
@@ -225,15 +267,32 @@ export default function PartnerPayDashboardPage() {
         }
         
         let txFound = false;
+        let pointsEarned = 0;
+        let cardToUpdate = '';
+
         setTransactions(prev => prev.map(tx => {
             if (tx.sellerTransactionCode === sellerCodeToProcess && tx.status === 'In Process') {
                 txFound = true;
                 const customerCode = `CUST-${uuidv4().substring(0, 8).toUpperCase()}`;
+                
+                // Add points to Shakti Card
+                if (tx.shaktiCardNumber) {
+                    const pointRules = JSON.parse(localStorage.getItem('shakti_card_rules') || '{"pointsPerRupee": 0.01}');
+                    pointsEarned = Math.floor(tx.value * pointRules.pointsPerRupee);
+                    cardToUpdate = tx.shaktiCardNumber;
+                }
+
                 toast({ title: "Customer Code Generated!", description: `Share this code with the customer: ${customerCode}` });
                 return { ...tx, status: 'Completed', customerCode: customerCode };
             }
             return tx;
         }));
+
+        if (txFound && cardToUpdate) {
+            const allCards: ShaktiCardData[] = JSON.parse(localStorage.getItem('shakti_cards_db') || '[]');
+            const updatedCards = allCards.map(c => c.cardNumber === cardToUpdate ? {...c, points: c.points + pointsEarned} : c);
+            localStorage.setItem('shakti_cards_db', JSON.stringify(updatedCards));
+        }
 
         if (!txFound) {
             toast({ variant: 'destructive', title: 'Transaction Not Found', description: 'Could not find an "In Process" transaction with that Seller Code.'})
@@ -369,7 +428,8 @@ export default function PartnerPayDashboardPage() {
         return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
     }
 
-    const canSettle = partner.balance >= parseFloat(transactionValue || '0');
+    const finalTransactionValue = parseFloat(transactionValue || '0') - (shaktiCardBenefits?.discount || 0);
+    const canSettle = partner.balance >= finalTransactionValue;
     const totalProfit = transactions.reduce((acc, tx) => tx.status === 'Completed' ? acc + tx.commission : acc, 0);
     const totalRevenue = transactions.reduce((acc, tx) => tx.status === 'Completed' ? acc + tx.value : acc, 0);
     const totalRefunds = transactions.reduce((acc, tx) => tx.status === 'Refunded' ? acc + tx.value : acc, 0);
@@ -434,9 +494,28 @@ export default function PartnerPayDashboardPage() {
                             <CardHeader><CardTitle>Generate Payment Code</CardTitle><CardDescription className="text-xs">Collect cash, settle with seller online, then generate a code for the customer.</CardDescription></CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="space-y-2">
+                                    <Label>Shakti Card (Optional)</Label>
+                                    <div className="flex gap-2">
+                                        <Input id="shakti-card-no" placeholder="Enter Shakti Card number" value={shaktiCardNumber} onChange={(e) => setShaktiCardNumber(e.target.value)} />
+                                        <Button variant="secondary" size="icon" onClick={handleVerifyShaktiCard} disabled={isVerifyingCard}>{isVerifyingCard ? <Loader2 className="h-4 w-4 animate-spin"/> : <Search className="h-4 w-4"/>}</Button>
+                                    </div>
+                                    {shaktiCardBenefits && (
+                                        <div className="text-xs text-green-600 p-2 bg-green-50 rounded-md">
+                                            Card verified! Customer has <span className="font-bold">₹{shaktiCardBenefits.discount.toFixed(2)}</span> discount available from {shaktiCardBenefits.points} points.
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="space-y-2">
                                     <Label htmlFor="tx-value">Cash Collected (₹)</Label>
                                     <Input id="tx-value" type="number" placeholder="e.g., 500" value={transactionValue} onChange={(e) => setTransactionValue(e.target.value)} />
                                 </div>
+                                {shaktiCardBenefits && shaktiCardBenefits.discount > 0 && (
+                                    <div className="text-sm p-2 border-dashed border-primary border rounded-md">
+                                        <div className="flex justify-between"><span className="text-muted-foreground">Original Total:</span><span>₹{parseFloat(transactionValue || '0').toFixed(2)}</span></div>
+                                        <div className="flex justify-between text-destructive"><span className="text-muted-foreground">Discount:</span><span>- ₹{shaktiCardBenefits.discount.toFixed(2)}</span></div>
+                                        <div className="flex justify-between font-bold mt-1 pt-1 border-t"><span >Final Amount:</span><span>₹{finalTransactionValue.toFixed(2)}</span></div>
+                                    </div>
+                                )}
                                 <div className="space-y-2">
                                     <Label>Customer Details (for your records)</Label>
                                     <div className="relative"><User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="customer-name" placeholder="Customer Name" value={customerInfo.name} onChange={(e) => setCustomerInfo(p => ({...p, name: e.target.value}))} className="pl-9" /></div>
@@ -446,7 +525,7 @@ export default function PartnerPayDashboardPage() {
                                 
                                 <Button className="w-full" onClick={handleSettleWithSeller} disabled={isSettling || !canSettle}>
                                     <QrCode className="mr-2 h-4 w-4" /> 
-                                    {isSettling ? 'Processing...' : `Pay Seller ₹${transactionValue || '0.00'} & Get Code`}
+                                    {isSettling ? 'Processing...' : `Pay Seller ₹${finalTransactionValue.toFixed(2) || '0.00'} & Get Code`}
                                 </Button>
                                 {!canSettle && <p className="text-xs text-destructive text-center">Insufficient coin balance for this transaction.</p>}
 
@@ -475,7 +554,10 @@ export default function PartnerPayDashboardPage() {
                                                     return (
                                                     <TableRow key={tx.id}>
                                                         <TableCell><div className="font-medium">{tx.customerName}</div><div className="text-xs text-muted-foreground">{tx.customerPhone}</div></TableCell>
-                                                        <TableCell>₹{tx.value.toFixed(2)}</TableCell>
+                                                        <TableCell>
+                                                            <div>₹{tx.value.toFixed(2)}</div>
+                                                            {tx.discountApplied && tx.discountApplied > 0 && <div className="text-xs text-destructive">(-₹{tx.discountApplied.toFixed(2)})</div>}
+                                                        </TableCell>
                                                         <TableCell className="text-green-600 font-medium">+ ₹{tx.commission.toFixed(2)}</TableCell>
                                                         <TableCell className="font-mono text-xs flex items-center gap-1">
                                                            {tx.status === 'Completed' ? tx.customerCode : tx.sellerTransactionCode || 'N/A'} 
@@ -611,3 +693,5 @@ export default function PartnerPayDashboardPage() {
         </div>
     );
 }
+
+    

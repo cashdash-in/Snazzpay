@@ -19,6 +19,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { format, addYears } from 'date-fns';
 import { sanitizePhoneNumber } from '@/lib/utils';
 import { ShaktiCard, ShaktiCardData } from '@/components/shakti-card';
+import Link from 'next/link';
 
 type PaymentInfo = {
     paymentId: string;
@@ -257,7 +258,9 @@ export default function CustomerDashboardPage() {
                             <CardContent className="flex flex-col items-center justify-center">
                                 {shaktiCard ? (
                                     <>
-                                        <ShaktiCard card={shaktiCard} />
+                                        <Link href="/customer/card-details" className="w-full">
+                                            <ShaktiCard card={shaktiCard} />
+                                        </Link>
                                         <div className="grid grid-cols-2 gap-4 w-full mt-4 text-center">
                                             <div className="p-2 bg-slate-100 rounded-lg">
                                                 <p className="text-sm text-muted-foreground">Points</p>
@@ -495,3 +498,5 @@ export default function CustomerDashboardPage() {
         </div>
     );
 }
+
+    
