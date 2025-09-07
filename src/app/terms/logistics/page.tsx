@@ -22,15 +22,19 @@ export default function LogisticsTermsPage() {
                 </CardHeader>
                 <CardContent className="space-y-6 text-sm text-muted-foreground prose prose-sm max-w-none">
                     <h3>1. Service Agreement</h3>
-                    <p>As a Logistics Partner, you agree to provide secure, timely, and professional delivery and pickup services for Snazzify orders. This includes managing your fleet of agents and any service partners you subcontract.</p>
-                     <h3>2. Fleet Management</h3>
-                    <p>You are solely responsible for the hiring, training, and conduct of your delivery agents. You must ensure all agents comply with Snazzify's standards of service and customer interaction. You are liable for the actions of your agents.</p>
-                     <h3>3. Cash Handling &amp; Settlement</h3>
-                    <p>Your agents may be required to collect cash from customers or settle cash balances with Partner Pay agents. You are responsible for the secure collection and timely settlement of all cash with Snazzify. Discrepancies may lead to penalties or account suspension.</p>
+                    <p>As a Logistics Partner, you agree to provide secure, timely, and professional delivery and pickup services for Snazzify orders. This includes managing your fleet of agents and any service partners you subcontract. You are an independent contractor, not an employee of Snazzify.</p>
+                    
+                     <h3>2. Fleet Management & Agent Conduct</h3>
+                    <p>You are solely responsible for the hiring, training, and conduct of your delivery agents. You must ensure all agents comply with Snazzify's standards of service and customer interaction, which includes the understanding that end-customer payments are pre-paid and they should not attempt to collect any payment.</p>
+                     
+                     <h3>3. Cash Handling & Settlement with Partners</h3>
+                    <p>Your agents may be required to settle cash balances with our registered Partner Pay agents by collecting cash and providing it for settlement at your hub. You are responsible for the secure collection and management of this cash until it is deposited as per our agreed process. You are liable for any cash shortages or discrepancies.</p>
+                     
                      <h3>4. Liability and Insurance</h3>
-                    <p>You must maintain adequate insurance for goods in transit. You are liable for any loss or damage to a shipment from the point of pickup until it is successfully delivered to the customer or returned to Snazzify.</p>
-                    <h3>5. Confidentiality</h3>
-                    <p>You and your agents must maintain the confidentiality of all customer data, including names, addresses, and contact information. Unauthorized use or sharing of this data is strictly prohibited and will result in termination of the partnership.</p>
+                    <p>You must maintain adequate "Goods in Transit" insurance. Your liability for a shipment begins from the moment it is picked up from the seller or our warehouse and ends upon successful delivery to the customer or designated Partner Pay hub. Since all orders are pre-paid via the Secure COD system, your liability is focused on the physical security of the goods, not the collection of payment from the end customer.</p>
+                    
+                    <h3>5. Data and Confidentiality</h3>
+                    <p>You and your agents must maintain strict confidentiality of all customer and Partner Pay agent data. Unauthorized use or sharing of this information is a material breach of this agreement and will result in immediate termination and potential legal action.</p>
                 </CardContent>
             </Card>
         </div>
