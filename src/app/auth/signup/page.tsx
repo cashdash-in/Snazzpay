@@ -10,11 +10,10 @@ import { ShieldCheck, Mail, Lock, Loader2, User } from "lucide-react";
 import Link from "next/link";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { createUserWithEmailAndPassword, updateProfile, deleteUser } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { doc, setDoc } from "firebase/firestore";
 import { FirebaseError } from 'firebase/app';
-import { saveSellerUser } from '@/services/firestore';
 import type { SellerUser } from '@/app/partner-pay/page';
 
 const ADMIN_EMAIL = "admin@snazzpay.com";
@@ -79,10 +78,11 @@ export default function SellerSignupPage() {
             return;
         }
 
+        let user;
         try {
             // Step 1: Create the user in Firebase Auth
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            const user = userCredential.user;
+            user = userCredential.user;
 
             await updateProfile(user, {
                 displayName: companyName,
@@ -105,8 +105,6 @@ export default function SellerSignupPage() {
 
             if (!response.ok) {
                 const result = await response.json();
-                // If the API call fails, we should ideally delete the just-created auth user
-                // For now, we will show an error to the user.
                 throw new Error(result.error || 'Failed to save seller details to the database.');
             }
 
@@ -125,6 +123,13 @@ export default function SellerSignupPage() {
             let title = "Signup Failed";
             let description = 'An unexpected error occurred during signup.';
             
+            // Critical: If the Firestore write fails, delete the created auth user
+            // to allow the user to try signing up again.
+            if (user) {
+                await deleteUser(user);
+                console.log("Cleaned up orphaned auth user:", user.uid);
+            }
+
             if (error instanceof FirebaseError) {
                 switch (error.code) {
                     case 'auth/email-already-in-use':
@@ -140,7 +145,9 @@ export default function SellerSignupPage() {
                         description = `An error occurred: ${error.message}`;
                 }
             } else {
-                description = error.message; // Display the custom error from our API call
+                // This will catch the error thrown from our API call
+                title = "Failed to Create Seller Request";
+                description = error.message; 
             }
             
             toast({

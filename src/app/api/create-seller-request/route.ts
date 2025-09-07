@@ -15,7 +15,8 @@ export async function POST(request: Request) {
     }
     
     // The data is now coming to a trusted server environment.
-    // The saveSellerUser function (which uses the Admin SDK implicitly) has the rights to write to Firestore.
+    // The saveSellerUser function (which uses the Admin SDK implicitly if configured on the server) 
+    // now has the rights to write to Firestore, bypassing client-side rules.
     await saveSellerUser(sellerData);
 
     return new NextResponse(
@@ -25,12 +26,9 @@ export async function POST(request: Request) {
 
   } catch (error: any) {
     console.error("--- Create Seller Request Error ---");
-    if (error.error) {
-         console.error(JSON.stringify(error.error, null, 2));
-    } else {
-        console.error(error);
-    }
-    const errorMessage = error?.error?.description || error.message || 'An unknown error occurred.';
+    console.error(error);
+    // Log the detailed error on the server
+    const errorMessage = error?.message || 'An unknown server error occurred.';
     return new NextResponse(
       JSON.stringify({ error: `Failed to create seller request: ${errorMessage}` }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }

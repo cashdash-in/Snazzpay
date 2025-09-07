@@ -6,7 +6,7 @@ import { collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
 import type { EditableOrder } from '@/app/orders/page';
 import type { PartnerData } from '@/app/partner-pay/page';
 import type { LogisticsPartnerData } from '@/app/logistics-secure/dashboard/page';
-import type { SellerUser } from '@/app/auth/signup/page';
+import type { SellerUser } from '@/app/partner-pay/page';
 import type { TopUpRequest } from '@/app/partner-pay/page';
 import type { CashCode } from '@/app/settle/page';
 import type { ShaktiCardData } from '@/components/shakti-card';
@@ -64,7 +64,14 @@ export const updatePayPartner = async (id: string, data: Partial<PartnerData>) =
 
 // Seller User specific functions
 export const getSellerUsers = async (): Promise<SellerUser[]> => getCollection<SellerUser>('seller_users');
-export const saveSellerUser = async (user: SellerUser) => saveDocument('seller_users', user, user.id);
+
+// This function will be called from a trusted server environment (API route)
+export const saveSellerUser = async (user: SellerUser) => {
+    if (!db) throw new Error("Firestore is not initialized.");
+    // The ID of the document will be the Firebase Auth user's UID
+    const docRef = doc(db, 'seller_users', user.id);
+    await setDoc(docRef, user);
+};
 
 
 // TopUp Request specific functions
