@@ -291,8 +291,10 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                     allCardsDB.push(newShaktiCard);
                     localStorage.setItem('shakti_cards_db', JSON.stringify(allCardsDB));
                     setShaktiCard(newShaktiCard);
+                     toast({ title: 'Payment Secured & Shakti Card Issued!', description: 'Your order is confirmed and your new loyalty card is ready.' });
                 } else {
                     setShaktiCard(JSON.parse(cardDataJSON));
+                    toast({ title: 'Payment Secured!', description: 'Your order is confirmed. Benefits will be added to your existing Shakti Card.' });
                 }
 
                 try {
@@ -340,8 +342,6 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                 }
                 
                 localStorage.setItem('loggedInUserMobile', customerDetails.contact);
-
-                toast({ title: 'Payment Secured!', description: 'Your order is confirmed and will be shipped soon.' });
                 setStep('complete');
                 setIsProcessing(false);
             };
@@ -435,7 +435,7 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
             <CardHeader className="pb-4">
                 <BadgeCheck className="mx-auto h-12 w-12 text-green-500" />
                 <CardTitle>Payment Successful!</CardTitle>
-                <CardDescription>Your Shakti COD Card is now active. Welcome to the family!</CardDescription>
+                <CardDescription>Your Shakti COD Card is ready. Welcome to the family!</CardDescription>
             </CardHeader>
              <CardContent className="flex flex-col items-center justify-center space-y-4">
                 {shaktiCard ? <ShaktiCard card={shaktiCard} /> : <Loader2 className="h-8 w-8 animate-spin" />}
@@ -466,7 +466,7 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                     </CardContent>
                 </Card>
             </div>
-        )
+        );
     }
     
     if (step === 'otp') {
