@@ -15,7 +15,6 @@ import { auth, db } from '@/lib/firebase';
 import { doc, setDoc } from "firebase/firestore";
 import { FirebaseError } from 'firebase/app';
 import { v4 as uuidv4 } from 'uuid';
-import { saveSellerUser } from '@/services/firestore';
 
 export type SellerUser = {
     id: string;
@@ -101,7 +100,8 @@ export default function SellerSignupPage() {
                 status: 'pending',
             };
 
-            await saveSellerUser(newSellerRequest);
+            // Correctly save the new seller request to Firestore.
+            await setDoc(doc(db, "seller_users", user.uid), newSellerRequest);
 
             toast({
                 title: "Registration Submitted!",
