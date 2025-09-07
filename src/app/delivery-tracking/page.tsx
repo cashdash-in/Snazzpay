@@ -57,7 +57,7 @@ export default function DeliveryTrackingPage() {
         let combinedOrders: EditableOrder[] = [];
         try {
             const shopifyOrders = await getOrders();
-            combinedOrders = [...combinedOrders, ...shopifyOrders.map(mapShopifyToEditable)];
+            combinedOrders.push(...shopifyOrders.map(mapShopifyToEditable));
         } catch (error) {
             console.error("Failed to fetch Shopify orders:", error);
         }
@@ -65,9 +65,17 @@ export default function DeliveryTrackingPage() {
         try {
             const manualOrdersJSON = localStorage.getItem('manualOrders');
             const manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
-            combinedOrders = [...combinedOrders, ...manualOrders];
+            combinedOrders.push(...manualOrders);
         } catch (error) {
             console.error("Failed to load manual orders:", error);
+        }
+        
+        try {
+            const sellerOrdersJSON = localStorage.getItem('seller_orders');
+            const sellerOrders: EditableOrder[] = sellerOrdersJSON ? JSON.parse(sellerOrdersJSON) : [];
+            combinedOrders.push(...sellerOrders);
+        } catch (error) {
+            console.error("Failed to load seller orders:", error);
         }
 
         const orderGroups = new Map<string, EditableOrder[]>();
