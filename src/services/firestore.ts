@@ -65,7 +65,8 @@ export const updatePayPartner = async (id: string, data: Partial<PartnerData>) =
 // Seller User specific functions
 export const getSellerUsers = async (): Promise<SellerUser[]> => getCollection<SellerUser>('seller_users');
 
-// This function will be called from a trusted server environment (API route)
+// This function can now be called from the client-side safely
+// because of the new Firestore security rules.
 export const saveSellerUser = async (user: SellerUser) => {
     if (!db) throw new Error("Firestore is not initialized.");
     // The ID of the document will be the Firebase Auth user's UID

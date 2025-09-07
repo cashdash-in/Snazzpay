@@ -12,9 +12,9 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { createUserWithEmailAndPassword, updateProfile, deleteUser } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
-import { doc, setDoc } from "firebase/firestore";
 import { FirebaseError } from 'firebase/app';
 import type { SellerUser } from '@/app/partner-pay/page';
+import { saveSellerUser } from '@/services/firestore';
 
 const ADMIN_EMAIL = "admin@snazzpay.com";
 
@@ -96,17 +96,9 @@ export default function SellerSignupPage() {
                 status: 'pending',
             };
 
-            // Step 3: Call our secure API endpoint to save the data
-            const response = await fetch('/api/create-seller-request', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(newSellerRequest),
-            });
-
-            if (!response.ok) {
-                const result = await response.json();
-                throw new Error(result.error || 'Failed to save seller details to the database.');
-            }
+            // Step 3: Call our secure client-side function to save the data
+            // This will now work because of the updated firestore.rules
+            await saveSellerUser(newSellerRequest);
 
             toast({
                 title: "Registration Submitted!",
@@ -141,11 +133,13 @@ export default function SellerSignupPage() {
                     case 'auth/invalid-email':
                         description = 'The email address is not valid.';
                         break;
+                    case 'permission-denied':
+                         description = 'Permission denied. This might be a configuration issue with security rules. Please contact support.';
+                         break;
                     default:
                         description = `An error occurred: ${error.message}`;
                 }
             } else {
-                // This will catch the error thrown from our API call
                 title = "Failed to Create Seller Request";
                 description = error.message; 
             }

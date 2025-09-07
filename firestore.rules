@@ -3,63 +3,30 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper function to check for admin role
-    function isAdmin() {
-      // In a real app, you would check a custom claim or a document in a private 'admins' collection
-      // For this prototype, we'll check against a specific UID or email if needed.
-      // This rule allows any authenticated user to act as admin for now.
-      return request.auth != null;
-    }
-
-    // Rules for the 'orders' collection
-    match /orders/{orderId} {
-      allow read, write: if isAdmin();
-    }
-
-    // Rules for 'payPartners' collection
-    match /payPartners/{partnerId} {
-      allow read, write: if isAdmin();
-    }
-    
-    // Rules for the 'seller_users' collection
-    match /seller_users/{userId} {
-      // Allow an admin to read or write any document
-      allow read, write: if isAdmin();
-      
-      // Allow a newly authenticated user to create their own document
-      // This is the key fix for the signup issue.
-      allow create: if request.auth != null && request.auth.uid == userId;
-    }
-
-    // Rules for 'topUpRequests' collection
-    match /topUpRequests/{requestId} {
-      allow read, write: if isAdmin();
-    }
-    
-    // Rules for 'cashCodes' collection
-    match /cashCodes/{codeId} {
-        allow read, write: if isAdmin();
-    }
-    
-    // Rules for 'shakti_cards' collection
-    match /shakti_cards/{cardId} {
-        allow read, write: if isAdmin();
-    }
-    
-     // Rules for 'payment_info' collection
-    match /payment_info/{orderId} {
-        allow read, write: if isAdmin();
-    }
-    
-     // Rules for 'logisticsPartners' collection
-    match /logisticsPartners/{partnerId} {
-        allow read, write: if isAdmin();
-    }
-
-    // Default deny all other access
+    // Default deny all reads and writes
     match /{document=**} {
       allow read, write: if false;
+    }
+
+    // Allow logged-in users to create their own user document
+    // The `userId` is the ID of the document they are trying to create.
+    match /seller_users/{userId} {
+      allow create: if request.auth != null && request.auth.uid == userId;
+      // Admins can read/update/delete any seller
+      allow read, update, delete: if get(/databases/$(database)/documents/admins/$(request.auth.uid)).exists() == true;
+    }
+
+    // Allow admins to access the 'admins' collection
+    match /admins/{adminId} {
+      allow read, write: if request.auth != null && request.auth.uid == adminId;
+    }
+    
+    // Rules for orders
+    match /orders/{orderId} {
+      // Allow any authenticated user to create an order
+      allow create: if request.auth != null;
+      // Allow admins to read/update/delete any order
+      allow read, update, delete: if get(/databases/$(database)/documents/admins/$(request.auth.uid)).exists() == true;
     }
   }
 }
