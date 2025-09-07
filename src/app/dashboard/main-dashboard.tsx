@@ -74,7 +74,8 @@ export function MainDashboard() {
 
 
             } catch (error: any) {
-                toast({ variant: 'destructive', title: "Dashboard Error", description: error.message });
+                // Silently log the error, but don't show a disruptive toast unless necessary
+                console.error("Dashboard Error:", error.message);
             } finally {
                 setLoading(false);
             }
