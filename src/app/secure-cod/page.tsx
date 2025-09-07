@@ -40,6 +40,18 @@ type Step = 'details' | 'otp' | 'scratch' | 'complete';
 type PaymentStep = 'intent' | 'authorization';
 
 
+function getNextOrderId(): string {
+    const counter = parseInt(localStorage.getItem('secureCodOrderCounter') || '1', 10);
+    const orderId = `SecureCOD${counter.toString().padStart(3, '0')}`;
+    return orderId;
+}
+
+function incrementOrderIdCounter() {
+    const counter = parseInt(localStorage.getItem('secureCodOrderCounter') || '1', 10);
+    localStorage.setItem('secureCodOrderCounter', (counter + 1).toString());
+}
+
+
 function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
     const searchParams = useSearchParams();
     const { toast } = useToast();
@@ -90,7 +102,9 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         
         let initialAmount = 1;
         let initialName = 'Sample Product';
-        let initialOrderId = orderId || `manual_${uuidv4().substring(0,6)}`;
+        
+        // Use the passed order ID if it exists, otherwise generate a new sequential one.
+        let initialOrderId = orderId || getNextOrderId();
 
         if (amountStr && name) {
             const baseAmount = parseFloat(amountStr);
@@ -298,6 +312,7 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                 }
 
                 try {
+                    // This is a new order created from the Secure COD page
                     const newOrder: EditableOrder = {
                         id: uuidv4(), // Give it a new unique ID for localStorage
                         orderId: orderDetails.orderId,
@@ -313,6 +328,7 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                         date: format(new Date(), 'yyyy-MM-dd'),
                         source: 'Manual' // All orders from this page are effectively manual entries
                     };
+
                     const existingOrdersJSON = localStorage.getItem('manualOrders');
                     let existingOrders: EditableOrder[] = existingOrdersJSON ? JSON.parse(existingOrdersJSON) : [];
                     
@@ -329,6 +345,10 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                         // If it doesn't exist, this is a new order. Add it to manualOrders.
                        existingOrders.push(newOrder);
                        localStorage.setItem('manualOrders', JSON.stringify(existingOrders));
+                       // If this was a newly generated ID, increment the counter for the next one
+                       if (!searchParams.get('order_id')) {
+                           incrementOrderIdCounter();
+                       }
                     }
 
                     // Remove the lead now that the order is complete
