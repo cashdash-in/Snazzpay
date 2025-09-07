@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogOut, Wallet, Package, QrCode, Clipboard, PackageCheck, Send, MessageSquare, AlertTriangle, FileUp, Edit, ShieldCheck, CheckCircle, Copy, User, Phone, Home, Truck, Map, UserCheck, Users, Upload, Crown, Loader2, PlusCircle, Trash2, MapPin } from "lucide-react";
+import { LogOut, Wallet, Package, QrCode, Clipboard, PackageCheck, Send, MessageSquare, AlertTriangle, FileUp, Edit, ShieldCheck, CheckCircle, Copy, User, Phone, Home, Truck, Map, UserCheck, Users, Upload, Crown, Loader2, PlusCircle, Trash2, MapPin, Search } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { v4 as uuidv4 } from 'uuid';
+import type { ShaktiCardData } from '@/components/shakti-card';
 
 type Agent = {
     id: string;
@@ -66,6 +67,9 @@ export default function LogisticsDashboardPage() {
     const [selectedPickup, setSelectedPickup] = useState<Pickup | null>(null);
     const [newAgent, setNewAgent] = useState({ name: '', phone: '', area: '' });
     const [newServicePartner, setNewServicePartner] = useState({ name: '', contact: '', coverageArea: '' });
+    const [shaktiSearchPhone, setShaktiSearchPhone] = useState('');
+    const [shaktiSearchResult, setShaktiSearchResult] = useState<ShaktiCardData | null | 'not_found'>(null);
+    const [isSearchingShakti, setIsSearchingShakti] = useState(false);
 
     useEffect(() => {
         const loggedInPartnerId = localStorage.getItem('loggedInLogisticsPartnerId');
@@ -212,6 +216,23 @@ export default function LogisticsDashboardPage() {
         setFleet(prev => prev.map(agent => agent.id === agentId ? { ...agent, [field]: value } : agent));
     };
 
+    const handleShaktiCardSearch = () => {
+        if (!shaktiSearchPhone) return;
+        setIsSearchingShakti(true);
+        setShaktiSearchResult(null);
+        setTimeout(() => {
+            const allCards: ShaktiCardData[] = JSON.parse(localStorage.getItem('shakti_cards_db') || '[]');
+            const foundCard = allCards.find(c => c.customerPhone.includes(shaktiSearchPhone));
+            if (foundCard) {
+                setShaktiSearchResult(foundCard);
+            } else {
+                setShaktiSearchResult('not_found');
+            }
+            setIsSearchingShakti(false);
+        }, 500);
+    };
+
+
     if (loading) {
         return <div className="flex justify-center items-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>
     }
@@ -227,10 +248,40 @@ export default function LogisticsDashboardPage() {
                             <p className="text-muted-foreground">Manage your fleet, cash collections, and pickups.</p>
                         </div>
                     </div>
-                    <Button variant="outline" onClick={handleLogout}>
-                        <LogOut className="mr-2 h-4 w-4" />
-                        Logout
-                    </Button>
+                    <div className="flex gap-2 mt-4 sm:mt-0">
+                         <Dialog>
+                            <DialogTrigger asChild>
+                                <Button variant="outline"><ShieldCheck className="mr-2 h-4 w-4" /> Shakti Card Lookup</Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>Shakti Card Search</DialogTitle>
+                                    <DialogDescription>Check if a customer has a Shakti Card by their mobile number.</DialogDescription>
+                                </DialogHeader>
+                                <div className="py-4 space-y-4">
+                                    <div className="flex items-center gap-2">
+                                        <Input placeholder="Enter customer mobile" value={shaktiSearchPhone} onChange={e => setShaktiSearchPhone(e.target.value)} />
+                                        <Button onClick={handleShaktiCardSearch} disabled={isSearchingShakti}>{isSearchingShakti ? <Loader2 className="animate-spin" /> : <Search />}</Button>
+                                    </div>
+                                    {shaktiSearchResult && (
+                                        shaktiSearchResult === 'not_found' ? (
+                                            <div className="p-4 bg-yellow-50 text-yellow-800 rounded-md text-sm text-center">No Shakti Card found for this mobile number.</div>
+                                        ) : (
+                                            <div className="p-4 bg-green-50 text-green-800 rounded-md text-sm space-y-1">
+                                                <p><strong className="text-green-900">Card Found:</strong> {shaktiSearchResult.customerName}</p>
+                                                <p><strong className="text-green-900">Card Number:</strong> {shaktiSearchResult.cardNumber}</p>
+                                                <p><strong className="text-green-900">Points:</strong> {shaktiSearchResult.points}</p>
+                                            </div>
+                                        )
+                                    )}
+                                </div>
+                            </DialogContent>
+                        </Dialog>
+                        <Button variant="outline" onClick={handleLogout}>
+                            <LogOut className="mr-2 h-4 w-4" />
+                            Logout
+                        </Button>
+                    </div>
                 </header>
 
                 <main>

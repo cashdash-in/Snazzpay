@@ -97,6 +97,7 @@ export default function PartnerPayDashboardPage() {
     const [shaktiCardNumber, setShaktiCardNumber] = useState('');
     const [verifiedCardInfo, setVerifiedCardInfo] = useState<VerifiedCardInfo | null>(null);
     const [isVerifyingCard, setIsVerifyingCard] = useState(false);
+    const [shaktiSearchPhone, setShaktiSearchPhone] = useState('');
 
 
     useEffect(() => {
@@ -163,23 +164,33 @@ export default function PartnerPayDashboardPage() {
     };
 
     const handleVerifyShaktiCard = () => {
-        if (!shaktiCardNumber) return;
+        if (!shaktiCardNumber && !shaktiSearchPhone) return;
         setIsVerifyingCard(true);
+        setVerifiedCardInfo(null);
+    
         // Simulate API call to fetch card benefits
         setTimeout(() => {
             const allCards: ShaktiCardData[] = JSON.parse(localStorage.getItem('shakti_cards_db') || '[]');
-            const foundCard = allCards.find(c => c.cardNumber === shaktiCardNumber);
+            let foundCard: ShaktiCardData | undefined;
+
+            if (shaktiCardNumber) {
+                foundCard = allCards.find(c => c.cardNumber === shaktiCardNumber);
+            } else if (shaktiSearchPhone) {
+                foundCard = allCards.find(c => c.customerPhone.includes(shaktiSearchPhone));
+            }
 
             if (foundCard) {
                 const discount = Math.floor(foundCard.points / 10); // 10 points = 1 Rupee discount
                 setVerifiedCardInfo({ ...foundCard, discount });
-                setCustomerInfo({name: foundCard.customerName, phone: foundCard.customerPhone, address: foundCard.customerAddress})
+                setCustomerInfo({name: foundCard.customerName, phone: foundCard.customerPhone, address: foundCard.customerAddress});
+                setShaktiCardNumber(foundCard.cardNumber); // Pre-fill card number if found by phone
                 toast({ title: "Card Verified!", description: `Customer ${foundCard.customerName} has ₹${discount} available as discount.` });
             } else {
                 setVerifiedCardInfo(null);
-                toast({ variant: 'destructive', title: "Invalid Card", description: "This Shakti Card number was not found." });
+                toast({ variant: 'destructive', title: "Invalid Card", description: "No Shakti Card was found for the provided details." });
             }
             setIsVerifyingCard(false);
+            setShaktiSearchPhone('');
         }, 500);
     };
     
@@ -504,9 +515,10 @@ export default function PartnerPayDashboardPage() {
                             <CardHeader><CardTitle>Generate Payment Code</CardTitle><CardDescription className="text-xs">Collect cash, settle with seller online, then generate a code for the customer.</CardDescription></CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="space-y-2">
-                                    <Label>Shakti Card (Optional)</Label>
-                                    <div className="flex gap-2">
-                                        <Input id="shakti-card-no" placeholder="Enter Shakti Card number" value={shaktiCardNumber} onChange={(e) => setShaktiCardNumber(e.target.value)} />
+                                    <Label>Shakti Card Verification</Label>
+                                     <div className="flex gap-2">
+                                        <Input id="shakti-card-no" placeholder="Enter Card Number" value={shaktiCardNumber} onChange={(e) => { setShaktiCardNumber(e.target.value); setShaktiSearchPhone(''); }} />
+                                        <Input placeholder="Or Mobile Number" value={shaktiSearchPhone} onChange={(e) => { setShaktiSearchPhone(e.target.value); setShaktiCardNumber(''); }} />
                                         <Button variant="secondary" size="icon" onClick={handleVerifyShaktiCard} disabled={isVerifyingCard}>{isVerifyingCard ? <Loader2 className="h-4 w-4 animate-spin"/> : <Search className="h-4 w-4"/>}</Button>
                                     </div>
                                     {verifiedCardInfo && (

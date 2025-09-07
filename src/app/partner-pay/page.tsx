@@ -4,7 +4,7 @@
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Coins, Package, Handshake, Info, PlusCircle, Printer, Download, Loader2, QrCode, Check, X, Eye, ShoppingBasket, BadgeCheck, Users, Settings, Gem, Percent, Calendar } from 'lucide-react';
+import { Coins, Package, Handshake, Info, PlusCircle, Printer, Download, Loader2, QrCode, Check, X, Eye, ShoppingBasket, BadgeCheck, Users, Settings, Gem, Percent, Calendar, Search } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { format } from "date-fns";
 import { v4 as uuidv4 } from 'uuid';
 import type { ShaktiCardData } from "@/components/shakti-card";
@@ -93,6 +93,7 @@ export default function PartnerHubPage() {
     const [rewardRules, setRewardRules] = useState<Record<string, RewardRules>>({});
     const [selectedSellerForRules, setSelectedSellerForRules] = useState<string>('');
     const [currentSellerRules, setCurrentSellerRules] = useState<RewardRules>({ pointsPerRupee: 0.01, cashbackPercentage: 1, discountPercentage: 10 });
+    const [searchQuery, setSearchQuery] = useState('');
 
 
      useEffect(() => {
@@ -128,6 +129,15 @@ export default function PartnerHubPage() {
              setCurrentSellerRules({ pointsPerRupee: 0.01, cashbackPercentage: 1, discountPercentage: 10 });
         }
     }, [selectedSellerForRules, rewardRules]);
+    
+    const filteredShaktiCards = useMemo(() => {
+        if (!searchQuery) return shaktiCards;
+        return shaktiCards.filter(card =>
+            card.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            card.customerPhone.includes(searchQuery) ||
+            card.cardNumber.includes(searchQuery)
+        );
+    }, [searchQuery, shaktiCards]);
 
 
     const handleGenerateCode = () => {
@@ -565,7 +575,16 @@ export default function PartnerHubPage() {
                                 <CardDescription>View all issued cards and their current reward balances.</CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <div className="overflow-x-auto">
+                                <div className="relative mb-4">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        placeholder="Search by name, phone, or card number..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="pl-9"
+                                    />
+                                </div>
+                                <div className="overflow-x-auto h-96">
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
@@ -578,7 +597,7 @@ export default function PartnerHubPage() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {shaktiCards.length > 0 ? shaktiCards.map(card => (
+                                        {filteredShaktiCards.length > 0 ? filteredShaktiCards.map(card => (
                                             <TableRow key={card.cardNumber}>
                                                 <TableCell>
                                                     <div className="font-medium">{card.customerName}</div>
@@ -594,7 +613,7 @@ export default function PartnerHubPage() {
                                                 <TableCell className="text-xs text-muted-foreground">{card.sellerName}</TableCell>
                                             </TableRow>
                                         )) : (
-                                            <TableRow><TableCell colSpan={6} className="text-center h-24">No Shakti Cards have been issued yet.</TableCell></TableRow>
+                                            <TableRow><TableCell colSpan={6} className="text-center h-24">No Shakti Cards found.</TableCell></TableRow>
                                         )}
                                     </TableBody>
                                 </Table>
