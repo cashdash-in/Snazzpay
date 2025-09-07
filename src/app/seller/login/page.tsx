@@ -54,7 +54,7 @@ export default function SellerLoginPage() {
 
             if (sellerData.status !== 'approved') {
                  await auth.signOut();
-                 toast({ variant: 'destructive', title: "Account Not Approved", description: "Your seller account is still pending approval. Please contact support." });
+                 toast({ variant: 'destructive', title: "Account Not Approved", description: `Your seller account status is: ${sellerData.status}. Please contact support.` });
                  setIsLoading(false);
                  return;
             }
