@@ -562,5 +562,3 @@ export default function PartnerHubPage() {
         </AppShell>
     );
 }
-
-    
