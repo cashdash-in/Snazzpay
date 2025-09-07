@@ -28,7 +28,7 @@ export function middleware(request: NextRequest) {
 
   // Allow access to public paths, API routes, and static files
   if (
-    publicPaths.some(path => pathname.startsWith(path)) ||
+    publicPaths.some(path => pathname === path || (path !== '/' && pathname.startsWith(path + '/'))) ||
     pathname.startsWith('/api/') ||
     pathname.startsWith('/_next/') ||
     pathname.includes('.') // for static files like favicon.ico, images etc.
@@ -44,7 +44,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // If a token exists, enforce role-based access
+  // If a token exists, enforce role-based access for non-public pages
   const isSellerRoute = pathname.startsWith('/seller/');
   const isAdminRoute = !isSellerRoute;
 
