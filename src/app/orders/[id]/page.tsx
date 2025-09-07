@@ -99,6 +99,11 @@ function OrderDetailContent() {
             allOrders = allOrders.concat(manualOrders);
         }
         
+        const sellerOrdersJSON = localStorage.getItem('seller_orders');
+        if (sellerOrdersJSON) {
+            allOrders = allOrders.concat(JSON.parse(sellerOrdersJSON));
+        }
+        
         foundOrder = allOrders.find(o => o.id === orderIdParam) || null;
 
         if (foundOrder) {
