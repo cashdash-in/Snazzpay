@@ -7,10 +7,14 @@ const SEVEN_DAYS = 60 * 60 * 24 * 7;
 
 export async function POST(request: Request) {
   try {
-    const { idToken, isSeller } = await request.json();
+    const { idToken, role } = await request.json();
 
-    if (!idToken) {
-      return new NextResponse(JSON.stringify({ error: "idToken is required" }), { status: 400 });
+    if (!idToken || !role) {
+      return new NextResponse(JSON.stringify({ error: "idToken and role are required" }), { status: 400 });
+    }
+    
+    if (role !== 'admin' && role !== 'seller') {
+        return new NextResponse(JSON.stringify({ error: "Invalid role specified" }), { status: 400 });
     }
 
     // Set the session cookie
@@ -21,7 +25,7 @@ export async function POST(request: Request) {
       path: '/',
     });
      // Set a client-side cookie to indicate role
-    cookies().set('userRole', isSeller ? 'seller' : 'admin', {
+    cookies().set('userRole', role, {
       maxAge: SEVEN_DAYS,
       path: '/',
     });

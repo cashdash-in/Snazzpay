@@ -46,14 +46,16 @@ export function middleware(request: NextRequest) {
   }
 
   // If a token exists, enforce role-based access for non-public pages
-  const isSellerRoute = pathname.startsWith('/seller/');
-  const isAdminRoute = !isSellerRoute;
+  const isSellerPath = pathname.startsWith('/seller/');
+  const isAdminPath = !isSellerPath;
 
-  if (role === 'seller' && isAdminRoute && pathname !== '/') {
+  if (role === 'seller' && isAdminPath && pathname !== '/') {
+     console.log(`Redirecting seller from admin path: ${pathname}`);
      return NextResponse.redirect(new URL('/seller/dashboard', request.url));
   }
 
-  if (role === 'admin' && isSellerRoute) {
+  if (role === 'admin' && isSellerPath) {
+     console.log(`Redirecting admin from seller path: ${pathname}`);
      return NextResponse.redirect(new URL('/', request.url));
   }
 

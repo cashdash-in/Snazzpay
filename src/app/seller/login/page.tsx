@@ -11,10 +11,7 @@ import Link from "next/link";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth, db } from '@/lib/firebase';
-import { getDoc, doc } from 'firebase/firestore';
-import type { SellerUser } from '@/app/partner-pay/page';
-
+import { auth } from '@/lib/firebase';
 
 export default function SellerLoginPage() {
     const { toast } = useToast();
@@ -25,7 +22,7 @@ export default function SellerLoginPage() {
 
     const handleLogin = async () => {
         setIsLoading(true);
-        if (!auth || !db) {
+        if (!auth) {
             toast({ variant: 'destructive', title: "Firebase Not Configured", description: "Please check your Firebase configuration settings." });
             setIsLoading(false);
             return;
@@ -41,31 +38,24 @@ export default function SellerLoginPage() {
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const loggedInUser = userCredential.user;
             
-            const sellerDoc = await getDoc(doc(db, 'seller_users', loggedInUser.uid));
+            const approvedSellersJSON = localStorage.getItem('approved_sellers');
+            const approvedSellers: any[] = approvedSellersJSON ? JSON.parse(approvedSellersJSON) : [];
+            const isApproved = approvedSellers.some(seller => seller.id === loggedInUser.uid);
 
-            if (!sellerDoc.exists()) {
+            if (!isApproved) {
                  await auth.signOut();
-                 toast({ variant: 'destructive', title: "Login Denied", description: "This seller account does not exist. Please sign up or contact support." });
-                 setIsLoading(false);
-                 return;
-            }
-            
-            const sellerData = sellerDoc.data() as SellerUser;
-
-            if (sellerData.status !== 'approved') {
-                 await auth.signOut();
-                 toast({ variant: 'destructive', title: "Account Not Approved", description: `Your seller account status is: ${sellerData.status}. Please contact support.` });
+                 toast({ variant: 'destructive', title: "Account Not Approved", description: `Your seller account is pending approval or has been rejected. Please contact support.` });
                  setIsLoading(false);
                  return;
             }
 
             const idToken = await loggedInUser.getIdToken();
             
-            // Explicitly set isSeller to true
+            // Explicitly set role to 'seller'
             await fetch('/api/auth/session', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ idToken, isSeller: true }),
+                body: JSON.stringify({ idToken, role: 'seller' }),
             });
             
             toast({ title: "Login Successful", description: "Redirecting you to your dashboard." });

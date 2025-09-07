@@ -40,11 +40,11 @@ export default function AdminLoginPage() {
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const idToken = await userCredential.user.getIdToken();
 
-            // Explicitly set isSeller to false for admin
+            // Explicitly set role to 'admin'
             await fetch('/api/auth/session', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ idToken, isSeller: false }),
+                body: JSON.stringify({ idToken, role: 'admin' }),
             });
             
             toast({ title: "Admin Login Successful", description: "Redirecting to admin dashboard." });
