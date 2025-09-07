@@ -173,6 +173,7 @@ export default function PartnerPayDashboardPage() {
             if (foundCard) {
                 const discount = Math.floor(foundCard.points / 10); // 10 points = 1 Rupee discount
                 setVerifiedCardInfo({ ...foundCard, discount });
+                setCustomerInfo({name: foundCard.customerName, phone: foundCard.customerPhone, address: foundCard.customerAddress})
                 toast({ title: "Card Verified!", description: `Customer ${foundCard.customerName} has ₹${discount} available as discount.` });
             } else {
                 setVerifiedCardInfo(null);
@@ -645,13 +646,62 @@ export default function PartnerPayDashboardPage() {
                                                         <TableCell className="font-mono text-xs">{p.awb}</TableCell>
                                                         <TableCell><Badge variant={p.status === 'Picked Up' ? 'default' : 'secondary'} className={p.status === 'Picked Up' ? 'bg-green-100 text-green-800' : p.status === 'Ready for Pickup' ? 'bg-blue-100 text-blue-800' : p.status === 'Notified' ? 'bg-yellow-100 text-yellow-800' : ''}>{p.status}</Badge></TableCell>
                                                         <TableCell className="text-right">
-                                                            <Dialog><DialogTrigger asChild><Button size="sm" variant="outline">Manage</Button></DialogTrigger>
-                                                                <DialogContent><DialogHeader><DialogTitle>Manage Parcel {p.id}</DialogTitle><DialogDescription>For: {p.customer} ({p.customerPhone}) - {p.productName}</DialogDescription></DialogHeader>
-                                                                    <div className="space-y-4 py-4"><div><h4 className="font-medium">Tracking Details</h4><p className="text-sm text-muted-foreground">AWB: {p.awb} ({p.courier})</p><p className="text-sm text-muted-foreground">Dispatched: {p.dispatchDate}, Est. Arrival: {p.estArrival}</p></div>
-                                                                         <div className="space-y-2 border-t pt-4"><h4 className="font-medium">Customer Actions</h4><Button onClick={() => {}} variant="secondary" className="w-full justify-start"><MessageSquare className="mr-2"/>Notify Customer for Pickup</Button></div>
-                                                                         <div className="space-y-2 border-t pt-4"><h4 className="font-medium">Close Order: Mark as Delivered</h4><Label htmlFor="collector-name">Collected By</Label><Input id="collector-name" placeholder="Customer's full name" value={collectorName} onChange={e => setCollectorName(e.target.value)} /><Label htmlFor="delivery-notes">Notes / Signed Document Reference</Label><Textarea id="delivery-notes" placeholder="e.g., ID checked, document signed." value={deliveryNotes} onChange={e => setDeliveryNotes(e.target.value)} /><DialogClose asChild><Button onClick={() => {}}><PackageCheck className="mr-2"/>Confirm Delivery</Button></DialogClose></div>
-                                                                         <div className="space-y-2 border-t pt-4"><h4 className="font-medium">Other Actions</h4><AlertDialog><AlertDialogTrigger asChild><Button variant="outline" className="w-full justify-start"><Edit className="mr-2"/>Request Cancellation</Button></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Request Cancellation for {p.id}?</AlertDialogTitle><AlertDialogDescription>This action will send a cancellation request to the seller. This should only be done before the parcel is dispatched from the main warehouse.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Close</AlertDialogCancel><AlertDialogAction onClick={() => {}}>Yes, Request Cancellation</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog><AlertDialog><AlertDialogTrigger asChild><Button variant="destructive" className="w-full justify-start"><AlertTriangle className="mr-2"/>Arrange Return</Button></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Arrange Return for {p.id}?</AlertDialogTitle><AlertDialogDescription>If the customer has rejected the parcel, this will initiate the return process with the logistics partner and notify the seller. Are you sure?</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Close</AlertDialogCancel><AlertDialogAction onClick={() => {}}>Yes, Arrange Return</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog></div>
-                                                                    </div></DialogContent>
+                                                            <Dialog>
+                                                                <DialogTrigger asChild><Button size="sm" variant="outline">Manage</Button></DialogTrigger>
+                                                                <DialogContent>
+                                                                    <DialogHeader>
+                                                                        <DialogTitle>Manage Parcel {p.id}</DialogTitle>
+                                                                        <DialogDescription>For: {p.customer} ({p.customerPhone}) - {p.productName}</DialogDescription>
+                                                                    </DialogHeader>
+                                                                    <div className="space-y-4 py-4">
+                                                                        <div>
+                                                                            <h4 className="font-medium">Tracking Details</h4>
+                                                                            <p className="text-sm text-muted-foreground">AWB: {p.awb} ({p.courier})</p>
+                                                                            <p className="text-sm text-muted-foreground">Dispatched: {p.dispatchDate}, Est. Arrival: {p.estArrival}</p>
+                                                                        </div>
+                                                                        <div className="space-y-2 border-t pt-4">
+                                                                            <h4 className="font-medium">Customer Actions</h4>
+                                                                            <Button onClick={() => {}} variant="secondary" className="w-full justify-start"><MessageSquare className="mr-2"/>Notify Customer for Pickup</Button>
+                                                                        </div>
+                                                                        <div className="space-y-2 border-t pt-4">
+                                                                            <h4 className="font-medium">Close Order: Mark as Delivered</h4>
+                                                                            <Label htmlFor="collector-name">Collected By</Label>
+                                                                            <Input id="collector-name" placeholder="Customer's full name" value={collectorName} onChange={e => setCollectorName(e.target.value)} />
+                                                                            <Label htmlFor="delivery-notes">Notes / Signed Document Reference</Label>
+                                                                            <Textarea id="delivery-notes" placeholder="e.g., ID checked, document signed." value={deliveryNotes} onChange={e => setDeliveryNotes(e.target.value)} />
+                                                                            <DialogClose asChild><Button onClick={() => {}}><PackageCheck className="mr-2"/>Confirm Delivery</Button></DialogClose>
+                                                                        </div>
+                                                                        <div className="space-y-2 border-t pt-4">
+                                                                            <h4 className="font-medium">Other Actions</h4>
+                                                                            <AlertDialog>
+                                                                                <AlertDialogTrigger asChild><Button variant="outline" className="w-full justify-start"><Edit className="mr-2"/>Request Cancellation</Button></AlertDialogTrigger>
+                                                                                <AlertDialogContent>
+                                                                                    <AlertDialogHeader>
+                                                                                        <AlertDialogTitle>Request Cancellation for {p.id}?</AlertDialogTitle>
+                                                                                        <AlertDialogDescription>This action will send a cancellation request to the seller. This should only be done before the parcel is dispatched from the main warehouse.</AlertDialogDescription>
+                                                                                    </AlertDialogHeader>
+                                                                                    <AlertDialogFooter>
+                                                                                        <AlertDialogCancel>Close</AlertDialogCancel>
+                                                                                        <AlertDialogAction onClick={() => {}}>Yes, Request Cancellation</AlertDialogAction>
+                                                                                    </AlertDialogFooter>
+                                                                                </AlertDialogContent>
+                                                                            </AlertDialog>
+                                                                            <AlertDialog>
+                                                                                <AlertDialogTrigger asChild><Button variant="destructive" className="w-full justify-start"><AlertTriangle className="mr-2"/>Arrange Return</Button></AlertDialogTrigger>
+                                                                                <AlertDialogContent>
+                                                                                    <AlertDialogHeader>
+                                                                                        <AlertDialogTitle>Arrange Return for {p.id}?</AlertDialogTitle>
+                                                                                        <AlertDialogDescription>If the customer has rejected the parcel, this will initiate the return process with the logistics partner and notify the seller. Are you sure?</AlertDialogDescription>
+                                                                                    </AlertDialogHeader>
+                                                                                    <AlertDialogFooter>
+                                                                                        <AlertDialogCancel>Close</AlertDialogCancel>
+                                                                                        <AlertDialogAction onClick={() => {}}>Yes, Arrange Return</AlertDialogAction>
+                                                                                    </AlertDialogFooter>
+                                                                                </AlertDialogContent>
+                                                                            </AlertDialog>
+                                                                        </div>
+                                                                    </div>
+                                                                </DialogContent>
                                                             </Dialog>
                                                         </TableCell>
                                                     </TableRow>
