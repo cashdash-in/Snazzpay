@@ -64,6 +64,8 @@ export default function SellerSignupPage() {
                 let description = "An unexpected error occurred during admin creation.";
                 if (error instanceof FirebaseError && error.code === 'auth/email-already-in-use') {
                     description = 'The admin account already exists. Please proceed to login.';
+                } else if (error instanceof FirebaseError && error.code === 'auth/weak-password') {
+                    description = 'The password is too weak. It must be at least 6 characters long.';
                 }
                 toast({
                     variant: 'destructive',
@@ -148,7 +150,7 @@ export default function SellerSignupPage() {
                 <CardHeader className="text-center">
                     <ShieldCheck className="mx-auto h-12 w-12 text-primary" />
                     <CardTitle>Create an Account</CardTitle>
-                    <CardDescription>Join SnazzPay to manage your orders. Enter admin@snazzpay.com to create the admin user.</CardDescription>
+                    <CardDescription>To create the Super Admin, enter 'admin@snazzpay.com' and a secure password. For sellers, fill out all fields.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                      <div className="space-y-2">
@@ -158,7 +160,7 @@ export default function SellerSignupPage() {
                             <Input 
                                 id="email" 
                                 type="email" 
-                                placeholder="you@example.com" 
+                                placeholder="you@example.com or admin@snazzpay.com" 
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 className="pl-9" 
@@ -198,15 +200,16 @@ export default function SellerSignupPage() {
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4">
                     <Button className="w-full" onClick={handleSignup} disabled={isLoading}>
-                         {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing Up...</> : "Submit for Approval"}
+                         {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing Up...</> : "Create Account / Submit for Approval"}
                     </Button>
                     <div className="text-xs text-center text-muted-foreground space-x-1">
-                        <Link href="/seller" className="text-primary hover:underline">
-                            Learn more about selling.
-                        </Link>
-                        <span>|</span>
+                        <span>Already have an account?</span>
                         <Link href="/seller/login" className="text-primary hover:underline">
-                            Login Here
+                            Seller Login
+                        </Link>
+                         <span>|</span>
+                        <Link href="/auth/login" className="text-primary hover:underline">
+                            Admin Login
                         </Link>
                     </div>
                 </CardFooter>

@@ -31,7 +31,7 @@ export default function AdminLoginPage() {
         }
 
         if (email.toLowerCase() !== ADMIN_EMAIL) {
-            toast({ variant: 'destructive', title: "Access Denied", description: "This login is for administrators only." });
+            toast({ variant: 'destructive', title: "Access Denied", description: "This login is for administrators only. Sellers should use the Seller Login." });
             setIsLoading(false);
             return;
         }
@@ -53,7 +53,7 @@ export default function AdminLoginPage() {
         } catch (error: any) {
             console.error("Admin Login Error:", error);
             const errorMessage = error.code === 'auth/invalid-credential' 
-                ? 'Invalid credentials for admin.' 
+                ? 'Invalid credentials. Please ensure you have created the admin user via the signup page first.' 
                 : 'An unexpected error occurred during admin login.';
             toast({ variant: 'destructive', title: "Admin Login Error", description: errorMessage });
         } finally {
@@ -67,7 +67,7 @@ export default function AdminLoginPage() {
                 <CardHeader className="text-center">
                     <ShieldCheck className="mx-auto h-12 w-12 text-primary" />
                     <CardTitle>SnazzPay Admin Central</CardTitle>
-                    <CardDescription>Log in to the main dashboard. You must first create this user via the signup page.</CardDescription>
+                    <CardDescription>Log in to the main dashboard. You must first create the admin user via the main signup page.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
