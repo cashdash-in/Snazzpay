@@ -63,6 +63,7 @@ type TopUpRequest = {
 type RewardRules = {
     pointsPerRupee: number;
     cashbackPercentage: number;
+    discountPercentage: number;
 };
 
 const mockOrders = [
@@ -91,7 +92,7 @@ export default function PartnerHubPage() {
     const [shaktiCards, setShaktiCards] = useState<ShaktiCardData[]>([]);
     const [rewardRules, setRewardRules] = useState<Record<string, RewardRules>>({});
     const [selectedSellerForRules, setSelectedSellerForRules] = useState<string>('');
-    const [currentSellerRules, setCurrentSellerRules] = useState<RewardRules>({ pointsPerRupee: 0.01, cashbackPercentage: 1 });
+    const [currentSellerRules, setCurrentSellerRules] = useState<RewardRules>({ pointsPerRupee: 0.01, cashbackPercentage: 1, discountPercentage: 0 });
 
 
      useEffect(() => {
@@ -124,7 +125,7 @@ export default function PartnerHubPage() {
         if(selectedSellerForRules && rewardRules[selectedSellerForRules]) {
             setCurrentSellerRules(rewardRules[selectedSellerForRules]);
         } else {
-             setCurrentSellerRules({ pointsPerRupee: 0.01, cashbackPercentage: 1 });
+             setCurrentSellerRules({ pointsPerRupee: 0.01, cashbackPercentage: 1, discountPercentage: 0 });
         }
     }, [selectedSellerForRules, rewardRules]);
 
@@ -536,6 +537,14 @@ export default function PartnerHubPage() {
                                         <Input id="points-per-rupee" type="number" value={currentSellerRules.pointsPerRupee} onChange={(e) => setCurrentSellerRules(p => ({...p, pointsPerRupee: parseFloat(e.target.value)}))} placeholder="e.g., 0.01 for 1 point per ₹100" />
                                     </div>
                                     <p className="text-xs text-muted-foreground">Example: 0.01 means 1 point per ₹100. 0.1 means 1 point per ₹10.</p>
+                                </div>
+                                 <div className="space-y-2">
+                                    <Label htmlFor="discount-percentage">Discount Percentage (Redemption)</Label>
+                                    <div className="flex items-center gap-2">
+                                        <Percent className="h-4 w-4 text-muted-foreground" />
+                                        <Input id="discount-percentage" type="number" value={currentSellerRules.discountPercentage} onChange={(e) => setCurrentSellerRules(p => ({...p, discountPercentage: parseFloat(e.target.value)}))} placeholder="e.g., 10 for 10%" />
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">The value of points when redeemed. E.g., 10 means 10 points = ₹1 discount.</p>
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="cashback-percentage">Cashback Percentage</Label>
