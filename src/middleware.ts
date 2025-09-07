@@ -46,7 +46,7 @@ export function middleware(request: NextRequest) {
 
   // If a token exists, enforce role-based access
   const isSellerRoute = pathname.startsWith('/seller/');
-  const isAdminRoute = !isSellerRoute; // Assuming anything not under /seller is for admin
+  const isAdminRoute = !isSellerRoute;
 
   if (role === 'seller' && isAdminRoute && pathname !== '/') {
      return NextResponse.redirect(new URL('/seller/dashboard', request.url));
