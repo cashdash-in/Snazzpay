@@ -80,6 +80,7 @@ export default function SellerSignupPage() {
         }
 
         try {
+            // Step 1: Create the user in Firebase Auth
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
 
@@ -87,6 +88,7 @@ export default function SellerSignupPage() {
                 displayName: companyName,
             });
 
+            // Step 2: Create the seller data object
             const newSellerRequest: SellerUser = {
                 id: user.uid,
                 companyName: companyName,
@@ -94,14 +96,26 @@ export default function SellerSignupPage() {
                 status: 'pending',
             };
 
-            // Correctly save the new seller request to Firestore.
-            await saveSellerUser(newSellerRequest);
+            // Step 3: Call our secure API endpoint to save the data
+            const response = await fetch('/api/create-seller-request', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newSellerRequest),
+            });
+
+            if (!response.ok) {
+                const result = await response.json();
+                // If the API call fails, we should ideally delete the just-created auth user
+                // For now, we will show an error to the user.
+                throw new Error(result.error || 'Failed to save seller details to the database.');
+            }
 
             toast({
                 title: "Registration Submitted!",
                 description: "Your account is pending admin approval. You will be notified once it's reviewed.",
             });
 
+            // Step 4: Sign the user out so they can't access anything until approved
             await auth.signOut();
             router.push('/seller/login');
 
@@ -125,6 +139,8 @@ export default function SellerSignupPage() {
                     default:
                         description = `An error occurred: ${error.message}`;
                 }
+            } else {
+                description = error.message; // Display the custom error from our API call
             }
             
             toast({
@@ -210,5 +226,3 @@ export default function SellerSignupPage() {
         </div>
     );
 }
-
-    
