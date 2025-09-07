@@ -291,7 +291,7 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                     allCardsDB.push(newShaktiCard);
                     localStorage.setItem('shakti_cards_db', JSON.stringify(allCardsDB));
                     setShaktiCard(newShaktiCard);
-                     toast({ title: 'Payment Secured &amp; Shakti Card Issued!', description: 'Your order is confirmed and your new loyalty card is ready.' });
+                     toast({ title: 'Payment Secured & Shakti Card Issued!', description: 'Your order is confirmed and your new loyalty card is ready.' });
                 } else {
                     setShaktiCard(JSON.parse(cardDataJSON));
                     toast({ title: 'Payment Secured!', description: 'Your order is confirmed. Benefits will be added to your existing Shakti Card.' });
@@ -299,7 +299,7 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
 
                 try {
                     const newOrder: EditableOrder = {
-                        id: uuidv4(),
+                        id: uuidv4(), // Give it a new unique ID for localStorage
                         orderId: orderDetails.orderId,
                         customerName: customerDetails.name,
                         customerEmail: customerDetails.email,
@@ -311,23 +311,27 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                         price: totalAmount.toFixed(2),
                         paymentStatus: 'Authorized',
                         date: format(new Date(), 'yyyy-MM-dd'),
+                        source: 'Manual' // All orders from this page are effectively manual entries
                     };
                     const existingOrdersJSON = localStorage.getItem('manualOrders');
                     let existingOrders: EditableOrder[] = existingOrdersJSON ? JSON.parse(existingOrdersJSON) : [];
                     
+                    // Check if an order with this orderId already exists (e.g., from Shopify sync)
                     const existingOrderIndex = existingOrders.findIndex(o => o.orderId === newOrder.orderId);
+                    
                     if (existingOrderIndex > -1) {
+                        // If it exists, we just update its status via an override
                         const orderToUpdateId = existingOrders[existingOrderIndex].id;
                         const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${orderToUpdateId}`) || '{}');
                         const newOverrides = { ...storedOverrides, paymentStatus: 'Authorized' };
                         localStorage.setItem(`order-override-${orderToUpdateId}`, JSON.stringify(newOverrides));
-
                     } else {
+                        // If it doesn't exist, this is a new order. Add it to manualOrders.
                        existingOrders.push(newOrder);
                        localStorage.setItem('manualOrders', JSON.stringify(existingOrders));
                     }
-                    
 
+                    // Remove the lead now that the order is complete
                     if (activeLead) {
                         const existingLeadsJSON = localStorage.getItem('leads');
                         if (existingLeadsJSON) {
