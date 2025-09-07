@@ -134,11 +134,14 @@ export default function SellerSignupPage() {
                         description = 'The email address is not valid.';
                         break;
                     case 'permission-denied':
-                         description = 'Permission denied. This might be a configuration issue with security rules. Please contact support.';
+                         description = 'Permission denied. This is likely a configuration issue with your app\'s security rules. The system has been restored for you to try again.';
                          break;
                     default:
                         description = `An error occurred: ${error.message}`;
                 }
+            } else if (error.message.includes('permission-denied')) {
+                 title = "Permission Denied";
+                 description = 'Failed to create seller request due to security rules. Please try again.';
             } else {
                 title = "Failed to Create Seller Request";
                 description = error.message; 
