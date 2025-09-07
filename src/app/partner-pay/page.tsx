@@ -205,7 +205,7 @@ export default function PartnerHubPage() {
                         <Info className="mr-2 h-4 w-4" /> Overview
                     </TabsTrigger>
                      <TabsTrigger value="pay-partners">
-                        <Handshake className="mr-2 h-4 w-4" /> Partner Pay
+                        <Handshake className="mr-2 h-4 w-4" /> Partner Pay Network
                     </TabsTrigger>
                      <TabsTrigger value="seller-requests">
                         Seller Requests <Badge className="ml-2">{sellerRequests.length}</Badge>
@@ -218,7 +218,7 @@ export default function PartnerHubPage() {
                     </TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="overview">
+                <TabsContent value="overview" className="mt-4">
                      <Card>
                         <CardHeader>
                             <CardTitle>Snazzify Coin: The Digital Cash Ecosystem</CardTitle>
@@ -242,7 +242,7 @@ export default function PartnerHubPage() {
                         </CardContent>
                     </Card>
                 </TabsContent>
-                 <TabsContent value="pay-partners">
+                 <TabsContent value="pay-partners" className="mt-4">
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between">
                             <div>
@@ -301,7 +301,7 @@ export default function PartnerHubPage() {
                         </CardContent>
                     </Card>
                 </TabsContent>
-                 <TabsContent value="seller-requests">
+                 <TabsContent value="seller-requests" className="mt-4">
                      <Card>
                         <CardHeader>
                             <CardTitle>Seller Signup Requests</CardTitle>
@@ -336,7 +336,7 @@ export default function PartnerHubPage() {
                         </CardContent>
                     </Card>
                 </TabsContent>
-                 <TabsContent value="topups">
+                 <TabsContent value="topups" className="mt-4">
                      <Card>
                         <CardHeader>
                             <CardTitle>Partner Coin Top-up Requests</CardTitle>
@@ -378,7 +378,7 @@ export default function PartnerHubPage() {
                         </CardContent>
                     </Card>
                 </TabsContent>
-                 <TabsContent value="codes">
+                 <TabsContent value="codes" className="mt-4">
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         <div className="lg:col-span-1">
                              <Card>
