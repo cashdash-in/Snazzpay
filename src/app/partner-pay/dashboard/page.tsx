@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogOut, Wallet, Package, QrCode, Clipboard, PackageCheck, Send, MessageSquare, AlertTriangle, FileUp, Edit, ShieldCheck, CheckCircle, Copy, User, Phone, Home, Loader2, Coins, BarChart3, TrendingUp, TrendingDown, Search } from "lucide-react";
+import { LogOut, Wallet, Package, QrCode, Clipboard, PackageCheck, Send, MessageSquare, AlertTriangle, FileUp, Edit, ShieldCheck, CheckCircle, Copy, User, Phone, Home, Loader2, Coins, BarChart3, TrendingUp, TrendingDown, Search, FileSpreadsheet } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
@@ -78,6 +78,19 @@ const coinPackages = [
     { coins: 100000, price: 1000, label: "1,00,000 Coins" },
 ];
 
+function ReportsTab() {
+    return (
+        <Card className="shadow-lg">
+            <CardHeader>
+                <CardTitle>Partner Reports</CardTitle>
+                <CardDescription>Generate reports for your transactions and earnings. This section is under construction.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <p className="text-muted-foreground">Detailed reporting features, including transaction history exports, commission statements, and P&L summaries, will be available here soon.</p>
+            </CardContent>
+        </Card>
+    )
+}
 
 export default function PartnerPayDashboardPage() {
     const { toast } = useToast();
@@ -561,7 +574,7 @@ export default function PartnerPayDashboardPage() {
                     </div>
                     <div className="lg:col-span-2">
                         <Tabs defaultValue="transactions" className="w-full">
-                            <TabsList className="grid w-full grid-cols-4"><TabsTrigger value="transactions"><Wallet className="mr-2 h-4 w-4" /> Transactions</TabsTrigger><TabsTrigger value="human-qr"><Clipboard className="mr-2 h-4 w-4" /> Human QR Code</TabsTrigger><TabsTrigger value="logistics"><Package className="mr-2 h-4 w-4" /> Logistics Hub</TabsTrigger><TabsTrigger value="pnl"><BarChart3 className="mr-2 h-4 w-4" /> P&amp;L</TabsTrigger></TabsList>
+                            <TabsList className="grid w-full grid-cols-5"><TabsTrigger value="transactions"><Wallet className="mr-2 h-4 w-4" /> Transactions</TabsTrigger><TabsTrigger value="human-qr"><Clipboard className="mr-2 h-4 w-4" /> Human QR Code</TabsTrigger><TabsTrigger value="logistics"><Package className="mr-2 h-4 w-4" /> Logistics Hub</TabsTrigger><TabsTrigger value="pnl"><BarChart3 className="mr-2 h-4 w-4" /> P&amp;L</TabsTrigger><TabsTrigger value="reports"><FileSpreadsheet className="mr-2 h-4 w-4" /> Reports</TabsTrigger></TabsList>
                             <TabsContent value="transactions">
                                 <Card className="shadow-lg">
                                     <CardHeader><CardTitle>Recent Transactions</CardTitle><CardDescription>History of codes generated from your account.</CardDescription></CardHeader>
@@ -758,6 +771,9 @@ export default function PartnerPayDashboardPage() {
                                     </CardContent>
                                 </Card>
                              </TabsContent>
+                             <TabsContent value="reports">
+                                <ReportsTab />
+                            </TabsContent>
                         </Tabs>
                     </div>
                  </main>

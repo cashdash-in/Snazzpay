@@ -16,8 +16,9 @@ import * as XLSX from 'xlsx';
 import { useToast } from '@/hooks/use-toast';
 import type { EditableOrder } from '../orders/page';
 import { getOrders } from '@/services/shopify';
+import type { ShaktiCardData } from '@/components/shakti-card';
 
-type DataSource = 'orders' | 'leads';
+type DataSource = 'orders' | 'leads' | 'seller_orders' | 'shakti_cards';
 const paymentStatuses = ['Pending', 'Intent Verified', 'Authorized', 'Paid', 'Refunded', 'Partially Paid', 'Voided', 'Fee Charged'];
 const leadStatuses = ['Intent Verified']; // Leads are just orders with this status
 
@@ -27,69 +28,71 @@ export default function ReportsPage() {
     const [status, setStatus] = useState<string>('all');
     const [date, setDate] = useState<DateRange | undefined>();
     const [loading, setLoading] = useState(false);
+    
+    const isFilterDisabled = dataSource === 'leads' || dataSource === 'shakti_cards';
 
     const handleGenerateReport = async () => {
         setLoading(true);
         try {
             // 1. Fetch all data
-            let allOrders: EditableOrder[] = [];
-
-            try {
-                const shopifyOrders = await getOrders();
-                const shopifyEditableOrders = shopifyOrders.map(o => ({
-                    id: o.id.toString(),
-                    orderId: o.name,
-                    customerName: `${o.customer?.first_name || ''} ${o.customer?.last_name || ''}`.trim(),
-                    customerEmail: o.customer?.email,
-                    customerAddress: `${o.shipping_address?.address1 || ''}, ${o.shipping_address?.city || ''}`,
-                    pincode: o.shipping_address?.zip || '',
-                    contactNo: o.customer?.phone || '',
-                    productOrdered: o.line_items.map(i => i.title).join(', '),
-                    quantity: o.line_items.reduce((sum, i) => sum + i.quantity, 0),
-                    price: o.total_price,
-                    paymentStatus: o.financial_status || 'Pending',
-                    date: o.created_at,
-                }));
-                allOrders.push(...shopifyEditableOrders);
-            } catch (error) {
-                console.error("Could not fetch Shopify orders:", error);
-            }
+            let dataToExport: any[] = [];
             
-            const manualOrdersJSON = localStorage.getItem('manualOrders');
-            if (manualOrdersJSON) {
-                allOrders.push(...JSON.parse(manualOrdersJSON));
-            }
-             const sellerOrdersJSON = localStorage.getItem('seller_orders');
-            if (sellerOrdersJSON) {
-                allOrders.push(...JSON.parse(sellerOrdersJSON));
-            }
-
-            // Apply overrides to allOrders
-            allOrders = allOrders.map(order => {
-                const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
-                return { ...order, ...storedOverrides };
-            });
-
-            // 2. Filter data
-            let dataToExport;
-            if (dataSource === 'leads') {
-                 dataToExport = allOrders.filter(item => item.paymentStatus === 'Intent Verified');
+            if (dataSource === 'shakti_cards') {
+                const shaktiCardsJSON = localStorage.getItem('shakti_cards_db');
+                dataToExport = shaktiCardsJSON ? JSON.parse(shaktiCardsJSON) : [];
             } else {
-                 dataToExport = allOrders;
-            }
+                 let allOrders: EditableOrder[] = [];
+
+                if (dataSource === 'orders') {
+                    try {
+                        const shopifyOrders = await getOrders();
+                        const shopifyEditableOrders = shopifyOrders.map(o => ({
+                            id: o.id.toString(), orderId: o.name, customerName: `${o.customer?.first_name || ''} ${o.customer?.last_name || ''}`.trim(), customerEmail: o.customer?.email, customerAddress: `${o.shipping_address?.address1 || ''}, ${o.shipping_address?.city || ''}`, pincode: o.shipping_address?.zip || '', contactNo: o.customer?.phone || '', productOrdered: o.line_items.map(i => i.title).join(', '), quantity: o.line_items.reduce((sum, i) => sum + i.quantity, 0), price: o.total_price, paymentStatus: o.financial_status || 'Pending', date: o.created_at, source: 'Shopify'
+                        }));
+                        allOrders.push(...shopifyEditableOrders);
+                    } catch (error) { console.error("Could not fetch Shopify orders:", error); }
+                    
+                    const manualOrdersJSON = localStorage.getItem('manualOrders');
+                    if (manualOrdersJSON) { allOrders.push(...JSON.parse(manualOrdersJSON).map((o: EditableOrder) => ({...o, source: o.source || 'Manual'}))); }
+                }
+                
+                if (dataSource === 'seller_orders' || dataSource === 'orders') {
+                    const sellerOrdersJSON = localStorage.getItem('seller_orders');
+                    if (sellerOrdersJSON) { allOrders.push(...JSON.parse(sellerOrdersJSON).map((o: EditableOrder) => ({...o, source: 'Seller'}))); }
+                }
+                
+                if (dataSource === 'leads') {
+                     const leadsJSON = localStorage.getItem('leads');
+                     if (leadsJSON) { allOrders.push(...JSON.parse(leadsJSON)); }
+                }
+
+                allOrders = allOrders.map(order => {
+                    const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
+                    return { ...order, ...storedOverrides };
+                });
+
+                dataToExport = allOrders;
+
+                if (dataSource === 'leads') {
+                    dataToExport = dataToExport.filter(item => item.paymentStatus === 'Intent Verified');
+                } else if (dataSource === 'seller_orders') {
+                     dataToExport = dataToExport.filter(item => item.source === 'Seller');
+                }
 
 
-            if (status !== 'all') {
-                dataToExport = dataToExport.filter(item => item.paymentStatus === status);
+                if (status !== 'all' && !isFilterDisabled) {
+                    dataToExport = dataToExport.filter(item => item.paymentStatus === status);
+                }
+
+                if (date?.from && date?.to) {
+                    const interval = { start: startOfDay(date.from), end: endOfDay(date.to) };
+                    dataToExport = dataToExport.filter(item => isWithinInterval(new Date(item.date), interval));
+                } else if (date?.from) {
+                    const interval = { start: startOfDay(date.from), end: endOfDay(date.from) };
+                    dataToExport = dataToExport.filter(item => isWithinInterval(new Date(item.date), interval));
+                }
             }
 
-            if (date?.from && date?.to) {
-                const interval = { start: startOfDay(date.from), end: endOfDay(date.to) };
-                dataToExport = dataToExport.filter(item => isWithinInterval(new Date(item.date), interval));
-            } else if (date?.from) {
-                const interval = { start: startOfDay(date.from), end: endOfDay(date.from) };
-                 dataToExport = dataToExport.filter(item => isWithinInterval(new Date(item.date), interval));
-            }
 
             if (dataToExport.length === 0) {
                 toast({
@@ -102,22 +105,17 @@ export default function ReportsPage() {
             }
 
             // 3. Prepare for Excel
-            const worksheet = XLSX.utils.json_to_sheet(dataToExport.map(item => ({
-                'Order ID': item.orderId,
-                'Date': format(new Date(item.date), 'yyyy-MM-dd'),
-                'Customer Name': item.customerName,
-                'Contact No': item.contactNo,
-                'Email': item.customerEmail,
-                'Address': item.customerAddress,
-                'Pincode': item.pincode,
-                'Product(s)': item.productOrdered,
-                'Quantity': item.quantity,
-                'Price': item.price,
-                'Payment Status': item.paymentStatus,
-                'Delivery Status': item.deliveryStatus || 'N/A',
-                'Tracking Number': item.trackingNumber || 'N/A',
-                'Source': item.source || 'N/A'
-            })));
+            let worksheet;
+            if (dataSource === 'shakti_cards') {
+                worksheet = XLSX.utils.json_to_sheet(dataToExport.map((item: ShaktiCardData) => ({
+                    'Card Number': item.cardNumber, 'Customer Name': item.customerName, 'Customer Phone': item.customerPhone, 'Points': item.points, 'Cashback': item.cashback, 'Valid Thru': item.validThru, 'Seller Name': item.sellerName, 'Seller ID': item.sellerId
+                })));
+            } else {
+                 worksheet = XLSX.utils.json_to_sheet(dataToExport.map((item: EditableOrder) => ({
+                    'Order ID': item.orderId, 'Date': format(new Date(item.date), 'yyyy-MM-dd'), 'Customer Name': item.customerName, 'Contact No': item.contactNo, 'Email': item.customerEmail, 'Address': item.customerAddress, 'Pincode': item.pincode, 'Product(s)': item.productOrdered, 'Quantity': item.quantity, 'Price': item.price, 'Payment Status': item.paymentStatus, 'Delivery Status': item.deliveryStatus || 'N/A', 'Tracking Number': item.trackingNumber || 'N/A', 'Source': item.source || 'N/A'
+                })));
+            }
+            
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, 'Report');
 
@@ -164,13 +162,15 @@ export default function ReportsPage() {
                             <SelectContent>
                                 <SelectItem value="orders">All Orders</SelectItem>
                                 <SelectItem value="leads">Leads (Intent Verified)</SelectItem>
+                                <SelectItem value="seller_orders">Seller Uploaded Orders</SelectItem>
+                                <SelectItem value="shakti_cards">Shakti Card Holders</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
 
                     <div className="space-y-2">
                         <Label htmlFor="status">Payment Status</Label>
-                        <Select value={status} onValueChange={setStatus} disabled={dataSource === 'leads'}>
+                        <Select value={status} onValueChange={setStatus} disabled={isFilterDisabled}>
                             <SelectTrigger id="status">
                                 <SelectValue placeholder="Select status" />
                             </SelectTrigger>
@@ -181,6 +181,7 @@ export default function ReportsPage() {
                                 ))}
                             </SelectContent>
                         </Select>
+                         {isFilterDisabled && <p className="text-xs text-muted-foreground">Status filters are not applicable for this data source.</p>}
                     </div>
 
                     <div className="space-y-2">

@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogOut, Wallet, Package, QrCode, Clipboard, PackageCheck, Send, MessageSquare, AlertTriangle, FileUp, Edit, ShieldCheck, CheckCircle, Copy, User, Phone, Home, Truck, Map, UserCheck, Users, Upload, Crown, Loader2, PlusCircle, Trash2, MapPin, Search } from "lucide-react";
+import { LogOut, Wallet, Package, QrCode, Clipboard, PackageCheck, Send, MessageSquare, AlertTriangle, FileUp, Edit, ShieldCheck, CheckCircle, Copy, User, Phone, Home, Truck, Map, UserCheck, Users, Upload, Crown, Loader2, PlusCircle, Trash2, MapPin, Search, FileSpreadsheet } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
@@ -55,6 +55,20 @@ export type LogisticsPartnerData = {
     phone: string;
     status: 'pending' | 'approved' | 'rejected';
 };
+
+function ReportsTab() {
+    return (
+        <Card className="shadow-lg">
+            <CardHeader>
+                <CardTitle>Logistics Reports</CardTitle>
+                <CardDescription>Generate reports for your fleet and performance. This section is under construction.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <p className="text-muted-foreground">Detailed reporting features, including agent performance, cash settlement history, and delivery success rates, will be available here soon.</p>
+            </CardContent>
+        </Card>
+    )
+}
 
 export default function LogisticsDashboardPage() {
     const router = useRouter();
@@ -286,11 +300,12 @@ export default function LogisticsDashboardPage() {
 
                 <main>
                     <Tabs defaultValue="fleet">
-                        <TabsList className="grid w-full grid-cols-4">
+                        <TabsList className="grid w-full grid-cols-5">
                             <TabsTrigger value="fleet"><Users className="mr-2 h-4 w-4" /> My Fleet</TabsTrigger>
                             <TabsTrigger value="pickups"><Package className="mr-2 h-4 w-4" /> Cash Pickups</TabsTrigger>
                             <TabsTrigger value="service_partners"><UserCheck className="mr-2 h-4 w-4"/> Service Partners</TabsTrigger>
                             <TabsTrigger value="performance"><Crown className="mr-2 h-4 w-4" /> Performance</TabsTrigger>
+                            <TabsTrigger value="reports"><FileSpreadsheet className="mr-2 h-4 w-4" /> Reports</TabsTrigger>
                         </TabsList>
                         <TabsContent value="fleet">
                             <Card className="shadow-lg">
@@ -465,6 +480,9 @@ export default function LogisticsDashboardPage() {
                                 </Card>
                             </div>
                          </TabsContent>
+                         <TabsContent value="reports">
+                            <ReportsTab />
+                        </TabsContent>
                     </Tabs>
                 </main>
             </div>

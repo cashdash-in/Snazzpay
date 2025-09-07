@@ -86,6 +86,7 @@ const sellerMenuItems = [
     { href: '/seller/products', label: 'Products', icon: Package },
     { href: '/seller/orders', label: 'Orders', icon: ShoppingCart },
     { href: '/seller/earnings', label: 'Earnings', icon: DollarSign },
+    { href: '/seller/reports', label: 'Reports', icon: FileSpreadsheet },
     { href: '/seller/settings', label: 'Settings', icon: Settings },
 ]
 
