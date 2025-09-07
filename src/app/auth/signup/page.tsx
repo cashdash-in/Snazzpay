@@ -15,8 +15,9 @@ import { auth, db } from '@/lib/firebase';
 import { doc, setDoc } from "firebase/firestore";
 import { FirebaseError } from 'firebase/app';
 import { v4 as uuidv4 } from 'uuid';
+import { saveSellerUser } from '@/services/firestore';
 
-type SellerUser = {
+export type SellerUser = {
     id: string;
     companyName: string;
     email: string;
@@ -100,9 +101,7 @@ export default function SellerSignupPage() {
                 status: 'pending',
             };
 
-            const existingRequestsJSON = localStorage.getItem('seller_users');
-            const existingRequests: SellerUser[] = existingRequestsJSON ? JSON.parse(existingRequestsJSON) : [];
-            localStorage.setItem('seller_users', JSON.stringify([...existingRequests, newSellerRequest]));
+            await saveSellerUser(newSellerRequest);
 
             toast({
                 title: "Registration Submitted!",

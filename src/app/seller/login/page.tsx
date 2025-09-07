@@ -12,13 +12,10 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
+import { getDoc, doc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import type { SellerUser } from '@/app/auth/signup/page';
 
-type SellerUser = {
-    id: string;
-    companyName: string;
-    email: string;
-    status: 'pending' | 'approved' | 'rejected';
-};
 
 export default function SellerLoginPage() {
     const { toast } = useToast();
@@ -29,8 +26,8 @@ export default function SellerLoginPage() {
 
     const handleLogin = async () => {
         setIsLoading(true);
-        if (!auth) {
-            toast({ variant: 'destructive', title: "Firebase Not Configured", description: "Please check your Firebase configuration settings in your environment variables." });
+        if (!auth || !db) {
+            toast({ variant: 'destructive', title: "Firebase Not Configured", description: "Please check your Firebase configuration settings." });
             setIsLoading(false);
             return;
         }
@@ -45,11 +42,9 @@ export default function SellerLoginPage() {
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const loggedInUser = userCredential.user;
             
-            const allSellersJSON = localStorage.getItem('seller_users');
-            const allSellers: SellerUser[] = allSellersJSON ? JSON.parse(allSellersJSON) : [];
-            const sellerData = allSellers.find(s => s.id === loggedInUser.uid);
+            const sellerDoc = await getDoc(doc(db, 'seller_users', loggedInUser.uid));
 
-            if (!sellerData || sellerData.status !== 'approved') {
+            if (!sellerDoc.exists() || (sellerDoc.data() as SellerUser).status !== 'approved') {
                  await auth.signOut();
                  toast({ variant: 'destructive', title: "Login Denied", description: "Your seller account is not yet approved or does not exist. Please contact support." });
                  setIsLoading(false);
@@ -130,3 +125,4 @@ export default function SellerLoginPage() {
         </div>
     );
 }
+
