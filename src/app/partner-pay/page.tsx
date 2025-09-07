@@ -263,7 +263,7 @@ export default function PartnerHubPage() {
                 <TabsList className="grid w-full grid-cols-6 max-w-5xl mx-auto">
                     <TabsTrigger value="overview"><Info className="mr-2 h-4 w-4" /> Overview</TabsTrigger>
                      <TabsTrigger value="pay-partners">Partner Pay Network <Badge className="ml-2">{payPartnerRequests.length}</Badge></TabsTrigger>
-                     <TabsTrigger value="seller-requests">Seller Requests <Badge className="ml-2">{sellerRequests.length}</Badge></TabsTrigger>
+                     <TabsTrigger value="seller-requests">Seller Network <Badge className="ml-2">{sellerRequests.length}</Badge></TabsTrigger>
                      <TabsTrigger value="topups">Top-up Requests <Badge className="ml-2">{topUpRequests.filter(r => r.status === 'Pending Approval').length}</Badge></TabsTrigger>
                     <TabsTrigger value="codes"><QrCode className="mr-2 h-4 w-4" /> Digital Codes</TabsTrigger>
                     <TabsTrigger value="shakti-admin"><Settings className="mr-2 h-4 w-4" /> Shakti Card Admin</TabsTrigger>
@@ -293,20 +293,17 @@ export default function PartnerHubPage() {
                         </CardContent>
                     </Card>
                 </TabsContent>
-                 <TabsContent value="pay-partners" className="mt-4">
+                 <TabsContent value="pay-partners" className="mt-4 space-y-6">
                     <Card>
-                        <CardHeader className="flex flex-row items-center justify-between">
-                            <div>
-                                <CardTitle>Partner Pay Network</CardTitle>
-                                <CardDescription>Manage your network of trusted shopkeepers and their digital coin balances.</CardDescription>
-                            </div>
+                        <CardHeader>
+                            <CardTitle>Partner Pay Network Requests</CardTitle>
+                            <CardDescription>Manage your network of trusted shopkeepers and their digital coin balances.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                           <h3 className="text-lg font-semibold mb-2">Pending Requests</h3>
                            <Table>
                                 <TableHeader><TableRow><TableHead>Partner Name</TableHead><TableHead>Phone</TableHead><TableHead>Address</TableHead><TableHead>Details</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
                                 <TableBody>
-                                    {payPartnerRequests.map(partner => (
+                                    {payPartnerRequests.length > 0 ? payPartnerRequests.map(partner => (
                                         <TableRow key={partner.id}>
                                             <TableCell>{partner.companyName}</TableCell>
                                             <TableCell>{partner.phone}</TableCell>
@@ -314,14 +311,22 @@ export default function PartnerHubPage() {
                                             <TableCell><Dialog><DialogTrigger asChild><Button variant="ghost" size="icon"><Eye className="h-4 w-4" /></Button></DialogTrigger><DialogContent><DialogHeader><DialogTitle>{partner.companyName} - Details</DialogTitle></DialogHeader><div className="space-y-2 text-sm"><p><strong>Partner ID:</strong> <span className="font-mono">{partner.id}</span></p><p><strong>PAN:</strong> <span className="font-mono">{partner.pan}</span></p><p><strong>Aadhaar:</strong> <span className="font-mono">{partner.aadhaar}</span></p></div></DialogContent></Dialog></TableCell>
                                             <TableCell className="text-right space-x-2"><Button size="sm" variant="outline" className="text-green-600 border-green-600 hover:bg-green-50 hover:text-green-700" onClick={() => handlePayPartnerRequest(partner.id, 'approved')}><Check className="mr-2 h-4 w-4" />Approve</Button><Button size="sm" variant="destructive" onClick={() => handlePayPartnerRequest(partner.id, 'rejected')}><X className="mr-2 h-4 w-4" />Reject</Button></TableCell>
                                         </TableRow>
-                                    ))}
+                                    )) : (
+                                        <TableRow><TableCell colSpan={5} className="text-center h-24 text-muted-foreground">No pending Partner Pay requests.</TableCell></TableRow>
+                                    )}
                                 </TableBody>
                            </Table>
-                            <h3 className="text-lg font-semibold mt-6 mb-2">Approved Partners</h3>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Approved Partner Pay Agents</CardTitle>
+                        </CardHeader>
+                        <CardContent>
                            <Table>
                                 <TableHeader><TableRow><TableHead>Partner ID</TableHead><TableHead>Name</TableHead><TableHead>Balance</TableHead><TableHead>Total Collected</TableHead><TableHead>Status</TableHead><TableHead>Details</TableHead></TableRow></TableHeader>
                                 <TableBody>
-                                    {payPartners.map(partner => (
+                                     {payPartners.length > 0 ? payPartners.map(partner => (
                                         <TableRow key={partner.id}>
                                             <TableCell className="font-medium font-mono text-xs">{partner.id}</TableCell>
                                             <TableCell>{partner.companyName}</TableCell>
@@ -330,13 +335,15 @@ export default function PartnerHubPage() {
                                             <TableCell><Badge variant={partner.status === 'approved' ? 'default' : 'secondary'} className={partner.status === 'approved' ? 'bg-green-100 text-green-800' : ''}>{partner.status}</Badge></TableCell>
                                             <TableCell><Dialog><DialogTrigger asChild><Button variant="ghost" size="icon"><Eye className="h-4 w-4" /></Button></DialogTrigger><DialogContent><DialogHeader><DialogTitle>{partner.companyName} - Details</DialogTitle></DialogHeader><div className="space-y-2 text-sm"><p><strong>Partner ID:</strong> <span className="font-mono">{partner.id}</span></p><p><strong>Phone:</strong> {partner.phone}</p><p><strong>Address:</strong> {partner.address}</p><p><strong>PAN:</strong> <span className="font-mono">{partner.pan}</span></p><p><strong>Aadhaar:</strong> <span className="font-mono">{partner.aadhaar}</span></p></div></DialogContent></Dialog></TableCell>
                                         </TableRow>
-                                    ))}
+                                    )) : (
+                                        <TableRow><TableCell colSpan={6} className="text-center h-24 text-muted-foreground">No approved Partner Pay agents.</TableCell></TableRow>
+                                    )}
                                 </TableBody>
                            </Table>
                         </CardContent>
                     </Card>
                 </TabsContent>
-                 <TabsContent value="seller-requests" className="mt-4">
+                 <TabsContent value="seller-requests" className="mt-4 space-y-6">
                      <Card>
                         <CardHeader>
                             <CardTitle>Seller Signup Requests</CardTitle>
@@ -365,6 +372,35 @@ export default function PartnerHubPage() {
                                         </TableRow>
                                    )) : (
                                      <TableRow><TableCell colSpan={4} className="text-center h-24 text-muted-foreground">No pending seller requests.</TableCell></TableRow>
+                                   )}
+                                </TableBody>
+                           </Table>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Approved Sellers</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                           <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Company</TableHead>
+                                        <TableHead>Email</TableHead>
+                                        <TableHead>Firebase UID</TableHead>
+                                        <TableHead>Status</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                   {approvedSellers.length > 0 ? approvedSellers.map(seller => (
+                                        <TableRow key={seller.id}>
+                                            <TableCell className="font-medium">{seller.companyName}</TableCell>
+                                            <TableCell>{seller.email}</TableCell>
+                                            <TableCell className="font-mono text-xs">{seller.id}</TableCell>
+                                            <TableCell><Badge className="bg-green-100 text-green-800">{seller.status}</Badge></TableCell>
+                                        </TableRow>
+                                   )) : (
+                                     <TableRow><TableCell colSpan={4} className="text-center h-24 text-muted-foreground">No approved sellers yet.</TableCell></TableRow>
                                    )}
                                 </TableBody>
                            </Table>

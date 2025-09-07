@@ -59,7 +59,7 @@ export default function LogisticsHubPage() {
         async function fetchAndSetData() {
             setLoading(true);
             
-            // Load Partners & Requests
+            // Load Partners & Requests from local storage
             const allPartnersJSON = localStorage.getItem('logisticsPartners');
             const allPartners: LogisticsPartnerData[] = allPartnersJSON ? JSON.parse(allPartnersJSON) : [];
             setPartners(allPartners.filter(p => p.status === 'approved'));
@@ -148,10 +148,9 @@ export default function LogisticsHubPage() {
     return (
         <AppShell title="Logistics Hub">
           <Tabs defaultValue="shipments">
-            <TabsList className="grid w-full grid-cols-3 max-w-xl">
+            <TabsList className="grid w-full grid-cols-2 max-w-lg">
                 <TabsTrigger value="shipments">Shipment Management</TabsTrigger>
-                <TabsTrigger value="partners">Partner Network</TabsTrigger>
-                <TabsTrigger value="requests">Partner Requests <Badge className="ml-2">{partnerRequests.length}</Badge></TabsTrigger>
+                <TabsTrigger value="requests">Partner Network <Badge className="ml-2">{partnerRequests.length}</Badge></TabsTrigger>
             </TabsList>
             <TabsContent value="shipments" className="mt-4">
                  <Card>
@@ -203,10 +202,38 @@ export default function LogisticsHubPage() {
                     </CardContent>
                 </Card>
             </TabsContent>
-            <TabsContent value="partners" className="mt-4">
+            <TabsContent value="requests" className="mt-4 space-y-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Partner Signup Requests</CardTitle>
+                        <CardDescription>Review and approve new logistics partners who want to join your network.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader><TableRow><TableHead>Company</TableHead><TableHead>Phone</TableHead><TableHead>Address</TableHead><TableHead>PAN</TableHead><TableHead>Aadhaar</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                            <TableBody>
+                                {partnerRequests.length > 0 ? partnerRequests.map(req => (
+                                <TableRow key={req.id}>
+                                    <TableCell className="font-medium">{req.companyName}</TableCell>
+                                    <TableCell>{req.phone}</TableCell>
+                                    <TableCell className="text-xs">{req.address}</TableCell>
+                                    <TableCell className="font-mono text-xs">{req.pan}</TableCell>
+                                    <TableCell className="font-mono text-xs">{req.aadhaar}</TableCell>
+                                    <TableCell className="text-right space-x-2">
+                                        <Button size="sm" variant="outline" className="text-green-600 border-green-600 hover:bg-green-50 hover:text-green-700" onClick={() => handleUpdateRequest(req.id, 'approved')}><Check className="mr-2 h-4 w-4" />Approve</Button>
+                                        <Button size="sm" variant="destructive" onClick={() => handleUpdateRequest(req.id, 'rejected')}><X className="mr-2 h-4 w-4" />Reject</Button>
+                                    </TableCell>
+                                </TableRow>
+                                )) : (
+                                <TableRow><TableCell colSpan={6} className="text-center h-24 text-muted-foreground">No pending requests.</TableCell></TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
                  <Card>
                     <CardHeader>
-                        <CardTitle>Logistics Partner Network</CardTitle>
+                        <CardTitle>Approved Logistics Partner Network</CardTitle>
                         <CardDescription>Manage your approved courier partners and view their performance.</CardDescription>
                     </CardHeader>
                      <CardContent>
@@ -244,36 +271,6 @@ export default function LogisticsHubPage() {
                                         </TableCell>
                                     </TableRow>
                                 ))}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
-            </TabsContent>
-            <TabsContent value="requests" className="mt-4">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Partner Signup Requests</CardTitle>
-                        <CardDescription>Review and approve new logistics partners who want to join your network.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader><TableRow><TableHead>Company</TableHead><TableHead>Phone</TableHead><TableHead>Address</TableHead><TableHead>PAN</TableHead><TableHead>Aadhaar</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
-                            <TableBody>
-                                {partnerRequests.length > 0 ? partnerRequests.map(req => (
-                                <TableRow key={req.id}>
-                                    <TableCell className="font-medium">{req.companyName}</TableCell>
-                                    <TableCell>{req.phone}</TableCell>
-                                    <TableCell className="text-xs">{req.address}</TableCell>
-                                    <TableCell className="font-mono text-xs">{req.pan}</TableCell>
-                                    <TableCell className="font-mono text-xs">{req.aadhaar}</TableCell>
-                                    <TableCell className="text-right space-x-2">
-                                        <Button size="sm" variant="outline" className="text-green-600 border-green-600 hover:bg-green-50 hover:text-green-700" onClick={() => handleUpdateRequest(req.id, 'approved')}><Check className="mr-2 h-4 w-4" />Approve</Button>
-                                        <Button size="sm" variant="destructive" onClick={() => handleUpdateRequest(req.id, 'rejected')}><X className="mr-2 h-4 w-4" />Reject</Button>
-                                    </TableCell>
-                                </TableRow>
-                                )) : (
-                                <TableRow><TableCell colSpan={6} className="text-center h-24 text-muted-foreground">No pending requests.</TableCell></TableRow>
-                                )}
                             </TableBody>
                         </Table>
                     </CardContent>
