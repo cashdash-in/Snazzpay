@@ -94,31 +94,32 @@ export default function PartnerHubPage() {
 
      useEffect(() => {
         async function loadData() {
-            // Pay Partners
-            const allPayPartners = await getPayPartners();
+            // Pay Partners from localStorage
+            const allPayPartnersJSON = localStorage.getItem('payPartners');
+            const allPayPartners: PartnerData[] = allPayPartnersJSON ? JSON.parse(allPayPartnersJSON) : [];
             setPayPartners(allPayPartners.filter(p => p.status === 'approved'));
             setPayPartnerRequests(allPayPartners.filter(p => p.status === 'pending'));
 
-            // Seller Users (from localStorage first, then Firestore)
+            // Seller Users from localStorage
             const localSellerRequestsJSON = localStorage.getItem('seller_requests');
             const localSellerRequests: SellerUser[] = localSellerRequestsJSON ? JSON.parse(localSellerRequestsJSON) : [];
             setSellerRequests(localSellerRequests);
 
-            // Approved Sellers (from Firestore)
+            // Approved Sellers from localStorage
             const approvedSellersJSON = localStorage.getItem('approved_sellers');
             const approvedSellersList: SellerUser[] = approvedSellersJSON ? JSON.parse(approvedSellersJSON) : [];
             setApprovedSellers(approvedSellersList);
             
-            // Top-ups
+            // Top-ups from Firestore
             const allTopUps = await getTopUpRequests();
             setTopUpRequests(allTopUps);
             
-            // Shakti Cards
+            // Shakti Cards from localStorage
             const allShaktiCardsJSON = localStorage.getItem('shakti_cards_db');
             const allShaktiCards: ShaktiCardData[] = allShaktiCardsJSON ? JSON.parse(allShaktiCardsJSON) : [];
             setShaktiCards(allShaktiCards);
             
-            // Rules
+            // Rules from localStorage
             const storedRules = localStorage.getItem('shakti_card_rules_db');
             if (storedRules) {
                 setRewardRules(JSON.parse(storedRules));
@@ -181,14 +182,12 @@ export default function PartnerHubPage() {
         });
     };
 
-    const handlePayPartnerRequest = async (partnerId: string, newStatus: 'approved' | 'rejected') => {
-        const partner = [...payPartnerRequests, ...payPartners].find(p => p.id === partnerId);
-        if (!partner) return;
-        
-        const updatedPartner = { ...partner, status: newStatus };
-        await savePayPartner(updatedPartner);
+    const handlePayPartnerRequest = (partnerId: string, newStatus: 'approved' | 'rejected') => {
+        let allPayPartnersJSON = localStorage.getItem('payPartners');
+        let allPayPartners: PartnerData[] = allPayPartnersJSON ? JSON.parse(allPayPartnersJSON) : [];
+        allPayPartners = allPayPartners.map(p => p.id === partnerId ? { ...p, status: newStatus } : p);
+        localStorage.setItem('payPartners', JSON.stringify(allPayPartners));
 
-        const allPayPartners = await getPayPartners();
         setPayPartners(allPayPartners.filter(p => p.status === 'approved'));
         setPayPartnerRequests(allPayPartners.filter(p => p.status === 'pending'));
 
@@ -198,21 +197,18 @@ export default function PartnerHubPage() {
         });
     };
 
-    const handleSellerRequest = async (sellerId: string, newStatus: 'approved' | 'rejected') => {
+    const handleSellerRequest = (sellerId: string, newStatus: 'approved' | 'rejected') => {
         const seller = sellerRequests.find(s => s.id === sellerId);
         if (!seller) return;
 
-        const updatedSeller = { ...seller, status: newStatus };
-
-        // If approved, save to Firestore and local approved list
         if (newStatus === 'approved') {
-            await saveSellerUser(updatedSeller);
-            const updatedApprovedSellers = [...approvedSellers, updatedSeller];
-            setApprovedSellers(updatedApprovedSellers);
-            localStorage.setItem('approved_sellers', JSON.stringify(updatedApprovedSellers));
+            const approvedSellersJSON = localStorage.getItem('approved_sellers');
+            let approvedSellers: SellerUser[] = approvedSellersJSON ? JSON.parse(approvedSellersJSON) : [];
+            approvedSellers.push({ ...seller, status: 'approved' });
+            localStorage.setItem('approved_sellers', JSON.stringify(approvedSellers));
+            setApprovedSellers(approvedSellers);
         }
         
-        // Remove from pending list in localStorage
         const updatedRequests = sellerRequests.filter(s => s.id !== sellerId);
         setSellerRequests(updatedRequests);
         localStorage.setItem('seller_requests', JSON.stringify(updatedRequests));
@@ -230,11 +226,15 @@ export default function PartnerHubPage() {
         const updatedRequest = { ...request, status: 'Approved' as const };
         await updateTopUpRequest(requestId, { status: 'Approved' });
         
-        let partner = payPartners.find(p => p.id === request.partnerId);
+        let allPayPartnersJSON = localStorage.getItem('payPartners');
+        let allPayPartners: PartnerData[] = allPayPartnersJSON ? JSON.parse(allPayPartnersJSON) : [];
+        let partner = allPayPartners.find(p => p.id === request.partnerId);
+
         if (partner) {
             const updatedPartner = { ...partner, balance: partner.balance + request.coinsRequested };
-            await savePayPartner(updatedPartner);
-            setPayPartners(prev => prev.map(p => p.id === partner!.id ? updatedPartner : p));
+            allPayPartners = allPayPartners.map(p => p.id === partner!.id ? updatedPartner : p);
+            localStorage.setItem('payPartners', JSON.stringify(allPayPartners));
+            setPayPartners(allPayPartners.filter(p => p.status === 'approved'));
         }
 
         setTopUpRequests(prev => prev.map(r => r.id === requestId ? updatedRequest : r));

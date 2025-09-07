@@ -71,10 +71,7 @@ export default function LogisticsHubPage() {
                 const shopifyOrders = await getOrders();
                 combinedOrders.push(...shopifyOrders.map(mapShopifyToEditable));
             } catch (error) {
-                 toast({
-                    variant: 'destructive',
-                    title: "Failed to load Shopify Orders",
-                });
+                 console.error("Could not fetch Shopify orders", error);
             }
 
             try {
@@ -82,10 +79,7 @@ export default function LogisticsHubPage() {
                 const manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
                 combinedOrders.push(...manualOrders);
             } catch (error) {
-                toast({
-                    variant: 'destructive',
-                    title: "Error loading manual orders",
-                });
+                console.error("Error loading manual orders", error);
             }
 
             const unifiedOrders = combinedOrders.map(order => {
@@ -140,10 +134,8 @@ export default function LogisticsHubPage() {
         
         allPartners = allPartners.map(p => p.id === partnerId ? { ...p, status: newStatus } : p);
         
-        // This is the critical fix: Save the updated list back to localStorage
         localStorage.setItem('logisticsPartners', JSON.stringify(allPartners));
         
-        // Update the component's state to reflect the change immediately
         setPartners(allPartners.filter(p => p.status === 'approved'));
         setPartnerRequests(allPartners.filter(p => p.status === 'pending'));
 
