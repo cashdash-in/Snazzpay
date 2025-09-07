@@ -14,14 +14,8 @@ import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { doc, setDoc } from "firebase/firestore";
 import { FirebaseError } from 'firebase/app';
-import { v4 as uuidv4 } from 'uuid';
-
-export type SellerUser = {
-    id: string;
-    companyName: string;
-    email: string;
-    status: 'pending' | 'approved' | 'rejected';
-};
+import { saveSellerUser } from '@/services/firestore';
+import type { SellerUser } from '@/app/partner-pay/page';
 
 const ADMIN_EMAIL = "admin@snazzpay.com";
 
@@ -101,7 +95,7 @@ export default function SellerSignupPage() {
             };
 
             // Correctly save the new seller request to Firestore.
-            await setDoc(doc(db, "seller_users", user.uid), newSellerRequest);
+            await saveSellerUser(newSellerRequest);
 
             toast({
                 title: "Registration Submitted!",
@@ -216,3 +210,5 @@ export default function SellerSignupPage() {
         </div>
     );
 }
+
+    
