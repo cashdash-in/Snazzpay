@@ -45,4 +45,3 @@ const { app, auth, db } = initializeFirebase();
 
 export { app, auth, db };
 export type { FirebaseApp, Auth, Firestore };
-
