@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogOut, Wallet, Package, QrCode, Clipboard, PackageCheck, Send, MessageSquare, AlertTriangle, FileUp, Edit, ShieldCheck, CheckCircle, Copy, User, Phone, Home, Truck, Map, UserCheck, Users, Upload, Crown, Loader2, PlusCircle, Trash2, MapPin, Search, FileSpreadsheet } from "lucide-react";
+import { LogOut, Wallet, Package, QrCode, Clipboard, PackageCheck, Send, MessageSquare, AlertTriangle, FileUp, Edit, ShieldCheck, CheckCircle, Copy, User, Phone, Home, Truck, Map, UserCheck, Users, Upload, Crown, Loader2, PlusCircle, Trash2, MapPin, Search, FileSpreadsheet, Download } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +16,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { v4 as uuidv4 } from 'uuid';
 import type { ShaktiCardData } from '@/components/shakti-card';
+import * as XLSX from 'xlsx';
+import { format } from 'date-fns';
 
 type Agent = {
     id: string;
@@ -56,18 +58,100 @@ export type LogisticsPartnerData = {
     status: 'pending' | 'approved' | 'rejected';
 };
 
-function ReportsTab() {
+function ReportsTab({ fleet, pickups, partnerName }: { fleet: Agent[], pickups: Pickup[], partnerName: string }) {
+    const { toast } = useToast();
+    const [isGenerating, setIsGenerating] = useState(false);
+
+    const handleExport = (type: 'fleet' | 'pickups') => {
+        setIsGenerating(true);
+        try {
+            let dataToExport: any[] = [];
+            let fileName = `${partnerName.replace(/\s+/g, '_')}_report_${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
+            let worksheet;
+
+            if (type === 'fleet') {
+                dataToExport = fleet.map(agent => ({
+                    'Agent Name': agent.name,
+                    'Phone': agent.phone,
+                    'Area': agent.area,
+                    'Cash on Hand (INR)': agent.cashOnHand,
+                    'Pickups Today': agent.pickupsToday,
+                    'Status': agent.status,
+                    'Current Task': agent.task
+                }));
+                worksheet = XLSX.utils.json_to_sheet(dataToExport);
+                fileName = `Fleet_Performance_${fileName}`;
+            } else if (type === 'pickups') {
+                 dataToExport = pickups.map(pickup => ({
+                    'Pickup ID': pickup.id,
+                    'Customer Name': pickup.customer,
+                    'Address': pickup.address,
+                    'Amount (INR)': pickup.amount,
+                    'Status': pickup.status,
+                    'Assigned To': pickup.assignedTo || 'N/A',
+                    'AI Verification': pickup.aiVerification
+                }));
+                worksheet = XLSX.utils.json_to_sheet(dataToExport);
+                fileName = `Pickup_History_${fileName}`;
+            }
+
+            if (dataToExport.length === 0) {
+                toast({
+                    variant: 'destructive',
+                    title: "No Data Found",
+                    description: "There is no data to export for this report type.",
+                });
+                setIsGenerating(false);
+                return;
+            }
+
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Report');
+            XLSX.writeFile(workbook, fileName);
+
+            toast({ title: "Report Generated", description: `${dataToExport.length} records exported to ${fileName}.` });
+
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Error Generating Report', description: error.message });
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
     return (
         <Card className="shadow-lg">
             <CardHeader>
                 <CardTitle>Logistics Reports</CardTitle>
-                <CardDescription>Generate reports for your fleet and performance. This section is under construction.</CardDescription>
+                <CardDescription>Generate and download reports for your fleet and performance.</CardDescription>
             </CardHeader>
-            <CardContent>
-                <p className="text-muted-foreground">Detailed reporting features, including agent performance, cash settlement history, and delivery success rates, will be available here soon.</p>
+            <CardContent className="space-y-4">
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-lg">Fleet Performance Report</CardTitle>
+                        <CardDescription>Export a summary of all your agents and their current performance metrics.</CardDescription>
+                    </CardHeader>
+                    <CardFooter>
+                         <Button onClick={() => handleExport('fleet')} disabled={isGenerating}>
+                            {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                            Export Fleet Data
+                        </Button>
+                    </CardFooter>
+                </Card>
+                 <Card>
+                    <CardHeader>
+                        <CardTitle className="text-lg">Pickup History Report</CardTitle>
+                        <CardDescription>Export a detailed history of all cash pickup assignments.</CardDescription>
+                    </CardHeader>
+                    <CardFooter>
+                         <Button onClick={() => handleExport('pickups')} disabled={isGenerating}>
+                            {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                            Export Pickup Data
+                        </Button>
+                    </CardFooter>
+                </Card>
             </CardContent>
         </Card>
-    )
+    );
 }
 
 export default function LogisticsDashboardPage() {
@@ -481,7 +565,7 @@ export default function LogisticsDashboardPage() {
                             </div>
                          </TabsContent>
                          <TabsContent value="reports">
-                            <ReportsTab />
+                            <ReportsTab fleet={fleet} pickups={pickups} partnerName={partnerName} />
                         </TabsContent>
                     </Tabs>
                 </main>
