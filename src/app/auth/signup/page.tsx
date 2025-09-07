@@ -14,7 +14,6 @@ import { createUserWithEmailAndPassword, updateProfile, deleteUser } from 'fireb
 import { auth, db } from '@/lib/firebase';
 import { FirebaseError } from 'firebase/app';
 import type { SellerUser } from '@/app/partner-pay/page';
-import { saveSellerUser } from '@/services/firestore';
 
 const ADMIN_EMAIL = "admin@snazzpay.com";
 
@@ -96,9 +95,10 @@ export default function SellerSignupPage() {
                 status: 'pending',
             };
 
-            // Step 3: Call our secure client-side function to save the data
-            // This will now work because of the updated firestore.rules
-            await saveSellerUser(newSellerRequest);
+            // Step 3: Save the request to localStorage instead of Firestore
+            const existingRequestsJSON = localStorage.getItem('seller_requests');
+            const existingRequests: SellerUser[] = existingRequestsJSON ? JSON.parse(existingRequestsJSON) : [];
+            localStorage.setItem('seller_requests', JSON.stringify([...existingRequests, newSellerRequest]));
 
             toast({
                 title: "Registration Submitted!",
@@ -109,19 +109,19 @@ export default function SellerSignupPage() {
             await auth.signOut();
             router.push('/seller/login');
 
-        } catch (error: any)
-          {
+        } catch (error: any) {
             console.error("Signup failed:", error);
-            let title = "Signup Failed";
-            let description = 'An unexpected error occurred during signup.';
             
-            // Critical: If the Firestore write fails, delete the created auth user
+            // Critical: If any part of the process fails, delete the created auth user
             // to allow the user to try signing up again.
             if (user) {
                 await deleteUser(user);
-                console.log("Cleaned up orphaned auth user:", user.uid);
+                console.log("Cleaned up orphaned auth user due to error:", user.uid);
             }
 
+            let title = "Signup Failed";
+            let description = 'An unexpected error occurred during signup.';
+            
             if (error instanceof FirebaseError) {
                 switch (error.code) {
                     case 'auth/email-already-in-use':
@@ -133,15 +133,9 @@ export default function SellerSignupPage() {
                     case 'auth/invalid-email':
                         description = 'The email address is not valid.';
                         break;
-                    case 'permission-denied':
-                         description = 'Permission denied. This is likely a configuration issue with your app\'s security rules. The system has been restored for you to try again.';
-                         break;
                     default:
                         description = `An error occurred: ${error.message}`;
                 }
-            } else if (error.message.includes('permission-denied')) {
-                 title = "Permission Denied";
-                 description = 'Failed to create seller request due to security rules. Please try again.';
             } else {
                 title = "Failed to Create Seller Request";
                 description = error.message; 

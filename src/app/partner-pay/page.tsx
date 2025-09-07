@@ -29,7 +29,7 @@ import { useState, useEffect, useMemo } from "react";
 import { format } from "date-fns";
 import { v4 as uuidv4 } from 'uuid';
 import type { ShaktiCardData } from "@/components/shakti-card";
-import { getPayPartners, getSellerUsers, getTopUpRequests, savePayPartner, saveSellerUser, updateTopUpRequest } from '@/services/firestore';
+import { getPayPartners, getTopUpRequests, savePayPartner, saveSellerUser, updateTopUpRequest } from '@/services/firestore';
 
 export type PartnerData = {
     id: string; // This will be the login ID
@@ -94,21 +94,31 @@ export default function PartnerHubPage() {
 
      useEffect(() => {
         async function loadData() {
+            // Pay Partners
             const allPayPartners = await getPayPartners();
             setPayPartners(allPayPartners.filter(p => p.status === 'approved'));
             setPayPartnerRequests(allPayPartners.filter(p => p.status === 'pending'));
 
-            const allSellers = await getSellerUsers();
-            setSellerRequests(allSellers.filter(s => s.status === 'pending'));
-            setApprovedSellers(allSellers.filter(s => s.status === 'approved'));
+            // Seller Users (from localStorage first, then Firestore)
+            const localSellerRequestsJSON = localStorage.getItem('seller_requests');
+            const localSellerRequests: SellerUser[] = localSellerRequestsJSON ? JSON.parse(localSellerRequestsJSON) : [];
+            setSellerRequests(localSellerRequests);
+
+            // Approved Sellers (from Firestore)
+            const approvedSellersJSON = localStorage.getItem('approved_sellers');
+            const approvedSellersList: SellerUser[] = approvedSellersJSON ? JSON.parse(approvedSellersJSON) : [];
+            setApprovedSellers(approvedSellersList);
             
+            // Top-ups
             const allTopUps = await getTopUpRequests();
             setTopUpRequests(allTopUps);
             
+            // Shakti Cards
             const allShaktiCardsJSON = localStorage.getItem('shakti_cards_db');
             const allShaktiCards: ShaktiCardData[] = allShaktiCardsJSON ? JSON.parse(allShaktiCardsJSON) : [];
             setShaktiCards(allShaktiCards);
             
+            // Rules
             const storedRules = localStorage.getItem('shakti_card_rules_db');
             if (storedRules) {
                 setRewardRules(JSON.parse(storedRules));
@@ -188,20 +198,28 @@ export default function PartnerHubPage() {
         });
     };
 
-     const handleSellerRequest = async (sellerId: string, newStatus: 'approved' | 'rejected') => {
-        const seller = [...sellerRequests, ...approvedSellers].find(s => s.id === sellerId);
+    const handleSellerRequest = async (sellerId: string, newStatus: 'approved' | 'rejected') => {
+        const seller = sellerRequests.find(s => s.id === sellerId);
         if (!seller) return;
 
         const updatedSeller = { ...seller, status: newStatus };
-        await saveSellerUser(updatedSeller);
 
-        const allSellers = await getSellerUsers();
-        setSellerRequests(allSellers.filter(s => s.status === 'pending'));
-        setApprovedSellers(allSellers.filter(s => s.status === 'approved'));
+        // If approved, save to Firestore and local approved list
+        if (newStatus === 'approved') {
+            await saveSellerUser(updatedSeller);
+            const updatedApprovedSellers = [...approvedSellers, updatedSeller];
+            setApprovedSellers(updatedApprovedSellers);
+            localStorage.setItem('approved_sellers', JSON.stringify(updatedApprovedSellers));
+        }
+        
+        // Remove from pending list in localStorage
+        const updatedRequests = sellerRequests.filter(s => s.id !== sellerId);
+        setSellerRequests(updatedRequests);
+        localStorage.setItem('seller_requests', JSON.stringify(updatedRequests));
 
         toast({
             title: `Seller Request ${newStatus}`,
-            description: `The seller account request has been ${newStatus}.`,
+            description: `The seller account request for ${seller.companyName} has been ${newStatus}.`,
         });
     };
     
@@ -331,7 +349,6 @@ export default function PartnerHubPage() {
                                         <TableHead>Company</TableHead>
                                         <TableHead>Email</TableHead>
                                         <TableHead>Firebase UID</TableHead>
-                                        <TableHead>Details</TableHead>
                                         <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -341,18 +358,13 @@ export default function PartnerHubPage() {
                                             <TableCell className="font-medium">{req.companyName}</TableCell>
                                             <TableCell>{req.email}</TableCell>
                                             <TableCell className="font-mono text-xs">{req.id}</TableCell>
-                                            <TableCell>
-                                                <Button variant="ghost" size="icon" onClick={() => setSelectedSeller(req)}>
-                                                    <Eye className="h-4 w-4" />
-                                                </Button>
-                                            </TableCell>
                                             <TableCell className="text-right space-x-2">
                                                 <Button size="sm" variant="outline" className="text-green-600 border-green-600 hover:bg-green-50 hover:text-green-700" onClick={() => handleSellerRequest(req.id, 'approved')}><Check className="mr-2 h-4 w-4" />Approve</Button>
                                                 <Button size="sm" variant="destructive" onClick={() => handleSellerRequest(req.id, 'rejected')}><X className="mr-2 h-4 w-4" />Reject</Button>
                                             </TableCell>
                                         </TableRow>
                                    )) : (
-                                     <TableRow><TableCell colSpan={5} className="text-center h-24 text-muted-foreground">No pending seller requests.</TableCell></TableRow>
+                                     <TableRow><TableCell colSpan={4} className="text-center h-24 text-muted-foreground">No pending seller requests.</TableCell></TableRow>
                                    )}
                                 </TableBody>
                            </Table>
