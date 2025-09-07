@@ -214,6 +214,12 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
                 <DropdownMenuSeparator />
                 <DropdownMenuItem>Profile</DropdownMenuItem>
                 <DropdownMenuItem>Billing</DropdownMenuItem>
+                 <Link href="/seller/login" target="_blank">
+                  <DropdownMenuItem>
+                    <Store className="mr-2 h-4 w-4" />
+                    <span>Seller Login</span>
+                  </DropdownMenuItem>
+                </Link>
                  <Link href="/partner-pay/login" target="_blank">
                   <DropdownMenuItem>
                     <Handshake className="mr-2 h-4 w-4" />
