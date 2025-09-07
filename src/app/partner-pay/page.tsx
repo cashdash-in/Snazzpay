@@ -4,7 +4,7 @@
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Coins, Package, Handshake, Info, PlusCircle, Printer, Download, Loader2, QrCode, Check, X, Eye, ShoppingBasket, BadgeCheck } from 'lucide-react';
+import { Coins, Package, Handshake, Info, PlusCircle, Printer, Download, Loader2, QrCode, Check, X, Eye, ShoppingBasket, BadgeCheck, Users } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
@@ -41,6 +41,13 @@ export type PartnerData = {
     totalCollected: number;
 };
 
+type SellerUser = {
+    id: string;
+    companyName: string;
+    email: string;
+    status: 'pending' | 'approved' | 'rejected';
+};
+
 type TopUpRequest = {
     id: string;
     partnerId: string;
@@ -65,21 +72,29 @@ const initialMockCodes = [
 ];
 
 
-export default function PartnerPayPage() {
+export default function PartnerHubPage() {
     const { toast } = useToast();
     const [codes, setCodes] = useState(initialMockCodes);
-    const [partners, setPartners] = useState<PartnerData[]>([]);
-    const [partnerRequests, setPartnerRequests] = useState<PartnerData[]>([]);
+    const [payPartners, setPayPartners] = useState<PartnerData[]>([]);
+    const [payPartnerRequests, setPayPartnerRequests] = useState<PartnerData[]>([]);
+    const [sellerRequests, setSellerRequests] = useState<SellerUser[]>([]);
     const [topUpRequests, setTopUpRequests] = useState<TopUpRequest[]>([]);
     const [newCodeValue, setNewCodeValue] = useState('');
     const [selectedPartner, setSelectedPartner] = useState('');
 
      useEffect(() => {
-        const allPartnersJSON = localStorage.getItem('payPartners');
-        const allPartners: PartnerData[] = allPartnersJSON ? JSON.parse(allPartnersJSON) : [];
-        setPartners(allPartners.filter(p => p.status === 'approved'));
-        setPartnerRequests(allPartners.filter(p => p.status === 'pending'));
+        // Load Pay Partners
+        const allPayPartnersJSON = localStorage.getItem('payPartners');
+        const allPayPartners: PartnerData[] = allPayPartnersJSON ? JSON.parse(allPayPartnersJSON) : [];
+        setPayPartners(allPayPartners.filter(p => p.status === 'approved'));
+        setPayPartnerRequests(allPayPartners.filter(p => p.status === 'pending'));
 
+        // Load Seller Requests
+        const allSellersJSON = localStorage.getItem('seller_users');
+        const allSellers: SellerUser[] = allSellersJSON ? JSON.parse(allSellersJSON) : [];
+        setSellerRequests(allSellers.filter(s => s.status === 'pending'));
+        
+        // Load Topup requests
         const allTopUpsJSON = localStorage.getItem('topUpRequests');
         const allTopUps: TopUpRequest[] = allTopUpsJSON ? JSON.parse(allTopUpsJSON) : [];
         setTopUpRequests(allTopUps);
@@ -99,7 +114,7 @@ export default function PartnerPayPage() {
             id: `SNC-${uuidv4().substring(0, 4).toUpperCase()}-${uuidv4().substring(4, 8).toUpperCase()}`,
             value: parseFloat(newCodeValue).toFixed(2),
             date: format(new Date(), 'yyyy-MM-dd'),
-            partner: partners.find(p => p.id === selectedPartner)?.companyName || 'Unknown Partner',
+            partner: payPartners.find(p => p.id === selectedPartner)?.companyName || 'Unknown Partner',
             status: 'Unused'
         };
 
@@ -121,19 +136,34 @@ export default function PartnerPayPage() {
         });
     };
 
-    const handleUpdateRequest = (partnerId: string, newStatus: 'approved' | 'rejected') => {
+    const handlePayPartnerRequest = (partnerId: string, newStatus: 'approved' | 'rejected') => {
         const allPartnersJSON = localStorage.getItem('payPartners');
         let allPartners: PartnerData[] = allPartnersJSON ? JSON.parse(allPartnersJSON) : [];
         
         allPartners = allPartners.map(p => p.id === partnerId ? { ...p, status: newStatus } : p);
         localStorage.setItem('payPartners', JSON.stringify(allPartners));
         
-        setPartners(allPartners.filter(p => p.status === 'approved'));
-        setPartnerRequests(allPartners.filter(p => p.status === 'pending'));
+        setPayPartners(allPartners.filter(p => p.status === 'approved'));
+        setPayPartnerRequests(allPartners.filter(p => p.status === 'pending'));
 
         toast({
             title: `Request ${newStatus}`,
-            description: `The partner request has been ${newStatus}.`,
+            description: `The Partner Pay request has been ${newStatus}.`,
+        });
+    };
+
+     const handleSellerRequest = (sellerId: string, newStatus: 'approved' | 'rejected') => {
+        const allSellersJSON = localStorage.getItem('seller_users');
+        let allSellers: SellerUser[] = allSellersJSON ? JSON.parse(allSellersJSON) : [];
+        
+        allSellers = allSellers.map(s => s.id === sellerId ? { ...s, status: newStatus } : s);
+        localStorage.setItem('seller_users', JSON.stringify(allSellers));
+        
+        setSellerRequests(allSellers.filter(s => s.status === 'pending'));
+
+        toast({
+            title: `Seller Request ${newStatus}`,
+            description: `The seller account request has been ${newStatus}.`,
         });
     };
     
@@ -159,7 +189,7 @@ export default function PartnerPayPage() {
         localStorage.setItem('payPartners', JSON.stringify(allPartners));
 
         setTopUpRequests(allRequests);
-        setPartners(allPartners.filter(p => p.status === 'approved'));
+        setPayPartners(allPartners.filter(p => p.status === 'approved'));
 
         toast({
             title: "Top-up Approved!",
@@ -168,17 +198,17 @@ export default function PartnerPayPage() {
     };
 
     return (
-        <AppShell title="Partner Pay System">
+        <AppShell title="Partner Hub">
             <Tabs defaultValue="overview">
-                <TabsList className="grid w-full grid-cols-5 max-w-3xl mx-auto">
+                <TabsList className="grid w-full grid-cols-5 max-w-4xl mx-auto">
                     <TabsTrigger value="overview">
                         <Info className="mr-2 h-4 w-4" /> Overview
                     </TabsTrigger>
-                    <TabsTrigger value="partners">
-                        <Handshake className="mr-2 h-4 w-4" /> Partners
+                     <TabsTrigger value="pay-partners">
+                        <Handshake className="mr-2 h-4 w-4" /> Partner Pay
                     </TabsTrigger>
-                     <TabsTrigger value="requests">
-                        Partner Requests <Badge className="ml-2">{partnerRequests.length}</Badge>
+                     <TabsTrigger value="seller-requests">
+                        Seller Requests <Badge className="ml-2">{sellerRequests.length}</Badge>
                     </TabsTrigger>
                      <TabsTrigger value="topups">
                         Top-up Requests <Badge className="ml-2">{topUpRequests.filter(r => r.status === 'Pending Approval').length}</Badge>
@@ -212,11 +242,11 @@ export default function PartnerPayPage() {
                         </CardContent>
                     </Card>
                 </TabsContent>
-                 <TabsContent value="partners">
+                 <TabsContent value="pay-partners">
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between">
                             <div>
-                                <CardTitle>Partner Network</CardTitle>
+                                <CardTitle>Partner Pay Network</CardTitle>
                                 <CardDescription>Manage your network of trusted shopkeepers and their digital coin balances.</CardDescription>
                             </div>
                         </CardHeader>
@@ -233,7 +263,7 @@ export default function PartnerPayPage() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {partners.map(partner => (
+                                    {payPartners.map(partner => (
                                         <TableRow key={partner.id}>
                                             <TableCell className="font-medium font-mono text-xs">{partner.id}</TableCell>
                                             <TableCell>{partner.companyName}</TableCell>
@@ -271,39 +301,35 @@ export default function PartnerPayPage() {
                         </CardContent>
                     </Card>
                 </TabsContent>
-                 <TabsContent value="requests">
+                 <TabsContent value="seller-requests">
                      <Card>
                         <CardHeader>
-                            <CardTitle>Partner Signup Requests</CardTitle>
-                            <CardDescription>Review and approve new partners to join the Snazzify Coin network.</CardDescription>
+                            <CardTitle>Seller Signup Requests</CardTitle>
+                            <CardDescription>Review and approve new sellers to join the SnazzPay platform.</CardDescription>
                         </CardHeader>
                         <CardContent>
                            <Table>
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Company</TableHead>
-                                        <TableHead>Phone</TableHead>
-                                        <TableHead>Address</TableHead>
-                                        <TableHead>PAN</TableHead>
-                                        <TableHead>Aadhaar</TableHead>
+                                        <TableHead>Email</TableHead>
+                                        <TableHead>Firebase UID</TableHead>
                                         <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                   {partnerRequests.length > 0 ? partnerRequests.map(req => (
+                                   {sellerRequests.length > 0 ? sellerRequests.map(req => (
                                         <TableRow key={req.id}>
                                             <TableCell className="font-medium">{req.companyName}</TableCell>
-                                            <TableCell>{req.phone}</TableCell>
-                                            <TableCell className="text-xs">{req.address}</TableCell>
-                                            <TableCell className="font-mono text-xs">{req.pan}</TableCell>
-                                            <TableCell className="font-mono text-xs">{req.aadhaar}</TableCell>
+                                            <TableCell>{req.email}</TableCell>
+                                            <TableCell className="font-mono text-xs">{req.id}</TableCell>
                                             <TableCell className="text-right space-x-2">
-                                                <Button size="sm" variant="outline" className="text-green-600 border-green-600 hover:bg-green-50 hover:text-green-700" onClick={() => handleUpdateRequest(req.id, 'approved')}><Check className="mr-2 h-4 w-4" />Approve</Button>
-                                                <Button size="sm" variant="destructive" onClick={() => handleUpdateRequest(req.id, 'rejected')}><X className="mr-2 h-4 w-4" />Reject</Button>
+                                                <Button size="sm" variant="outline" className="text-green-600 border-green-600 hover:bg-green-50 hover:text-green-700" onClick={() => handleSellerRequest(req.id, 'approved')}><Check className="mr-2 h-4 w-4" />Approve</Button>
+                                                <Button size="sm" variant="destructive" onClick={() => handleSellerRequest(req.id, 'rejected')}><X className="mr-2 h-4 w-4" />Reject</Button>
                                             </TableCell>
                                         </TableRow>
                                    )) : (
-                                     <TableRow><TableCell colSpan={6} className="text-center h-24 text-muted-foreground">No pending requests.</TableCell></TableRow>
+                                     <TableRow><TableCell colSpan={4} className="text-center h-24 text-muted-foreground">No pending seller requests.</TableCell></TableRow>
                                    )}
                                 </TableBody>
                            </Table>
@@ -340,7 +366,7 @@ export default function PartnerPayPage() {
                                             <TableCell><Badge variant={req.status === 'Approved' ? 'default' : 'secondary'}>{req.status}</Badge></TableCell>
                                             <TableCell className="text-right">
                                                 <Button size="sm" onClick={() => handleApproveTopUp(req.id)} disabled={req.status === 'Approved'}>
-                                                    {req.status === 'Approved' ? <><BadgeCheck className="mr-2 h-4 w-4" />Approved</> : <><Check className="mr-2 h-4 w-4" />Approve</>}
+                                                    {req.status === 'Approved' ? <><BadgeCheck className="mr-2 h-4 w-4" />Approved</> : <><Check className="mr-2 h-4 w-4" />Approve>}
                                                 </Button>
                                             </TableCell>
                                         </TableRow>
@@ -368,7 +394,7 @@ export default function PartnerPayPage() {
                                                 <SelectValue placeholder="Select a partner" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                {partners.map(p => (
+                                                {payPartners.map(p => (
                                                   <SelectItem key={p.id} value={p.id}>{p.companyName} (Balance: ₹{p.balance.toFixed(2)})</SelectItem>
                                                 ))}
                                             </SelectContent>
@@ -451,5 +477,5 @@ export default function PartnerPayPage() {
                 </TabsContent>
             </Tabs>
         </AppShell>
-    )
+    );
 }
