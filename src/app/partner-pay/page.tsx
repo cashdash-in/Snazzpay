@@ -1,4 +1,3 @@
-
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -78,6 +77,7 @@ export default function PartnerHubPage() {
     const [payPartners, setPayPartners] = useState<PartnerData[]>([]);
     const [payPartnerRequests, setPayPartnerRequests] = useState<PartnerData[]>([]);
     const [sellerRequests, setSellerRequests] = useState<SellerUser[]>([]);
+    const [selectedSeller, setSelectedSeller] = useState<SellerUser | null>(null);
     const [topUpRequests, setTopUpRequests] = useState<TopUpRequest[]>([]);
     const [newCodeValue, setNewCodeValue] = useState('');
     const [selectedPartner, setSelectedPartner] = useState('');
@@ -314,6 +314,7 @@ export default function PartnerHubPage() {
                                         <TableHead>Company</TableHead>
                                         <TableHead>Email</TableHead>
                                         <TableHead>Firebase UID</TableHead>
+                                        <TableHead>Details</TableHead>
                                         <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -323,13 +324,18 @@ export default function PartnerHubPage() {
                                             <TableCell className="font-medium">{req.companyName}</TableCell>
                                             <TableCell>{req.email}</TableCell>
                                             <TableCell className="font-mono text-xs">{req.id}</TableCell>
+                                            <TableCell>
+                                                <Button variant="ghost" size="icon" onClick={() => setSelectedSeller(req)}>
+                                                    <Eye className="h-4 w-4" />
+                                                </Button>
+                                            </TableCell>
                                             <TableCell className="text-right space-x-2">
                                                 <Button size="sm" variant="outline" className="text-green-600 border-green-600 hover:bg-green-50 hover:text-green-700" onClick={() => handleSellerRequest(req.id, 'approved')}><Check className="mr-2 h-4 w-4" />Approve</Button>
                                                 <Button size="sm" variant="destructive" onClick={() => handleSellerRequest(req.id, 'rejected')}><X className="mr-2 h-4 w-4" />Reject</Button>
                                             </TableCell>
                                         </TableRow>
                                    )) : (
-                                     <TableRow><TableCell colSpan={4} className="text-center h-24 text-muted-foreground">No pending seller requests.</TableCell></TableRow>
+                                     <TableRow><TableCell colSpan={5} className="text-center h-24 text-muted-foreground">No pending seller requests.</TableCell></TableRow>
                                    )}
                                 </TableBody>
                            </Table>
@@ -476,6 +482,25 @@ export default function PartnerHubPage() {
                     </div>
                 </TabsContent>
             </Tabs>
+            <Dialog open={!!selectedSeller} onOpenChange={(isOpen) => !isOpen && setSelectedSeller(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>{selectedSeller?.companyName} - Details</DialogTitle>
+                        <DialogDescription>Full details for this seller signup request.</DialogDescription>
+                    </DialogHeader>
+                    {selectedSeller && (
+                        <div className="space-y-2 text-sm">
+                            <p><strong>Company:</strong> {selectedSeller.companyName}</p>
+                            <p><strong>Email:</strong> {selectedSeller.email}</p>
+                            <p><strong>Firebase UID:</strong> <span className="font-mono">{selectedSeller.id}</span></p>
+                            <p><strong>Status:</strong> <span className="capitalize">{selectedSeller.status}</span></p>
+                        </div>
+                    )}
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setSelectedSeller(null)}>Close</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </AppShell>
     );
 }
