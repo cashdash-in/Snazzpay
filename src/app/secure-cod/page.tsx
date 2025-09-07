@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState, Suspense } from 'react';
@@ -50,7 +49,9 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         productName: '',
         baseAmount: 0,
         quantity: 1,
-        orderId: ''
+        orderId: '',
+        sellerId: '', // To track which seller's order this is
+        sellerName: 'Snazzify'
     });
     const [customerDetails, setCustomerDetails] = useState({
         name: '',
@@ -83,6 +84,8 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         const amountStr = searchParams.get('amount');
         const name = searchParams.get('name');
         const orderId = searchParams.get('order_id');
+        const sellerId = searchParams.get('seller_id') || 'default_seller'; // Default seller if not provided
+        const sellerName = searchParams.get('seller_name') || 'Snazzify';
         
         let initialAmount = 1;
         let initialName = 'Sample Product';
@@ -105,7 +108,9 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
             productName: initialName,
             baseAmount: initialAmount,
             quantity: 1,
-            orderId: initialOrderId
+            orderId: initialOrderId,
+            sellerId: sellerId,
+            sellerName: sellerName
         });
         setLoading(false);
         
@@ -272,9 +277,15 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                         validFrom: format(now, 'MM/yy'),
                         validThru: format(addYears(now, 3), 'MM/yy'),
                         points: 0,
-                        cashback: 0
+                        cashback: 0,
+                        sellerName: orderDetails.sellerName,
+                        sellerId: orderDetails.sellerId
                     };
                     localStorage.setItem(`shakti_card_${sanitizedMobile}`, JSON.stringify(newShaktiCard));
+                    // Also add to the main DB of cards for admin view
+                    const allCardsDB = JSON.parse(localStorage.getItem('shakti_cards_db') || '[]');
+                    allCardsDB.push(newShaktiCard);
+                    localStorage.setItem('shakti_cards_db', JSON.stringify(allCardsDB));
                     setShaktiCard(newShaktiCard);
                 } else {
                     setShaktiCard(JSON.parse(cardDataJSON));
@@ -470,7 +481,7 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                 <CardHeader className="text-center">
                     <Zap className="mx-auto h-8 w-8 text-primary" />
                     <CardTitle>Modern, Secure Payment</CardTitle>
-                    <CardDescription>{paymentStep === 'intent' ? 'First, verify your intent with a ₹1 payment.' : 'Pay now and your funds are held in a Trust Wallet until dispatch.'}</CardDescription>
+                    <CardDescription>{paymentStep === 'intent' ? `First, verify your intent for ${orderDetails.sellerName} with a ₹1 payment.` : 'Pay now and your funds are held in a Trust Wallet until dispatch.'}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-3">

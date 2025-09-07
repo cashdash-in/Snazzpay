@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Gem, Nfc, ShieldCheck } from 'lucide-react';
@@ -11,6 +10,8 @@ export interface ShaktiCardData {
   validThru: string;
   points: number;
   cashback: number;
+  sellerId: string;
+  sellerName: string;
 }
 
 interface ShaktiCardProps {
@@ -31,7 +32,10 @@ export function ShaktiCard({ card }: ShaktiCardProps) {
           </h3>
           <p className="text-xs font-mono opacity-80 uppercase">Secure COD Card</p>
         </div>
-        <Nfc className="h-8 w-8 text-white/80" />
+        <div className="text-right">
+            <Nfc className="h-8 w-8 text-white/80 ml-auto" />
+            <p className="text-[10px] font-mono opacity-70 mt-1">from {card.sellerName || 'Snazzify'}</p>
+        </div>
       </div>
 
       <div className="space-y-1 text-center z-10 relative">

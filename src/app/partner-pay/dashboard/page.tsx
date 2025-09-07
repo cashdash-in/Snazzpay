@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -91,7 +90,7 @@ export default function PartnerPayDashboardPage() {
     const [cashAmount, setCashAmount] = useState('');
     const [isToppingUp, setIsToppingUp] = useState(false);
     const [shaktiCardNumber, setShaktiCardNumber] = useState('');
-    const [shaktiCardBenefits, setShaktiCardBenefits] = useState<{ points: number; cashback: number; discount: number } | null>(null);
+    const [shaktiCardBenefits, setShaktiCardBenefits] = useState<{ points: number; cashback: number; discount: number, sellerId: string; } | null>(null);
     const [isVerifyingCard, setIsVerifyingCard] = useState(false);
 
 
@@ -168,7 +167,7 @@ export default function PartnerPayDashboardPage() {
 
             if (foundCard) {
                 const discount = Math.floor(foundCard.points / 10); // 10 points = 1 Rupee discount
-                setShaktiCardBenefits({ points: foundCard.points, cashback: foundCard.cashback, discount });
+                setShaktiCardBenefits({ points: foundCard.points, cashback: foundCard.cashback, discount, sellerId: foundCard.sellerId });
                 toast({ title: "Card Verified!", description: `Customer has ₹${discount} available as discount.` });
             } else {
                 setShaktiCardBenefits(null);
@@ -269,6 +268,7 @@ export default function PartnerPayDashboardPage() {
         let txFound = false;
         let pointsEarned = 0;
         let cardToUpdate = '';
+        let sellerIdForRules = 'default';
 
         setTransactions(prev => prev.map(tx => {
             if (tx.sellerTransactionCode === sellerCodeToProcess && tx.status === 'In Process') {
@@ -277,8 +277,12 @@ export default function PartnerPayDashboardPage() {
                 
                 // Add points to Shakti Card
                 if (tx.shaktiCardNumber) {
-                    const pointRules = JSON.parse(localStorage.getItem('shakti_card_rules') || '{"pointsPerRupee": 0.01}');
-                    pointsEarned = Math.floor(tx.value * pointRules.pointsPerRupee);
+                    const allRules: Record<string, { pointsPerRupee: number }> = JSON.parse(localStorage.getItem('shakti_card_rules_db') || '{}');
+                    const allCards: ShaktiCardData[] = JSON.parse(localStorage.getItem('shakti_cards_db') || '[]');
+                    const cardDetails = allCards.find(c => c.cardNumber === tx.shaktiCardNumber);
+                    sellerIdForRules = cardDetails?.sellerId || 'default';
+                    const rules = allRules[sellerIdForRules] || { pointsPerRupee: 0.01 };
+                    pointsEarned = Math.floor(tx.value * rules.pointsPerRupee);
                     cardToUpdate = tx.shaktiCardNumber;
                 }
 
@@ -693,5 +697,3 @@ export default function PartnerPayDashboardPage() {
         </div>
     );
 }
-
-    
