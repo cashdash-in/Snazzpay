@@ -29,6 +29,7 @@ import { useState, useEffect, useMemo } from "react";
 import { format } from "date-fns";
 import { v4 as uuidv4 } from 'uuid';
 import type { ShaktiCardData } from "@/components/shakti-card";
+import { getPayPartners, getSellerUsers, getTopUpRequests, savePayPartner, saveSellerUser, updateTopUpRequest } from '@/services/firestore';
 
 export type PartnerData = {
     id: string; // This will be the login ID
@@ -42,14 +43,14 @@ export type PartnerData = {
     totalCollected: number;
 };
 
-type SellerUser = {
+export type SellerUser = {
     id: string;
     companyName: string;
     email: string;
     status: 'pending' | 'approved' | 'rejected';
 };
 
-type TopUpRequest = {
+export type TopUpRequest = {
     id: string;
     partnerId: string;
     partnerName: string;
@@ -65,11 +66,6 @@ type RewardRules = {
     cashbackPercentage: number;
     discountPercentage: number;
 };
-
-const mockOrders = [
-    { id: '#PP-1001', customer: 'Ravi Kumar', partner: 'Gupta General Store', coinCode: 'SNZ-A1B2-C3D4', amount: '499.00', status: 'Paid' },
-    { id: '#PP-1002', customer: 'Priya Sharma', partner: 'Pooja Mobile Recharge', coinCode: 'SNZ-E5F6-G7H8', amount: '1250.00', status: 'Paid' },
-];
 
 const initialMockCodes = [
     { id: 'SNC-A1B2-C3D4', value: '499.00', date: '2024-05-23', partner: 'Gupta General Store', status: 'Used' },
@@ -97,29 +93,28 @@ export default function PartnerHubPage() {
 
 
      useEffect(() => {
-        const allPayPartnersJSON = localStorage.getItem('payPartners');
-        const allPayPartners: PartnerData[] = allPayPartnersJSON ? JSON.parse(allPayPartnersJSON) : [];
-        setPayPartners(allPayPartners.filter(p => p.status === 'approved'));
-        setPayPartnerRequests(allPayPartners.filter(p => p.status === 'pending'));
+        async function loadData() {
+            const allPayPartners = await getPayPartners();
+            setPayPartners(allPayPartners.filter(p => p.status === 'approved'));
+            setPayPartnerRequests(allPayPartners.filter(p => p.status === 'pending'));
 
-        const allSellersJSON = localStorage.getItem('seller_users');
-        const allSellers: SellerUser[] = allSellersJSON ? JSON.parse(allSellersJSON) : [];
-        setSellerRequests(allSellers.filter(s => s.status === 'pending'));
-        setApprovedSellers(allSellers.filter(s => s.status === 'approved'));
-        
-        const allTopUpsJSON = localStorage.getItem('topUpRequests');
-        const allTopUps: TopUpRequest[] = allTopUpsJSON ? JSON.parse(allTopUpsJSON) : [];
-        setTopUpRequests(allTopUps);
-        
-        const allShaktiCardsJSON = localStorage.getItem('shakti_cards_db');
-        const allShaktiCards: ShaktiCardData[] = allShaktiCardsJSON ? JSON.parse(allShaktiCardsJSON) : [];
-        setShaktiCards(allShaktiCards);
-        
-        const storedRules = localStorage.getItem('shakti_card_rules_db');
-        if (storedRules) {
-            setRewardRules(JSON.parse(storedRules));
+            const allSellers = await getSellerUsers();
+            setSellerRequests(allSellers.filter(s => s.status === 'pending'));
+            setApprovedSellers(allSellers.filter(s => s.status === 'approved'));
+            
+            const allTopUps = await getTopUpRequests();
+            setTopUpRequests(allTopUps);
+            
+            const allShaktiCardsJSON = localStorage.getItem('shakti_cards_db');
+            const allShaktiCards: ShaktiCardData[] = allShaktiCardsJSON ? JSON.parse(allShaktiCardsJSON) : [];
+            setShaktiCards(allShaktiCards);
+            
+            const storedRules = localStorage.getItem('shakti_card_rules_db');
+            if (storedRules) {
+                setRewardRules(JSON.parse(storedRules));
+            }
         }
-
+        loadData();
     }, []);
     
      useEffect(() => {
@@ -176,15 +171,16 @@ export default function PartnerHubPage() {
         });
     };
 
-    const handlePayPartnerRequest = (partnerId: string, newStatus: 'approved' | 'rejected') => {
-        const allPartnersJSON = localStorage.getItem('payPartners');
-        let allPartners: PartnerData[] = allPartnersJSON ? JSON.parse(allPartnersJSON) : [];
+    const handlePayPartnerRequest = async (partnerId: string, newStatus: 'approved' | 'rejected') => {
+        const partner = [...payPartnerRequests, ...payPartners].find(p => p.id === partnerId);
+        if (!partner) return;
         
-        allPartners = allPartners.map(p => p.id === partnerId ? { ...p, status: newStatus } : p);
-        localStorage.setItem('payPartners', JSON.stringify(allPartners));
-        
-        setPayPartners(allPartners.filter(p => p.status === 'approved'));
-        setPayPartnerRequests(allPartners.filter(p => p.status === 'pending'));
+        const updatedPartner = { ...partner, status: newStatus };
+        await savePayPartner(updatedPartner);
+
+        const allPayPartners = await getPayPartners();
+        setPayPartners(allPayPartners.filter(p => p.status === 'approved'));
+        setPayPartnerRequests(allPayPartners.filter(p => p.status === 'pending'));
 
         toast({
             title: `Request ${newStatus}`,
@@ -192,13 +188,14 @@ export default function PartnerHubPage() {
         });
     };
 
-     const handleSellerRequest = (sellerId: string, newStatus: 'approved' | 'rejected') => {
-        const allSellersJSON = localStorage.getItem('seller_users');
-        let allSellers: SellerUser[] = allSellersJSON ? JSON.parse(allSellersJSON) : [];
-        
-        allSellers = allSellers.map(s => s.id === sellerId ? { ...s, status: newStatus } : s);
-        localStorage.setItem('seller_users', JSON.stringify(allSellers));
-        
+     const handleSellerRequest = async (sellerId: string, newStatus: 'approved' | 'rejected') => {
+        const seller = [...sellerRequests, ...approvedSellers].find(s => s.id === sellerId);
+        if (!seller) return;
+
+        const updatedSeller = { ...seller, status: newStatus };
+        await saveSellerUser(updatedSeller);
+
+        const allSellers = await getSellerUsers();
         setSellerRequests(allSellers.filter(s => s.status === 'pending'));
         setApprovedSellers(allSellers.filter(s => s.status === 'approved'));
 
@@ -208,27 +205,21 @@ export default function PartnerHubPage() {
         });
     };
     
-    const handleApproveTopUp = (requestId: string) => {
-        let allRequests: TopUpRequest[] = JSON.parse(localStorage.getItem('topUpRequests') || '[]');
-        let allPartners: PartnerData[] = JSON.parse(localStorage.getItem('payPartners') || '[]');
-        
-        const request = allRequests.find(r => r.id === requestId);
+    const handleApproveTopUp = async (requestId: string) => {
+        const request = topUpRequests.find(r => r.id === requestId);
         if(!request || request.status === 'Approved') return;
 
-        request.status = 'Approved';
+        const updatedRequest = { ...request, status: 'Approved' as const };
+        await updateTopUpRequest(requestId, { status: 'Approved' });
         
-        allPartners = allPartners.map(p => {
-            if (p.id === request.partnerId) {
-                return { ...p, balance: p.balance + request.coinsRequested };
-            }
-            return p;
-        });
+        let partner = payPartners.find(p => p.id === request.partnerId);
+        if (partner) {
+            const updatedPartner = { ...partner, balance: partner.balance + request.coinsRequested };
+            await savePayPartner(updatedPartner);
+            setPayPartners(prev => prev.map(p => p.id === partner!.id ? updatedPartner : p));
+        }
 
-        localStorage.setItem('topUpRequests', JSON.stringify(allRequests));
-        localStorage.setItem('payPartners', JSON.stringify(allPartners));
-
-        setTopUpRequests(allRequests);
-        setPayPartners(allPartners.filter(p => p.status === 'approved'));
+        setTopUpRequests(prev => prev.map(r => r.id === requestId ? updatedRequest : r));
 
         toast({
             title: "Top-up Approved!",
@@ -253,7 +244,7 @@ export default function PartnerHubPage() {
             <Tabs defaultValue="overview">
                 <TabsList className="grid w-full grid-cols-6 max-w-5xl mx-auto">
                     <TabsTrigger value="overview"><Info className="mr-2 h-4 w-4" /> Overview</TabsTrigger>
-                     <TabsTrigger value="pay-partners"><Handshake className="mr-2 h-4 w-4" /> Partner Pay Network</TabsTrigger>
+                     <TabsTrigger value="pay-partners">Partner Pay Network <Badge className="ml-2">{payPartnerRequests.length}</Badge></TabsTrigger>
                      <TabsTrigger value="seller-requests">Seller Requests <Badge className="ml-2">{sellerRequests.length}</Badge></TabsTrigger>
                      <TabsTrigger value="topups">Top-up Requests <Badge className="ml-2">{topUpRequests.filter(r => r.status === 'Pending Approval').length}</Badge></TabsTrigger>
                     <TabsTrigger value="codes"><QrCode className="mr-2 h-4 w-4" /> Digital Codes</TabsTrigger>
@@ -293,17 +284,24 @@ export default function PartnerHubPage() {
                             </div>
                         </CardHeader>
                         <CardContent>
+                           <h3 className="text-lg font-semibold mb-2">Pending Requests</h3>
                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Partner ID</TableHead>
-                                        <TableHead>Name</TableHead>
-                                        <TableHead>Balance</TableHead>
-                                        <TableHead>Total Collected</TableHead>
-                                        <TableHead>Status</TableHead>
-                                        <TableHead>Details</TableHead>
-                                    </TableRow>
-                                </TableHeader>
+                                <TableHeader><TableRow><TableHead>Partner Name</TableHead><TableHead>Phone</TableHead><TableHead>Address</TableHead><TableHead>Details</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                                <TableBody>
+                                    {payPartnerRequests.map(partner => (
+                                        <TableRow key={partner.id}>
+                                            <TableCell>{partner.companyName}</TableCell>
+                                            <TableCell>{partner.phone}</TableCell>
+                                            <TableCell className="text-xs">{partner.address}</TableCell>
+                                            <TableCell><Dialog><DialogTrigger asChild><Button variant="ghost" size="icon"><Eye className="h-4 w-4" /></Button></DialogTrigger><DialogContent><DialogHeader><DialogTitle>{partner.companyName} - Details</DialogTitle></DialogHeader><div className="space-y-2 text-sm"><p><strong>Partner ID:</strong> <span className="font-mono">{partner.id}</span></p><p><strong>PAN:</strong> <span className="font-mono">{partner.pan}</span></p><p><strong>Aadhaar:</strong> <span className="font-mono">{partner.aadhaar}</span></p></div></DialogContent></Dialog></TableCell>
+                                            <TableCell className="text-right space-x-2"><Button size="sm" variant="outline" className="text-green-600 border-green-600 hover:bg-green-50 hover:text-green-700" onClick={() => handlePayPartnerRequest(partner.id, 'approved')}><Check className="mr-2 h-4 w-4" />Approve</Button><Button size="sm" variant="destructive" onClick={() => handlePayPartnerRequest(partner.id, 'rejected')}><X className="mr-2 h-4 w-4" />Reject</Button></TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                           </Table>
+                            <h3 className="text-lg font-semibold mt-6 mb-2">Approved Partners</h3>
+                           <Table>
+                                <TableHeader><TableRow><TableHead>Partner ID</TableHead><TableHead>Name</TableHead><TableHead>Balance</TableHead><TableHead>Total Collected</TableHead><TableHead>Status</TableHead><TableHead>Details</TableHead></TableRow></TableHeader>
                                 <TableBody>
                                     {payPartners.map(partner => (
                                         <TableRow key={partner.id}>
@@ -311,31 +309,8 @@ export default function PartnerHubPage() {
                                             <TableCell>{partner.companyName}</TableCell>
                                             <TableCell>₹{partner.balance.toFixed(2)}</TableCell>
                                             <TableCell>₹{partner.totalCollected.toFixed(2)}</TableCell>
-                                            <TableCell>
-                                                <Badge variant={partner.status === 'approved' ? 'default' : 'secondary'} className={partner.status === 'approved' ? 'bg-green-100 text-green-800' : ''}>
-                                                    {partner.status}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Dialog>
-                                                    <DialogTrigger asChild>
-                                                        <Button variant="ghost" size="icon"><Eye className="h-4 w-4" /></Button>
-                                                    </DialogTrigger>
-                                                    <DialogContent>
-                                                        <DialogHeader>
-                                                            <DialogTitle>{partner.companyName} - Details</DialogTitle>
-                                                            <DialogDescription>Full KYC and contact information for this partner.</DialogDescription>
-                                                        </DialogHeader>
-                                                        <div className="space-y-2 text-sm">
-                                                            <p><strong>Partner ID:</strong> <span className="font-mono">{partner.id}</span></p>
-                                                            <p><strong>Contact Phone:</strong> {partner.phone}</p>
-                                                            <p><strong>Address:</strong> {partner.address}</p>
-                                                            <p><strong>PAN:</strong> <span className="font-mono">{partner.pan}</span></p>
-                                                            <p><strong>Aadhaar:</strong> <span className="font-mono">{partner.aadhaar}</span></p>
-                                                        </div>
-                                                    </DialogContent>
-                                                </Dialog>
-                                            </TableCell>
+                                            <TableCell><Badge variant={partner.status === 'approved' ? 'default' : 'secondary'} className={partner.status === 'approved' ? 'bg-green-100 text-green-800' : ''}>{partner.status}</Badge></TableCell>
+                                            <TableCell><Dialog><DialogTrigger asChild><Button variant="ghost" size="icon"><Eye className="h-4 w-4" /></Button></DialogTrigger><DialogContent><DialogHeader><DialogTitle>{partner.companyName} - Details</DialogTitle></DialogHeader><div className="space-y-2 text-sm"><p><strong>Partner ID:</strong> <span className="font-mono">{partner.id}</span></p><p><strong>Phone:</strong> {partner.phone}</p><p><strong>Address:</strong> {partner.address}</p><p><strong>PAN:</strong> <span className="font-mono">{partner.pan}</span></p><p><strong>Aadhaar:</strong> <span className="font-mono">{partner.aadhaar}</span></p></div></DialogContent></Dialog></TableCell>
                                         </TableRow>
                                     ))}
                                 </TableBody>

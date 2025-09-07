@@ -11,9 +11,8 @@ import Link from "next/link";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 import { getDoc, doc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 import type { SellerUser } from '@/app/partner-pay/page';
 
 
@@ -61,6 +60,8 @@ export default function SellerLoginPage() {
             }
 
             const idToken = await loggedInUser.getIdToken();
+            
+            // Explicitly set isSeller to true
             await fetch('/api/auth/session', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
