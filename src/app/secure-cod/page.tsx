@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, Suspense } from 'react';
@@ -274,6 +275,9 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                     const newShaktiCard: ShaktiCardData = {
                         cardNumber: generateCardNumber(),
                         customerName: customerDetails.name,
+                        customerPhone: customerDetails.contact,
+                        customerEmail: customerDetails.email,
+                        customerAddress: `${customerDetails.address}, ${customerDetails.pincode}`,
                         validFrom: format(now, 'MM/yy'),
                         validThru: format(addYears(now, 3), 'MM/yy'),
                         points: 0,

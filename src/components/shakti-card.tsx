@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Gem, Nfc, ShieldCheck } from 'lucide-react';
@@ -6,6 +7,9 @@ import Image from 'next/image';
 export interface ShaktiCardData {
   cardNumber: string;
   customerName: string;
+  customerPhone: string;
+  customerEmail: string;
+  customerAddress: string;
   validFrom: string;
   validThru: string;
   points: number;

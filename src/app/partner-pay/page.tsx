@@ -1,3 +1,4 @@
+
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -555,13 +556,20 @@ export default function PartnerHubPage() {
                                 <CardDescription>View all issued cards and their current reward balances.</CardDescription>
                             </CardHeader>
                             <CardContent>
+                                <div className="overflow-x-auto">
                                 <Table>
-                                    <TableHeader><TableRow><TableHead>Card Number</TableHead><TableHead>Customer</TableHead><TableHead>Points</TableHead><TableHead>Cashback</TableHead><TableHead>Seller</TableHead></TableRow></TableHeader>
+                                    <TableHeader><TableRow><TableHead>Card / Customer</TableHead><TableHead>Contact</TableHead><TableHead>Points</TableHead><TableHead>Cashback</TableHead><TableHead>Seller</TableHead></TableRow></TableHeader>
                                     <TableBody>
                                         {shaktiCards.length > 0 ? shaktiCards.map(card => (
                                             <TableRow key={card.cardNumber}>
-                                                <TableCell className="font-mono text-xs">{card.cardNumber}</TableCell>
-                                                <TableCell>{card.customerName}</TableCell>
+                                                <TableCell>
+                                                    <div className="font-medium">{card.customerName}</div>
+                                                    <div className="font-mono text-xs text-muted-foreground">{card.cardNumber}</div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="text-sm">{card.customerPhone}</div>
+                                                    <div className="text-xs text-muted-foreground">{card.customerEmail}</div>
+                                                </TableCell>
                                                 <TableCell className="font-medium text-blue-600">{card.points}</TableCell>
                                                 <TableCell className="font-medium text-green-600">₹{card.cashback.toFixed(2)}</TableCell>
                                                 <TableCell className="text-xs text-muted-foreground">{card.sellerName}</TableCell>
@@ -571,6 +579,7 @@ export default function PartnerHubPage() {
                                         )}
                                     </TableBody>
                                 </Table>
+                                </div>
                             </CardContent>
                         </Card>
                     </div>
