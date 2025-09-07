@@ -291,7 +291,7 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                     allCardsDB.push(newShaktiCard);
                     localStorage.setItem('shakti_cards_db', JSON.stringify(allCardsDB));
                     setShaktiCard(newShaktiCard);
-                     toast({ title: 'Payment Secured & Shakti Card Issued!', description: 'Your order is confirmed and your new loyalty card is ready.' });
+                     toast({ title: 'Payment Secured &amp; Shakti Card Issued!', description: 'Your order is confirmed and your new loyalty card is ready.' });
                 } else {
                     setShaktiCard(JSON.parse(cardDataJSON));
                     toast({ title: 'Payment Secured!', description: 'Your order is confirmed. Benefits will be added to your existing Shakti Card.' });
@@ -393,7 +393,7 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
             </CardContent>
             <CardFooter>
                  <Button className="w-full" onClick={handleOtpConfirmation}>
-                    Confirm OTP & Proceed
+                    Confirm OTP &amp; Proceed
                 </Button>
             </CardFooter>
         </Card>

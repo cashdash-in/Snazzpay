@@ -79,7 +79,7 @@ export default function ShaktiCardDetailsPage() {
                     <div>
                         <Card>
                             <CardHeader>
-                                <CardTitle>Benefits & How to Use</CardTitle>
+                                <CardTitle>Benefits &amp; How to Use</CardTitle>
                             </CardHeader>
                              <CardContent>
                                 <Accordion type="single" collapsible className="w-full">
