@@ -48,7 +48,7 @@ export default function TermsAndConditionsPage() {
                         </CardHeader>
                         <CardFooter className="flex justify-between items-center">
                              <Link href="/terms/customer" passHref>
-                                <Button variant="outline">View Terms</Button>
+                                <Button variant="outline">View Contract</Button>
                              </Link>
                              <div className="flex gap-2">
                                 <Button size="sm" variant="secondary" onClick={() => handleShare('customer', 'link')}>Copy Link</Button>
@@ -64,7 +64,7 @@ export default function TermsAndConditionsPage() {
                         </CardHeader>
                          <CardFooter className="flex justify-between items-center">
                              <Link href="/terms/partner-pay" passHref>
-                                <Button variant="outline">View Terms</Button>
+                                <Button variant="outline">View Contract</Button>
                              </Link>
                              <div className="flex gap-2">
                                 <Button size="sm" variant="secondary" onClick={() => handleShare('partner-pay', 'link')}>Copy Link</Button>
@@ -80,7 +80,7 @@ export default function TermsAndConditionsPage() {
                         </CardHeader>
                         <CardFooter className="flex justify-between items-center">
                              <Link href="/terms/logistics" passHref>
-                                <Button variant="outline">View Terms</Button>
+                                <Button variant="outline">View Contract</Button>
                              </Link>
                              <div className="flex gap-2">
                                 <Button size="sm" variant="secondary" onClick={() => handleShare('logistics', 'link')}>Copy Link</Button>
