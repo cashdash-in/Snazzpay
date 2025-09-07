@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -58,6 +59,10 @@ type TopUpRequest = {
     requestDate: string;
 };
 
+type VerifiedCardInfo = ShaktiCardData & { 
+    discount: number 
+};
+
 
 const initialTransactions: Transaction[] = [];
 
@@ -90,7 +95,7 @@ export default function PartnerPayDashboardPage() {
     const [cashAmount, setCashAmount] = useState('');
     const [isToppingUp, setIsToppingUp] = useState(false);
     const [shaktiCardNumber, setShaktiCardNumber] = useState('');
-    const [shaktiCardBenefits, setShaktiCardBenefits] = useState<{ points: number; cashback: number; discount: number, sellerId: string; } | null>(null);
+    const [verifiedCardInfo, setVerifiedCardInfo] = useState<VerifiedCardInfo | null>(null);
     const [isVerifyingCard, setIsVerifyingCard] = useState(false);
 
 
@@ -167,10 +172,10 @@ export default function PartnerPayDashboardPage() {
 
             if (foundCard) {
                 const discount = Math.floor(foundCard.points / 10); // 10 points = 1 Rupee discount
-                setShaktiCardBenefits({ points: foundCard.points, cashback: foundCard.cashback, discount, sellerId: foundCard.sellerId });
-                toast({ title: "Card Verified!", description: `Customer has ₹${discount} available as discount.` });
+                setVerifiedCardInfo({ ...foundCard, discount });
+                toast({ title: "Card Verified!", description: `Customer ${foundCard.customerName} has ₹${discount} available as discount.` });
             } else {
-                setShaktiCardBenefits(null);
+                setVerifiedCardInfo(null);
                 toast({ variant: 'destructive', title: "Invalid Card", description: "This Shakti Card number was not found." });
             }
             setIsVerifyingCard(false);
@@ -196,7 +201,7 @@ export default function PartnerPayDashboardPage() {
             return;
         }
 
-        const discountToApply = shaktiCardBenefits?.discount || 0;
+        const discountToApply = verifiedCardInfo?.discount || 0;
         const finalAmount = amount - discountToApply;
 
         setIsSettling(true);
@@ -233,7 +238,7 @@ export default function PartnerPayDashboardPage() {
                     setPartner(prev => prev ? ({ ...prev, balance: prev.balance - finalAmount }) : null);
 
                     // Update Shakti Card points
-                    if (shaktiCardBenefits && shaktiCardNumber) {
+                    if (verifiedCardInfo && shaktiCardNumber) {
                         const allCards: ShaktiCardData[] = JSON.parse(localStorage.getItem('shakti_cards_db') || '[]');
                         const updatedCards = allCards.map(c => c.cardNumber === shaktiCardNumber ? {...c, points: c.points - (discountToApply * 10)} : c);
                         localStorage.setItem('shakti_cards_db', JSON.stringify(updatedCards));
@@ -243,7 +248,7 @@ export default function PartnerPayDashboardPage() {
                     setTransactionValue('');
                     setCustomerInfo({ name: '', phone: '', address: '' });
                     setShaktiCardNumber('');
-                    setShaktiCardBenefits(null);
+                    setVerifiedCardInfo(null);
                     setIsSettling(false);
                 },
                 prefill: { name: partner.companyName },
@@ -432,7 +437,7 @@ export default function PartnerPayDashboardPage() {
         return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
     }
 
-    const finalTransactionValue = parseFloat(transactionValue || '0') - (shaktiCardBenefits?.discount || 0);
+    const finalTransactionValue = parseFloat(transactionValue || '0') - (verifiedCardInfo?.discount || 0);
     const canSettle = partner.balance >= finalTransactionValue;
     const totalProfit = transactions.reduce((acc, tx) => tx.status === 'Completed' ? acc + tx.commission : acc, 0);
     const totalRevenue = transactions.reduce((acc, tx) => tx.status === 'Completed' ? acc + tx.value : acc, 0);
@@ -503,9 +508,10 @@ export default function PartnerPayDashboardPage() {
                                         <Input id="shakti-card-no" placeholder="Enter Shakti Card number" value={shaktiCardNumber} onChange={(e) => setShaktiCardNumber(e.target.value)} />
                                         <Button variant="secondary" size="icon" onClick={handleVerifyShaktiCard} disabled={isVerifyingCard}>{isVerifyingCard ? <Loader2 className="h-4 w-4 animate-spin"/> : <Search className="h-4 w-4"/>}</Button>
                                     </div>
-                                    {shaktiCardBenefits && (
+                                    {verifiedCardInfo && (
                                         <div className="text-xs text-green-600 p-2 bg-green-50 rounded-md">
-                                            Card verified! Customer has <span className="font-bold">₹{shaktiCardBenefits.discount.toFixed(2)}</span> discount available from {shaktiCardBenefits.points} points.
+                                            <p className='font-bold'>Card verified for: {verifiedCardInfo.customerName}</p>
+                                            <p>Customer has <span className="font-bold">₹{verifiedCardInfo.discount.toFixed(2)}</span> discount available.</p>
                                         </div>
                                     )}
                                 </div>
@@ -513,10 +519,10 @@ export default function PartnerPayDashboardPage() {
                                     <Label htmlFor="tx-value">Cash Collected (₹)</Label>
                                     <Input id="tx-value" type="number" placeholder="e.g., 500" value={transactionValue} onChange={(e) => setTransactionValue(e.target.value)} />
                                 </div>
-                                {shaktiCardBenefits && shaktiCardBenefits.discount > 0 && (
+                                {verifiedCardInfo && verifiedCardInfo.discount > 0 && (
                                     <div className="text-sm p-2 border-dashed border-primary border rounded-md">
                                         <div className="flex justify-between"><span className="text-muted-foreground">Original Total:</span><span>₹{parseFloat(transactionValue || '0').toFixed(2)}</span></div>
-                                        <div className="flex justify-between text-destructive"><span className="text-muted-foreground">Discount:</span><span>- ₹{shaktiCardBenefits.discount.toFixed(2)}</span></div>
+                                        <div className="flex justify-between text-destructive"><span className="text-muted-foreground">Discount:</span><span>- ₹{verifiedCardInfo.discount.toFixed(2)}</span></div>
                                         <div className="flex justify-between font-bold mt-1 pt-1 border-t"><span >Final Amount:</span><span>₹{finalTransactionValue.toFixed(2)}</span></div>
                                     </div>
                                 )}

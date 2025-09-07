@@ -4,7 +4,7 @@
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Coins, Package, Handshake, Info, PlusCircle, Printer, Download, Loader2, QrCode, Check, X, Eye, ShoppingBasket, BadgeCheck, Users, Settings, Gem, Percent } from 'lucide-react';
+import { Coins, Package, Handshake, Info, PlusCircle, Printer, Download, Loader2, QrCode, Check, X, Eye, ShoppingBasket, BadgeCheck, Users, Settings, Gem, Percent, Calendar } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
@@ -558,7 +558,16 @@ export default function PartnerHubPage() {
                             <CardContent>
                                 <div className="overflow-x-auto">
                                 <Table>
-                                    <TableHeader><TableRow><TableHead>Card / Customer</TableHead><TableHead>Contact</TableHead><TableHead>Points</TableHead><TableHead>Cashback</TableHead><TableHead>Seller</TableHead></TableRow></TableHeader>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Card / Customer</TableHead>
+                                            <TableHead>Contact Info</TableHead>
+                                            <TableHead>Points</TableHead>
+                                            <TableHead>Cashback</TableHead>
+                                            <TableHead>Expiry</TableHead>
+                                            <TableHead>Seller</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
                                     <TableBody>
                                         {shaktiCards.length > 0 ? shaktiCards.map(card => (
                                             <TableRow key={card.cardNumber}>
@@ -572,10 +581,11 @@ export default function PartnerHubPage() {
                                                 </TableCell>
                                                 <TableCell className="font-medium text-blue-600">{card.points}</TableCell>
                                                 <TableCell className="font-medium text-green-600">₹{card.cashback.toFixed(2)}</TableCell>
+                                                <TableCell className="font-mono text-xs">{card.validThru}</TableCell>
                                                 <TableCell className="text-xs text-muted-foreground">{card.sellerName}</TableCell>
                                             </TableRow>
                                         )) : (
-                                            <TableRow><TableCell colSpan={5} className="text-center h-24">No Shakti Cards have been issued yet.</TableCell></TableRow>
+                                            <TableRow><TableCell colSpan={6} className="text-center h-24">No Shakti Cards have been issued yet.</TableCell></TableRow>
                                         )}
                                     </TableBody>
                                 </Table>
