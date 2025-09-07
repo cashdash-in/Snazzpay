@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Loader2, HelpCircle, AlertTriangle, User, Phone, Home, MapPin, BadgeCheck, ShieldCheck, CreditCard, Mail, Wallet, LogIn, Zap } from "lucide-react";
+import { Loader2, HelpCircle, AlertTriangle, User, Phone, Home, MapPin, BadgeCheck, ShieldCheck, CreditCard, Mail, Wallet, LogIn, Zap, MessageSquare } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
 import { format, addYears } from 'date-fns';
@@ -19,13 +19,24 @@ import { CancellationForm } from '@/components/cancellation-form';
 import { getRazorpayKeyId } from '../actions';
 import { ShaktiCard, ShaktiCardData } from '@/components/shakti-card';
 import { sanitizePhoneNumber } from '@/lib/utils';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 
 interface SecureCodFormProps {
     razorpayKeyId: string;
 }
 
-type Step = 'details' | 'scratch' | 'complete';
+type Step = 'details' | 'otp' | 'scratch' | 'complete';
 type PaymentStep = 'intent' | 'authorization';
 
 
@@ -54,6 +65,7 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
     const [agreed, setAgreed] = useState(false);
     const [activeLead, setActiveLead] = useState<EditableOrder | null>(null);
     const [shaktiCard, setShaktiCard] = useState<ShaktiCardData | null>(null);
+    const [otp, setOtp] = useState('');
 
 
     const action = searchParams.get('action');
@@ -232,8 +244,7 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
 
 
                 toast({ title: 'Verification Successful!', description: 'Please proceed to secure your order.' });
-                setPaymentStep('authorization');
-                setStep('scratch');
+                setStep('otp'); // Move to OTP step
                 setIsProcessing(false);
             };
 
@@ -329,10 +340,49 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
             setIsProcessing(false);
         }
     };
+    
+    const handleOtpConfirmation = () => {
+        // In a real app, you'd verify the OTP. Here we just simulate success.
+        if (otp === '123456') { // Mock OTP
+            setStep('scratch');
+            toast({ title: "Mobile Number Verified!", description: "You can now proceed to the final payment."});
+        } else {
+            toast({ variant: 'destructive', title: "Invalid OTP", description: "Please enter the correct OTP (Hint: 123456)." });
+        }
+    };
 
     const proceedToAuthorization = () => {
+        setPaymentStep('authorization');
         handlePayment();
     }
+
+    const renderOtpState = () => (
+         <Card className="w-full max-w-md shadow-lg text-center bg-transparent border-0">
+            <CardHeader className="pb-4">
+                <MessageSquare className="mx-auto h-12 w-12 text-primary" />
+                <CardTitle>Verify Your Mobile Number</CardTitle>
+                <CardDescription>
+                    An OTP has been sent to <strong>{customerDetails.contact}</strong>. Please enter it below to continue.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col items-center justify-center space-y-4">
+                 <Input
+                    id="otp-input"
+                    type="tel"
+                    maxLength={6}
+                    placeholder="Enter 6-digit OTP"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    className="w-48 text-center text-lg tracking-[0.3em]"
+                />
+            </CardContent>
+            <CardFooter>
+                 <Button className="w-full" onClick={handleOtpConfirmation}>
+                    Confirm OTP & Proceed
+                </Button>
+            </CardFooter>
+        </Card>
+    );
 
     const renderScratchState = () => (
          <Card className="w-full max-w-md shadow-lg text-center bg-transparent border-0">
@@ -403,7 +453,10 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
             </div>
         )
     }
-
+    
+    if (step === 'otp') {
+        return <div className="flex items-center justify-center min-h-screen bg-transparent p-4">{renderOtpState()}</div>;
+    }
     if (step === 'scratch') {
         return <div className="flex items-center justify-center min-h-screen bg-transparent p-4">{renderScratchState()}</div>;
     }

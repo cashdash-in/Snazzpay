@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Wallet, ShoppingCart, ShieldAlert, LogOut, CheckCircle, Clock, Mail, MessageSquare, PackageCheck, FileText, Calendar, Truck, ArrowRight, CircleDotDashed, AlertTriangle, RefreshCw } from "lucide-react";
+import { Wallet, ShoppingCart, ShieldAlert, LogOut, CheckCircle, Clock, Mail, MessageSquare, PackageCheck, FileText, Calendar, Truck, ArrowRight, CircleDotDashed, AlertTriangle, RefreshCw, Gem } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
@@ -249,6 +249,33 @@ export default function CustomerDashboardPage() {
                 
                 <main className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div className="lg:col-span-1 space-y-8">
+                         <Card className="shadow-lg">
+                            <CardHeader>
+                                <CardTitle>My Shakti COD Card</CardTitle>
+                                <CardDescription>Your personal card for Secure COD benefits.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="flex flex-col items-center justify-center">
+                                {shaktiCard ? (
+                                    <>
+                                        <ShaktiCard card={shaktiCard} />
+                                        <div className="grid grid-cols-2 gap-4 w-full mt-4 text-center">
+                                            <div className="p-2 bg-slate-100 rounded-lg">
+                                                <p className="text-sm text-muted-foreground">Points</p>
+                                                <p className="text-lg font-bold flex items-center justify-center gap-1"><Gem className="h-4 w-4 text-blue-500" /> {shaktiCard.points}</p>
+                                            </div>
+                                            <div className="p-2 bg-slate-100 rounded-lg">
+                                                <p className="text-sm text-muted-foreground">Cashback</p>
+                                                <p className="text-lg font-bold">₹{shaktiCard.cashback.toFixed(2)}</p>
+                                            </div>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="text-center text-muted-foreground py-12">
+                                        <p>Your Shakti COD Card will appear here after your first successful Secure COD purchase.</p>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
                         <Card className="shadow-lg">
                             <CardHeader className="flex flex-row items-center justify-between">
                                 <CardTitle>Snazzify Trust Wallet</CardTitle>
@@ -260,25 +287,11 @@ export default function CustomerDashboardPage() {
                                 <p className="text-xs text-muted-foreground mt-1">This is the total amount for your active orders, held securely. Funds are only transferred after your order is dispatched.</p>
                             </CardContent>
                         </Card>
-                         <Card className="shadow-lg">
-                            <CardHeader className="flex flex-row items-center justify-between">
-                                <CardTitle>Order Confirmed Value</CardTitle>
-                                <PackageCheck className="h-6 w-6 text-green-600" />
-                            </CardHeader>
-                            <CardContent>
-                                <p className="text-sm text-muted-foreground">Total Value of Completed Orders</p>
-                                <p className="text-4xl font-bold">₹{confirmedOrderValue.toFixed(2)}</p>
-                                <p className="text-xs text-muted-foreground mt-1">This is the total value for your orders where payment has been finalized.</p>
-                            </CardContent>
-                        </Card>
                     </div>
 
                     <div className="lg:col-span-2">
-                        <Tabs defaultValue="shakti-card" className="w-full">
-                            <TabsList className="grid w-full grid-cols-4">
-                                <TabsTrigger value="shakti-card">
-                                    <Wallet className="mr-2 h-4 w-4" /> Shakti Card
-                                </TabsTrigger>
+                        <Tabs defaultValue="orders" className="w-full">
+                            <TabsList className="grid w-full grid-cols-3">
                                 <TabsTrigger value="orders">
                                     <ShoppingCart className="mr-2 h-4 w-4" /> My Orders
                                 </TabsTrigger>
@@ -289,23 +302,6 @@ export default function CustomerDashboardPage() {
                                     <ShieldAlert className="mr-2 h-4 w-4" /> Cancellations
                                 </TabsTrigger>
                             </TabsList>
-                             <TabsContent value="shakti-card">
-                                <Card className="shadow-lg">
-                                    <CardHeader>
-                                        <CardTitle>My Shakti COD Card</CardTitle>
-                                        <CardDescription>Your personal card for Secure COD benefits.</CardDescription>
-                                    </CardHeader>
-                                    <CardContent className="flex flex-col items-center justify-center">
-                                        {shaktiCard ? (
-                                            <ShaktiCard card={shaktiCard} />
-                                        ) : (
-                                            <div className="text-center text-muted-foreground py-12">
-                                                <p>Your Shakti COD Card will appear here after your first successful Secure COD purchase.</p>
-                                            </div>
-                                        )}
-                                    </CardContent>
-                                </Card>
-                            </TabsContent>
                             <TabsContent value="orders">
                                 <Card className="shadow-lg">
                                     <CardHeader>

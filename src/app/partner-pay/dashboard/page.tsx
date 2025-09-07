@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { v4 as uuidv4 } from 'uuid';
-import { format, subMonths } from 'date-fns';
+import { format, subMonths, isWithinInterval, parseISO } from 'date-fns';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Textarea } from '@/components/ui/textarea';
@@ -306,7 +306,7 @@ export default function PartnerPayDashboardPage() {
     };
 
     const isWithin24Hours = (isoDateString: string) => {
-        const date = new Date(isoDateString);
+        const date = parseISO(isoDateString);
         const now = new Date();
         const diffHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
         return diffHours < 24;
@@ -465,7 +465,7 @@ export default function PartnerPayDashboardPage() {
                                     <CardHeader><CardTitle>Recent Transactions</CardTitle><CardDescription>History of codes generated from your account.</CardDescription></CardHeader>
                                     <CardContent>
                                         <Table>
-                                            <TableHeader><TableRow><TableHead>Customer</TableHead><TableHead>Value</TableHead><TableHead>Commission</TableHead><TableHead>Seller Tx Code</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                                            <TableHeader><TableRow><TableHead>Customer</TableHead><TableHead>Value</TableHead><TableHead>Commission</TableHead><TableHead>Seller Tx/Customer Code</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
                                             <TableBody>
                                                  {transactions.map(tx => {
                                                     const isCancellable = isWithin24Hours(tx.date);
@@ -477,7 +477,10 @@ export default function PartnerPayDashboardPage() {
                                                         <TableCell><div className="font-medium">{tx.customerName}</div><div className="text-xs text-muted-foreground">{tx.customerPhone}</div></TableCell>
                                                         <TableCell>₹{tx.value.toFixed(2)}</TableCell>
                                                         <TableCell className="text-green-600 font-medium">+ ₹{tx.commission.toFixed(2)}</TableCell>
-                                                        <TableCell className="font-mono text-xs flex items-center gap-1">{tx.sellerTransactionCode || 'N/A'} {tx.sellerTransactionCode && <Copy className="h-3 w-3 cursor-pointer" onClick={() => handleCopyCode(tx.sellerTransactionCode!)} />}</TableCell>
+                                                        <TableCell className="font-mono text-xs flex items-center gap-1">
+                                                           {tx.status === 'Completed' ? tx.customerCode : tx.sellerTransactionCode || 'N/A'} 
+                                                           {tx.sellerTransactionCode && <Copy className="h-3 w-3 cursor-pointer" onClick={() => handleCopyCode(tx.status === 'Completed' ? tx.customerCode! : tx.sellerTransactionCode!)} />}
+                                                        </TableCell>
                                                         <TableCell><Badge variant={tx.status === 'Completed' ? 'default' : 'secondary'}>{tx.status}</Badge></TableCell>
                                                         <TableCell className="text-right">
                                                            {isActionable && (tx.status === 'Completed' || tx.status === 'In Process') && (

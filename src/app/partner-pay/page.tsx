@@ -194,7 +194,7 @@ export default function PartnerHubPage() {
 
         toast({
             title: "Top-up Approved!",
-            description: `${request.coinsRequested} coins added to ${request.partnerName}'s balance.`
+            description: `${request.coinsRequested.toLocaleString()} coins added to ${request.partnerName}'s balance.`
         });
     };
 
