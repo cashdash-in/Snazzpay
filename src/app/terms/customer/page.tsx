@@ -27,6 +27,10 @@ export default function CustomerTermsPage() {
                    <p>By completing the payment, you authorize Snazzify, through its payment partner Razorpay, to debit the full order amount. These funds will be held in your Snazzify Trust Wallet for up to 3 days pending dispatch.</p>
                    <h3>Transfer of Funds</h3>
                    <p>The funds held in your Trust Wallet will be transferred to Snazzify's account only when your order has been dispatched from our warehouse. You will receive a shipping confirmation at that time.</p>
+                   
+                   <h3>Shakti COD Card Loyalty Program</h3>
+                   <p>Upon your first successful Secure COD transaction, you will be automatically enrolled in the Shakti COD Card loyalty program and a digital card will be issued to you. This card allows you to earn points and other benefits on transactions made through Partner Pay agents. The specific rules for earning and redeeming points are set by the seller and can be viewed at the time of transaction. Snazzify is responsible for managing the loyalty program infrastructure.</p>
+
                    <h3>Cancellation and Refund Policy</h3>
                    <p>You may cancel your order under the following conditions:</p>
                    <ul>

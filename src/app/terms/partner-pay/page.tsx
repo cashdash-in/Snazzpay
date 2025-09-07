@@ -25,21 +25,21 @@ export default function PartnerPayTermsPage() {
                     <p>As a Snazzify Partner Pay Agent ("Partner"), you act as a trusted intermediary, facilitating cash-to-digital transactions for customers. Your primary role is to collect cash payments from customers and issue corresponding "Snazzify Coin" codes from your available digital balance. You may also serve as a local logistics hub for parcel pickups.</p>
                     
                     <h3>2. Snazzify Coin Balance</h3>
-                    <p>Your Snazzify Coin balance is a digital float that you must maintain. You can top up this balance through approved payment methods, which may involve settlement with a logistics agent. Transactions with customers will debit this balance. Snazzify is not responsible for any losses due to mismanagement of your coin balance or cash. You are solely responsible for safeguarding your cash collections.</p>
+                    <p>Your Snazzify Coin balance is a digital float that you must maintain. You can top up this balance through approved payment methods, which may involve settlement with a logistics agent. Transactions with customers will debit this balance. Snazzify is not responsible for any losses due to mismanagement of your coin balance or cash. You are solely responsible for safeguarding your cash collections and reconciling them.</p>
                     
                     <h3>3. Shakti Card Transactions & Liability</h3>
-                    <p>You are a key part of the Shakti COD Card loyalty program. Your responsibilities include:</p>
+                    <p>You are a key part of the Shakti COD Card loyalty program. Your responsibilities and liabilities include:</p>
                     <ul>
-                        <li><strong>Verification:</strong> Using your dashboard to verify a customer's Shakti Card number.</li>
-                        <li><strong>Applying Discounts:</strong> Correctly applying any available discounts to the transaction total as displayed on your dashboard.</li>
-                        <li><strong>Liability:</strong> You are liable for accurately processing the transaction, including applying the correct discount. Failure to do so may result in financial discrepancy for which you will be held responsible. The discount amount reduces the cash you collect and the coin value you settle with the seller.</li>
+                        <li><strong>Verification:</strong> Using your dashboard to verify a customer's Shakti Card number before initiating a transaction.</li>
+                        <li><strong>Applying Discounts:</strong> Correctly applying any available discounts to the transaction total as displayed on your dashboard. The discount amount reduces the cash you collect from the customer and the coin value you settle with the seller.</li>
+                        <li><strong>Liability:</strong> You are fully liable for accurately processing the transaction as prompted by the dashboard. Failure to apply a verified discount, or applying an incorrect discount, will result in a financial discrepancy for which you will be held responsible. Snazzify is not liable for losses incurred due to your operational errors in processing these transactions.</li>
                     </ul>
 
                     <h3>4. Transaction Integrity & Commission</h3>
-                    <p>You must ensure that for every cash amount collected, a corresponding and accurate Snazzify Coin transaction is processed. You will earn a pre-determined commission on each successful transaction. This commission is your sole compensation for this service. Any fraudulent activity will result in immediate suspension of your account and potential legal action.</p>
+                    <p>You must ensure that for every cash amount collected, a corresponding and accurate Snazzify Coin transaction is processed. You will earn a pre-determined commission on each successful transaction. This commission is your sole compensation for this service. Any fraudulent activity, such as issuing codes without collecting cash or misappropriating funds, will result in immediate suspension of your account, forfeiture of your balance and commissions, and potential legal action.</p>
                     
                     <h3>5. Logistics Hub Services</h3>
-                    <p>If you opt-in to act as a logistics hub, you agree to securely store parcels for customer pickup and manage the handover process as defined in the dashboard. You may be compensated separately for these services.</p>
+                    <p>If you opt-in to act as a logistics hub, you agree to securely store parcels for customer pickup and manage the handover process as defined in the dashboard. You may be compensated separately for these services, and you are liable for the items in your care until they are successfully handed over to the customer.</p>
                 </CardContent>
             </Card>
         </div>
