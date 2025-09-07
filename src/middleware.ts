@@ -23,7 +23,7 @@ export function middleware(request: NextRequest) {
     '/partner-pay/signup', 
     '/logistics-secure/login', 
     '/logistics-secure/signup', 
-    '/seller'
+    '/seller',
   ];
 
   // Allow access to public paths, API routes, and static files
