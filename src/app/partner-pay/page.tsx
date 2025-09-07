@@ -1,3 +1,4 @@
+
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -372,7 +373,7 @@ export default function PartnerHubPage() {
                                             <TableCell><Badge variant={req.status === 'Approved' ? 'default' : 'secondary'}>{req.status}</Badge></TableCell>
                                             <TableCell className="text-right">
                                                 <Button size="sm" onClick={() => handleApproveTopUp(req.id)} disabled={req.status === 'Approved'}>
-                                                    {req.status === 'Approved' ? <><BadgeCheck className="mr-2 h-4 w-4" />Approved</> : <><Check className="mr-2 h-4 w-4" />Approve>}
+                                                    {req.status === 'Approved' ? <><BadgeCheck className="mr-2 h-4 w-4" />Approved</> : <><Check className="mr-2 h-4 w-4" />Approve</>}
                                                 </Button>
                                             </TableCell>
                                         </TableRow>
@@ -504,3 +505,5 @@ export default function PartnerHubPage() {
         </AppShell>
     );
 }
+
+    
