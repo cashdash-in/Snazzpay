@@ -8,10 +8,10 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, Save, ExternalLink, CreditCard, Send, Loader2 as ButtonLoader, Mail, Printer, Copy, ShieldAlert, AlertTriangle, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Loader2, Save, ExternalLink, CreditCard, Send, Loader2 as ButtonLoader, Mail, Printer, Copy, ShieldAlert, AlertTriangle, MessageSquare, Rocket } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { EditableOrder } from '../page';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from 'date-fns';
 import {
   AlertDialog,
@@ -57,6 +57,7 @@ function mapShopifyOrderToEditableOrder(shopifyOrder: ShopifyOrder): EditableOrd
         price: shopifyOrder.total_price,
         paymentStatus: shopifyOrder.financial_status || 'Pending',
         date: format(new Date(shopifyOrder.created_at), "yyyy-MM-dd"),
+        source: 'Shopify'
     };
 }
 
@@ -70,6 +71,7 @@ function OrderDetailContent() {
     const [order, setOrder] = useState<EditableOrder | null>(null);
     const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null);
     const [loading, setLoading] = useState(true);
+    const [isProcessed, setIsProcessed] = useState(false);
     const [isCharging, setIsCharging] = useState(false);
     const [isSendingLink, setIsSendingLink] = useState(false);
     const [cancellationFee, setCancellationFee] = useState('');
@@ -92,8 +94,9 @@ function OrderDetailContent() {
             console.error("Could not fetch Shopify orders", e);
         }
         const manualOrdersJSON = localStorage.getItem('manualOrders');
-        if (manualOrdersJSON) {
-            allOrders = allOrders.concat(JSON.parse(manualOrdersJSON));
+        const manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
+        if (manualOrders) {
+            allOrders = allOrders.concat(manualOrders);
         }
         
         foundOrder = allOrders.find(o => o.id === orderIdParam) || null;
@@ -105,6 +108,9 @@ function OrderDetailContent() {
                 foundOrder.cancellationId = `CNCL-${uuidv4().substring(0, 8).toUpperCase()}`;
                 localStorage.setItem(`order-override-${foundOrder.id}`, JSON.stringify({ ...storedOverrides, cancellationId: foundOrder.cancellationId }));
              }
+             // Check if the order is already in the main processing flow (in manualOrders)
+             const isAlreadyProcessed = manualOrders.some(mo => mo.id === foundOrder?.id);
+             setIsProcessed(isAlreadyProcessed);
         }
         
         setOrder(foundOrder);
@@ -134,27 +140,57 @@ function OrderDetailContent() {
         if (!order) return;
         setOrder(prev => prev ? { ...prev, [field]: value } : null);
     };
+
+    const saveOrderToLocalStorage = () => {
+        if (!order) return;
+
+        // Determine if it's a Shopify order or an existing manual/seller order
+        if (order.source === 'Shopify') {
+            // For Shopify orders, we save overrides.
+             const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
+             const newOverrides = { ...storedOverrides, ...order };
+             localStorage.setItem(`order-override-${order.id}`, JSON.stringify(newOverrides));
+        } else {
+            // For manual/seller orders, we update them directly in their list.
+            const key = order.source === 'Seller' ? 'seller_orders' : 'manualOrders';
+            const listJson = localStorage.getItem(key);
+            let list: EditableOrder[] = listJson ? JSON.parse(listJson) : [];
+            const orderIndex = list.findIndex(o => o.id === order.id);
+            if (orderIndex > -1) {
+                list[orderIndex] = order;
+                localStorage.setItem(key, JSON.stringify(list));
+            }
+        }
+    };
     
     const handleSave = () => {
         if (!order) return;
-
-        if (order.id.startsWith('gid://') || /^\d+$/.test(order.id)) {
-          const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
-          const newOverrides = { ...storedOverrides, ...order };
-          localStorage.setItem(`order-override-${order.id}`, JSON.stringify(newOverrides));
-        } else {
-          const manualOrdersJSON = localStorage.getItem('manualOrders');
-          let manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
-          const orderIndex = manualOrders.findIndex(o => o.id === order.id);
-          if (orderIndex > -1) {
-            manualOrders[orderIndex] = order;
-            localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
-          }
-        }
-
+        saveOrderToLocalStorage();
         toast({
             title: "Order Saved",
             description: `Details for order ${order.orderId} have been updated successfully.`,
+        });
+    };
+
+    const handleStartProcessing = () => {
+        if (!order) return;
+
+        // Add the order to manualOrders to make it appear everywhere
+        const manualOrdersJSON = localStorage.getItem('manualOrders');
+        let manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
+        
+        // Prevent duplicates
+        if (!manualOrders.some(o => o.id === order.id)) {
+            manualOrders.push(order);
+            localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
+        }
+        
+        saveOrderToLocalStorage(); // Also save any changes made
+        setIsProcessed(true); // Update UI to show Save Changes button
+        
+        toast({
+            title: "Order Processing Started",
+            description: `Order ${order.orderId} is now active and visible in Orders & Delivery Tracking.`
         });
     };
     
@@ -350,10 +386,17 @@ function OrderDetailContent() {
                             Print Invoice
                           </Button>
                         </Link>
-                        <Button onClick={handleSave}>
-                            <Save className="mr-2 h-4 w-4" />
-                            Save Changes
-                        </Button>
+                         {isProcessed ? (
+                            <Button onClick={handleSave}>
+                                <Save className="mr-2 h-4 w-4" />
+                                Save Changes
+                            </Button>
+                        ) : (
+                             <Button onClick={handleStartProcessing}>
+                                <Rocket className="mr-2 h-4 w-4" />
+                                Start Processing
+                            </Button>
+                        )}
                     </div>
                 </div>
 
