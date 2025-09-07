@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Calendar as CalendarIcon, Download } from "lucide-react";
+import { Calendar as CalendarIcon, Download, Loader2 } from "lucide-react";
 import { format, startOfDay, endOfDay, isWithinInterval } from "date-fns";
 import type { DateRange } from "react-day-picker";
 import * as XLSX from 'xlsx';
@@ -18,8 +18,8 @@ import type { EditableOrder } from '../orders/page';
 import { getOrders } from '@/services/shopify';
 
 type DataSource = 'orders' | 'leads';
-const paymentStatuses = ['Pending', 'Intent Verified', 'Authorized', 'Paid', 'Refunded', 'Partially Paid', 'Voided'];
-const leadStatuses = ['Lead'];
+const paymentStatuses = ['Pending', 'Intent Verified', 'Authorized', 'Paid', 'Refunded', 'Partially Paid', 'Voided', 'Fee Charged'];
+const leadStatuses = ['Intent Verified']; // Leads are just orders with this status
 
 export default function ReportsPage() {
     const { toast } = useToast();
@@ -33,7 +33,6 @@ export default function ReportsPage() {
         try {
             // 1. Fetch all data
             let allOrders: EditableOrder[] = [];
-            let allLeads: EditableOrder[] = [];
 
             try {
                 const shopifyOrders = await getOrders();
@@ -55,14 +54,14 @@ export default function ReportsPage() {
             } catch (error) {
                 console.error("Could not fetch Shopify orders:", error);
             }
-
+            
             const manualOrdersJSON = localStorage.getItem('manualOrders');
             if (manualOrdersJSON) {
                 allOrders.push(...JSON.parse(manualOrdersJSON));
             }
-             const leadsJSON = localStorage.getItem('leads');
-            if (leadsJSON) {
-                allLeads.push(...JSON.parse(leadsJSON));
+             const sellerOrdersJSON = localStorage.getItem('seller_orders');
+            if (sellerOrdersJSON) {
+                allOrders.push(...JSON.parse(sellerOrdersJSON));
             }
 
             // Apply overrides to allOrders
@@ -72,7 +71,13 @@ export default function ReportsPage() {
             });
 
             // 2. Filter data
-            let dataToExport = dataSource === 'orders' ? allOrders : allLeads;
+            let dataToExport;
+            if (dataSource === 'leads') {
+                 dataToExport = allOrders.filter(item => item.paymentStatus === 'Intent Verified');
+            } else {
+                 dataToExport = allOrders;
+            }
+
 
             if (status !== 'all') {
                 dataToExport = dataToExport.filter(item => item.paymentStatus === status);
@@ -111,6 +116,7 @@ export default function ReportsPage() {
                 'Payment Status': item.paymentStatus,
                 'Delivery Status': item.deliveryStatus || 'N/A',
                 'Tracking Number': item.trackingNumber || 'N/A',
+                'Source': item.source || 'N/A'
             })));
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, 'Report');
@@ -157,14 +163,14 @@ export default function ReportsPage() {
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="orders">All Orders</SelectItem>
-                                <SelectItem value="leads">Leads</SelectItem>
+                                <SelectItem value="leads">Leads (Intent Verified)</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="status">Status</Label>
-                        <Select value={status} onValueChange={setStatus}>
+                        <Label htmlFor="status">Payment Status</Label>
+                        <Select value={status} onValueChange={setStatus} disabled={dataSource === 'leads'}>
                             <SelectTrigger id="status">
                                 <SelectValue placeholder="Select status" />
                             </SelectTrigger>
@@ -213,8 +219,8 @@ export default function ReportsPage() {
                 </CardContent>
                 <CardFooter>
                     <Button onClick={handleGenerateReport} disabled={loading}>
-                        {loading ? <Download className="mr-2 h-4 w-4 animate-pulse" /> : <Download className="mr-2 h-4 w-4" />}
-                        Generate Report
+                        {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                        Generate & Download Report
                     </Button>
                 </CardFooter>
             </Card>
