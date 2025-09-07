@@ -6,14 +6,14 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogOut, Wallet, Package, QrCode, Clipboard, PackageCheck, Send, MessageSquare, AlertTriangle, FileUp, Edit, ShieldCheck, CheckCircle, Copy, User, Phone, Home, Loader2, Coins, BarChart3, TrendingUp, TrendingDown, Search, FileSpreadsheet } from "lucide-react";
+import { LogOut, Wallet, Package, QrCode, Clipboard, PackageCheck, Send, MessageSquare, AlertTriangle, FileUp, Edit, ShieldCheck, CheckCircle, Copy, User, Phone, Home, Loader2, Coins, BarChart3, TrendingUp, TrendingDown, Search, FileSpreadsheet, Calendar as CalendarIcon, Download } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { v4 as uuidv4 } from 'uuid';
-import { format, subMonths, isWithinInterval, parseISO } from 'date-fns';
+import { format, subMonths, isWithinInterval, parseISO, startOfDay, endOfDay } from 'date-fns';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Textarea } from '@/components/ui/textarea';
@@ -21,6 +21,10 @@ import { getRazorpayKeyId } from '@/app/actions';
 import type { PartnerData } from '../page';
 import { ResponsiveContainer, BarChart, XAxis, YAxis, Tooltip, Bar } from 'recharts';
 import type { ShaktiCardData } from '@/components/shakti-card';
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import type { DateRange } from "react-day-picker";
+import * as XLSX from 'xlsx';
 
 
 type TransactionStatus = 'In Process' | 'Completed' | 'Refunded' | 'Refund Requested';
@@ -78,16 +82,115 @@ const coinPackages = [
     { coins: 100000, price: 1000, label: "1,00,000 Coins" },
 ];
 
-function ReportsTab() {
+function ReportsTab({ transactions, partnerName }: { transactions: Transaction[], partnerName: string }) {
+    const [date, setDate] = useState<DateRange | undefined>();
+    const [isGenerating, setIsGenerating] = useState(false);
+    const { toast } = useToast();
+
+    const handleGenerateReport = () => {
+        setIsGenerating(true);
+        try {
+            let dataToExport = transactions;
+
+            if (date?.from) {
+                const interval = { 
+                    start: startOfDay(date.from), 
+                    end: date.to ? endOfDay(date.to) : endOfDay(date.from) 
+                };
+                dataToExport = dataToExport.filter(item => 
+                    isWithinInterval(new Date(item.date), interval)
+                );
+            }
+            
+            if (dataToExport.length === 0) {
+                toast({
+                    variant: 'destructive',
+                    title: "No Data Found",
+                    description: "No transactions match your selected filters.",
+                });
+                setIsGenerating(false);
+                return;
+            }
+
+            const worksheet = XLSX.utils.json_to_sheet(dataToExport.map(tx => ({
+                'Transaction ID': tx.id,
+                'Date': format(new Date(tx.date), 'PPp'),
+                'Customer Name': tx.customerName,
+                'Customer Phone': tx.customerPhone,
+                'Value (INR)': tx.value,
+                'Discount Applied (INR)': tx.discountApplied || 0,
+                'Final Value (INR)': tx.value - (tx.discountApplied || 0),
+                'Commission (INR)': tx.commission,
+                'Status': tx.status,
+                'Seller Transaction Code': tx.sellerTransactionCode,
+                'Customer Code': tx.customerCode,
+                'Shakti Card Used': tx.shaktiCardNumber,
+            })));
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Transactions');
+            
+            const fileName = `${partnerName.replace(/\s+/g, '_')}_transaction_report_${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
+            XLSX.writeFile(workbook, fileName);
+
+             toast({
+                title: "Report Generated",
+                description: `${dataToExport.length} records exported successfully.`,
+            });
+
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Error Generating Report', description: error.message });
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
     return (
         <Card className="shadow-lg">
             <CardHeader>
                 <CardTitle>Partner Reports</CardTitle>
-                <CardDescription>Generate reports for your transactions and earnings. This section is under construction.</CardDescription>
+                <CardDescription>Generate reports for your transactions and earnings.</CardDescription>
             </CardHeader>
-            <CardContent>
-                <p className="text-muted-foreground">Detailed reporting features, including transaction history exports, commission statements, and P&L summaries, will be available here soon.</p>
+            <CardContent className="space-y-4">
+                 <div className="space-y-2">
+                    <Label htmlFor="date-range">Filter by Date Range</Label>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button
+                                id="date-range"
+                                variant={"outline"}
+                                className={"w-full justify-start text-left font-normal"}
+                            >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {date?.from ? (
+                                    date.to ? (
+                                        <>{format(date.from, "LLL dd, y")} - {format(date.to, "LLL dd, y")}</>
+                                    ) : (
+                                        format(date.from, "LLL dd, y")
+                                    )
+                                ) : (
+                                    <span>Pick a date range</span>
+                                )}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                                initialFocus
+                                mode="range"
+                                defaultMonth={date?.from}
+                                selected={date}
+                                onSelect={setDate}
+                                numberOfMonths={2}
+                            />
+                        </PopoverContent>
+                    </Popover>
+                 </div>
             </CardContent>
+            <CardFooter>
+                 <Button onClick={handleGenerateReport} disabled={isGenerating}>
+                    {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                    Export Transactions
+                </Button>
+            </CardFooter>
         </Card>
     )
 }
@@ -772,7 +875,7 @@ export default function PartnerPayDashboardPage() {
                                 </Card>
                              </TabsContent>
                              <TabsContent value="reports">
-                                <ReportsTab />
+                                <ReportsTab transactions={transactions} partnerName={partner.companyName} />
                             </TabsContent>
                         </Tabs>
                     </div>
