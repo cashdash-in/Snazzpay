@@ -14,7 +14,7 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { getDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { SellerUser } from '@/app/auth/signup/page';
+import type { SellerUser } from '@/app/partner-pay/page';
 
 
 export default function SellerLoginPage() {
@@ -44,9 +44,18 @@ export default function SellerLoginPage() {
             
             const sellerDoc = await getDoc(doc(db, 'seller_users', loggedInUser.uid));
 
-            if (!sellerDoc.exists() || (sellerDoc.data() as SellerUser).status !== 'approved') {
+            if (!sellerDoc.exists()) {
                  await auth.signOut();
-                 toast({ variant: 'destructive', title: "Login Denied", description: "Your seller account is not yet approved or does not exist. Please contact support." });
+                 toast({ variant: 'destructive', title: "Login Denied", description: "This seller account does not exist. Please sign up or contact support." });
+                 setIsLoading(false);
+                 return;
+            }
+            
+            const sellerData = sellerDoc.data() as SellerUser;
+
+            if (sellerData.status !== 'approved') {
+                 await auth.signOut();
+                 toast({ variant: 'destructive', title: "Account Not Approved", description: "Your seller account is still pending approval. Please contact support." });
                  setIsLoading(false);
                  return;
             }

@@ -34,7 +34,7 @@ export async function POST(request: Request) {
 }
 
 
-export async function DELETE() {
+export async function DELETE(request: Request) {
   try {
     // Clear both cookies
     cookies().set('firebaseAuthToken', '', { expires: new Date(0), path: '/' });
