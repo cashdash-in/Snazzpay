@@ -12,11 +12,14 @@ import { Input } from "@/components/ui/input";
 import { Loader2, HelpCircle, AlertTriangle, User, Phone, Home, MapPin, BadgeCheck, ShieldCheck, CreditCard, Mail, Wallet, LogIn, Zap } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
-import { format } from 'date-fns';
+import { format, addYears } from 'date-fns';
 import type { EditableOrder } from '@/app/orders/page';
 import { ScratchCard } from '@/components/scratch-card';
 import { CancellationForm } from '@/components/cancellation-form';
 import { getRazorpayKeyId } from '../actions';
+import { ShaktiCard, ShaktiCardData } from '@/components/shakti-card';
+import { sanitizePhoneNumber } from '@/lib/utils';
+
 
 interface SecureCodFormProps {
     razorpayKeyId: string;
@@ -25,31 +28,6 @@ interface SecureCodFormProps {
 type Step = 'details' | 'scratch' | 'complete';
 type PaymentStep = 'intent' | 'authorization';
 
-
-function SnazzifyCoinCard({ customerName, orderId }: { customerName: string, orderId: string }) {
-    return (
-        <Link href="/customer/login" className="block w-full transition-transform duration-300 hover:scale-105">
-            <div className="w-full max-w-sm rounded-xl bg-gradient-to-br from-purple-600 to-indigo-700 p-6 text-white shadow-2xl space-y-6">
-                <div className="flex justify-between items-start">
-                    <div className="space-y-1">
-                        <h3 className="text-2xl font-bold tracking-wider">Snazzify Trust Wallet</h3>
-                        <p className="text-xs font-mono opacity-80">CUSTOMER WALLET</p>
-                    </div>
-                    <Wallet className="h-8 w-8 text-white/80" />
-                </div>
-                <div className="space-y-1 text-center">
-                    <p className="text-sm font-mono opacity-80">Order ID</p>
-                    <p className="text-lg font-mono tracking-widest">{orderId}</p>
-                </div>
-                <div className="space-y-1">
-                     <p className="text-xs font-mono opacity-80">CARD HOLDER</p>
-                    <p className="text-base font-medium uppercase tracking-wider">{customerName}</p>
-                </div>
-                <p className="text-center text-xs opacity-90 pt-2">Click here to log in and view your wallet</p>
-            </div>
-        </Link>
-    );
-}
 
 function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
     const searchParams = useSearchParams();
@@ -75,6 +53,8 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
     const [error, setError] = useState('');
     const [agreed, setAgreed] = useState(false);
     const [activeLead, setActiveLead] = useState<EditableOrder | null>(null);
+    const [shaktiCard, setShaktiCard] = useState<ShaktiCardData | null>(null);
+
 
     const action = searchParams.get('action');
 
@@ -157,6 +137,16 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
 
         return response.json();
     };
+    
+    // Generates a unique 16-digit card number in 4x4 format
+    const generateCardNumber = () => {
+        let number = '';
+        for (let i = 0; i < 4; i++) {
+            number += Math.floor(1000 + Math.random() * 9000).toString();
+        }
+        return number.replace(/(\d{4})/g, '$1 ').trim();
+    };
+
 
     const openRazorpayCheckout = (order_id: string, handler: (response: any) => void) => {
         const options = {
@@ -258,6 +248,27 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                 };
                 localStorage.setItem(`payment_info_${orderDetails.orderId}`, JSON.stringify(paymentInfo));
                 
+                 // Check if a Shakti card already exists for this number
+                const sanitizedMobile = sanitizePhoneNumber(customerDetails.contact);
+                const cardDataJSON = localStorage.getItem(`shakti_card_${sanitizedMobile}`);
+                
+                if (!cardDataJSON) {
+                    // Create and save a new Shakti Card
+                    const now = new Date();
+                    const newShaktiCard: ShaktiCardData = {
+                        cardNumber: generateCardNumber(),
+                        customerName: customerDetails.name,
+                        validFrom: format(now, 'MM/yy'),
+                        validThru: format(addYears(now, 3), 'MM/yy'),
+                        points: 0,
+                        cashback: 0
+                    };
+                    localStorage.setItem(`shakti_card_${sanitizedMobile}`, JSON.stringify(newShaktiCard));
+                    setShaktiCard(newShaktiCard);
+                } else {
+                    setShaktiCard(JSON.parse(cardDataJSON));
+                }
+
                 try {
                     const newOrder: EditableOrder = {
                         id: uuidv4(),
@@ -359,10 +370,15 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
             <CardHeader className="pb-4">
                 <BadgeCheck className="mx-auto h-12 w-12 text-green-500" />
                 <CardTitle>Payment Successful!</CardTitle>
-                <CardDescription>Thank you! Your payment is secured in your Trust Wallet.</CardDescription>
+                <CardDescription>Your Shakti COD Card is now active. Welcome to the family!</CardDescription>
             </CardHeader>
              <CardContent className="flex flex-col items-center justify-center space-y-4">
-                <SnazzifyCoinCard customerName={customerDetails.name} orderId={orderDetails.orderId} />
+                {shaktiCard ? <ShaktiCard card={shaktiCard} /> : <Loader2 className="h-8 w-8 animate-spin" />}
+                 <Link href="/customer/login" className="w-full">
+                    <Button variant="outline" className="w-full">
+                        <LogIn className="mr-2 h-4 w-4" /> Go to My Dashboard
+                    </Button>
+                </Link>
             </CardContent>
         </Card>
     );

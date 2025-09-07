@@ -16,8 +16,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { v4 as uuidv4 } from 'uuid';
-import { format } from 'date-fns';
+import { format, addYears } from 'date-fns';
 import { sanitizePhoneNumber } from '@/lib/utils';
+import { ShaktiCard, ShaktiCardData } from '@/components/shakti-card';
 
 type PaymentInfo = {
     paymentId: string;
@@ -60,6 +61,7 @@ export default function CustomerDashboardPage() {
     const [cancellationInput, setCancellationInput] = useState('');
     const [selectedOrderForCancellation, setSelectedOrderForCancellation] = useState<EditableOrder | null>(null);
     const [paymentInfos, setPaymentInfos] = useState<Map<string, PaymentInfo>>(new Map());
+    const [shaktiCard, setShaktiCard] = useState<ShaktiCardData | null>(null);
 
     const loadCustomerData = async () => {
         setIsLoading(true);
@@ -69,6 +71,13 @@ export default function CustomerDashboardPage() {
                 router.push('/customer/login');
                 return;
             }
+            
+            // Load Shakti Card
+            const cardDataJSON = localStorage.getItem(`shakti_card_${sanitizePhoneNumber(loggedInMobile)}`);
+            if (cardDataJSON) {
+                setShaktiCard(JSON.parse(cardDataJSON));
+            }
+
 
             const manualOrdersJSON = localStorage.getItem('manualOrders');
             let allSnazzPayOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
@@ -127,7 +136,7 @@ export default function CustomerDashboardPage() {
             });
             
             const finalOrders = unifiedOrders.filter(o => o.paymentStatus !== 'Intent Verified');
-            const customerName = finalOrders.length > 0 ? finalOrders[0].customerName : 'Valued Customer';
+            const customerName = finalOrders.length > 0 ? finalOrders[0].customerName : shaktiCard?.customerName || 'Valued Customer';
             setUser({ name: customerName, mobile: loggedInMobile });
 
             const activeTrustValue = finalOrders
@@ -265,8 +274,11 @@ export default function CustomerDashboardPage() {
                     </div>
 
                     <div className="lg:col-span-2">
-                        <Tabs defaultValue="orders" className="w-full">
-                            <TabsList className="grid w-full grid-cols-3">
+                        <Tabs defaultValue="shakti-card" className="w-full">
+                            <TabsList className="grid w-full grid-cols-4">
+                                <TabsTrigger value="shakti-card">
+                                    <Wallet className="mr-2 h-4 w-4" /> Shakti Card
+                                </TabsTrigger>
                                 <TabsTrigger value="orders">
                                     <ShoppingCart className="mr-2 h-4 w-4" /> My Orders
                                 </TabsTrigger>
@@ -277,6 +289,23 @@ export default function CustomerDashboardPage() {
                                     <ShieldAlert className="mr-2 h-4 w-4" /> Cancellations
                                 </TabsTrigger>
                             </TabsList>
+                             <TabsContent value="shakti-card">
+                                <Card className="shadow-lg">
+                                    <CardHeader>
+                                        <CardTitle>My Shakti COD Card</CardTitle>
+                                        <CardDescription>Your personal card for Secure COD benefits.</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="flex flex-col items-center justify-center">
+                                        {shaktiCard ? (
+                                            <ShaktiCard card={shaktiCard} />
+                                        ) : (
+                                            <div className="text-center text-muted-foreground py-12">
+                                                <p>Your Shakti COD Card will appear here after your first successful Secure COD purchase.</p>
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                </Card>
+                            </TabsContent>
                             <TabsContent value="orders">
                                 <Card className="shadow-lg">
                                     <CardHeader>
