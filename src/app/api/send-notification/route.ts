@@ -29,8 +29,8 @@ function getEmailContent(type: string, order: EditableOrder) {
                         <li><strong>Estimated Delivery:</strong> ${order.estDelivery || '3-7 business days'}</li>
                     </ul>
                     <p>You can typically start tracking your order within 24 hours.</p>
-                    ${supportInfo}
                     ${shaktiCardInfo}
+                    ${supportInfo}
                     <p>Thank you for shopping with us,<br/>The Snazzify Team</p>
                 </div>
             `;
@@ -43,7 +43,7 @@ function getEmailContent(type: string, order: EditableOrder) {
                     <p>Dear ${order.customerName},</p>
                     <p>This email confirms that your order #${order.orderId} for <strong>${order.productOrdered}</strong> has been successfully cancelled as per your request.</p>
                     <p>The payment authorization for ₹${order.price} has been voided, and the funds have been released back to your account. You will not be charged.</p>
-                    <p>We are sorry to see you go and hope to see you again in the future. Your Shakti Card remains active for any future purchases.</p>
+                    <p style="font-size: 12px; color: #555; border-top: 1px solid #eee; padding-top: 10px; margin-top: 20px;">We are sorry to see you go. Your Shakti Card remains active for any future purchases, giving you access to exclusive rewards.</p>
                     ${supportInfo}
                     <p>We hope to see you again soon,<br/>The Snazzify Team</p>
                 </div>
@@ -58,8 +58,8 @@ function getEmailContent(type: string, order: EditableOrder) {
                     <p>We have processed a refund for your order #${order.orderId} for the product <strong>${order.productOrdered}</strong>.</p>
                     <p><strong>Refund Amount:</strong> ₹${order.refundAmount || order.price}</p>
                     <p>Please allow 5-7 business days for the amount to reflect in your original payment account. The exact time can vary depending on your bank.</p>
-                    ${supportInfo}
                     ${shaktiCardInfo}
+                    ${supportInfo}
                     <p>Thank you,<br/>The Snazzify Team</p>
                 </div>
             `;
