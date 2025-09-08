@@ -37,7 +37,6 @@ interface SecureCodFormProps {
 }
 
 type Step = 'details' | 'otp' | 'scratch' | 'complete';
-type PaymentStep = 'intent' | 'authorization' | 'idle';
 
 
 function getNextOrderId(): string {
@@ -57,7 +56,6 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
     const { toast } = useToast();
 
     const [step, setStep] = useState<Step>('details');
-    const [paymentStep, setPaymentStep] = useState<PaymentStep>('idle');
     const [orderDetails, setOrderDetails] = useState({
         productName: '',
         baseAmount: 0,
@@ -133,14 +131,6 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         setLoading(false);
         
     }, [searchParams, razorpayKeyId, action]);
-    
-    // This effect handles the multi-step payment process to avoid race conditions.
-    useEffect(() => {
-        if (paymentStep !== 'idle') {
-            handlePayment();
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [paymentStep]);
 
 
     const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -156,9 +146,9 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
     };
 
     const totalAmount = orderDetails.baseAmount * orderDetails.quantity;
-    const paymentAmount = paymentStep === 'intent' ? 1 : totalAmount;
 
-    const createOrderApi = async () => {
+    const createOrderApi = async (isIntent: boolean) => {
+        const paymentAmount = isIntent ? 1 : totalAmount;
         const response = await fetch('/api/create-mandate-order', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -170,7 +160,7 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                 customerContact: customerDetails.contact,
                 customerAddress: customerDetails.address,
                 customerPincode: customerDetails.pincode,
-                isAuthorization: paymentStep === 'authorization',
+                isAuthorization: !isIntent,
             }),
         });
 
@@ -192,13 +182,13 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
     };
 
 
-    const openRazorpayCheckout = (order_id: string, handler: (response: any) => void) => {
+    const openRazorpayCheckout = (order_id: string, isIntent: boolean) => {
         const options = {
             key: razorpayKeyId,
             order_id: order_id,
-            name: paymentStep === 'intent' ? "Snazzify Intent Verification" : "Snazzify Trust Wallet",
-            description: paymentStep === 'intent' ? `Pay ₹1.00 to verify your order` : `Pay ₹${totalAmount.toFixed(2)} - Held in Trust`,
-            handler: handler,
+            name: isIntent ? "Snazzify Intent Verification" : "Snazzify Trust Wallet",
+            description: isIntent ? `Pay ₹1.00 to verify your order` : `Pay ₹${totalAmount.toFixed(2)} - Held in Trust`,
+            handler: isIntent ? intentHandler : authorizationHandler,
             prefill: {
                 name: customerDetails.name,
                 email: customerDetails.email || `customer.${customerDetails.contact || uuidv4().substring(0,8)}@example.com`,
@@ -213,7 +203,6 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
             modal: {
                 ondismiss: function() {
                     setIsProcessing(false);
-                    setPaymentStep('idle'); // Reset on dismiss
                     toast({
                         variant: 'destructive',
                         title: 'Payment Cancelled',
@@ -225,157 +214,152 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         const rzp = new (window as any).Razorpay(options);
         rzp.open();
     };
-    
-     const startPaymentProcess = () => {
-        if (!agreed) {
-            toast({ variant: 'destructive', title: 'Agreement Required', description: 'You must agree to the Terms and Conditions.' });
-            return;
-        }
-        if (!customerDetails.name || !customerDetails.contact || !customerDetails.address || !customerDetails.pincode) {
-            toast({ variant: 'destructive', title: 'Details Required', description: 'Please fill in all customer details before proceeding.' });
-            return;
-        }
-        setPaymentStep('intent');
-    }
 
-    const handlePayment = async () => {
+    const intentHandler = (response: any) => {
+        const leadData: EditableOrder = {
+            id: uuidv4(),
+            orderId: orderDetails.orderId,
+            customerName: customerDetails.name,
+            customerEmail: customerDetails.email,
+            customerAddress: customerDetails.address,
+            pincode: customerDetails.pincode,
+            contactNo: customerDetails.contact,
+            productOrdered: orderDetails.productName,
+            quantity: orderDetails.quantity,
+            price: totalAmount.toFixed(2),
+            paymentStatus: 'Intent Verified',
+            date: format(new Date(), 'yyyy-MM-dd'),
+        };
+        setActiveLead(leadData);
+
+        // Add to leads
+        const existingLeads = JSON.parse(localStorage.getItem('leads') || '[]');
+        localStorage.setItem('leads', JSON.stringify([...existingLeads, leadData]));
+
+        const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${orderDetails.orderId}`) || '{}');
+        const newOverrides = { ...storedOverrides, paymentStatus: 'Intent Verified' };
+        localStorage.setItem(`order-override-${orderDetails.orderId}`, JSON.stringify(newOverrides));
+
+        toast({ title: 'Verification Successful!', description: 'Please proceed to secure your order.' });
+        setStep('otp'); // Move to OTP step
+        setIsProcessing(false);
+    };
+
+    const authorizationHandler = (response: any) => {
+         const paymentInfo = {
+            paymentId: response.razorpay_payment_id,
+            orderId: orderDetails.orderId,
+            razorpayOrderId: response.razorpay_order_id,
+            signature: response.razorpay_signature,
+            status: 'authorized',
+            authorizedAt: new Date().toISOString()
+        };
+        localStorage.setItem(`payment_info_${orderDetails.orderId}`, JSON.stringify(paymentInfo));
+        
+        const sanitizedMobile = sanitizePhoneNumber(customerDetails.contact);
+        const cardDataJSON = localStorage.getItem(`shakti_card_${sanitizedMobile}`);
+        
+        if (!cardDataJSON) {
+            const now = new Date();
+            const newShaktiCard: ShaktiCardData = {
+                cardNumber: generateCardNumber(),
+                customerName: customerDetails.name,
+                customerPhone: customerDetails.contact,
+                customerEmail: customerDetails.email || '',
+                customerAddress: `${customerDetails.address}, ${customerDetails.pincode}`,
+                validFrom: format(now, 'MM/yy'),
+                validThru: format(addYears(now, 3), 'MM/yy'),
+                points: 0,
+                cashback: 0,
+                sellerId: orderDetails.sellerId,
+                sellerName: orderDetails.sellerName
+            };
+            localStorage.setItem(`shakti_card_${sanitizedMobile}`, JSON.stringify(newShaktiCard));
+            const allCardsDB = JSON.parse(localStorage.getItem('shakti_cards_db') || '[]');
+            allCardsDB.push(newShaktiCard);
+            localStorage.setItem('shakti_cards_db', JSON.stringify(allCardsDB));
+            setShaktiCard(newShaktiCard);
+             toast({ title: 'Payment Secured & Shakti Card Issued!', description: 'Your order is confirmed and your new loyalty card is ready.' });
+        } else {
+            setShaktiCard(JSON.parse(cardDataJSON));
+            toast({ title: 'Payment Secured!', description: 'Your order is confirmed. Benefits will be added to your existing Shakti Card.' });
+        }
+
+        try {
+            const newOrder: EditableOrder = {
+                id: orderDetails.orderId, // Use the order ID as the primary ID
+                orderId: orderDetails.orderId,
+                customerName: customerDetails.name,
+                customerEmail: customerDetails.email,
+                customerAddress: customerDetails.address,
+                pincode: customerDetails.pincode,
+                contactNo: customerDetails.contact,
+                productOrdered: orderDetails.productName,
+                quantity: orderDetails.quantity,
+                price: totalAmount.toFixed(2),
+                paymentStatus: 'Authorized',
+                date: format(new Date(), 'yyyy-MM-dd'),
+                source: orderDetails.sellerId === 'default_seller' ? 'Manual' : 'Seller'
+            };
+
+            const manualOrdersJSON = localStorage.getItem('manualOrders');
+            let manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
+            
+            const existingOrderIndex = manualOrders.findIndex(o => o.orderId === newOrder.orderId);
+            
+            if (existingOrderIndex > -1) {
+                manualOrders[existingOrderIndex] = { ...manualOrders[existingOrderIndex], ...newOrder, id: manualOrders[existingOrderIndex].id };
+            } else {
+               manualOrders.push(newOrder);
+            }
+            localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
+            
+            if (!searchParams.get('order_id')) {
+                incrementOrderIdCounter();
+            }
+
+            if (activeLead) {
+                const existingLeadsJSON = localStorage.getItem('leads');
+                if (existingLeadsJSON) {
+                    const existingLeads: EditableOrder[] = JSON.parse(existingLeadsJSON);
+                    const updatedLeads = existingLeads.filter(lead => lead.id !== activeLead.id);
+                    localStorage.setItem('leads', JSON.stringify(updatedLeads));
+                }
+            }
+
+        } catch(e) {
+            console.error("Failed to update local storage after authorization", e);
+        }
+        
+        localStorage.setItem('loggedInUserMobile', customerDetails.contact);
+        setStep('complete');
+        setIsProcessing(false);
+    };
+
+    const handlePayment = async (isIntent: boolean) => {
         setIsProcessing(true);
         setError('');
         
+        if (!isIntent) {
+            if (!agreed) {
+                toast({ variant: 'destructive', title: 'Agreement Required', description: 'You must agree to the Terms and Conditions.' });
+                setIsProcessing(false);
+                return;
+            }
+            if (!customerDetails.name || !customerDetails.contact || !customerDetails.address || !customerDetails.pincode) {
+                toast({ variant: 'destructive', title: 'Details Required', description: 'Please fill in all customer details before proceeding.' });
+                setIsProcessing(false);
+                return;
+            }
+        }
+        
         try {
-            const { order_id } = await createOrderApi();
-
-            const intentHandler = (response: any) => {
-                const leadData: EditableOrder = {
-                    id: uuidv4(),
-                    orderId: orderDetails.orderId,
-                    customerName: customerDetails.name,
-                    customerEmail: customerDetails.email,
-                    customerAddress: customerDetails.address,
-                    pincode: customerDetails.pincode,
-                    contactNo: customerDetails.contact,
-                    productOrdered: orderDetails.productName,
-                    quantity: orderDetails.quantity,
-                    price: totalAmount.toFixed(2),
-                    paymentStatus: 'Intent Verified',
-                    date: format(new Date(), 'yyyy-MM-dd'),
-                };
-                setActiveLead(leadData);
-
-                // Add to leads
-                const existingLeads = JSON.parse(localStorage.getItem('leads') || '[]');
-                localStorage.setItem('leads', JSON.stringify([...existingLeads, leadData]));
-
-                const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${orderDetails.orderId}`) || '{}');
-                const newOverrides = { ...storedOverrides, paymentStatus: 'Intent Verified' };
-                localStorage.setItem(`order-override-${orderDetails.orderId}`, JSON.stringify(newOverrides));
-
-                toast({ title: 'Verification Successful!', description: 'Please proceed to secure your order.' });
-                setStep('otp'); // Move to OTP step
-                setIsProcessing(false);
-                setPaymentStep('idle'); // Reset after success
-            };
-
-            const authorizationHandler = (response: any) => {
-                 const paymentInfo = {
-                    paymentId: response.razorpay_payment_id,
-                    orderId: orderDetails.orderId,
-                    razorpayOrderId: response.razorpay_order_id,
-                    signature: response.razorpay_signature,
-                    status: 'authorized',
-                    authorizedAt: new Date().toISOString()
-                };
-                localStorage.setItem(`payment_info_${orderDetails.orderId}`, JSON.stringify(paymentInfo));
-                
-                const sanitizedMobile = sanitizePhoneNumber(customerDetails.contact);
-                const cardDataJSON = localStorage.getItem(`shakti_card_${sanitizedMobile}`);
-                
-                if (!cardDataJSON) {
-                    const now = new Date();
-                    const newShaktiCard: ShaktiCardData = {
-                        cardNumber: generateCardNumber(),
-                        customerName: customerDetails.name,
-                        customerPhone: customerDetails.contact,
-                        customerEmail: customerDetails.email || '',
-                        customerAddress: `${customerDetails.address}, ${customerDetails.pincode}`,
-                        validFrom: format(now, 'MM/yy'),
-                        validThru: format(addYears(now, 3), 'MM/yy'),
-                        points: 0,
-                        cashback: 0,
-                        sellerId: orderDetails.sellerId,
-                        sellerName: orderDetails.sellerName
-                    };
-                    localStorage.setItem(`shakti_card_${sanitizedMobile}`, JSON.stringify(newShaktiCard));
-                    const allCardsDB = JSON.parse(localStorage.getItem('shakti_cards_db') || '[]');
-                    allCardsDB.push(newShaktiCard);
-                    localStorage.setItem('shakti_cards_db', JSON.stringify(allCardsDB));
-                    setShaktiCard(newShaktiCard);
-                     toast({ title: 'Payment Secured & Shakti Card Issued!', description: 'Your order is confirmed and your new loyalty card is ready.' });
-                } else {
-                    setShaktiCard(JSON.parse(cardDataJSON));
-                    toast({ title: 'Payment Secured!', description: 'Your order is confirmed. Benefits will be added to your existing Shakti Card.' });
-                }
-
-                try {
-                    const newOrder: EditableOrder = {
-                        id: orderDetails.orderId, // Use the order ID as the primary ID
-                        orderId: orderDetails.orderId,
-                        customerName: customerDetails.name,
-                        customerEmail: customerDetails.email,
-                        customerAddress: customerDetails.address,
-                        pincode: customerDetails.pincode,
-                        contactNo: customerDetails.contact,
-                        productOrdered: orderDetails.productName,
-                        quantity: orderDetails.quantity,
-                        price: totalAmount.toFixed(2),
-                        paymentStatus: 'Authorized',
-                        date: format(new Date(), 'yyyy-MM-dd'),
-                        source: orderDetails.sellerId === 'default_seller' ? 'Manual' : 'Seller'
-                    };
-
-                    const manualOrdersJSON = localStorage.getItem('manualOrders');
-                    let manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
-                    
-                    const existingOrderIndex = manualOrders.findIndex(o => o.orderId === newOrder.orderId);
-                    
-                    if (existingOrderIndex > -1) {
-                        manualOrders[existingOrderIndex] = { ...manualOrders[existingOrderIndex], ...newOrder, id: manualOrders[existingOrderIndex].id };
-                    } else {
-                       manualOrders.push(newOrder);
-                    }
-                    localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
-                    
-                    if (!searchParams.get('order_id')) {
-                        incrementOrderIdCounter();
-                    }
-
-                    if (activeLead) {
-                        const existingLeadsJSON = localStorage.getItem('leads');
-                        if (existingLeadsJSON) {
-                            const existingLeads: EditableOrder[] = JSON.parse(existingLeadsJSON);
-                            const updatedLeads = existingLeads.filter(lead => lead.id !== activeLead.id);
-                            localStorage.setItem('leads', JSON.stringify(updatedLeads));
-                        }
-                    }
-
-                } catch(e) {
-                    console.error("Failed to update local storage after authorization", e);
-                }
-                
-                localStorage.setItem('loggedInUserMobile', customerDetails.contact);
-                setStep('complete');
-                setIsProcessing(false);
-                setPaymentStep('idle');
-            };
-
-            const handler = paymentStep === 'intent' ? intentHandler : authorizationHandler;
-            openRazorpayCheckout(order_id, handler);
-
+            const { order_id } = await createOrderApi(isIntent);
+            openRazorpayCheckout(order_id, isIntent);
         } catch (e: any) {
             setError(e.message);
             toast({ variant: 'destructive', title: 'Error', description: e.message });
             setIsProcessing(false);
-            setPaymentStep('idle');
         }
     };
     
@@ -390,7 +374,7 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
     };
 
     const proceedToAuthorization = () => {
-        setPaymentStep('authorization');
+        handlePayment(false); // Explicitly call for final authorization
     }
 
     const renderOtpState = () => (
@@ -507,7 +491,7 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                 <CardHeader className="text-center">
                     <Zap className="mx-auto h-8 w-8 text-primary" />
                     <CardTitle>Modern, Secure Payment</CardTitle>
-                    <CardDescription>{paymentStep === 'intent' ? `First, verify your intent for ${orderDetails.sellerName} with a ₹1 payment.` : 'Pay now and your funds are held in a Trust Wallet until dispatch.'}</CardDescription>
+                    <CardDescription>{isProcessing ? 'Processing...' : `First, verify your intent for ${orderDetails.sellerName} with a ₹1 payment.`}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-3">
@@ -530,9 +514,9 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                     </div>
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4">
-                    <Button className="w-full" onClick={startPaymentProcess} disabled={!agreed || isProcessing}>
+                    <Button className="w-full" onClick={() => handlePayment(true)} disabled={!agreed || isProcessing}>
                         {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CreditCard className="mr-2 h-4 w-4" />}
-                        {paymentStep === 'intent' ? 'Verify with ₹1.00' : `Pay ₹${totalAmount.toFixed(2)} Now`}
+                        Verify with ₹1.00
                     </Button>
                     <div className="flex items-center justify-center space-x-4 text-sm">
                         <Link href="/customer/login" passHref>
