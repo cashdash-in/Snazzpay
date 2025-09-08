@@ -13,11 +13,7 @@ export default function CodInstructionsPage() {
     const [appUrl, setAppUrl] = useState('');
 
     useEffect(() => {
-        // This runs on the client, so window.location.origin will be the app's current URL
         const origin = typeof window !== 'undefined' ? window.location.origin : 'https://<your-app-url>';
-        const secureCodUrl = `${origin}/secure-cod`;
-        const secureCodInfoUrl = `${origin}/secure-cod-info`;
-
         setAppUrl(origin);
 
         const code = `<div style="margin-top: 15px; width: 100%;">
@@ -32,7 +28,7 @@ export default function CodInstructionsPage() {
     </button>
   </a>
   <div style="text-align: center; margin-top: 8px; font-size: 12px;">
-    <a href="${secureCodInfoUrl}" target="_blank" style="color: #5a31f4; text-decoration: underline;">What is this?</a>
+    <a href="${origin}/secure-cod-info" target="_blank" style="color: #5a31f4; text-decoration: underline;">What is this?</a>
   </div>
 </div>
 
@@ -50,20 +46,23 @@ document.addEventListener('DOMContentLoaded', function() {
       // They should work on most Shopify themes out-of-the-box.
       var productName = '{{ product.title | url_encode }}';
       var productPrice = {{ product.price | money_without_currency | replace: ',', '' }};
-      var orderId = '{{ order.name | default: product.id | url_encode }}';
+      
+      // Generate a unique Order ID for each transaction to avoid duplicates.
+      var uniqueId = 'SNZFY-' + Math.random().toString(36).substr(2, 4).toUpperCase() + '-' + Math.random().toString(36).substr(2, 4).toUpperCase();
+      var orderId = '{{ order.name | default: uniqueId }}';
       
       // Your unique Seller ID and Name provided by SnazzPay
       var sellerId = 'YOUR_UNIQUE_SELLER_ID'; // <-- REPLACE THIS
       var sellerName = 'YOUR_SELLER_NAME'; // <-- REPLACE THIS
       
-      var baseUrl = '${secureCodUrl}';
+      var baseUrl = '${origin}/secure-cod';
 
       var finalUrl = baseUrl + '?amount=' + encodeURIComponent(productPrice) + '&name=' + productName + '&order_id=' + orderId + '&seller_id=' + encodeURIComponent(sellerId) + '&seller_name=' + encodeURIComponent(sellerName);
       secureCodLink.href = finalUrl;
     } catch (e) {
         console.error("Secure COD Liquid Error: ", e);
         // Fallback URL if liquid variables are not available
-        secureCodLink.href = '${secureCodUrl}';
+        secureCodLink.href = '${origin}/secure-cod';
     }
 });
 </script>`;
