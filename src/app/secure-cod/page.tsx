@@ -95,18 +95,24 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
 
         const amountStr = searchParams.get('amount');
         const name = searchParams.get('name');
+        
+        // ** THE FIX IS HERE **
+        // We ALWAYS generate a new order ID for every visit to this page
+        // unless a specific one is being re-tried from a link.
+        // This prevents the reuse of product IDs as order IDs.
         const orderIdFromUrl = searchParams.get('order_id');
+        let initialOrderId = orderIdFromUrl && !orderIdFromUrl.includes('{{') ? orderIdFromUrl : getNextOrderId();
+
         const sellerId = searchParams.get('seller_id') || 'default_seller';
         
         let sellerName = searchParams.get('seller_name');
-        if (!sellerName || sellerName === 'YOUR_SELLER_NAME') {
+        if (!sellerName || sellerName === 'YOUR_SELLER_NAME' || sellerName.includes('{{')) {
             sellerName = 'Snazzify';
         }
         
         let initialAmount = 1;
         let initialName = 'Sample Product';
         
-        let initialOrderId = orderIdFromUrl || getNextOrderId();
 
         if (amountStr && name) {
             const baseAmount = parseFloat(amountStr);
@@ -352,6 +358,12 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                 setIsProcessing(false);
                 return;
             }
+        } else {
+             if (!customerDetails.name || !customerDetails.contact || !customerDetails.address || !customerDetails.pincode) {
+                toast({ variant: 'destructive', title: 'Details Required', description: 'Please fill in all customer details before proceeding.' });
+                setIsProcessing(false);
+                return;
+            }
         }
         
         try {
@@ -375,7 +387,6 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
     };
 
     const proceedToAuthorization = () => {
-        // This function now ONLY starts the final payment. The double-charge is prevented.
         handlePayment(false); 
     }
 
