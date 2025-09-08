@@ -79,13 +79,17 @@ export function MainDashboard() {
                 const orderMap = new Map<string, EditableOrder>();
 
                 combinedOrders.forEach(order => {
-                    const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
-                    const finalOrder = { ...order, ...storedOverrides };
+                     const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
+                     const finalOrder = { ...order, ...storedOverrides };
 
-                    const existing = orderMap.get(finalOrder.orderId);
-                    if (!existing || finalOrder.paymentStatus === 'Paid' || finalOrder.paymentStatus === 'Authorized') {
-                        orderMap.set(finalOrder.orderId, finalOrder);
-                    }
+                     const existing = orderMap.get(finalOrder.orderId);
+                     
+                     // Prioritize records that have a definitive final state or are actively being processed.
+                     const isDefinitive = (status: string) => ['Paid', 'Authorized', 'Fee Charged'].includes(status);
+                     
+                     if (!existing || isDefinitive(finalOrder.paymentStatus) || (!isDefinitive(existing?.paymentStatus || '') && finalOrder.source !== 'Shopify')) {
+                          orderMap.set(finalOrder.orderId, finalOrder);
+                     }
                 });
 
                 const unifiedOrders = Array.from(orderMap.values());
@@ -96,7 +100,7 @@ export function MainDashboard() {
                     .reduce((sum, o) => sum + parseFloat(o.price || '0'), 0);
 
                 const successfulCharges = unifiedOrders
-                    .filter(o => o.paymentStatus === 'Paid')
+                    .filter(o => o.paymentStatus === 'Paid' || o.paymentStatus === 'Fee Charged')
                     .reduce((sum, o) => sum + parseFloat(o.price || '0'), 0);
 
                 const totalRefunds = unifiedOrders
@@ -119,7 +123,7 @@ export function MainDashboard() {
                 }
 
                 unifiedOrders
-                    .filter(o => o.paymentStatus === 'Paid')
+                    .filter(o => o.paymentStatus === 'Paid' || o.paymentStatus === 'Fee Charged')
                     .forEach(o => {
                         try {
                              const orderDate = new Date(o.date);

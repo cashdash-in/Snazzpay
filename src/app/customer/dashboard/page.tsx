@@ -88,11 +88,6 @@ export default function CustomerDashboardPage() {
                 allSnazzPayOrders = [...allSnazzPayOrders, ...JSON.parse(sellerOrdersJSON)];
             }
 
-            allSnazzPayOrders = allSnazzPayOrders.map(order => {
-                const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
-                return { ...order, ...storedOverrides };
-            });
-
             const customerSnazzPayOrders = allSnazzPayOrders.filter(order => {
                 const normalize = (phone: string = '') => (phone || '').replace(/[^0-9]/g, '');
                 const orderContact = normalize(order.contactNo);
@@ -103,9 +98,11 @@ export default function CustomerDashboardPage() {
 
             const orderGroups = new Map<string, EditableOrder[]>();
             customerSnazzPayOrders.forEach(order => {
-                const group = orderGroups.get(order.orderId) || [];
-                group.push(order);
-                orderGroups.set(order.orderId, group);
+                const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
+                const finalOrder = { ...order, ...storedOverrides };
+                const group = orderGroups.get(finalOrder.orderId) || [];
+                group.push(finalOrder);
+                orderGroups.set(finalOrder.orderId, group);
             });
 
             const unifiedOrders: EditableOrder[] = [];
@@ -147,7 +144,7 @@ export default function CustomerDashboardPage() {
             setUser({ name: customerName, mobile: mobileNumber });
 
             const activeTrustValue = finalOrders
-                .filter(o => ['Pending', 'Authorized'].includes(o.paymentStatus))
+                .filter(o => o.paymentStatus === 'Authorized')
                 .reduce((sum, o) => {
                     const price = parseFloat(o.price);
                     return isNaN(price) ? sum : sum + price;
@@ -509,3 +506,4 @@ export default function CustomerDashboardPage() {
             </div>
         </div>
     );
+}

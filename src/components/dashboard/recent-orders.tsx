@@ -9,7 +9,7 @@ import {
   TableBody,
   TableCell,
 } from "@/components/ui/table";
-import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
+import { getOrders as getShopifyOrders } from "@/services/shopify";
 import { useState, useEffect } from "react";
 import type { EditableOrder } from "@/app/orders/page";
 import { format } from "date-fns";
@@ -21,7 +21,7 @@ import { Badge } from "../ui/badge";
 
 function mapShopifyToEditable(order: ShopifyOrder): EditableOrder {
     return {
-        id: order.id.toString(),
+        id: `shopify-${order.id.toString()}`,
         orderId: order.name,
         customerName: `${order.customer?.first_name || ''} ${order.customer?.last_name || ''}`.trim(),
         customerAddress: 'N/A', // Not needed for this compact view
@@ -32,6 +32,7 @@ function mapShopifyToEditable(order: ShopifyOrder): EditableOrder {
         price: order.total_price,
         paymentStatus: order.financial_status || 'Pending',
         date: format(new Date(order.created_at), "yyyy-MM-dd"),
+        source: 'Shopify',
     };
 }
 
@@ -46,7 +47,7 @@ export function RecentOrders() {
         setLoading(true);
         let combinedOrders: EditableOrder[] = [];
         try {
-            const shopifyOrders = await getOrders();
+            const shopifyOrders = await getShopifyOrders();
             combinedOrders.push(...shopifyOrders.map(mapShopifyToEditable));
         } catch (error) {
             console.error("Failed to fetch Shopify orders:", error);
@@ -57,6 +58,11 @@ export function RecentOrders() {
             const manualOrdersJSON = localStorage.getItem('manualOrders');
             const manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
             combinedOrders.push(...manualOrders);
+
+             const sellerOrdersJSON = localStorage.getItem('seller_orders');
+            if (sellerOrdersJSON) {
+                combinedOrders.push(...JSON.parse(sellerOrdersJSON));
+            }
         } catch (error) {
             console.error("Failed to load manual orders:", error);
             toast({
@@ -66,12 +72,23 @@ export function RecentOrders() {
             });
         }
 
-        const ordersWithOverrides = combinedOrders.map(order => {
-          const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
-          return { ...order, ...storedOverrides };
-        });
+        const orderMap = new Map<string, EditableOrder>();
 
-        const sortedOrders = ordersWithOverrides.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        combinedOrders.forEach(order => {
+            const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
+            const finalOrder = { ...order, ...storedOverrides };
+            const existing = orderMap.get(finalOrder.orderId);
+
+            const isDefinitive = (status: string) => ['Paid', 'Authorized', 'Fee Charged'].includes(status);
+             
+            if (!existing || isDefinitive(finalOrder.paymentStatus) || (!isDefinitive(existing.paymentStatus) && finalOrder.source !== 'Shopify')) {
+                orderMap.set(finalOrder.orderId, finalOrder);
+            }
+        });
+        
+        const unifiedOrders = Array.from(orderMap.values());
+
+        const sortedOrders = unifiedOrders.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         const recentOrders = sortedOrders.slice(0, 5);
         setOrders(recentOrders);
         setLoading(false);

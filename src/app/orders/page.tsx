@@ -20,7 +20,7 @@ import { sanitizePhoneNumber } from "@/lib/utils";
 import { usePageRefresh } from "@/hooks/usePageRefresh";
 
 export type EditableOrder = {
-  id: string; // Firestore document ID
+  id: string; // Firestore document ID or unique local ID
   orderId: string;
   customerName: string;
   customerEmail?: string;
@@ -87,6 +87,7 @@ export default function OrdersPage() {
         
         const shopifyPromise = getShopifyOrders().catch(e => {
             console.error("Shopify fetch failed:", e.message);
+            // Non-fatal, just toast and continue
             toast({ variant: "destructive", title: "Could not load Shopify orders."});
             return [];
         });
@@ -103,7 +104,6 @@ export default function OrdersPage() {
         const shopifyOrders = await shopifyPromise;
         allOrders.push(...shopifyOrders.map(mapShopifyOrderToEditableOrder));
         
-        // This is a complex unification logic to ensure we show the most relevant record for an orderId
         const orderMap = new Map<string, EditableOrder>();
 
         allOrders.forEach(order => {
@@ -113,7 +113,7 @@ export default function OrdersPage() {
              const existing = orderMap.get(finalOrder.orderId);
              
              // Prioritize records that have a definitive final state or are actively being processed.
-             const isDefinitive = (status: string) => ['Paid', 'Authorized', 'Fee Charged', 'Refunded', 'Voided'].includes(status);
+             const isDefinitive = (status: string) => ['Paid', 'Authorized', 'Fee Charged'].includes(status);
              
              if (!existing || isDefinitive(finalOrder.paymentStatus) || (!isDefinitive(existing.paymentStatus) && finalOrder.source !== 'Shopify')) {
                   orderMap.set(finalOrder.orderId, finalOrder);
