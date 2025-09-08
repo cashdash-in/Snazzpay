@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { deleteOrder, updateOrder, getPaymentInfo } from "@/services/firestore";
+import { getPaymentInfo, updateOrder } from "@/services/firestore";
 import { getOrders as getShopifyOrders } from "@/services/shopify";
 import { format } from "date-fns";
 import { useState, useEffect, useCallback } from "react";
@@ -87,7 +87,6 @@ export default function OrdersPage() {
         
         const shopifyPromise = getShopifyOrders().catch(e => {
             console.error("Shopify fetch failed:", e.message);
-            // Non-fatal, just toast and continue
             toast({ variant: "destructive", title: "Could not load Shopify orders."});
             return [];
         });
@@ -112,10 +111,9 @@ export default function OrdersPage() {
 
              const existing = orderMap.get(finalOrder.orderId);
              
-             // Prioritize records that have a definitive final state or are actively being processed.
              const isDefinitive = (status: string) => ['Paid', 'Authorized', 'Fee Charged'].includes(status);
              
-             if (!existing || isDefinitive(finalOrder.paymentStatus) || (!isDefinitive(existing.paymentStatus) && finalOrder.source !== 'Shopify')) {
+             if (!existing || isDefinitive(finalOrder.paymentStatus) || (!isDefinitive(existing?.paymentStatus || '') && finalOrder.source !== 'Shopify')) {
                   orderMap.set(finalOrder.orderId, finalOrder);
              }
         });
@@ -170,7 +168,7 @@ export default function OrdersPage() {
     const orderToSave = orders.find(o => o.id === orderId);
     if (!orderToSave) return;
     try {
-        await updateOrder(orderId, orderToSave);
+        localStorage.setItem(`order-override-${orderId}`, JSON.stringify(orderToSave));
         toast({
             title: "Changes Saved",
             description: `Order ${orderToSave?.orderId} has been updated.`,
@@ -187,10 +185,8 @@ export default function OrdersPage() {
   const handleRemoveOrder = async (orderId: string, sourceId: string) => {
     try {
         if(sourceId.startsWith('shopify-')){
-             // This is a Shopify order, we only remove our local override data
              localStorage.removeItem(`order-override-${sourceId}`);
         } else {
-             // This is a manual/seller order, remove from local storage list
             let manualOrders: EditableOrder[] = JSON.parse(localStorage.getItem('manualOrders') || '[]');
             manualOrders = manualOrders.filter(o => o.id !== sourceId);
             localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
@@ -237,8 +233,9 @@ export default function OrdersPage() {
 
     const handleQuickCapture = async (order: EditableOrder) => {
         setProcessingChargeId(order.id);
-        const paymentInfo = await getPaymentInfo(order.orderId);
-        if (!paymentInfo) {
+        const paymentInfoJSON = localStorage.getItem(`payment_info_${order.orderId}`);
+
+        if (!paymentInfoJSON) {
             toast({
                 variant: 'destructive',
                 title: "Payment Info Not Found",
@@ -247,6 +244,8 @@ export default function OrdersPage() {
             setProcessingChargeId(null);
             return;
         }
+
+        const paymentInfo = JSON.parse(paymentInfoJSON);
 
         try {
             const response = await fetch('/api/charge-mandate', {
@@ -262,8 +261,9 @@ export default function OrdersPage() {
             if (!response.ok) throw new Error(result.error || 'Failed to charge payment.');
 
             const updatedOrder = { ...order, paymentStatus: 'Paid' };
-            await updateOrder(order.id, { paymentStatus: 'Paid' });
             setOrders(prev => prev.map(o => o.id === order.id ? updatedOrder : o));
+            localStorage.setItem(`order-override-${order.id}`, JSON.stringify(updatedOrder));
+
 
             toast({
                 title: "Charge Successful!",
@@ -396,3 +396,5 @@ export default function OrdersPage() {
     </AppShell>
   );
 }
+
+    

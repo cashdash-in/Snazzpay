@@ -38,19 +38,6 @@ interface SecureCodFormProps {
 
 type Step = 'details' | 'otp' | 'scratch' | 'complete';
 
-
-function getNextOrderId(): string {
-    const counter = parseInt(localStorage.getItem('secureCodOrderCounter') || '101', 10);
-    const orderId = `SCOD-${counter.toString()}`;
-    return orderId;
-}
-
-function incrementOrderIdCounter() {
-    const counter = parseInt(localStorage.getItem('secureCodOrderCounter') || '101', 10);
-    localStorage.setItem('secureCodOrderCounter', (counter + 1).toString());
-}
-
-
 function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
     const searchParams = useSearchParams();
     const { toast } = useToast();
@@ -96,12 +83,12 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         const amountStr = searchParams.get('amount');
         const name = searchParams.get('name');
         
-        // ** THE FIX IS HERE **
-        // We ALWAYS generate a new order ID for every visit to this page
-        // unless a specific one is being re-tried from a link.
-        // This prevents the reuse of product IDs as order IDs.
         const orderIdFromUrl = searchParams.get('order_id');
-        let initialOrderId = orderIdFromUrl && !orderIdFromUrl.includes('{{') ? orderIdFromUrl : getNextOrderId();
+        let initialOrderId = `SCOD-${uuidv4().substring(0, 8).toUpperCase()}`;
+        if(orderIdFromUrl && !orderIdFromUrl.includes('{{') && orderIdFromUrl.length > 5) {
+            initialOrderId = orderIdFromUrl;
+        }
+
 
         const sellerId = searchParams.get('seller_id') || 'default_seller';
         
@@ -320,10 +307,6 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                manualOrders.push(newOrder);
             }
             localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
-            
-            if (!searchParams.get('order_id')) {
-                incrementOrderIdCounter();
-            }
 
             if (activeLead) {
                 const existingLeadsJSON = localStorage.getItem('leads');
@@ -347,23 +330,15 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         setIsProcessing(true);
         setError('');
         
-        if (!isIntent) {
-            if (!agreed) {
-                toast({ variant: 'destructive', title: 'Agreement Required', description: 'You must agree to the Terms and Conditions.' });
-                setIsProcessing(false);
-                return;
-            }
-            if (!customerDetails.name || !customerDetails.contact || !customerDetails.address || !customerDetails.pincode) {
-                toast({ variant: 'destructive', title: 'Details Required', description: 'Please fill in all customer details before proceeding.' });
-                setIsProcessing(false);
-                return;
-            }
-        } else {
-             if (!customerDetails.name || !customerDetails.contact || !customerDetails.address || !customerDetails.pincode) {
-                toast({ variant: 'destructive', title: 'Details Required', description: 'Please fill in all customer details before proceeding.' });
-                setIsProcessing(false);
-                return;
-            }
+        if (!agreed) {
+            toast({ variant: 'destructive', title: 'Agreement Required', description: 'You must agree to the Terms and Conditions.' });
+            setIsProcessing(false);
+            return;
+        }
+        if (!customerDetails.name || !customerDetails.contact || !customerDetails.address || !customerDetails.pincode) {
+            toast({ variant: 'destructive', title: 'Details Required', description: 'Please fill in all customer details before proceeding.' });
+            setIsProcessing(false);
+            return;
         }
         
         try {
@@ -585,3 +560,5 @@ export default function SuspendedPage() {
     </Suspense>
   );
 }
+
+    

@@ -96,46 +96,28 @@ export default function CustomerDashboardPage() {
                 return orderContact.endsWith(loggedInContact) || loggedInContact.endsWith(orderContact);
             });
 
-            const orderGroups = new Map<string, EditableOrder[]>();
+            const orderMap = new Map<string, EditableOrder>();
+
             customerSnazzPayOrders.forEach(order => {
                 const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
                 const finalOrder = { ...order, ...storedOverrides };
-                const group = orderGroups.get(finalOrder.orderId) || [];
-                group.push(finalOrder);
-                orderGroups.set(finalOrder.orderId, group);
+
+                const existing = orderMap.get(finalOrder.orderId);
+                
+                const isDefinitive = (status: string) => ['Paid', 'Authorized', 'Fee Charged'].includes(status);
+                
+                if (!existing || isDefinitive(finalOrder.paymentStatus) || (!isDefinitive(existing?.paymentStatus || '') && finalOrder.source !== 'Shopify')) {
+                     orderMap.set(finalOrder.orderId, finalOrder);
+                }
             });
 
-            const unifiedOrders: EditableOrder[] = [];
+            const unifiedOrders = Array.from(orderMap.values());
             const loadedPaymentInfos = new Map<string, PaymentInfo>();
 
-            orderGroups.forEach((group) => {
-                let representativeOrder = group.reduce((acc, curr) => ({ ...acc, ...curr }), group[0]);
-                
-                const definitiveStatus = group.find(o => o.paymentStatus === 'Paid' || o.paymentStatus === 'Fee Charged' || o.paymentStatus === 'Authorized');
-                if (definitiveStatus) {
-                    representativeOrder.paymentStatus = definitiveStatus.paymentStatus;
-                } else {
-                    const isRefunded = group.some(o => o.paymentStatus === 'Refunded' || o.refundStatus === 'Processed');
-                    const isVoided = group.some(o => o.paymentStatus === 'Voided' || o.cancellationStatus === 'Processed');
-                    if (isRefunded) {
-                        representativeOrder.paymentStatus = 'Refunded';
-                    } else if (isVoided) {
-                         representativeOrder.paymentStatus = 'Voided';
-                    }
-                }
-                
-                const sharedCancellationId = group.find(o => o.cancellationId)?.cancellationId;
-                if (sharedCancellationId) {
-                    representativeOrder.cancellationId = sharedCancellationId;
-                } else {
-                     representativeOrder.cancellationId = `CNCL-${uuidv4().substring(0, 8).toUpperCase()}`;
-                }
-
-                unifiedOrders.push(representativeOrder);
-
-                const paymentInfoJSON = localStorage.getItem(`payment_info_${representativeOrder.orderId}`);
+            unifiedOrders.forEach((order) => {
+                const paymentInfoJSON = localStorage.getItem(`payment_info_${order.orderId}`);
                 if (paymentInfoJSON) {
-                    loadedPaymentInfos.set(representativeOrder.orderId, JSON.parse(paymentInfoJSON));
+                    loadedPaymentInfos.set(order.orderId, JSON.parse(paymentInfoJSON));
                 }
             });
             
@@ -507,3 +489,5 @@ export default function CustomerDashboardPage() {
         </div>
     );
 }
+
+    

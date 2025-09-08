@@ -84,7 +84,6 @@ export function MainDashboard() {
 
                      const existing = orderMap.get(finalOrder.orderId);
                      
-                     // Prioritize records that have a definitive final state or are actively being processed.
                      const isDefinitive = (status: string) => ['Paid', 'Authorized', 'Fee Charged'].includes(status);
                      
                      if (!existing || isDefinitive(finalOrder.paymentStatus) || (!isDefinitive(existing?.paymentStatus || '') && finalOrder.source !== 'Shopify')) {
@@ -263,3 +262,5 @@ export function MainDashboard() {
         </div>
     );
 }
+
+    
