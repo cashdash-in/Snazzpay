@@ -52,15 +52,16 @@ export async function POST(request: Request) {
                 <div style="font-family: Arial, sans-serif; line-height: 1.6;">
                     <h2>Confirm Your Order #${order.orderId}</h2>
                     <p>Dear ${order.customerName},</p>
-                    <p>Thank you for your order! To confirm it and ensure faster processing, please complete your payment using our modern Secure COD link below.</p>
+                    <p>Thank you for your order! To confirm your purchase of <strong>${order.productOrdered}</strong> and ensure faster processing, please complete your payment using our modern Secure COD link below.</p>
                     <p><strong>What is this?</strong> Instead of handling cash, you pay now and we hold your funds securely in your personal Snazzify Trust Wallet. The money is only transferred to us after your order is dispatched. It's safer for you and gets your order on its way faster.</p>
                     <p><strong>Order Details:</strong></p>
                     <ul>
+                        <li><strong>Order No:</strong> ${order.orderId}</li>
                         <li><strong>Product:</strong> ${order.productOrdered}</li>
                         <li><strong>Amount:</strong> ₹${order.price}</li>
                     </ul>
                     <a href="${secureUrl}" style="background-color: #663399; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 20px 0;">Complete Secure Payment</a>
-                    <p>If you have any questions, please contact our support team.</p>
+                    <p>If you have any questions, please contact our support team at <a href="mailto:customer.service@snazzify.co.in">customer.service@snazzify.co.in</a> or message us on WhatsApp at 9920320790.</p>
                     <p>Thank you,<br/>The Snazzify Team</p>
                 </div>
             `

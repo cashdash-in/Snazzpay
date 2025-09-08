@@ -11,6 +11,7 @@ const GMAIL_PASSWORD = process.env.GMAIL_APP_PASSWORD;
 function getEmailContent(type: string, order: EditableOrder) {
     let subject = '';
     let html = '';
+    const supportInfo = `<p>If you have any questions, please contact our support team at <a href="mailto:customer.service@snazzify.co.in">customer.service@snazzify.co.in</a> or message us on WhatsApp at 9920320790.</p>`;
 
     switch (type) {
         case 'dispatch':
@@ -19,13 +20,15 @@ function getEmailContent(type: string, order: EditableOrder) {
                 <div style="font-family: Arial, sans-serif; line-height: 1.6;">
                     <h2>Your Order is on its way!</h2>
                     <p>Dear ${order.customerName},</p>
-                    <p>Great news! Your order #${order.orderId} has been dispatched. As part of our Secure COD process, the funds held in your Trust Wallet have now been transferred to us.</p>
+                    <p>Great news! Your order #${order.orderId} for <strong>${order.productOrdered}</strong> has been dispatched. As part of our Secure COD process, the funds held in your Trust Wallet have now been transferred to us.</p>
                     <p><strong>Tracking Details:</strong></p>
                     <ul>
                         <li><strong>Courier:</strong> ${order.courierCompanyName || 'Our Logistics Partner'}</li>
                         <li><strong>Tracking Number:</strong> ${order.trackingNumber}</li>
+                        <li><strong>Estimated Delivery:</strong> ${order.estDelivery || '3-7 business days'}</li>
                     </ul>
-                    <p>You can typically start tracking your order within 24-48 hours. If you have any questions, please contact our support team.</p>
+                    <p>You can typically start tracking your order within 24 hours.</p>
+                    ${supportInfo}
                     <p>Thank you for shopping with us,<br/>The Snazzify Team</p>
                 </div>
             `;
@@ -36,23 +39,24 @@ function getEmailContent(type: string, order: EditableOrder) {
                 <div style="font-family: Arial, sans-serif; line-height: 1.6;">
                     <h2>Order Cancellation Confirmed</h2>
                     <p>Dear ${order.customerName},</p>
-                    <p>This email confirms that your order #${order.orderId} has been successfully cancelled as per your request.</p>
+                    <p>This email confirms that your order #${order.orderId} for <strong>${order.productOrdered}</strong> has been successfully cancelled as per your request.</p>
                     <p>The payment authorization for ₹${order.price} has been voided, and the funds have been released back to your account. You will not be charged.</p>
-                    <p>If you have any questions, please feel free to contact us.</p>
+                    <p>We are sorry to see you go and hope to see you again in the future.</p>
+                    ${supportInfo}
                     <p>We hope to see you again soon,<br/>The Snazzify Team</p>
                 </div>
             `;
             break;
         case 'refund':
-            subject = `Refund Processed for Order #${order.orderId}`;
-            html = `
+             subject = `Refund Processed for Order #${order.orderId}`;
+             html = `
                 <div style="font-family: Arial, sans-serif; line-height: 1.6;">
                     <h2>Refund Processed</h2>
                     <p>Dear ${order.customerName},</p>
-                    <p>We have processed a refund for your order #${order.orderId}.</p>
+                    <p>We have processed a refund for your order #${order.orderId} for the product <strong>${order.productOrdered}</strong>.</p>
                     <p><strong>Refund Amount:</strong> ₹${order.refundAmount || order.price}</p>
                     <p>Please allow 5-7 business days for the amount to reflect in your original payment account. The exact time can vary depending on your bank.</p>
-                    <p>If you have any questions about your refund, please contact our support team.</p>
+                    ${supportInfo}
                     <p>Thank you,<br/>The Snazzify Team</p>
                 </div>
             `;
