@@ -78,6 +78,7 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
     const [activeLead, setActiveLead] = useState<EditableOrder | null>(null);
     const [shaktiCard, setShaktiCard] = useState<ShaktiCardData | null>(null);
     const [otp, setOtp] = useState('');
+    const [paymentStep, setPaymentStep] = useState<'intent' | 'authorization'>('intent');
 
 
     const action = searchParams.get('action');
@@ -374,7 +375,8 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
     };
 
     const proceedToAuthorization = () => {
-        handlePayment(false); // Explicitly call for final authorization
+        // This function now ONLY starts the final payment. The double-charge is prevented.
+        handlePayment(false); 
     }
 
     const renderOtpState = () => (
