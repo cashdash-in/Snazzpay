@@ -11,6 +11,9 @@ import { useToast } from "@/hooks/use-toast";
 import type { EditableOrder } from '../orders/page';
 import { format } from "date-fns";
 import { usePageRefresh } from "@/hooks/usePageRefresh";
+import { saveOrder } from "@/services/firestore";
+import { v4 as uuidv4 } from "uuid";
+
 
 export default function LeadsPage() {
   const [leads, setLeads] = useState<EditableOrder[]>([]);
@@ -89,34 +92,30 @@ export default function LeadsPage() {
     }
   };
 
-  const handleConvertToOrder = (lead: EditableOrder) => {
-    const manualOrdersJSON = localStorage.getItem('manualOrders');
-    let manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
-    
-    // Prevent duplicates
-    if(manualOrders.some(order => order.id === lead.id)) {
+  const handleConvertToOrder = async (lead: EditableOrder) => {
+    try {
+        const newOrder = {
+            ...lead,
+            id: uuidv4(),
+            paymentStatus: 'Pending', // Set as a pending manual order
+            source: 'Manual' as const,
+        };
+
+        await saveOrder(newOrder, newOrder.id);
+        
+        handleRemoveLead(lead.id); // Remove from leads after converting
+
+        toast({
+            title: "Converted to Order",
+            description: `Lead for ${lead.customerName} has been converted to an order and saved to the database.`,
+        });
+    } catch (error: any) {
         toast({
             variant: 'destructive',
-            title: "Already an Order",
-            description: "This lead has already been converted to an order.",
+            title: "Error Converting Lead",
+            description: error.message,
         });
-        return;
     }
-
-    const newOrder = {
-        ...lead,
-        paymentStatus: 'Pending', // Set as a pending manual order
-    };
-
-    manualOrders.push(newOrder);
-    localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
-    
-    handleRemoveLead(lead.id); // Remove from leads after converting
-
-    toast({
-        title: "Converted to Order",
-        description: `Lead for ${lead.customerName} has been converted to a manual order.`,
-    });
   };
 
   return (

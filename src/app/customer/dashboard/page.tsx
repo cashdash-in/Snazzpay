@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Wallet, ShoppingCart, ShieldAlert, LogOut, CheckCircle, Clock, Mail, MessageSquare, PackageCheck, FileText, Calendar, Truck, ArrowRight, CircleDotDashed, AlertTriangle, RefreshCw, Gem } from "lucide-react";
@@ -73,7 +73,6 @@ export default function CustomerDashboardPage() {
                 setShaktiCard(JSON.parse(cardDataJSON));
             }
 
-
             const manualOrdersJSON = localStorage.getItem('manualOrders');
             let allSnazzPayOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
             
@@ -81,7 +80,6 @@ export default function CustomerDashboardPage() {
             if (sellerOrdersJSON) {
                 allSnazzPayOrders = [...allSnazzPayOrders, ...JSON.parse(sellerOrdersJSON)];
             }
-
 
             allSnazzPayOrders = allSnazzPayOrders.map(order => {
                 const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
@@ -109,16 +107,19 @@ export default function CustomerDashboardPage() {
             orderGroups.forEach((group) => {
                 let representativeOrder = group.reduce((acc, curr) => ({ ...acc, ...curr }), group[0]);
                 
-                const hasVoided = group.some(o => o.paymentStatus === 'Voided' || o.cancellationStatus === 'Processed');
-                const hasRefunded = group.some(o => o.paymentStatus === 'Refunded' || o.refundStatus === 'Processed');
-                const hasFeeCharged = group.some(o => o.paymentStatus === 'Fee Charged');
+                const isPaid = group.some(o => o.paymentStatus === 'Paid');
+                const isFeeCharged = group.some(o => o.paymentStatus === 'Fee Charged');
+                const isRefunded = group.some(o => o.paymentStatus === 'Refunded' || o.refundStatus === 'Processed');
+                const isVoided = group.some(o => o.paymentStatus === 'Voided' || o.cancellationStatus === 'Processed');
 
-                if (hasVoided) {
-                    representativeOrder.paymentStatus = 'Voided';
-                } else if (hasRefunded) {
-                    representativeOrder.paymentStatus = 'Refunded';
-                } else if (hasFeeCharged) {
+                if (isPaid) {
+                    representativeOrder.paymentStatus = 'Paid';
+                } else if (isFeeCharged) {
                     representativeOrder.paymentStatus = 'Fee Charged';
+                } else if (isRefunded) {
+                    representativeOrder.paymentStatus = 'Refunded';
+                } else if (isVoided) {
+                     representativeOrder.paymentStatus = 'Voided';
                 }
                 
                 const sharedCancellationId = group.find(o => o.cancellationId)?.cancellationId;
@@ -165,7 +166,7 @@ export default function CustomerDashboardPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [toast]);
+    }, [toast, shaktiCard?.customerName]);
         
     useEffect(() => {
         const loggedInMobile = localStorage.getItem('loggedInUserMobile');
@@ -503,5 +504,3 @@ export default function CustomerDashboardPage() {
             </div>
         </div>
     );
-
-    

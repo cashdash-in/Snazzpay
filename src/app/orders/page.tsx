@@ -7,6 +7,7 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { getAllOrders, deleteOrder, updateOrder, getPaymentInfo } from "@/services/firestore";
+import { getOrders as getShopifyOrders } from "@/services/shopify";
 import { format } from "date-fns";
 import { useState, useEffect, useCallback } from "react";
 import { Loader2, PlusCircle, Trash2, Save, MessageSquare, CreditCard, Ban, CircleDollarSign } from "lucide-react";
@@ -47,6 +48,28 @@ export type EditableOrder = {
   source?: 'Shopify' | 'Manual' | 'Seller';
 };
 
+function mapShopifyOrderToEditableOrder(shopifyOrder: any): EditableOrder {
+    const customer = shopifyOrder.customer;
+    const customerName = customer ? `${customer.first_name || ''} ${customer.last_name || ''}`.trim() : 'N/A';
+    const products = shopifyOrder.line_items.map((item: any) => item.title).join(', ');
+
+    return {
+        id: `shopify-${shopifyOrder.id.toString()}`,
+        orderId: shopifyOrder.name,
+        customerName,
+        customerEmail: customer?.email || undefined,
+        customerAddress: shopifyOrder.shipping_address ? `${shopifyOrder.shipping_address.address1}, ${shopifyOrder.shipping_address.city}, ${shopifyOrder.shipping_address.zip}` : 'N/A',
+        pincode: shopifyOrder.shipping_address?.zip || 'N/A',
+        contactNo: shopifyOrder.customer?.phone || 'N/A',
+        productOrdered: products,
+        quantity: shopifyOrder.line_items.reduce((sum: number, item: any) => sum + item.quantity, 0),
+        price: shopifyOrder.total_price,
+        paymentStatus: shopifyOrder.financial_status || 'Pending',
+        date: format(new Date(shopifyOrder.created_at), "yyyy-MM-dd"),
+        source: 'Shopify',
+    };
+}
+
 
 const TEST_ORDER_ID = '#TEST-1001';
 
@@ -59,9 +82,19 @@ export default function OrdersPage() {
 
   const fetchAndSetOrders = useCallback(async () => {
     setLoading(true);
+    let allOrders: EditableOrder[] = [];
     try {
-        const allOrders = await getAllOrders();
+        const firestoreOrders = await getAllOrders();
+        allOrders.push(...firestoreOrders);
+
+        const shopifyOrders = await getShopifyOrders();
+        allOrders.push(...shopifyOrders.map(mapShopifyOrderToEditableOrder));
         
+        const manualOrdersJSON = localStorage.getItem('manualOrders');
+        if (manualOrdersJSON) {
+            allOrders.push(...JSON.parse(manualOrdersJSON));
+        }
+
         const testOrderExists = allOrders.some(order => order.orderId === TEST_ORDER_ID);
         if (!testOrderExists) {
              const testOrder: EditableOrder = {
@@ -84,14 +117,17 @@ export default function OrdersPage() {
         }
         
         const finalOrders = allOrders.filter(o => o.paymentStatus !== 'Intent Verified');
-        setOrders(finalOrders);
+        
+        const uniqueOrders = Array.from(new Map(finalOrders.map(order => [order.orderId, order])).values());
+
+        setOrders(uniqueOrders);
 
     } catch (error) {
-        console.error("Failed to load orders from Firestore:", error);
+        console.error("Failed to load orders:", error);
         toast({
             variant: 'destructive',
             title: "Failed to load orders",
-            description: "Could not retrieve order data from the database.",
+            description: "Could not retrieve order data.",
         });
     }
     setLoading(false);
