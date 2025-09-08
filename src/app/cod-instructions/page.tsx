@@ -46,13 +46,18 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     try {
+      // Sellers: Replace these with your platform's actual liquid/template variables.
       const productName = \`{{ product.title | url_encode }}\`;
       const productPrice = {{ product.price | money_without_currency | replace: ',', '' }};
-      // Use the Shopify order name/number (e.g. #1001) as the unique ID
-      const orderId = \`{{ order.name | default: product.id | url_encode }}\`; 
+      const orderId = \`{{ order.name | default: product.id | url_encode }}\`;
+      
+      // Your unique Seller ID and Name provided by SnazzPay
+      const sellerId = 'YOUR_UNIQUE_SELLER_ID'; // <-- REPLACE THIS
+      const sellerName = 'YOUR_SELLER_NAME'; // <-- REPLACE THIS
+      
       const baseUrl = '${url}';
 
-      const finalUrl = baseUrl + '?amount=' + encodeURIComponent(productPrice) + '&name=' + productName + '&order_id=' + orderId;
+      const finalUrl = baseUrl + '?amount=' + encodeURIComponent(productPrice) + '&name=' + productName + '&order_id=' + orderId + '&seller_id=' + encodeURIComponent(sellerId) + '&seller_name=' + encodeURIComponent(sellerName);
       secureCodLink.href = finalUrl;
     } catch (e) {
         console.error("Secure COD Liquid Error: ", e);
@@ -70,9 +75,9 @@ document.addEventListener('DOMContentLoaded', function() {
     <AppShell title="Embedding Instructions">
       <Card>
         <CardHeader>
-          <CardTitle>Embed Secure COD on Product Page</CardTitle>
+          <CardTitle>Embed Secure COD on Your Website</CardTitle>
           <CardDescription>
-            Follow these steps to add the Secure COD button to your Shopify store's product page.
+            Follow these steps to add the Secure COD button to your store's product page (e.g., Shopify, WooCommerce, etc.).
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -85,24 +90,31 @@ document.addEventListener('DOMContentLoaded', function() {
             </AlertDescription>
           </Alert>
           <div className="space-y-2">
-            <h3 className="text-lg font-semibold">Step 1: Go to your Shopify Theme Editor</h3>
+            <h3 className="text-lg font-semibold">Step 1: Go to your Theme Editor</h3>
             <p className="text-muted-foreground">
-              In your Shopify admin, go to <span className="font-mono bg-muted p-1 rounded-md">Online Store</span> &gt; <span className="font-mono bg-muted p-1 rounded-md">Themes</span>. Find your current theme and click on <span className="font-mono bg-muted p-1 rounded-md">Customize</span>, then click <span className="font-mono bg-muted p-1 rounded-md">Edit code</span> from the dropdown menu.
+              In your e-commerce platform's admin panel (e.g., Shopify), go to the theme editor for your live theme. You'll want to find the template file that controls your product page. This is often called <span className="font-mono bg-muted p-1 rounded-md">product.liquid</span>, <span className="font-mono bg-muted p-1 rounded-md">main-product.liquid</span>, or similar.
             </p>
           </div>
 
           <div className="space-y-2">
-            <h3 className="text-lg font-semibold">Step 2: Edit your Product Template</h3>
+            <h3 className="text-lg font-semibold">Step 2: Copy and Paste the Code</h3>
             <p className="text-muted-foreground">
-              In the theme editor, find the file that controls your product page. This is usually called <span className="font-mono bg-muted p-1 rounded-md">product.liquid</span> or is inside a file in the <span className="font-mono bg-muted p-1 rounded-md">Sections</span> folder called <span className="font-mono bg-muted p-1 rounded-md">main-product.liquid</span> or similar. Paste the code below where you want the button to appear (e.g., near the 'Add to Cart' button).
+              Paste the code below where you want the button to appear (e.g., near your 'Add to Cart' button).
             </p>
             <CodeBlock code={embedCode} />
+          </div>
+          
+           <div className="space-y-2">
+            <h3 className="text-lg font-semibold">Step 3: Update Seller Details</h3>
+            <p className="text-muted-foreground">
+              In the code you just pasted, you MUST replace <span className="font-mono bg-muted p-1 rounded-md">'YOUR_UNIQUE_SELLER_ID'</span> and <span className="font-mono bg-muted p-1 rounded-md">'YOUR_SELLER_NAME'</span> with the actual ID and name provided to you by the SnazzPay admin. This is critical for tracking your orders correctly.
+            </p>
           </div>
 
           <div className="space-y-2">
             <h3 className="text-lg font-semibold">How it works</h3>
             <p className="text-muted-foreground">
-              This code adds a "Buy now with Secure COD" button to your product pages. When clicked, it takes the customer to a secure page where they can confirm the quantity and authorize the payment. It intelligently captures the order ID if available, or the product ID as a fallback.
+              This universal HTML and JavaScript snippet adds the "Buy now with Secure COD" button. It's designed to automatically detect the product name and price using common template variables from platforms like Shopify. When a customer clicks it, they are taken to the secure payment page with all your order details and seller information pre-filled.
             </p>
           </div>
         </CardContent>

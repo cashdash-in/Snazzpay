@@ -1,4 +1,3 @@
-
 'use client';
 import type {FC, PropsWithChildren} from 'react';
 import {
@@ -97,7 +96,8 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
   const { triggerRefresh } = usePageRefresh();
   const { user, signOut } = useAuth();
   
-  const isSeller = !user?.email?.endsWith('@snazzpay.com');
+  const isSeller = user?.email !== ADMIN_EMAIL && !!user;
+
 
   const getMenuItems = () => {
     if (!isSeller) { // Admin view

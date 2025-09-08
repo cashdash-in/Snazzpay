@@ -82,6 +82,12 @@ export default function CustomerDashboardPage() {
 
             const manualOrdersJSON = localStorage.getItem('manualOrders');
             let allSnazzPayOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
+            
+            const sellerOrdersJSON = localStorage.getItem('seller_orders');
+            if (sellerOrdersJSON) {
+                allSnazzPayOrders = [...allSnazzPayOrders, ...JSON.parse(sellerOrdersJSON)];
+            }
+
 
             allSnazzPayOrders = allSnazzPayOrders.map(order => {
                 const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');

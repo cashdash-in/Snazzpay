@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { usePageRefresh } from "@/hooks/usePageRefresh";
 import { useAuth } from "@/hooks/use-auth";
 import type { EditableOrder } from '@/app/orders/page';
+import { Badge } from "@/components/ui/badge";
 
 export default function SellerOrdersPage() {
   const [orders, setOrders] = useState<EditableOrder[]>([]);
@@ -27,9 +28,20 @@ export default function SellerOrdersPage() {
       const allSellerOrdersJSON = localStorage.getItem('seller_orders');
       const allSellerOrders: EditableOrder[] = allSellerOrdersJSON ? JSON.parse(allSellerOrdersJSON) : [];
       
-      // In a real multi-tenant app, you'd filter by seller ID.
-      // For this prototype, we'll assume all orders in this key belong to the logged-in seller.
-      setOrders(allSellerOrders);
+      const allAdminOrdersJSON = localStorage.getItem('manualOrders');
+      const allAdminOrders: EditableOrder[] = allAdminOrdersJSON ? JSON.parse(allAdminOrdersJSON) : [];
+
+      const combinedOrders = [...allSellerOrders, ...allAdminOrders];
+      
+      const ordersWithOverrides = combinedOrders.map(order => {
+        const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
+        return { ...order, ...storedOverrides };
+      });
+      
+      // In a real multi-tenant app, you'd filter by a sellerId stored on the order.
+      // For this prototype, we'll assume all orders in 'seller_orders' belong to the logged-in seller,
+      // and we will also show them orders from the main pool for demonstration.
+      setOrders(ordersWithOverrides);
 
     } catch (error) {
       console.error("Failed to load seller orders:", error);
@@ -49,7 +61,15 @@ export default function SellerOrdersPage() {
   const handleRemoveOrder = (orderId: string) => {
     const updatedOrders = orders.filter(order => order.id !== orderId);
     setOrders(updatedOrders);
-    localStorage.setItem('seller_orders', JSON.stringify(updatedOrders));
+    
+    // Attempt to remove from both seller and manual order lists
+    const sellerOrdersJSON = localStorage.getItem('seller_orders');
+    if (sellerOrdersJSON) {
+        let sellerOrders: EditableOrder[] = JSON.parse(sellerOrdersJSON);
+        sellerOrders = sellerOrders.filter(o => o.id !== orderId);
+        localStorage.setItem('seller_orders', JSON.stringify(sellerOrders));
+    }
+    
     toast({
         variant: 'destructive',
         title: "Order Removed",
@@ -99,12 +119,24 @@ export default function SellerOrdersPage() {
                   {orders.length > 0 ? (
                     orders.map((order) => (
                       <TableRow key={order.id}>
-                        <TableCell className="font-medium">{order.orderId}</TableCell>
+                        <TableCell>
+                          <Link href={`/invoice/${order.id}`} className="font-medium text-primary hover:underline cursor-pointer">
+                            {order.orderId}
+                          </Link>
+                        </TableCell>
                         <TableCell>{order.customerName}</TableCell>
                         <TableCell>{order.productOrdered}</TableCell>
                         <TableCell>₹{order.price}</TableCell>
                         <TableCell>{order.date}</TableCell>
-                        <TableCell>{order.paymentStatus}</TableCell>
+                        <TableCell>
+                           <Badge variant={order.paymentStatus === 'Paid' ? 'default' : 'secondary'} className={
+                                order.paymentStatus === 'Paid' ? 'bg-green-100 text-green-800' :
+                                order.paymentStatus === 'Authorized' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-gray-100 text-gray-800'
+                            }>
+                                {order.paymentStatus}
+                            </Badge>
+                        </TableCell>
                         <TableCell className="text-right">
                           <Button variant="destructive" size="icon" onClick={() => handleRemoveOrder(order.id)}>
                             <Trash2 className="h-4 w-4" />

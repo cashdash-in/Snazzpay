@@ -290,14 +290,14 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                         cardNumber: generateCardNumber(),
                         customerName: customerDetails.name,
                         customerPhone: customerDetails.contact,
-                        customerEmail: customerDetails.email,
+                        customerEmail: customerDetails.email || '',
                         customerAddress: `${customerDetails.address}, ${customerDetails.pincode}`,
                         validFrom: format(now, 'MM/yy'),
                         validThru: format(addYears(now, 3), 'MM/yy'),
                         points: 0,
                         cashback: 0,
-                        sellerName: orderDetails.sellerName,
-                        sellerId: orderDetails.sellerId
+                        sellerId: orderDetails.sellerId,
+                        sellerName: orderDetails.sellerName
                     };
                     localStorage.setItem(`shakti_card_${sanitizedMobile}`, JSON.stringify(newShaktiCard));
                     // Also add to the main DB of cards for admin view
@@ -326,10 +326,11 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                         price: totalAmount.toFixed(2),
                         paymentStatus: 'Authorized',
                         date: format(new Date(), 'yyyy-MM-dd'),
-                        source: 'Manual' // All orders from this page are effectively manual entries
+                        source: orderDetails.sellerId === 'default_seller' ? 'Manual' : 'Seller'
                     };
 
-                    const existingOrdersJSON = localStorage.getItem('manualOrders');
+                    const listKey = newOrder.source === 'Seller' ? 'seller_orders' : 'manualOrders';
+                    const existingOrdersJSON = localStorage.getItem(listKey);
                     let existingOrders: EditableOrder[] = existingOrdersJSON ? JSON.parse(existingOrdersJSON) : [];
                     
                     // Check if an order with this orderId already exists (e.g., from Shopify sync)
@@ -342,9 +343,9 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                         const newOverrides = { ...storedOverrides, paymentStatus: 'Authorized' };
                         localStorage.setItem(`order-override-${orderToUpdateId}`, JSON.stringify(newOverrides));
                     } else {
-                        // If it doesn't exist, this is a new order. Add it to manualOrders.
+                        // If it doesn't exist, this is a new order. Add it to the correct list.
                        existingOrders.push(newOrder);
-                       localStorage.setItem('manualOrders', JSON.stringify(existingOrders));
+                       localStorage.setItem(listKey, JSON.stringify(existingOrders));
                        // If this was a newly generated ID, increment the counter for the next one
                        if (!searchParams.get('order_id')) {
                            incrementOrderIdCounter();
