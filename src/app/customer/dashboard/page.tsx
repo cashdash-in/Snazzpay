@@ -64,17 +64,11 @@ export default function CustomerDashboardPage() {
     const [paymentInfos, setPaymentInfos] = useState<Map<string, PaymentInfo>>(new Map());
     const [shaktiCard, setShaktiCard] = useState<ShaktiCardData | null>(null);
 
-    const loadCustomerData = async () => {
+    const loadCustomerData = useCallback(async (mobileNumber: string) => {
         setIsLoading(true);
         try {
-            const loggedInMobile = localStorage.getItem('loggedInUserMobile');
-            if (!loggedInMobile) {
-                router.push('/customer/login');
-                return;
-            }
-            
             // Load Shakti Card
-            const cardDataJSON = localStorage.getItem(`shakti_card_${sanitizePhoneNumber(loggedInMobile)}`);
+            const cardDataJSON = localStorage.getItem(`shakti_card_${sanitizePhoneNumber(mobileNumber)}`);
             if (cardDataJSON) {
                 setShaktiCard(JSON.parse(cardDataJSON));
             }
@@ -97,7 +91,7 @@ export default function CustomerDashboardPage() {
             const customerSnazzPayOrders = allSnazzPayOrders.filter(order => {
                 const normalize = (phone: string = '') => (phone || '').replace(/[^0-9]/g, '');
                 const orderContact = normalize(order.contactNo);
-                const loggedInContact = normalize(loggedInMobile);
+                const loggedInContact = normalize(mobileNumber);
                 if (!orderContact || !loggedInContact) return false;
                 return orderContact.endsWith(loggedInContact) || loggedInContact.endsWith(orderContact);
             });
@@ -144,7 +138,7 @@ export default function CustomerDashboardPage() {
             
             const finalOrders = unifiedOrders.filter(o => o.paymentStatus !== 'Intent Verified');
             const customerName = finalOrders.length > 0 ? finalOrders[0].customerName : shaktiCard?.customerName || 'Valued Customer';
-            setUser({ name: customerName, mobile: loggedInMobile });
+            setUser({ name: customerName, mobile: mobileNumber });
 
             const activeTrustValue = finalOrders
                 .filter(o => ['Pending', 'Authorized'].includes(o.paymentStatus))
@@ -171,11 +165,17 @@ export default function CustomerDashboardPage() {
         } finally {
             setIsLoading(false);
         }
-    }
+    }, [toast]);
         
     useEffect(() => {
-        loadCustomerData();
-    }, []);
+        const loggedInMobile = localStorage.getItem('loggedInUserMobile');
+        if (!loggedInMobile) {
+            router.push('/customer/login');
+        } else {
+            setUser(prev => ({...prev, mobile: loggedInMobile}));
+            loadCustomerData(loggedInMobile);
+        }
+    }, [router, loadCustomerData]);
     
     const handleLogout = () => {
         localStorage.removeItem('loggedInUserMobile');
@@ -243,7 +243,7 @@ export default function CustomerDashboardPage() {
                         <p className="text-muted-foreground">Here's an overview of your Snazzify account.</p>
                     </div>
                      <div className="flex items-center gap-2 mt-4 sm:mt-0">
-                        <Button variant="outline" onClick={loadCustomerData}>
+                        <Button variant="outline" onClick={() => user.mobile && loadCustomerData(user.mobile)}>
                             <RefreshCw className="mr-2 h-4 w-4"/>
                             Refresh
                         </Button>
@@ -503,4 +503,5 @@ export default function CustomerDashboardPage() {
             </div>
         </div>
     );
-}
+
+    
