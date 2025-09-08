@@ -1,7 +1,8 @@
+
 'use client';
 
 import { useState, useEffect } from "react";
-import { getOrders } from "@/services/shopify";
+import { getOrders as getShopifyOrders } from "@/services/shopify";
 import type { EditableOrder } from "@/app/orders/page";
 import { useToast } from "@/hooks/use-toast";
 import { format, subDays } from "date-fns";
@@ -16,7 +17,7 @@ function mapShopifyOrderToEditableOrder(shopifyOrder: any): EditableOrder {
     const products = shopifyOrder.line_items.map((item: any) => item.title).join(', ');
 
     return {
-        id: shopifyOrder.id.toString(),
+        id: `shopify-${shopifyOrder.id.toString()}`,
         orderId: shopifyOrder.name,
         customerName,
         customerEmail: customer?.email || undefined,
@@ -28,6 +29,7 @@ function mapShopifyOrderToEditableOrder(shopifyOrder: any): EditableOrder {
         price: shopifyOrder.total_price,
         paymentStatus: shopifyOrder.financial_status || 'Pending',
         date: format(new Date(shopifyOrder.created_at), "yyyy-MM-dd"),
+        source: 'Shopify'
     };
 }
 
@@ -50,7 +52,7 @@ export function MainDashboard() {
                 let combinedOrders: EditableOrder[] = [];
                 
                 try {
-                    const shopifyOrders = await getOrders();
+                    const shopifyOrders = await getShopifyOrders();
                     combinedOrders.push(...shopifyOrders.map(mapShopifyOrderToEditableOrder));
                 } catch (error) {
                     console.error("Failed to fetch Shopify orders:", error);
@@ -65,26 +67,39 @@ export function MainDashboard() {
                 if (manualOrdersJSON) {
                     combinedOrders.push(...JSON.parse(manualOrdersJSON));
                 }
-
-                combinedOrders = combinedOrders.map(order => {
-                    const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
-                    return { ...order, ...storedOverrides };
-                });
                 
+                const sellerOrdersJSON = localStorage.getItem('seller_orders');
+                 if (sellerOrdersJSON) {
+                    combinedOrders.push(...JSON.parse(sellerOrdersJSON));
+                }
+
                 const leadsJSON = localStorage.getItem('leads');
                 const leads: EditableOrder[] = leadsJSON ? JSON.parse(leadsJSON) : [];
+                
+                const orderMap = new Map<string, EditableOrder>();
 
+                combinedOrders.forEach(order => {
+                    const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
+                    const finalOrder = { ...order, ...storedOverrides };
+
+                    const existing = orderMap.get(finalOrder.orderId);
+                    if (!existing || finalOrder.paymentStatus === 'Paid' || finalOrder.paymentStatus === 'Authorized') {
+                        orderMap.set(finalOrder.orderId, finalOrder);
+                    }
+                });
+
+                const unifiedOrders = Array.from(orderMap.values());
 
                 // Calculate Stats
-                const totalSecuredValue = combinedOrders
+                const totalSecuredValue = unifiedOrders
                     .filter(o => o.paymentStatus === 'Authorized')
                     .reduce((sum, o) => sum + parseFloat(o.price || '0'), 0);
 
-                const successfulCharges = combinedOrders
+                const successfulCharges = unifiedOrders
                     .filter(o => o.paymentStatus === 'Paid')
                     .reduce((sum, o) => sum + parseFloat(o.price || '0'), 0);
 
-                const totalRefunds = combinedOrders
+                const totalRefunds = unifiedOrders
                     .filter(o => ['Refunded', 'Voided'].includes(o.paymentStatus))
                     .reduce((sum, o) => sum + parseFloat(o.price || '0'), 0);
 
@@ -103,14 +118,18 @@ export function MainDashboard() {
                     salesByDay[formattedDate] = 0;
                 }
 
-                combinedOrders
+                unifiedOrders
                     .filter(o => o.paymentStatus === 'Paid')
                     .forEach(o => {
-                        const orderDate = new Date(o.date);
-                        const today = new Date();
-                        if (subDays(today, 7) <= orderDate && orderDate <= today) {
-                             const formattedDate = format(orderDate, 'MMM d');
-                             salesByDay[formattedDate] = (salesByDay[formattedDate] || 0) + parseFloat(o.price);
+                        try {
+                             const orderDate = new Date(o.date);
+                             const today = new Date();
+                            if (subDays(today, 7) <= orderDate && orderDate <= today) {
+                                const formattedDate = format(orderDate, 'MMM d');
+                                salesByDay[formattedDate] = (salesByDay[formattedDate] || 0) + parseFloat(o.price);
+                            }
+                        } catch(e){
+                            // ignore invalid date formats
                         }
                     });
                 

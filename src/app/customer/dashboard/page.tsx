@@ -65,6 +65,10 @@ export default function CustomerDashboardPage() {
     const [shaktiCard, setShaktiCard] = useState<ShaktiCardData | null>(null);
 
     const loadCustomerData = useCallback(async (mobileNumber: string) => {
+        if (!mobileNumber) {
+            setIsLoading(false);
+            return;
+        }
         setIsLoading(true);
         try {
             // Load Shakti Card
@@ -73,8 +77,11 @@ export default function CustomerDashboardPage() {
                 setShaktiCard(JSON.parse(cardDataJSON));
             }
 
+            let allSnazzPayOrders: EditableOrder[] = [];
             const manualOrdersJSON = localStorage.getItem('manualOrders');
-            let allSnazzPayOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
+            if (manualOrdersJSON) {
+                allSnazzPayOrders = [...allSnazzPayOrders, ...JSON.parse(manualOrdersJSON)];
+            }
             
             const sellerOrdersJSON = localStorage.getItem('seller_orders');
             if (sellerOrdersJSON) {
@@ -107,19 +114,17 @@ export default function CustomerDashboardPage() {
             orderGroups.forEach((group) => {
                 let representativeOrder = group.reduce((acc, curr) => ({ ...acc, ...curr }), group[0]);
                 
-                const isPaid = group.some(o => o.paymentStatus === 'Paid');
-                const isFeeCharged = group.some(o => o.paymentStatus === 'Fee Charged');
-                const isRefunded = group.some(o => o.paymentStatus === 'Refunded' || o.refundStatus === 'Processed');
-                const isVoided = group.some(o => o.paymentStatus === 'Voided' || o.cancellationStatus === 'Processed');
-
-                if (isPaid) {
-                    representativeOrder.paymentStatus = 'Paid';
-                } else if (isFeeCharged) {
-                    representativeOrder.paymentStatus = 'Fee Charged';
-                } else if (isRefunded) {
-                    representativeOrder.paymentStatus = 'Refunded';
-                } else if (isVoided) {
-                     representativeOrder.paymentStatus = 'Voided';
+                const definitiveStatus = group.find(o => o.paymentStatus === 'Paid' || o.paymentStatus === 'Fee Charged' || o.paymentStatus === 'Authorized');
+                if (definitiveStatus) {
+                    representativeOrder.paymentStatus = definitiveStatus.paymentStatus;
+                } else {
+                    const isRefunded = group.some(o => o.paymentStatus === 'Refunded' || o.refundStatus === 'Processed');
+                    const isVoided = group.some(o => o.paymentStatus === 'Voided' || o.cancellationStatus === 'Processed');
+                    if (isRefunded) {
+                        representativeOrder.paymentStatus = 'Refunded';
+                    } else if (isVoided) {
+                         representativeOrder.paymentStatus = 'Voided';
+                    }
                 }
                 
                 const sharedCancellationId = group.find(o => o.cancellationId)?.cancellationId;

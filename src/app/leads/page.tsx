@@ -96,18 +96,22 @@ export default function LeadsPage() {
     try {
         const newOrder = {
             ...lead,
-            id: uuidv4(),
+            id: uuidv4(), // Assign a unique ID for React keys and local storage
             paymentStatus: 'Pending', // Set as a pending manual order
             source: 'Manual' as const,
         };
-
-        await saveOrder(newOrder, newOrder.id);
+        
+        // Save to localStorage as a manual order
+        const manualOrdersJSON = localStorage.getItem('manualOrders');
+        let manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
+        manualOrders.push(newOrder);
+        localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
         
         handleRemoveLead(lead.id); // Remove from leads after converting
 
         toast({
             title: "Converted to Order",
-            description: `Lead for ${lead.customerName} has been converted to an order and saved to the database.`,
+            description: `Lead for ${lead.customerName} has been converted to an order. It will now appear in the main orders list.`,
         });
     } catch (error: any) {
         toast({

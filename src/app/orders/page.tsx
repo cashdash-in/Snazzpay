@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { getAllOrders, deleteOrder, updateOrder, getPaymentInfo } from "@/services/firestore";
+import { deleteOrder, updateOrder, getPaymentInfo } from "@/services/firestore";
 import { getOrders as getShopifyOrders } from "@/services/shopify";
 import { format } from "date-fns";
 import { useState, useEffect, useCallback } from "react";
@@ -82,20 +82,47 @@ export default function OrdersPage() {
 
   const fetchAndSetOrders = useCallback(async () => {
     setLoading(true);
-    let allOrders: EditableOrder[] = [];
     try {
-        const firestoreOrders = await getAllOrders();
-        allOrders.push(...firestoreOrders);
-
-        const shopifyOrders = await getShopifyOrders();
-        allOrders.push(...shopifyOrders.map(mapShopifyOrderToEditableOrder));
+        let allOrders: EditableOrder[] = [];
         
+        const shopifyPromise = getShopifyOrders().catch(e => {
+            console.error("Shopify fetch failed:", e.message);
+            toast({ variant: "destructive", title: "Could not load Shopify orders."});
+            return [];
+        });
+
         const manualOrdersJSON = localStorage.getItem('manualOrders');
-        if (manualOrdersJSON) {
-            allOrders.push(...JSON.parse(manualOrdersJSON));
+        const manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
+        allOrders.push(...manualOrders.map(o => ({ ...o, source: 'Manual' })));
+
+        const sellerOrdersJSON = localStorage.getItem('seller_orders');
+        if (sellerOrdersJSON) {
+            allOrders.push(...JSON.parse(sellerOrdersJSON).map((o: EditableOrder) => ({...o, source: 'Seller'})));
         }
 
-        const testOrderExists = allOrders.some(order => order.orderId === TEST_ORDER_ID);
+        const shopifyOrders = await shopifyPromise;
+        allOrders.push(...shopifyOrders.map(mapShopifyOrderToEditableOrder));
+        
+        // This is a complex unification logic to ensure we show the most relevant record for an orderId
+        const orderMap = new Map<string, EditableOrder>();
+
+        allOrders.forEach(order => {
+             const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
+             const finalOrder = { ...order, ...storedOverrides };
+
+             const existing = orderMap.get(finalOrder.orderId);
+             
+             // Prioritize records that have a definitive final state or are actively being processed.
+             const isDefinitive = (status: string) => ['Paid', 'Authorized', 'Fee Charged', 'Refunded', 'Voided'].includes(status);
+             
+             if (!existing || isDefinitive(finalOrder.paymentStatus) || (!isDefinitive(existing.paymentStatus) && finalOrder.source !== 'Shopify')) {
+                  orderMap.set(finalOrder.orderId, finalOrder);
+             }
+        });
+        
+        let unifiedOrders = Array.from(orderMap.values());
+
+        const testOrderExists = unifiedOrders.some(order => order.orderId === TEST_ORDER_ID);
         if (!testOrderExists) {
              const testOrder: EditableOrder = {
                 id: uuidv4(),
@@ -112,22 +139,18 @@ export default function OrdersPage() {
                 date: format(new Date(), 'yyyy-MM-dd'),
                 source: 'Manual',
             };
-            await updateOrder(testOrder.id, testOrder);
-            allOrders.unshift(testOrder);
+            unifiedOrders.unshift(testOrder);
         }
         
-        const finalOrders = allOrders.filter(o => o.paymentStatus !== 'Intent Verified');
-        
-        const uniqueOrders = Array.from(new Map(finalOrders.map(order => [order.orderId, order])).values());
+        const finalOrders = unifiedOrders.filter(o => o.paymentStatus !== 'Intent Verified');
+        setOrders(finalOrders);
 
-        setOrders(uniqueOrders);
-
-    } catch (error) {
+    } catch (error: any) {
         console.error("Failed to load orders:", error);
         toast({
             variant: 'destructive',
             title: "Failed to load orders",
-            description: "Could not retrieve order data.",
+            description: error.message || "Could not retrieve order data.",
         });
     }
     setLoading(false);
@@ -161,14 +184,27 @@ export default function OrdersPage() {
     }
   };
 
-  const handleRemoveOrder = async (orderId: string) => {
+  const handleRemoveOrder = async (orderId: string, sourceId: string) => {
     try {
-        await deleteOrder(orderId);
-        setOrders(prev => prev.filter(order => order.id !== orderId));
+        if(sourceId.startsWith('shopify-')){
+             // This is a Shopify order, we only remove our local override data
+             localStorage.removeItem(`order-override-${sourceId}`);
+        } else {
+             // This is a manual/seller order, remove from local storage list
+            let manualOrders: EditableOrder[] = JSON.parse(localStorage.getItem('manualOrders') || '[]');
+            manualOrders = manualOrders.filter(o => o.id !== sourceId);
+            localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
+            
+            let sellerOrders: EditableOrder[] = JSON.parse(localStorage.getItem('seller_orders') || '[]');
+            sellerOrders = sellerOrders.filter(o => o.id !== sourceId);
+            localStorage.setItem('seller_orders', JSON.stringify(sellerOrders));
+        }
+
+        setOrders(prev => prev.filter(order => order.id !== sourceId));
         toast({
             variant: 'destructive',
             title: "Order Removed",
-            description: "The order has been removed.",
+            description: "The order has been removed from local lists.",
         });
     } catch (error: any) {
         toast({
@@ -344,7 +380,7 @@ export default function OrdersPage() {
                                 <Button variant="outline" size="icon" onClick={() => handleSaveOrder(order.id)}>
                                     <Save className="h-4 w-4" />
                                 </Button>
-                                <Button variant="destructive" size="icon" onClick={() => handleRemoveOrder(order.id)}>
+                                <Button variant="destructive" size="icon" onClick={() => handleRemoveOrder(order.orderId, order.id)}>
                                     <Trash2 className="h-4 w-4" />
                                 </Button>
                             </TableCell>

@@ -41,13 +41,13 @@ type PaymentStep = 'intent' | 'authorization';
 
 
 function getNextOrderId(): string {
-    const counter = parseInt(localStorage.getItem('secureCodOrderCounter') || '1', 10);
-    const orderId = `SecureCOD${counter.toString().padStart(3, '0')}`;
+    const counter = parseInt(localStorage.getItem('secureCodOrderCounter') || '101', 10);
+    const orderId = `SCOD-${counter.toString()}`;
     return orderId;
 }
 
 function incrementOrderIdCounter() {
-    const counter = parseInt(localStorage.getItem('secureCodOrderCounter') || '1', 10);
+    const counter = parseInt(localStorage.getItem('secureCodOrderCounter') || '101', 10);
     localStorage.setItem('secureCodOrderCounter', (counter + 1).toString());
 }
 
