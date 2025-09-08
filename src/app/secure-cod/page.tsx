@@ -37,7 +37,7 @@ interface SecureCodFormProps {
 }
 
 type Step = 'details' | 'otp' | 'scratch' | 'complete';
-type PaymentStep = 'intent' | 'authorization';
+type PaymentStep = 'intent' | 'authorization' | 'idle';
 
 
 function getNextOrderId(): string {
@@ -57,7 +57,7 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
     const { toast } = useToast();
 
     const [step, setStep] = useState<Step>('details');
-    const [paymentStep, setPaymentStep] = useState<PaymentStep>('intent');
+    const [paymentStep, setPaymentStep] = useState<PaymentStep>('idle');
     const [orderDetails, setOrderDetails] = useState({
         productName: '',
         baseAmount: 0,
@@ -133,6 +133,15 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         setLoading(false);
         
     }, [searchParams, razorpayKeyId, action]);
+    
+    // This effect handles the multi-step payment process to avoid race conditions.
+    useEffect(() => {
+        if (paymentStep !== 'idle') {
+            handlePayment();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [paymentStep]);
+
 
     const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const quantity = parseInt(e.target.value, 10);
@@ -204,6 +213,7 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
             modal: {
                 ondismiss: function() {
                     setIsProcessing(false);
+                    setPaymentStep('idle'); // Reset on dismiss
                     toast({
                         variant: 'destructive',
                         title: 'Payment Cancelled',
@@ -216,7 +226,7 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         rzp.open();
     };
     
-    const handlePayment = async () => {
+     const startPaymentProcess = () => {
         if (!agreed) {
             toast({ variant: 'destructive', title: 'Agreement Required', description: 'You must agree to the Terms and Conditions.' });
             return;
@@ -225,6 +235,10 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
             toast({ variant: 'destructive', title: 'Details Required', description: 'Please fill in all customer details before proceeding.' });
             return;
         }
+        setPaymentStep('intent');
+    }
+
+    const handlePayment = async () => {
         setIsProcessing(true);
         setError('');
         
@@ -259,6 +273,7 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                 toast({ title: 'Verification Successful!', description: 'Please proceed to secure your order.' });
                 setStep('otp'); // Move to OTP step
                 setIsProcessing(false);
+                setPaymentStep('idle'); // Reset after success
             };
 
             const authorizationHandler = (response: any) => {
@@ -350,6 +365,7 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                 localStorage.setItem('loggedInUserMobile', customerDetails.contact);
                 setStep('complete');
                 setIsProcessing(false);
+                setPaymentStep('idle');
             };
 
             const handler = paymentStep === 'intent' ? intentHandler : authorizationHandler;
@@ -359,6 +375,7 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
             setError(e.message);
             toast({ variant: 'destructive', title: 'Error', description: e.message });
             setIsProcessing(false);
+            setPaymentStep('idle');
         }
     };
     
@@ -374,7 +391,6 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
 
     const proceedToAuthorization = () => {
         setPaymentStep('authorization');
-        handlePayment();
     }
 
     const renderOtpState = () => (
@@ -514,7 +530,7 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                     </div>
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4">
-                    <Button className="w-full" onClick={handlePayment} disabled={!agreed || isProcessing}>
+                    <Button className="w-full" onClick={startPaymentProcess} disabled={!agreed || isProcessing}>
                         {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CreditCard className="mr-2 h-4 w-4" />}
                         {paymentStep === 'intent' ? 'Verify with ₹1.00' : `Pay ₹${totalAmount.toFixed(2)} Now`}
                     </Button>
