@@ -97,13 +97,16 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         const amountStr = searchParams.get('amount');
         const name = searchParams.get('name');
         const orderId = searchParams.get('order_id');
-        const sellerId = searchParams.get('seller_id') || 'default_seller'; // Default seller if not provided
-        const sellerName = searchParams.get('seller_name') || 'Snazzify';
+        const sellerId = searchParams.get('seller_id') || 'default_seller';
+        
+        let sellerName = searchParams.get('seller_name');
+        if (!sellerName || sellerName === 'YOUR_SELLER_NAME') {
+            sellerName = 'Snazzify';
+        }
         
         let initialAmount = 1;
         let initialName = 'Sample Product';
         
-        // Use the passed order ID if it exists, otherwise generate a new sequential one.
         let initialOrderId = orderId || getNextOrderId();
 
         if (amountStr && name) {
