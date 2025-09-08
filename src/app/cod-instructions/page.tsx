@@ -38,7 +38,7 @@ export default function CodInstructionsPage() {
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const secureCodLink = document.getElementById('secure-cod-link');
+    var secureCodLink = document.getElementById('secure-cod-link');
     
     if (!secureCodLink) {
         console.error('Secure COD: Could not find link element.');
@@ -47,17 +47,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
     try {
       // Sellers: Replace these with your platform's actual liquid/template variables.
-      const productName = \`{{ product.title | url_encode }}\`;
-      const productPrice = {{ product.price | money_without_currency | replace: ',', '' }};
-      const orderId = \`{{ order.name | default: product.id | url_encode }}\`;
+      var productName = '{{ product.title | url_encode }}';
+      var productPrice = {{ product.price | money_without_currency | replace: ',', '' }};
+      var orderId = '{{ order.name | default: product.id | url_encode }}';
       
       // Your unique Seller ID and Name provided by SnazzPay
-      const sellerId = 'YOUR_UNIQUE_SELLER_ID'; // <-- REPLACE THIS
-      const sellerName = 'YOUR_SELLER_NAME'; // <-- REPLACE THIS
+      var sellerId = 'YOUR_UNIQUE_SELLER_ID'; // <-- REPLACE THIS
+      var sellerName = 'YOUR_SELLER_NAME'; // <-- REPLACE THIS
       
-      const baseUrl = '${url}';
+      var baseUrl = '${url}';
 
-      const finalUrl = baseUrl + '?amount=' + encodeURIComponent(productPrice) + '&name=' + productName + '&order_id=' + orderId + '&seller_id=' + encodeURIComponent(sellerId) + '&seller_name=' + encodeURIComponent(sellerName);
+      var finalUrl = baseUrl + '?amount=' + encodeURIComponent(productPrice) + '&name=' + productName + '&order_id=' + orderId + '&seller_id=' + encodeURIComponent(sellerId) + '&seller_name=' + encodeURIComponent(sellerName);
       secureCodLink.href = finalUrl;
     } catch (e) {
         console.error("Secure COD Liquid Error: ", e);
