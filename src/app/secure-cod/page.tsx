@@ -38,6 +38,13 @@ interface SecureCodFormProps {
 
 type Step = 'details' | 'otp' | 'scratch' | 'complete';
 
+// This function now lives outside the component to ensure it's stable
+const getNextOrderId = () => {
+    // We use a simple, robust UUID to guarantee uniqueness for every new order.
+    return `SNZFY-${uuidv4().substring(0, 4).toUpperCase()}-${uuidv4().substring(0, 4).toUpperCase()}`;
+};
+
+
 function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
     const searchParams = useSearchParams();
     const { toast } = useToast();
@@ -65,7 +72,6 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
     const [activeLead, setActiveLead] = useState<EditableOrder | null>(null);
     const [shaktiCard, setShaktiCard] = useState<ShaktiCardData | null>(null);
     const [otp, setOtp] = useState('');
-    const [paymentStep, setPaymentStep] = useState<'intent' | 'authorization'>('intent');
 
 
     const action = searchParams.get('action');
@@ -83,12 +89,9 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         const amountStr = searchParams.get('amount');
         const name = searchParams.get('name');
         
-        const orderIdFromUrl = searchParams.get('order_id');
-        let initialOrderId = `SCOD-${uuidv4().substring(0, 8).toUpperCase()}`;
-        if(orderIdFromUrl && !orderIdFromUrl.includes('{{') && orderIdFromUrl.length > 5) {
-            initialOrderId = orderIdFromUrl;
-        }
-
+        // This is the critical fix: We ALWAYS generate a new, unique order ID.
+        // We no longer trust any `order_id` from the URL for new checkouts.
+        const initialOrderId = getNextOrderId();
 
         const sellerId = searchParams.get('seller_id') || 'default_seller';
         
@@ -211,7 +214,7 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
 
     const intentHandler = (response: any) => {
         const leadData: EditableOrder = {
-            id: uuidv4(),
+            id: orderDetails.orderId, // Use the unique order ID as the lead ID
             orderId: orderDetails.orderId,
             customerName: customerDetails.name,
             customerEmail: customerDetails.email,
@@ -281,7 +284,7 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
 
         try {
             const newOrder: EditableOrder = {
-                id: orderDetails.orderId, // Use the order ID as the primary ID
+                id: orderDetails.orderId, // Use the unique order ID as the primary ID
                 orderId: orderDetails.orderId,
                 customerName: customerDetails.name,
                 customerEmail: customerDetails.email,
@@ -296,18 +299,14 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
                 source: orderDetails.sellerId === 'default_seller' ? 'Manual' : 'Seller'
             };
 
+            // Save the new order directly into the manual orders list
             const manualOrdersJSON = localStorage.getItem('manualOrders');
             let manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
-            
-            const existingOrderIndex = manualOrders.findIndex(o => o.orderId === newOrder.orderId);
-            
-            if (existingOrderIndex > -1) {
-                manualOrders[existingOrderIndex] = { ...manualOrders[existingOrderIndex], ...newOrder, id: manualOrders[existingOrderIndex].id };
-            } else {
-               manualOrders.push(newOrder);
-            }
+            manualOrders.push(newOrder); // Add the new, unique order
             localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
+            
 
+            // If this was a lead, remove it from the leads list
             if (activeLead) {
                 const existingLeadsJSON = localStorage.getItem('leads');
                 if (existingLeadsJSON) {
@@ -325,8 +324,11 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         setStep('complete');
         setIsProcessing(false);
     };
-
+    
     const handlePayment = async (isIntent: boolean) => {
+        // Prevent accidental double-clicks
+        if (isProcessing) return;
+
         setIsProcessing(true);
         setError('');
         
@@ -350,7 +352,7 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
             setIsProcessing(false);
         }
     };
-    
+
     const handleOtpConfirmation = () => {
         // In a real app, you'd verify the OTP. Here we just simulate success.
         if (otp === '123456') { // Mock OTP
@@ -362,6 +364,7 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
     };
 
     const proceedToAuthorization = () => {
+        // This function now *only* calls the final payment. The intent payment is done.
         handlePayment(false); 
     }
 
@@ -560,5 +563,3 @@ export default function SuspendedPage() {
     </Suspense>
   );
 }
-
-    

@@ -56,11 +56,7 @@ export function MainDashboard() {
                     combinedOrders.push(...shopifyOrders.map(mapShopifyOrderToEditableOrder));
                 } catch (error) {
                     console.error("Failed to fetch Shopify orders:", error);
-                    toast({
-                        variant: 'destructive',
-                        title: "Shopify Orders Failed to Load",
-                        description: "Displaying stats for manual orders only.",
-                    });
+                    // Do not show a toast here to avoid cluttering the UI on the main page
                 }
 
                 const manualOrdersJSON = localStorage.getItem('manualOrders');
@@ -86,7 +82,7 @@ export function MainDashboard() {
                      
                      const isDefinitive = (status: string) => ['Paid', 'Authorized', 'Fee Charged'].includes(status);
                      
-                     if (!existing || isDefinitive(finalOrder.paymentStatus) || (!isDefinitive(existing?.paymentStatus || '') && finalOrder.source !== 'Shopify')) {
+                     if (!existing || isDefinitive(finalOrder.paymentStatus) || (!isDefinitive(existing?.paymentStatus || '') && finalOrder.paymentStatus !== 'Voided')) {
                           orderMap.set(finalOrder.orderId, finalOrder);
                      }
                 });
@@ -140,7 +136,7 @@ export function MainDashboard() {
 
 
             } catch (error: any) {
-                toast({ variant: 'destructive', title: "Dashboard Error", description: error.message });
+                toast({ variant: 'destructive', title: "Dashboard Error", description: "Could not retrieve order data from the database." });
             } finally {
                 setLoading(false);
             }
@@ -262,5 +258,3 @@ export function MainDashboard() {
         </div>
     );
 }
-
-    

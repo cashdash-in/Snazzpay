@@ -25,23 +25,34 @@ export default function SellerOrdersPage() {
     if (!user) return;
     setLoading(true);
     try {
+      // In a real multi-tenant app, you'd filter by a sellerId.
+      // For this prototype, we combine orders from the seller's own submissions
+      // and any manual orders from the main pool, then apply overrides.
       const allSellerOrdersJSON = localStorage.getItem('seller_orders');
       const allSellerOrders: EditableOrder[] = allSellerOrdersJSON ? JSON.parse(allSellerOrdersJSON) : [];
       
       const allAdminOrdersJSON = localStorage.getItem('manualOrders');
       const allAdminOrders: EditableOrder[] = allAdminOrdersJSON ? JSON.parse(allAdminOrdersJSON) : [];
 
-      const combinedOrders = [...allSellerOrders, ...allAdminOrders];
+      // Combine and create a map to handle potential duplicates and apply overrides
+      const orderMap = new Map<string, EditableOrder>();
       
-      const ordersWithOverrides = combinedOrders.map(order => {
+      [...allSellerOrders, ...allAdminOrders].forEach(order => {
         const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
-        return { ...order, ...storedOverrides };
+        const finalOrder = { ...order, ...storedOverrides };
+
+        const existing = orderMap.get(finalOrder.orderId);
+             
+        const isDefinitive = (status: string) => ['Paid', 'Authorized', 'Fee Charged'].includes(status);
+        
+        // Prioritize definitive statuses to prevent them from being overwritten by stale data
+        if (!existing || isDefinitive(finalOrder.paymentStatus) || !isDefinitive(existing.paymentStatus)) {
+             orderMap.set(finalOrder.orderId, finalOrder);
+        }
       });
       
-      // In a real multi-tenant app, you'd filter by a sellerId stored on the order.
-      // For this prototype, we'll assume all orders in 'seller_orders' belong to the logged-in seller,
-      // and we will also show them orders from the main pool for demonstration.
-      setOrders(ordersWithOverrides);
+      const unifiedOrders = Array.from(orderMap.values());
+      setOrders(unifiedOrders);
 
     } catch (error) {
       console.error("Failed to load seller orders:", error);

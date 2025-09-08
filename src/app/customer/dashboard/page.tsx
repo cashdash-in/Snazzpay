@@ -54,9 +54,8 @@ const TimelineEvent = ({ icon, title, date, children, isLast = false }: { icon: 
 export default function CustomerDashboardPage() {
     const { toast } = useToast();
     const router = useRouter();
-    const [user, setUser] = useState({ name: '', mobile: '' });
+    const [user, setUser] = useState<{ name: string; mobile: string }>({ name: '', mobile: '' });
     const [trustWalletValue, setTrustWalletValue] = useState(0);
-    const [confirmedOrderValue, setConfirmedOrderValue] = useState(0);
     const [orders, setOrders] = useState<EditableOrder[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [cancellationInput, setCancellationInput] = useState('');
@@ -72,7 +71,8 @@ export default function CustomerDashboardPage() {
         setIsLoading(true);
         try {
             // Load Shakti Card
-            const cardDataJSON = localStorage.getItem(`shakti_card_${sanitizePhoneNumber(mobileNumber)}`);
+            const sanitizedMobile = sanitizePhoneNumber(mobileNumber);
+            const cardDataJSON = localStorage.getItem(`shakti_card_${sanitizedMobile}`);
             if (cardDataJSON) {
                 setShaktiCard(JSON.parse(cardDataJSON));
             }
@@ -106,7 +106,8 @@ export default function CustomerDashboardPage() {
                 
                 const isDefinitive = (status: string) => ['Paid', 'Authorized', 'Fee Charged'].includes(status);
                 
-                if (!existing || isDefinitive(finalOrder.paymentStatus) || (!isDefinitive(existing?.paymentStatus || '') && finalOrder.source !== 'Shopify')) {
+                // Prioritize definitive statuses to prevent them from being overwritten by stale data
+                if (!existing || isDefinitive(finalOrder.paymentStatus) || (!isDefinitive(existing.paymentStatus) && finalOrder.paymentStatus !== 'Voided')) {
                      orderMap.set(finalOrder.orderId, finalOrder);
                 }
             });
@@ -132,15 +133,7 @@ export default function CustomerDashboardPage() {
                     return isNaN(price) ? sum : sum + price;
                 }, 0);
             
-            const confirmedValue = finalOrders
-                .filter(o => o.paymentStatus === 'Paid')
-                .reduce((sum, o) => {
-                    const price = parseFloat(o.price);
-                    return isNaN(price) ? sum : sum + price;
-                }, 0);
-            
             setTrustWalletValue(activeTrustValue);
-            setConfirmedOrderValue(confirmedValue);
             setOrders(finalOrders);
             setPaymentInfos(loadedPaymentInfos);
 
@@ -157,10 +150,14 @@ export default function CustomerDashboardPage() {
         if (!loggedInMobile) {
             router.push('/customer/login');
         } else {
-            setUser(prev => ({...prev, mobile: loggedInMobile}));
+            // Set user mobile immediately, then load data.
+            // The dependency on user.mobile in loadCustomerData is now key.
+             if (user.mobile !== loggedInMobile) {
+                setUser({ name: 'Valued Customer', mobile: loggedInMobile });
+            }
             loadCustomerData(loggedInMobile);
         }
-    }, [router, loadCustomerData]);
+    }, [router, loadCustomerData, user.mobile]);
     
     const handleLogout = () => {
         localStorage.removeItem('loggedInUserMobile');
@@ -489,5 +486,3 @@ export default function CustomerDashboardPage() {
         </div>
     );
 }
-
-    

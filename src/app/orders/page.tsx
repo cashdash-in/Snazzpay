@@ -70,7 +70,6 @@ function mapShopifyOrderToEditableOrder(shopifyOrder: any): EditableOrder {
     };
 }
 
-
 const TEST_ORDER_ID = '#TEST-1001';
 
 export default function OrdersPage() {
@@ -93,7 +92,7 @@ export default function OrdersPage() {
 
         const manualOrdersJSON = localStorage.getItem('manualOrders');
         const manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
-        allOrders.push(...manualOrders.map(o => ({ ...o, source: 'Manual' })));
+        allOrders.push(...manualOrders.map(o => ({ ...o, source: o.source || 'Manual' })));
 
         const sellerOrdersJSON = localStorage.getItem('seller_orders');
         if (sellerOrdersJSON) {
@@ -396,5 +395,3 @@ export default function OrdersPage() {
     </AppShell>
   );
 }
-
-    
