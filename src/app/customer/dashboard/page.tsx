@@ -70,7 +70,6 @@ export default function CustomerDashboardPage() {
         }
         setIsLoading(true);
         try {
-            // Load Shakti Card
             const sanitizedMobile = sanitizePhoneNumber(mobileNumber);
             const cardDataJSON = localStorage.getItem(`shakti_card_${sanitizedMobile}`);
             if (cardDataJSON) {
@@ -106,7 +105,6 @@ export default function CustomerDashboardPage() {
                 
                 const isDefinitive = (status: string) => ['Paid', 'Authorized', 'Fee Charged'].includes(status);
                 
-                // Prioritize definitive statuses to prevent them from being overwritten by stale data
                 if (!existing || isDefinitive(finalOrder.paymentStatus) || (!isDefinitive(existing.paymentStatus) && finalOrder.paymentStatus !== 'Voided')) {
                      orderMap.set(finalOrder.orderId, finalOrder);
                 }
@@ -150,8 +148,6 @@ export default function CustomerDashboardPage() {
         if (!loggedInMobile) {
             router.push('/customer/login');
         } else {
-            // Set user mobile immediately, then load data.
-            // The dependency on user.mobile in loadCustomerData is now key.
              if (user.mobile !== loggedInMobile) {
                 setUser({ name: 'Valued Customer', mobile: loggedInMobile });
             }

@@ -19,7 +19,7 @@ import { Loader2 } from "lucide-react";
 import { Badge } from "../ui/badge";
 
 
-function mapShopifyToEditable(order: ShopifyOrder): EditableOrder {
+function mapShopifyToEditable(order: any): EditableOrder {
     return {
         id: `shopify-${order.id.toString()}`,
         orderId: order.name,
@@ -27,8 +27,8 @@ function mapShopifyToEditable(order: ShopifyOrder): EditableOrder {
         customerAddress: 'N/A', // Not needed for this compact view
         pincode: 'N/A',
         contactNo: 'N/A',
-        productOrdered: order.line_items.map(item => item.title).join(', '),
-        quantity: order.line_items.reduce((sum, item) => sum + item.quantity, 0),
+        productOrdered: order.line_items.map((item:any) => item.title).join(', '),
+        quantity: order.line_items.reduce((sum:number, item:any) => sum + item.quantity, 0),
         price: order.total_price,
         paymentStatus: order.financial_status || 'Pending',
         date: format(new Date(order.created_at), "yyyy-MM-dd"),
