@@ -87,7 +87,7 @@ export async function POST(request: Request) {
                     <p>Dear ${customerName},</p>
                     <p>We noticed you started the confirmation process for your order but didn't complete the final payment. To finalize your Secure COD order for <strong>${productName}</strong> (Value: ₹${amount}), please complete the payment by clicking the link below.</p>
                     <a href="${secureUrl}" style="background-color: #663399; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 20px 0;">Complete Secure Payment</a>
-                    <p>Remember, with Secure COD, your funds are held safely in a Trust Wallet and only released to us after your order is dispatched.</p>
+                    <p><strong>Remember, this is not a regular online payment.</strong> With Secure COD, your funds are held safely in a Trust Wallet and only released to us after your order is dispatched. Completing this step also makes you eligible for our <strong>Shakti Card</strong> loyalty program, giving you access to future rewards and discounts.</p>
                     <p>If you have any questions, please contact our support team at <a href="mailto:customer.service@snazzify.co.in">customer.service@snazzify.co.in</a> or message us on WhatsApp at 9920320790.</p>
                     <p>Thank you,<br/>The Snazzify Team</p>
                 </div>

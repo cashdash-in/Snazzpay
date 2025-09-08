@@ -54,6 +54,7 @@ export async function POST(request: Request) {
                     <p>Dear ${order.customerName},</p>
                     <p>Thank you for your order! To confirm your purchase of <strong>${order.productOrdered}</strong> and ensure faster processing, please complete your payment using our modern Secure COD link below.</p>
                     <p><strong>What is this?</strong> Instead of handling cash, you pay now and we hold your funds securely in your personal Snazzify Trust Wallet. The money is only transferred to us after your order is dispatched. It's safer for you and gets your order on its way faster.</p>
+                    <p><strong>Bonus:</strong> Completing this secure payment also enrolls you in our <strong>Shakti Card</strong> loyalty program, giving you exclusive rewards and discounts on future purchases!</p>
                     <p><strong>Order Details:</strong></p>
                     <ul>
                         <li><strong>Order No:</strong> ${order.orderId}</li>
