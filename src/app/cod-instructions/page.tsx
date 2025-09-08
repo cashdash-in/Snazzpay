@@ -1,4 +1,3 @@
-
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -13,9 +12,9 @@ export default function CodInstructionsPage() {
     const [appUrl, setAppUrl] = useState('');
 
     useEffect(() => {
-        // Use the application's current origin dynamically on the client.
-        const origin = typeof window !== 'undefined' ? window.location.origin : '';
-        const url = `${origin}/secure-cod`;
+        // This runs on the client, so window.location.origin will be the app's current URL
+        const origin = typeof window !== 'undefined' ? window.location.origin : 'https://<your-app-url>';
+        const secureCodUrl = `${origin}/secure-cod`;
         const secureCodInfoUrl = `${origin}/secure-cod-info`;
 
         setAppUrl(origin);
@@ -46,7 +45,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     try {
-      // Sellers: Replace these with your platform's actual liquid/template variables.
+      // Sellers: These are standard Shopify liquid variables. 
+      // They should work on most Shopify themes out-of-the-box.
       var productName = '{{ product.title | url_encode }}';
       var productPrice = {{ product.price | money_without_currency | replace: ',', '' }};
       var orderId = '{{ order.name | default: product.id | url_encode }}';
@@ -55,18 +55,17 @@ document.addEventListener('DOMContentLoaded', function() {
       var sellerId = 'YOUR_UNIQUE_SELLER_ID'; // <-- REPLACE THIS
       var sellerName = 'YOUR_SELLER_NAME'; // <-- REPLACE THIS
       
-      var baseUrl = '${url}';
+      var baseUrl = '${secureCodUrl}';
 
       var finalUrl = baseUrl + '?amount=' + encodeURIComponent(productPrice) + '&name=' + productName + '&order_id=' + orderId + '&seller_id=' + encodeURIComponent(sellerId) + '&seller_name=' + encodeURIComponent(sellerName);
       secureCodLink.href = finalUrl;
     } catch (e) {
         console.error("Secure COD Liquid Error: ", e);
         // Fallback URL if liquid variables are not available
-        secureCodLink.href = '${url}';
+        secureCodLink.href = '${secureCodUrl}';
     }
 });
-</script>
-`;
+</script>`;
         setEmbedCode(code);
     }, []);
     
@@ -83,10 +82,10 @@ document.addEventListener('DOMContentLoaded', function() {
         <CardContent className="space-y-6">
           <Alert>
             <Terminal className="h-4 w-4" />
-            <AlertTitle>Important: Set Your App URL</AlertTitle>
+            <AlertTitle>Important: Server Environment Variable</AlertTitle>
             <AlertDescription>
                 <p>For server-side features like sending email links to work correctly, you must set your live application URL as an environment variable.</p>
-                <p className="mt-2">In your hosting provider's settings (e.g., Netlify, Vercel), add a variable named <span className="font-mono bg-muted p-1 rounded-md">NEXT_PUBLIC_APP_URL</span> and set its value to <strong className="font-mono">{appUrl || 'your-live-app-url.com'}</strong>.</p>
+                <p className="mt-2">In your hosting provider's settings (e.g., Vercel), add a variable named <span className="font-mono bg-muted p-1 rounded-md">NEXT_PUBLIC_APP_URL</span> and set its value to <strong className="font-mono">{appUrl || 'your-live-app-url.com'}</strong>.</p>
             </AlertDescription>
           </Alert>
           <div className="space-y-2">
@@ -99,7 +98,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <div className="space-y-2">
             <h3 className="text-lg font-semibold">Step 2: Copy and Paste the Code</h3>
             <p className="text-muted-foreground">
-              Paste the code below where you want the button to appear (e.g., near your 'Add to Cart' button).
+              Paste the code below where you want the button to appear (e.g., near your 'Add to Cart' button). The URLs will be automatically configured to your app's domain.
             </p>
             <CodeBlock code={embedCode} />
           </div>
