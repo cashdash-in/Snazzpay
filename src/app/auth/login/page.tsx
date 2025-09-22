@@ -103,6 +103,11 @@ export default function AdminLoginPage() {
                         <Link href="/seller/login" className="text-primary hover:underline">
                             Login Here
                         </Link>
+                         <span className="mx-1">|</span>
+                         New here?{" "}
+                         <Link href="/auth/signup" className="text-primary hover:underline">
+                            Sign Up
+                        </Link>
                     </p>
                 </CardFooter>
             </Card>

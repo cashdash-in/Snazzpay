@@ -11,7 +11,10 @@ import Link from "next/link";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { FirebaseError } from 'firebase/app';
+
 
 export default function SellerLoginPage() {
     const { toast } = useToast();
@@ -22,6 +25,12 @@ export default function SellerLoginPage() {
 
     const handleLogin = async () => {
         setIsLoading(true);
+        if (!auth || !db) {
+            toast({ variant: 'destructive', title: "Firebase Not Configured", description: "The application is not connected to Firebase. Please configure it in the settings." });
+            setIsLoading(false);
+            return;
+        }
+
         if (!email || !password) {
             toast({ variant: 'destructive', title: "Invalid Input", description: "Please enter a valid email and password." });
             setIsLoading(false);
@@ -32,11 +41,11 @@ export default function SellerLoginPage() {
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const loggedInUser = userCredential.user;
             
-            const approvedSellersJSON = localStorage.getItem('approved_sellers');
-            const approvedSellers: any[] = approvedSellersJSON ? JSON.parse(approvedSellersJSON) : [];
-            const isApproved = approvedSellers.some(seller => seller.id === loggedInUser.uid);
+            // Check approval status from Firestore
+            const sellerDocRef = doc(db, 'seller_users', loggedInUser.uid);
+            const sellerDoc = await getDoc(sellerDocRef);
 
-            if (!isApproved) {
+            if (!sellerDoc.exists() || sellerDoc.data().status !== 'approved') {
                  await auth.signOut();
                  toast({ variant: 'destructive', title: "Account Not Approved", description: `Your seller account is pending approval or has been rejected. Please contact support.` });
                  setIsLoading(false);
@@ -58,11 +67,18 @@ export default function SellerLoginPage() {
 
         } catch (error: any) {
             console.error("Seller Login failed:", error);
-            const errorMessage = error.code === 'auth/invalid-credential' 
-                ? 'Invalid email or password.' 
-                : 'An unexpected error occurred during login.';
-            toast({ variant: 'destructive', title: "Login Error", description: errorMessage });
-             setIsLoading(false);
+             let description = 'An unexpected error occurred during login.';
+             if (error instanceof FirebaseError) {
+                if (error.code === 'auth/invalid-credential') {
+                    description = 'Invalid email or password. Please check your credentials and try again.';
+                } else if (error.code === 'auth/user-not-found') {
+                     description = 'No account found with this email. Please sign up first.';
+                } else if (error.code === 'permission-denied') {
+                    description = 'Permission Denied. Could not verify your account status.';
+                }
+             }
+            toast({ variant: 'destructive', title: "Login Error", description: description });
+            setIsLoading(false);
         }
     };
 

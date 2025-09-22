@@ -11,19 +11,29 @@ import Link from "next/link";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { createUserWithEmailAndPassword, updateProfile, deleteUser } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 import { FirebaseError } from 'firebase/app';
 import type { SellerUser } from '@/app/partner-pay/page';
+import { doc, setDoc } from 'firebase/firestore';
+
 
 const ADMIN_EMAIL = "admin@snazzpay.com";
 
-export default function SellerSignupPage() {
+export default function SignupPage() {
     const { toast } = useToast();
     const router = useRouter();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [companyName, setCompanyName] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    
+    const saveSellerUser = async (user: SellerUser) => {
+        if (!db) {
+            throw new Error("Firestore is not initialized. Please check your Firebase configuration.");
+        }
+        await setDoc(doc(db, "seller_users", user.id), user);
+    };
+
 
     const handleSignup = async () => {
         setIsLoading(true);
@@ -89,10 +99,9 @@ export default function SellerSignupPage() {
                 status: 'pending',
             };
 
-            // Step 3: Save the request to localStorage instead of Firestore
-            const existingRequestsJSON = localStorage.getItem('seller_requests');
-            const existingRequests: SellerUser[] = existingRequestsJSON ? JSON.parse(existingRequestsJSON) : [];
-            localStorage.setItem('seller_requests', JSON.stringify([...existingRequests, newSellerRequest]));
+            // Step 3: Save the request to Firestore
+            await saveSellerUser(newSellerRequest);
+
 
             toast({
                 title: "Registration Submitted!",
@@ -127,12 +136,12 @@ export default function SellerSignupPage() {
                     case 'auth/invalid-email':
                         description = 'The email address is not valid.';
                         break;
+                    case 'auth/permission-denied':
+                         description = 'Permission denied. The database security rules are preventing signup. Please contact the administrator.';
+                         break;
                     default:
                         description = `An error occurred: ${error.message}`;
                 }
-            } else {
-                title = "Failed to Create Seller Request";
-                description = error.message; 
             }
             
             toast({
@@ -151,7 +160,7 @@ export default function SellerSignupPage() {
                 <CardHeader className="text-center">
                     <ShieldCheck className="mx-auto h-12 w-12 text-primary" />
                     <CardTitle>Create an Account</CardTitle>
-                    <CardDescription>To create the Super Admin, enter 'admin@snazzpay.com' and a secure password. For sellers, fill out all fields.</CardDescription>
+                    <CardDescription>Register as a new Seller, or create the first Admin account.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                      <div className="space-y-2">
@@ -161,7 +170,7 @@ export default function SellerSignupPage() {
                             <Input 
                                 id="email" 
                                 type="email" 
-                                placeholder="you@example.com or admin@snazzpay.com" 
+                                placeholder="For Admin, use admin@snazzpay.com" 
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 className="pl-9" 
@@ -170,7 +179,7 @@ export default function SellerSignupPage() {
                     </div>
                     {email.toLowerCase() !== ADMIN_EMAIL && (
                     <div className="space-y-2">
-                        <Label htmlFor="companyName">Company Name</Label>
+                        <Label htmlFor="companyName">Company Name (for Sellers)</Label>
                         <div className="relative">
                             <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input 
