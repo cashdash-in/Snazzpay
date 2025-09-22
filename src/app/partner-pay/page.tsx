@@ -29,7 +29,6 @@ import { useState, useEffect, useMemo } from "react";
 import { format } from "date-fns";
 import { v4 as uuidv4 } from 'uuid';
 import type { ShaktiCardData } from "@/components/shakti-card";
-import { getPayPartners, getTopUpRequests, savePayPartner, saveSellerUser, updateTopUpRequest } from '@/services/firestore';
 
 export type PartnerData = {
     id: string; // This will be the login ID
@@ -93,7 +92,7 @@ export default function PartnerHubPage() {
 
 
      useEffect(() => {
-        async function loadData() {
+        function loadData() {
             // Pay Partners from localStorage
             const allPayPartnersJSON = localStorage.getItem('payPartners');
             const allPayPartners: PartnerData[] = allPayPartnersJSON ? JSON.parse(allPayPartnersJSON) : [];
@@ -110,8 +109,9 @@ export default function PartnerHubPage() {
             const approvedSellersList: SellerUser[] = approvedSellersJSON ? JSON.parse(approvedSellersJSON) : [];
             setApprovedSellers(approvedSellersList);
             
-            // Top-ups from Firestore
-            const allTopUps = await getTopUpRequests();
+            // Top-ups from localStorage (as Firestore is not available)
+            const allTopUpsJSON = localStorage.getItem('topUpRequests');
+            const allTopUps: TopUpRequest[] = allTopUpsJSON ? JSON.parse(allTopUpsJSON) : [];
             setTopUpRequests(allTopUps);
             
             // Shakti Cards from localStorage
@@ -224,7 +224,6 @@ export default function PartnerHubPage() {
         if(!request || request.status === 'Approved') return;
 
         const updatedRequest = { ...request, status: 'Approved' as const };
-        await updateTopUpRequest(requestId, { status: 'Approved' });
         
         let allPayPartnersJSON = localStorage.getItem('payPartners');
         let allPayPartners: PartnerData[] = allPayPartnersJSON ? JSON.parse(allPayPartnersJSON) : [];
@@ -237,7 +236,9 @@ export default function PartnerHubPage() {
             setPayPartners(allPayPartners.filter(p => p.status === 'approved'));
         }
 
-        setTopUpRequests(prev => prev.map(r => r.id === requestId ? updatedRequest : r));
+        const updatedTopUps = topUpRequests.map(r => r.id === requestId ? updatedRequest : r);
+        setTopUpRequests(updatedTopUps);
+        localStorage.setItem('topUpRequests', JSON.stringify(updatedTopUps));
 
         toast({
             title: "Top-up Approved!",

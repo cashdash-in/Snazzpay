@@ -11,7 +11,7 @@ import Link from "next/link";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { createUserWithEmailAndPassword, updateProfile, deleteUser } from 'firebase/auth';
-import { auth, db } from '@/lib/firebase';
+import { auth } from '@/lib/firebase';
 import { FirebaseError } from 'firebase/app';
 import type { SellerUser } from '@/app/partner-pay/page';
 
@@ -29,12 +29,6 @@ export default function SellerSignupPage() {
         setIsLoading(true);
         if (!email || !password) {
             toast({ variant: 'destructive', title: "Missing Fields", description: "Please fill out email and password." });
-            setIsLoading(false);
-            return;
-        }
-
-        if (!auth || !db) {
-            toast({ variant: 'destructive', title: "Firebase Not Configured", description: "Please check your Firebase configuration settings." });
             setIsLoading(false);
             return;
         }

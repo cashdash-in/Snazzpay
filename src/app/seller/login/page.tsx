@@ -22,12 +22,6 @@ export default function SellerLoginPage() {
 
     const handleLogin = async () => {
         setIsLoading(true);
-        if (!auth) {
-            toast({ variant: 'destructive', title: "Firebase Not Configured", description: "Please check your Firebase configuration settings." });
-            setIsLoading(false);
-            return;
-        }
-
         if (!email || !password) {
             toast({ variant: 'destructive', title: "Invalid Input", description: "Please enter a valid email and password." });
             setIsLoading(false);

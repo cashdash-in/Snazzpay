@@ -131,7 +131,7 @@ export default function SellerOrdersPage() {
                     orders.map((order) => (
                       <TableRow key={order.id}>
                         <TableCell>
-                          <Link href={`/invoice/${order.id}`} className="font-medium text-primary hover:underline cursor-pointer">
+                          <Link href={`/orders/${order.id}`} className="font-medium text-primary hover:underline cursor-pointer">
                             {order.orderId}
                           </Link>
                         </TableCell>

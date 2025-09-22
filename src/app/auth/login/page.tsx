@@ -24,12 +24,6 @@ export default function AdminLoginPage() {
 
     const handleLogin = async () => {
         setIsLoading(true);
-        if (!auth) {
-            toast({ variant: 'destructive', title: "Firebase Not Configured", description: "Please check your Firebase configuration settings in your environment variables." });
-            setIsLoading(false);
-            return;
-        }
-
         if (email.toLowerCase() !== ADMIN_EMAIL) {
             toast({ variant: 'destructive', title: "Access Denied", description: "This login is for administrators only. Sellers should use the Seller Login." });
             setIsLoading(false);

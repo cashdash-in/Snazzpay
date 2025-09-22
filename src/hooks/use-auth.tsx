@@ -20,7 +20,7 @@ import { useRouter } from 'next/navigation';
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  signOut: (isSeller?: boolean) => Promise<void>;
+  signOut: (isSeller?: boolean) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -31,23 +31,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
 
   useEffect(() => {
-    if (auth) {
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
-            setUser(user);
-            setLoading(false);
-        });
-        return () => unsubscribe();
-    } else {
-        setUser(null);
-        setLoading(false);
-    }
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUser(user);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const signOut = async (isSeller: boolean = false) => {
     try {
-        if(auth) {
-            await firebaseSignOut(auth);
-        }
+        await firebaseSignOut(auth);
         // Call the API route to clear the httpOnly cookie
         await fetch('/api/auth/session', { method: 'DELETE' });
     } catch (error) {
