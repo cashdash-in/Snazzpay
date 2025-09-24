@@ -128,7 +128,7 @@ export default function PartnerHubPage() {
              setCurrentSellerRules({ pointsPerRupee: 0.01, cashbackPercentage: 1, discountPercentage: 10 });
         }
     }, [selectedSellerForRules, rewardRules]);
-    
+
     const filteredShaktiCards = useMemo(() => {
         if (!searchQuery) return shaktiCards;
         return shaktiCards.filter(card =>
@@ -137,7 +137,6 @@ export default function PartnerHubPage() {
             card.cardNumber.includes(searchQuery)
         );
     }, [searchQuery, shaktiCards]);
-
 
     const handleGenerateCode = () => {
         if (!newCodeValue || !selectedPartner) {
@@ -558,3 +557,5 @@ export default function PartnerHubPage() {
         </AppShell>
     );
 }
+
+    

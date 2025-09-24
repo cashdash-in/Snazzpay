@@ -1,4 +1,3 @@
-
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -146,25 +145,6 @@ export default function SellerAccountsPage() {
                     </Card>
                 </TabsContent>
             </Tabs>
-             <Dialog open={!!selectedSeller} onOpenChange={(isOpen) => !isOpen && setSelectedSeller(null)}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>{selectedSeller?.companyName} - Details</DialogTitle>
-                        <DialogDescription>Full details for this seller signup request.</DialogDescription>
-                    </DialogHeader>
-                    {selectedSeller && (
-                        <div className="space-y-2 text-sm">
-                            <p><strong>Company:</strong> {selectedSeller.companyName}</p>
-                            <p><strong>Email:</strong> {selectedSeller.email}</p>
-                            <p><strong>Firebase UID:</strong> <span className="font-mono">{selectedSeller.id}</span></p>
-                            <p><strong>Status:</strong> <span className="capitalize">{selectedSeller.status}</span></p>
-                        </div>
-                    )}
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setSelectedSeller(null)}>Close</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
         </AppShell>
     );
 }
