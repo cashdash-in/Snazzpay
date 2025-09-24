@@ -1,3 +1,4 @@
+
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -30,7 +31,7 @@ import { v4 as uuidv4 } from 'uuid';
 import type { ShaktiCardData } from "@/components/shakti-card";
 
 export type PartnerData = {
-    id: string; // This will be the login ID
+    id: string;
     companyName: string;
     pan: string;
     aadhaar: string;
@@ -65,16 +66,9 @@ type RewardRules = {
     discountPercentage: number;
 };
 
-const initialMockCodes = [
-    { id: 'SNC-A1B2-C3D4', value: '499.00', date: '2024-05-23', partner: 'Gupta General Store', status: 'Used' },
-    { id: 'SNC-E5F6-G7H8', value: '1250.00', date: '2024-05-23', partner: 'Pooja Mobile Recharge', status: 'Used' },
-    { id: 'SNC-J9K0-L1M2', value: '100.00', date: '2024-05-22', partner: 'Gupta General Store', status: 'Unused' },
-];
-
-
 export default function PartnerHubPage() {
     const { toast } = useToast();
-    const [codes, setCodes] = useState(initialMockCodes);
+    const [codes, setCodes] = useState<{ id: string; value: string; date: string; partner: string; status: string; }[]>([]);
     const [payPartners, setPayPartners] = useState<PartnerData[]>([]);
     const [payPartnerRequests, setPayPartnerRequests] = useState<PartnerData[]>([]);
     const [topUpRequests, setTopUpRequests] = useState<TopUpRequest[]>([]);
@@ -114,11 +108,11 @@ export default function PartnerHubPage() {
         loadData();
     }, []);
     
-     useEffect(() => {
+    useEffect(() => {
         if(selectedSellerForRules && rewardRules[selectedSellerForRules]) {
             setCurrentSellerRules(rewardRules[selectedSellerForRules]);
         } else {
-             setCurrentSellerRules({ pointsPerRupee: 0.01, cashbackPercentage: 1, discountPercentage: 10 });
+            setCurrentSellerRules({ pointsPerRupee: 0.01, cashbackPercentage: 1, discountPercentage: 10 });
         }
     }, [selectedSellerForRules, rewardRules]);
     
@@ -133,38 +127,23 @@ export default function PartnerHubPage() {
 
     const handleGenerateCode = () => {
         if (!newCodeValue || !selectedPartner) {
-            toast({
-                variant: 'destructive',
-                title: "Missing Information",
-                description: "Please select a partner and enter a value for the code.",
-            });
+            toast({ variant: 'destructive', title: "Missing Information", description: "Please select a partner and enter a value for the code." });
             return;
         }
+        const partner = payPartners.find(p => p.id === selectedPartner);
+        if (!partner) return;
 
         const newCode = {
             id: `SNC-${uuidv4().substring(0, 4).toUpperCase()}-${uuidv4().substring(4, 8).toUpperCase()}`,
             value: parseFloat(newCodeValue).toFixed(2),
             date: format(new Date(), 'yyyy-MM-dd'),
-            partner: payPartners.find(p => p.id === selectedPartner)?.companyName || 'Unknown Partner',
+            partner: partner.companyName,
             status: 'Unused'
         };
-
-        setCodes(prevCodes => [newCode, ...prevCodes]);
-
-        toast({
-            title: "Digital Code Generated!",
-            description: `Successfully created code ${newCode.id} for ₹${newCode.value}.`,
-        });
-
+        setCodes(prev => [newCode, ...prev]);
+        toast({ title: "Digital Code Generated!", description: `Successfully created code ${newCode.id}.` });
         setNewCodeValue('');
         setSelectedPartner('');
-    };
-    
-    const handleExport = () => {
-         toast({
-            title: "Export Started",
-            description: `Your full transaction code export will be downloaded shortly.`,
-        });
     };
 
     const handlePayPartnerRequest = (partnerId: string, newStatus: 'approved' | 'rejected') => {
@@ -176,13 +155,9 @@ export default function PartnerHubPage() {
         setPayPartners(allPayPartners.filter(p => p.status === 'approved'));
         setPayPartnerRequests(allPayPartners.filter(p => p.status === 'pending'));
 
-        toast({
-            title: `Request ${newStatus}`,
-            description: `The Partner Pay request has been ${newStatus}.`,
-        });
+        toast({ title: `Request ${newStatus}`, description: `The Partner Pay request has been ${newStatus}.` });
     };
 
-    
     const handleApproveTopUp = async (requestId: string) => {
         const request = topUpRequests.find(r => r.id === requestId);
         if(!request || request.status === 'Approved') return;
@@ -204,12 +179,9 @@ export default function PartnerHubPage() {
         setTopUpRequests(updatedTopUps);
         localStorage.setItem('topUpRequests', JSON.stringify(updatedTopUps));
 
-        toast({
-            title: "Top-up Approved!",
-            description: `${request.coinsRequested.toLocaleString()} coins added to ${request.partnerName}'s balance.`
-        });
+        toast({ title: "Top-up Approved!", description: `${request.coinsRequested.toLocaleString()} coins added to ${request.partnerName}'s balance.` });
     };
-
+    
     const handleSaveRules = () => {
         if (!selectedSellerForRules) {
             toast({ variant: 'destructive', title: 'No Seller Selected', description: 'Please select a seller to configure their reward rules.' });
@@ -337,7 +309,7 @@ export default function PartnerHubPage() {
                                             <TableCell><Badge variant={req.status === 'Approved' ? 'default' : 'secondary'}>{req.status}</Badge></TableCell>
                                             <TableCell className="text-right">
                                                 <Button size="sm" onClick={() => handleApproveTopUp(req.id)} disabled={req.status === 'Approved'}>
-                                                    {req.status === 'Approved' ? <><BadgeCheck className="mr-2 h-4 w-4" />Approved</> : <><Check className="mr-2 h-4 w-4" />Approve>}
+                                                    {req.status === 'Approved' ? <><BadgeCheck className="mr-2 h-4 w-4" />Approved</> : <><Check className="mr-2 h-4 w-4" />Approve</>}
                                                 </Button>
                                             </TableCell>
                                         </TableRow>
@@ -404,11 +376,6 @@ export default function PartnerHubPage() {
                                         <CardTitle>Generated Digital Codes</CardTitle>
                                         <CardDescription>Track all generated payment codes.</CardDescription>
                                     </div>
-                                    <div className="flex gap-2">
-                                         <Button variant="outline" size="sm" onClick={handleExport}>
-                                            <Download className="mr-2 h-4 w-4" /> Export All
-                                        </Button>
-                                    </div>
                                 </CardHeader>
                                 <CardContent>
                                     <Table>
@@ -419,7 +386,6 @@ export default function PartnerHubPage() {
                                                 <TableHead>Partner</TableHead>
                                                 <TableHead>Date</TableHead>
                                                 <TableHead>Status</TableHead>
-                                                <TableHead className="text-right">Actions</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
@@ -431,11 +397,6 @@ export default function PartnerHubPage() {
                                                     <TableCell>{code.date}</TableCell>
                                                     <TableCell>
                                                         <Badge variant={code.status === 'Used' ? 'secondary' : 'default'}>{code.status}</Badge>
-                                                    </TableCell>
-                                                    <TableCell className="text-right">
-                                                         <Button variant="ghost" size="icon">
-                                                            <Printer className="h-4 w-4" />
-                                                         </Button>
                                                     </TableCell>
                                                 </TableRow>
                                             ))}
