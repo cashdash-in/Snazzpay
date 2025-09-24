@@ -88,32 +88,26 @@ export default function PartnerHubPage() {
     const [currentSellerRules, setCurrentSellerRules] = useState<RewardRules>({ pointsPerRupee: 0.01, cashbackPercentage: 1, discountPercentage: 10 });
     const [searchQuery, setSearchQuery] = useState('');
 
-
-     useEffect(() => {
+    useEffect(() => {
         function loadData() {
-            // Pay Partners from localStorage
             const allPayPartnersJSON = localStorage.getItem('payPartners');
             const allPayPartners: PartnerData[] = allPayPartnersJSON ? JSON.parse(allPayPartnersJSON) : [];
             setPayPartners(allPayPartners.filter(p => p.status === 'approved'));
             setPayPartnerRequests(allPayPartners.filter(p => p.status === 'pending'));
-            
-            // Top-ups from localStorage
+
             const allTopUpsJSON = localStorage.getItem('topUpRequests');
             const allTopUps: TopUpRequest[] = allTopUpsJSON ? JSON.parse(allTopUpsJSON) : [];
             setTopUpRequests(allTopUps);
             
-            // Shakti Cards from localStorage
             const allShaktiCardsJSON = localStorage.getItem('shakti_cards_db');
             const allShaktiCards: ShaktiCardData[] = allShaktiCardsJSON ? JSON.parse(allShaktiCardsJSON) : [];
             setShaktiCards(allShaktiCards);
             
-            // Rules from localStorage
             const storedRules = localStorage.getItem('shakti_card_rules_db');
             if (storedRules) {
                 setRewardRules(JSON.parse(storedRules));
             }
 
-             // Approved Sellers from localStorage
             const approvedSellersJSON = localStorage.getItem('approved_sellers');
             const approvedSellersList: SellerUser[] = approvedSellersJSON ? JSON.parse(approvedSellersJSON) : [];
             setApprovedSellers(approvedSellersList);
@@ -227,7 +221,6 @@ export default function PartnerHubPage() {
         localStorage.setItem('shakti_card_rules_db', JSON.stringify(updatedRules));
         toast({ title: "Reward Rules Saved", description: `The new rules for the selected seller have been applied.` });
     };
-
 
     return (
         <AppShell title="Partner Pay Hub">
@@ -557,5 +550,3 @@ export default function PartnerHubPage() {
         </AppShell>
     );
 }
-
-    
