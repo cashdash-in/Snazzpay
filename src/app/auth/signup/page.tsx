@@ -26,14 +26,6 @@ export default function SignupPage() {
     const [password, setPassword] = useState('');
     const [companyName, setCompanyName] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    
-    const saveSellerUser = async (user: SellerUser) => {
-        if (!db) {
-            throw new Error("Firestore is not initialized. Please check your Firebase configuration.");
-        }
-        await setDoc(doc(db, "seller_users", user.id), user);
-    };
-
 
     const handleSignup = async () => {
         setIsLoading(true);
@@ -83,7 +75,6 @@ export default function SignupPage() {
 
         let user;
         try {
-            // Step 1: Create the user in Firebase Auth
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             user = userCredential.user;
 
@@ -91,7 +82,6 @@ export default function SignupPage() {
                 displayName: companyName,
             });
 
-            // Step 2: Create the seller data object
             const newSellerRequest: SellerUser = {
                 id: user.uid,
                 companyName: companyName,
@@ -99,24 +89,22 @@ export default function SignupPage() {
                 status: 'pending',
             };
 
-            // Step 3: Save the request to Firestore
-            await saveSellerUser(newSellerRequest);
-
+            // Save the request to local storage for the admin to see
+            const existingRequestsJSON = localStorage.getItem('seller_requests');
+            const existingRequests: SellerUser[] = existingRequestsJSON ? JSON.parse(existingRequestsJSON) : [];
+            localStorage.setItem('seller_requests', JSON.stringify([...existingRequests, newSellerRequest]));
 
             toast({
                 title: "Registration Submitted!",
                 description: "Your account is pending admin approval. You will be notified once it's reviewed.",
             });
 
-            // Step 4: Sign the user out so they can't access anything until approved
             await auth.signOut();
             router.push('/seller/login');
 
         } catch (error: any) {
             console.error("Signup failed:", error);
             
-            // Critical: If any part of the process fails, delete the created auth user
-            // to allow the user to try signing up again.
             if (user) {
                 await deleteUser(user);
                 console.log("Cleaned up orphaned auth user due to error:", user.uid);
