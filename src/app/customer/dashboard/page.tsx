@@ -313,7 +313,7 @@ export default function CustomerDashboardPage() {
                                                     const canSelfCancel = order.paymentStatus === 'Authorized' && paymentInfo && isWithin24Hours(paymentInfo.authorizedAt);
                                                     const isCancelled = ['Voided', 'Cancelled', 'Refunded', 'Fee Charged'].includes(order.paymentStatus);
                                                     const price = parseFloat(order.price);
-                                                    const contactSupportLink = `https://wa.me/9920320790?text=${encodeURIComponent(`Hi, I need a Cancellation ID for my Snazzify order #${order.orderId}.`)}`;
+                                                    const contactSupportLink = `https://web.whatsapp.com/send?phone=919920320790&text=${encodeURIComponent(`Hi, I need a Cancellation ID for my Snazzify order #${order.orderId}.`)}`;
 
                                                     return (
                                                         <TableRow key={order.id}>

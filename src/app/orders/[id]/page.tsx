@@ -303,7 +303,7 @@ function OrderDetailContent() {
         if (!order) return;
         const secureUrl = getSecureUrl(order);
         const message = `Hi ${order.customerName}! Thanks for your order #${order.orderId} from Snazzify. Please click this link to confirm your payment with our modern & secure COD process. Your funds are held in a Trust Wallet and only released on dispatch for 100% safety. ${secureUrl}`;
-        const whatsappUrl = `https://wa.me/${sanitizePhoneNumber(order.contactNo)}?text=${encodeURIComponent(message)}`;
+        const whatsappUrl = `https://web.whatsapp.com/send?phone=${sanitizePhoneNumber(order.contactNo)}&text=${encodeURIComponent(message)}`;
         window.open(whatsappUrl, '_blank');
     };
 
