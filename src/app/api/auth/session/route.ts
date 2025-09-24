@@ -13,10 +13,6 @@ export async function POST(request: Request) {
       return new NextResponse(JSON.stringify({ error: "idToken and role are required" }), { status: 400 });
     }
     
-    if (role !== 'admin' && role !== 'seller') {
-        return new NextResponse(JSON.stringify({ error: "Invalid role specified" }), { status: 400 });
-    }
-
     // Set the session cookie
     cookies().set('firebaseAuthToken', idToken, {
       httpOnly: true,

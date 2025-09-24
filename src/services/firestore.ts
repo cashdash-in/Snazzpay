@@ -10,7 +10,6 @@ import type { SellerUser } from '@/app/partner-pay/page';
 import type { TopUpRequest } from '@/app/partner-pay/page';
 import type { CashCode } from '@/app/settle/page';
 import type { ShaktiCardData } from '@/components/shakti-card';
-import type { PaymentInfo } from '@/app/orders/[id]/page';
 
 
 // Generic CRUD operations
@@ -106,8 +105,8 @@ export const saveShaktiCard = async (card: ShaktiCardData) => saveDocument('shak
 export const updateShaktiCard = async (id: string, data: Partial<ShaktiCardData>) => updateDocument('shakti_cards', id, data);
 
 // Payment Info specific functions
-export const getPaymentInfo = async (orderId: string): Promise<PaymentInfo | null> => getDocument<PaymentInfo>('payment_info', orderId);
-export const savePaymentInfo = async (orderId: string, data: PaymentInfo) => saveDocument('payment_info', data, orderId);
+export const getPaymentInfo = async (orderId: string): Promise<any | null> => getDocument<any>('payment_info', orderId);
+export const savePaymentInfo = async (orderId: string, data: any) => saveDocument('payment_info', data, orderId);
 
 
 // Logistics Partner specific functions

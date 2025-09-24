@@ -35,7 +35,7 @@ export default function SellerLandingPage() {
                 </div>
                 <div className="space-x-2">
                     <Link href="/auth/login">
-                        <Button variant="ghost">Login</Button>
+                        <Button variant="ghost">Admin Login</Button>
                     </Link>
                     <Link href="/auth/signup">
                         <Button>Start Selling</Button>
@@ -63,7 +63,7 @@ export default function SellerLandingPage() {
 
                 <section className="mt-20">
                      <Image 
-                        src="https://picsum.photos/1200/500"
+                        src="https://picsum.photos/seed/1/1200/500"
                         alt="Dashboard preview"
                         width={1200}
                         height={500}
