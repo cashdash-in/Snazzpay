@@ -8,7 +8,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, Save, ExternalLink, CreditCard, Send, Loader2 as ButtonLoader, Mail, Printer, Copy, ShieldAlert, AlertTriangle, MessageSquare, Rocket } from 'lucide-react';
+import { ArrowLeft, Loader2, Save, ExternalLink, CreditCard, Send, Loader2 as ButtonLoader, Mail, Printer, Copy, ShieldAlert, AlertTriangle, MessageSquare, Rocket, Facebook, Instagram } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { EditableOrder } from '../page';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -250,6 +250,11 @@ function OrderDetailContent() {
             setIsCharging(false);
         }
     };
+
+    const getSecureUrl = (order: EditableOrder) => {
+        const baseUrl = window.location.origin;
+        return `${baseUrl}/secure-cod?amount=${encodeURIComponent(order.price)}&name=${encodeURIComponent(order.productOrdered)}&order_id=${encodeURIComponent(order.orderId)}`;
+    };
     
     const sendAuthLink = async (order: EditableOrder, method: 'email') => {
         if (!order) return;
@@ -286,8 +291,7 @@ function OrderDetailContent() {
 
     const copyAuthLink = (order: EditableOrder) => {
         if (!order) return;
-        const baseUrl = window.location.origin;
-        const secureUrl = `${baseUrl}/secure-cod?amount=${encodeURIComponent(order.price)}&name=${encodeURIComponent(order.productOrdered)}&order_id=${encodeURIComponent(order.orderId)}`;
+        const secureUrl = getSecureUrl(order);
         navigator.clipboard.writeText(secureUrl);
         toast({
             title: "Link Copied!",
@@ -297,10 +301,25 @@ function OrderDetailContent() {
     
     const sendWhatsAppNotification = (order: EditableOrder) => {
         if (!order) return;
-        const secureUrl = `${window.location.origin}/secure-cod?amount=${encodeURIComponent(order.price)}&name=${encodeURIComponent(order.productOrdered)}&order_id=${encodeURIComponent(order.orderId)}`;
+        const secureUrl = getSecureUrl(order);
         const message = `Hi ${order.customerName}! Thanks for your order #${order.orderId} from Snazzify. Please click this link to confirm your payment with our modern & secure COD process. Your funds are held in a Trust Wallet and only released on dispatch for 100% safety. ${secureUrl}`;
         const whatsappUrl = `https://wa.me/${sanitizePhoneNumber(order.contactNo)}?text=${encodeURIComponent(message)}`;
         window.open(whatsappUrl, '_blank');
+    };
+
+    const shareToFacebook = (order: EditableOrder) => {
+        const secureUrl = getSecureUrl(order);
+        const facebookShareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(secureUrl)}`;
+        window.open(facebookShareUrl, '_blank', 'width=600,height=400');
+    };
+
+    const shareToInstagram = (order: EditableOrder) => {
+        const secureUrl = getSecureUrl(order);
+        navigator.clipboard.writeText(secureUrl);
+        toast({
+            title: "Link Copied for Instagram!",
+            description: "Paste this link into your Instagram message.",
+        });
     };
 
     const handleProcessCancellationFee = async () => {
@@ -598,30 +617,13 @@ function OrderDetailContent() {
                         </div>
                     </CardContent>
                      <CardFooter className="gap-2">
-                        <Button 
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => sendWhatsAppNotification(order)}
-                            disabled={!order.contactNo}
-                            title={!order.contactNo ? "Contact number is required" : "Send WhatsApp Notification"}
-                        >
-                            <MessageSquare className="mr-2 h-4 w-4" />
-                            WhatsApp
+                        <Button variant="secondary" size="sm" onClick={() => shareToFacebook(order)}><Facebook className="mr-2 h-4 w-4" /> Facebook</Button>
+                        <Button variant="secondary" size="sm" onClick={() => shareToInstagram(order)}><Instagram className="mr-2 h-4 w-4" /> Instagram</Button>
+                        <Button variant="secondary" size="sm" onClick={() => sendWhatsAppNotification(order)} disabled={!order.contactNo} title={!order.contactNo ? "Contact number is required" : "Send WhatsApp Notification"}><MessageSquare className="mr-2 h-4 w-4" /> WhatsApp</Button>
+                        <Button variant="default" size="sm" onClick={() => sendAuthLink(order, 'email')} disabled={isSendingLink || !order.customerEmail} title={!order.customerEmail ? "Customer email is required" : "Send Authorization Link via Email"}>
+                          {isSendingLink ? <ButtonLoader className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />} Email Link
                         </Button>
-                        <Button 
-                            variant="default" 
-                            size="sm" 
-                            onClick={() => sendAuthLink(order, 'email')}
-                            disabled={isSendingLink || !order.customerEmail}
-                            title={!order.customerEmail ? "Customer email is required" : "Send Authorization Link via Email"}
-                        >
-                          {isSendingLink ? <ButtonLoader className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
-                          Email Link
-                        </Button>
-                         <Button variant="secondary" size="sm" onClick={() => copyAuthLink(order)}>
-                            <Copy className="mr-2 h-4 w-4" />
-                            Copy Link
-                        </Button>
+                         <Button variant="secondary" size="sm" onClick={() => copyAuthLink(order)}><Copy className="mr-2 h-4 w-4" /> Copy Link</Button>
                     </CardFooter>
                 </Card>
 

@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useEffect, useCallback } from "react";
-import { Trash2, PlusCircle, Save, Loader2 as ButtonLoader, Mail, Copy, MessageSquare } from "lucide-react";
+import { Trash2, PlusCircle, Save, Loader2 as ButtonLoader, Mail, Copy, MessageSquare, Facebook, Instagram } from "lucide-react";
 import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -187,9 +187,13 @@ export default function DeliveryTrackingPage() {
         }
     };
 
-    const copyAuthLink = (order: EditableOrder) => {
+    const getSecureUrl = (order: EditableOrder) => {
         const baseUrl = window.location.origin;
-        const secureUrl = `${baseUrl}/secure-cod?amount=${encodeURIComponent(order.price)}&name=${encodeURIComponent(order.productOrdered)}&order_id=${encodeURIComponent(order.orderId)}`;
+        return `${baseUrl}/secure-cod?amount=${encodeURIComponent(order.price)}&name=${encodeURIComponent(order.productOrdered)}&order_id=${encodeURIComponent(order.orderId)}`;
+    };
+
+    const copyAuthLink = (order: EditableOrder) => {
+        const secureUrl = getSecureUrl(order);
         navigator.clipboard.writeText(secureUrl);
         toast({
             title: "Link Copied!",
@@ -202,11 +206,26 @@ export default function DeliveryTrackingPage() {
         if (order.deliveryStatus === 'dispatched' && order.trackingNumber) {
             message = `Great news, ${order.customerName}! Your Snazzify order #${order.orderId} has been shipped with ${order.courierCompanyName || 'our courier'}, tracking no. ${order.trackingNumber}.`;
         } else {
-             const secureUrl = `${window.location.origin}/secure-cod?amount=${encodeURIComponent(order.price)}&name=${encodeURIComponent(order.productOrdered)}&order_id=${encodeURIComponent(order.orderId)}`;
+             const secureUrl = getSecureUrl(order);
              message = `Hi ${order.customerName}! Thanks for your order #${order.orderId} from Snazzify. Please click this link to confirm your payment with our modern & secure COD process. Your funds are held in a Trust Wallet and only released on dispatch for 100% safety. ${secureUrl}`;
         }
         const whatsappUrl = `https://wa.me/${sanitizePhoneNumber(order.contactNo)}?text=${encodeURIComponent(message)}`;
         window.open(whatsappUrl, '_blank');
+    };
+
+    const shareToFacebook = (order: EditableOrder) => {
+        const secureUrl = getSecureUrl(order);
+        const facebookShareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(secureUrl)}`;
+        window.open(facebookShareUrl, '_blank', 'width=600,height=400');
+    };
+    
+    const shareToInstagram = (order: EditableOrder) => {
+        const secureUrl = getSecureUrl(order);
+        navigator.clipboard.writeText(secureUrl);
+        toast({
+            title: "Link Copied for Instagram!",
+            description: "Paste this link into your Instagram message.",
+        });
     };
 
   return (
@@ -242,7 +261,7 @@ export default function DeliveryTrackingPage() {
                     <TableHead>Customer</TableHead>
                     <TableHead>Contact / Email</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="text-center w-[450px]">Actions</TableHead>
+                    <TableHead className="text-center w-[550px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -294,37 +313,16 @@ export default function DeliveryTrackingPage() {
                           </SelectContent>
                         </Select>
                       </TableCell>
-                      <TableCell className="text-center space-x-2">
-                        <Button 
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => sendWhatsAppNotification(order)}
-                            disabled={!order.contactNo}
-                            title={!order.contactNo ? "Contact number is required" : "Send WhatsApp Notification"}
-                        >
-                            <MessageSquare className="mr-2 h-4 w-4" />
-                            WhatsApp
+                      <TableCell className="text-center space-x-1">
+                        <Button variant="secondary" size="sm" onClick={() => shareToFacebook(order)} title="Share to Facebook"><Facebook className="h-4 w-4" /></Button>
+                        <Button variant="secondary" size="sm" onClick={() => shareToInstagram(order)} title="Copy Link for Instagram"><Instagram className="h-4 w-4" /></Button>
+                        <Button variant="secondary" size="sm" onClick={() => sendWhatsAppNotification(order)} disabled={!order.contactNo} title={!order.contactNo ? "Contact number is required" : "Send WhatsApp Notification"}><MessageSquare className="h-4 w-4" /></Button>
+                        <Button variant="default" size="sm" onClick={() => sendAuthLink(order, 'email')} disabled={sendingState === order.id || !order.customerEmail} title={!order.customerEmail ? "Customer email is required" : "Send Authorization Link via Email"}>
+                          {sendingState === order.id ? <ButtonLoader className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
                         </Button>
-                        <Button 
-                            variant="default" 
-                            size="sm" 
-                            onClick={() => sendAuthLink(order, 'email')}
-                            disabled={sendingState === order.id || !order.customerEmail}
-                            title={!order.customerEmail ? "Customer email is required" : "Send Authorization Link via Email"}
-                        >
-                          {sendingState === order.id ? <ButtonLoader className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
-                          Email Link
-                        </Button>
-                         <Button variant="secondary" size="sm" onClick={() => copyAuthLink(order)}>
-                            <Copy className="mr-2 h-4 w-4" />
-                            Copy Link
-                        </Button>
-                        <Button variant="outline" size="icon" onClick={() => handleSave(order.id)}>
-                            <Save className="h-4 w-4" />
-                        </Button>
-                        <Button variant="destructive" size="icon" onClick={() => handleRemoveOrder(order.id)}>
-                            <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <Button variant="secondary" size="sm" onClick={() => copyAuthLink(order)} title="Copy Payment Link"><Copy className="h-4 w-4" /></Button>
+                        <Button variant="outline" size="icon" onClick={() => handleSave(order.id)} title="Save Changes"><Save className="h-4 w-4" /></Button>
+                        <Button variant="destructive" size="icon" onClick={() => handleRemoveOrder(order.id)} title="Remove Order"><Trash2 className="h-4 w-4" /></Button>
                       </TableCell>
                     </TableRow>
                   ))}
