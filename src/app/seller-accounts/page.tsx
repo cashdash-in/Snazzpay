@@ -30,7 +30,6 @@ export default function SellerAccountsPage() {
     const { toast } = useToast();
     const [sellerRequests, setSellerRequests] = useState<SellerUser[]>([]);
     const [approvedSellers, setApprovedSellers] = useState<SellerUser[]>([]);
-    const [selectedSeller, setSelectedSeller] = useState<SellerUser | null>(null);
 
      useEffect(() => {
         function loadData() {

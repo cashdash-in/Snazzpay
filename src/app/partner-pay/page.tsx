@@ -122,7 +122,7 @@ export default function PartnerHubPage() {
              setCurrentSellerRules({ pointsPerRupee: 0.01, cashbackPercentage: 1, discountPercentage: 10 });
         }
     }, [selectedSellerForRules, rewardRules]);
-
+    
     const filteredShaktiCards = useMemo(() => {
         if (!searchQuery) return shaktiCards;
         return shaktiCards.filter(card =>
@@ -219,7 +219,7 @@ export default function PartnerHubPage() {
         const updatedRules = { ...rewardRules, [selectedSellerForRules]: currentSellerRules };
         setRewardRules(updatedRules);
         localStorage.setItem('shakti_card_rules_db', JSON.stringify(updatedRules));
-        toast({ title: "Reward Rules Saved", description: `The new rules for the selected seller have been applied.` });
+        toast({ title: "Reward Rules Saved", description: `The new rules for ${approvedSellers.find(s => s.id === selectedSellerForRules)?.companyName} have been applied.` });
     };
 
     return (
@@ -490,7 +490,7 @@ export default function PartnerHubPage() {
                                 </div>
                             </CardContent>
                             <CardFooter>
-                                <Button onClick={handleSaveRules}>Save Reward Rules for Seller</Button>
+                                <Button onClick={handleSaveRules}>Save Reward Rules</Button>
                             </CardFooter>
                         </Card>
                          <Card>
