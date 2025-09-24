@@ -53,6 +53,7 @@ import {
   DollarSign,
   FileText,
   UserCheck as UserCheckIcon,
+  MessageCircle,
 } from 'lucide-react';
 import { usePageRefresh } from '@/hooks/usePageRefresh';
 import { useAuth } from '@/hooks/use-auth';
@@ -80,6 +81,7 @@ const adminConfigMenuItems = [
   { href: '/explainer-video', label: 'Explainer Video', icon: Video },
   { href: '/cod-instructions', label: 'Embedding', icon: FileCode },
   { href: '/terms-and-conditions', label: 'Contracts', icon: FileText },
+  { href: '/chat-integration-info', label: 'Chat Integration', icon: MessageCircle },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
