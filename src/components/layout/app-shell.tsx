@@ -1,3 +1,4 @@
+
 'use client';
 import type {FC, PropsWithChildren} from 'react';
 import {
@@ -51,6 +52,7 @@ import {
   Package,
   DollarSign,
   FileText,
+  UserCheck as UserCheckIcon,
 } from 'lucide-react';
 import { usePageRefresh } from '@/hooks/usePageRefresh';
 import { useAuth } from '@/hooks/use-auth';
@@ -67,6 +69,7 @@ const adminCoreMenuItems = [
 ];
 
 const adminGrowthMenuItems = [
+    { href: '/seller-accounts', label: 'Seller Accounts', icon: UserCheckIcon },
     { href: '/partner-pay', label: 'Partner Pay', icon: Handshake },
     { href: '/settle', label: 'Settle Code', icon: SendToBack },
     { href: '/partner-cancellations', label: 'Partner Cancellations', icon: ShieldAlert },

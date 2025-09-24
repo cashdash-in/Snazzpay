@@ -78,14 +78,12 @@ export default function PartnerHubPage() {
     const [codes, setCodes] = useState(initialMockCodes);
     const [payPartners, setPayPartners] = useState<PartnerData[]>([]);
     const [payPartnerRequests, setPayPartnerRequests] = useState<PartnerData[]>([]);
-    const [sellerRequests, setSellerRequests] = useState<SellerUser[]>([]);
-    const [approvedSellers, setApprovedSellers] = useState<SellerUser[]>([]);
-    const [selectedSeller, setSelectedSeller] = useState<SellerUser | null>(null);
     const [topUpRequests, setTopUpRequests] = useState<TopUpRequest[]>([]);
     const [newCodeValue, setNewCodeValue] = useState('');
     const [selectedPartner, setSelectedPartner] = useState('');
     const [shaktiCards, setShaktiCards] = useState<ShaktiCardData[]>([]);
     const [rewardRules, setRewardRules] = useState<Record<string, RewardRules>>({});
+    const [approvedSellers, setApprovedSellers] = useState<SellerUser[]>([]);
     const [selectedSellerForRules, setSelectedSellerForRules] = useState<string>('');
     const [currentSellerRules, setCurrentSellerRules] = useState<RewardRules>({ pointsPerRupee: 0.01, cashbackPercentage: 1, discountPercentage: 10 });
     const [searchQuery, setSearchQuery] = useState('');
@@ -98,18 +96,8 @@ export default function PartnerHubPage() {
             const allPayPartners: PartnerData[] = allPayPartnersJSON ? JSON.parse(allPayPartnersJSON) : [];
             setPayPartners(allPayPartners.filter(p => p.status === 'approved'));
             setPayPartnerRequests(allPayPartners.filter(p => p.status === 'pending'));
-
-            // Seller Users from localStorage
-            const localSellerRequestsJSON = localStorage.getItem('seller_requests');
-            const localSellerRequests: SellerUser[] = localSellerRequestsJSON ? JSON.parse(localSellerRequestsJSON) : [];
-            setSellerRequests(localSellerRequests);
-
-            // Approved Sellers from localStorage
-            const approvedSellersJSON = localStorage.getItem('approved_sellers');
-            const approvedSellersList: SellerUser[] = approvedSellersJSON ? JSON.parse(approvedSellersJSON) : [];
-            setApprovedSellers(approvedSellersList);
             
-            // Top-ups from localStorage (as Firestore is not available)
+            // Top-ups from localStorage
             const allTopUpsJSON = localStorage.getItem('topUpRequests');
             const allTopUps: TopUpRequest[] = allTopUpsJSON ? JSON.parse(allTopUpsJSON) : [];
             setTopUpRequests(allTopUps);
@@ -124,6 +112,11 @@ export default function PartnerHubPage() {
             if (storedRules) {
                 setRewardRules(JSON.parse(storedRules));
             }
+
+             // Approved Sellers from localStorage
+            const approvedSellersJSON = localStorage.getItem('approved_sellers');
+            const approvedSellersList: SellerUser[] = approvedSellersJSON ? JSON.parse(approvedSellersJSON) : [];
+            setApprovedSellers(approvedSellersList);
         }
         loadData();
     }, []);
@@ -197,27 +190,6 @@ export default function PartnerHubPage() {
         });
     };
 
-    const handleSellerRequest = (sellerId: string, newStatus: 'approved' | 'rejected') => {
-        const seller = sellerRequests.find(s => s.id === sellerId);
-        if (!seller) return;
-
-        if (newStatus === 'approved') {
-            const approvedSellersJSON = localStorage.getItem('approved_sellers');
-            let approvedSellers: SellerUser[] = approvedSellersJSON ? JSON.parse(approvedSellersJSON) : [];
-            approvedSellers.push({ ...seller, status: 'approved' });
-            localStorage.setItem('approved_sellers', JSON.stringify(approvedSellers));
-            setApprovedSellers(approvedSellers);
-        }
-        
-        const updatedRequests = sellerRequests.filter(s => s.id !== sellerId);
-        setSellerRequests(updatedRequests);
-        localStorage.setItem('seller_requests', JSON.stringify(updatedRequests));
-
-        toast({
-            title: `Seller Request ${newStatus}`,
-            description: `The seller account request for ${seller.companyName} has been ${newStatus}.`,
-        });
-    };
     
     const handleApproveTopUp = async (requestId: string) => {
         const request = topUpRequests.find(r => r.id === requestId);
@@ -259,12 +231,11 @@ export default function PartnerHubPage() {
 
 
     return (
-        <AppShell title="Partner Hub">
+        <AppShell title="Partner Pay Hub">
             <Tabs defaultValue="overview">
-                <TabsList className="grid w-full grid-cols-6 max-w-5xl mx-auto">
+                <TabsList className="grid w-full grid-cols-5 max-w-4xl mx-auto">
                     <TabsTrigger value="overview"><Info className="mr-2 h-4 w-4" /> Overview</TabsTrigger>
-                     <TabsTrigger value="pay-partners">Partner Pay Network <Badge className="ml-2">{payPartnerRequests.length}</Badge></TabsTrigger>
-                     <TabsTrigger value="seller-requests">Seller Network <Badge className="ml-2">{sellerRequests.length}</Badge></TabsTrigger>
+                     <TabsTrigger value="pay-partners">Partner Agents <Badge className="ml-2">{payPartnerRequests.length}</Badge></TabsTrigger>
                      <TabsTrigger value="topups">Top-up Requests <Badge className="ml-2">{topUpRequests.filter(r => r.status === 'Pending Approval').length}</Badge></TabsTrigger>
                     <TabsTrigger value="codes"><QrCode className="mr-2 h-4 w-4" /> Digital Codes</TabsTrigger>
                     <TabsTrigger value="shakti-admin"><Settings className="mr-2 h-4 w-4" /> Shakti Card Admin</TabsTrigger>
@@ -344,70 +315,7 @@ export default function PartnerHubPage() {
                         </CardContent>
                     </Card>
                 </TabsContent>
-                 <TabsContent value="seller-requests" className="mt-4 space-y-6">
-                     <Card>
-                        <CardHeader>
-                            <CardTitle>Seller Signup Requests</CardTitle>
-                            <CardDescription>Review and approve new sellers to join the SnazzPay platform.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                           <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Company</TableHead>
-                                        <TableHead>Email</TableHead>
-                                        <TableHead>Firebase UID</TableHead>
-                                        <TableHead className="text-right">Actions</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                   {sellerRequests.length > 0 ? sellerRequests.map(req => (
-                                        <TableRow key={req.id}>
-                                            <TableCell className="font-medium">{req.companyName}</TableCell>
-                                            <TableCell>{req.email}</TableCell>
-                                            <TableCell className="font-mono text-xs">{req.id}</TableCell>
-                                            <TableCell className="text-right space-x-2">
-                                                <Button size="sm" variant="outline" className="text-green-600 border-green-600 hover:bg-green-50 hover:text-green-700" onClick={() => handleSellerRequest(req.id, 'approved')}><Check className="mr-2 h-4 w-4" />Approve</Button>
-                                                <Button size="sm" variant="destructive" onClick={() => handleSellerRequest(req.id, 'rejected')}><X className="mr-2 h-4 w-4" />Reject</Button>
-                                            </TableCell>
-                                        </TableRow>
-                                   )) : (
-                                     <TableRow><TableCell colSpan={4} className="text-center h-24 text-muted-foreground">No pending seller requests.</TableCell></TableRow>
-                                   )}
-                                </TableBody>
-                           </Table>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Approved Sellers</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                           <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Company</TableHead>
-                                        <TableHead>Email</TableHead>
-                                        <TableHead>Firebase UID</TableHead>
-                                        <TableHead>Status</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                   {approvedSellers.length > 0 ? approvedSellers.map(seller => (
-                                        <TableRow key={seller.id}>
-                                            <TableCell className="font-medium">{seller.companyName}</TableCell>
-                                            <TableCell>{seller.email}</TableCell>
-                                            <TableCell className="font-mono text-xs">{seller.id}</TableCell>
-                                            <TableCell><Badge className="bg-green-100 text-green-800">{seller.status}</Badge></TableCell>
-                                        </TableRow>
-                                   )) : (
-                                     <TableRow><TableCell colSpan={4} className="text-center h-24 text-muted-foreground">No approved sellers yet.</TableCell></TableRow>
-                                   )}
-                                </TableBody>
-                           </Table>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
+                
                  <TabsContent value="topups" className="mt-4">
                      <Card>
                         <CardHeader>
@@ -438,7 +346,7 @@ export default function PartnerHubPage() {
                                             <TableCell><Badge variant={req.status === 'Approved' ? 'default' : 'secondary'}>{req.status}</Badge></TableCell>
                                             <TableCell className="text-right">
                                                 <Button size="sm" onClick={() => handleApproveTopUp(req.id)} disabled={req.status === 'Approved'}>
-                                                    {req.status === 'Approved' ? <><BadgeCheck className="mr-2 h-4 w-4" />Approved</> : <><Check className="mr-2 h-4 w-4" />Approve</>}
+                                                    {req.status === 'Approved' ? <><BadgeCheck className="mr-2 h-4 w-4" />Approved</> : <><Check className="mr-2 h-4 w-4" />Approve>}
                                                 </Button>
                                             </TableCell>
                                         </TableRow>
@@ -647,25 +555,6 @@ export default function PartnerHubPage() {
                     </div>
                 </TabsContent>
             </Tabs>
-            <Dialog open={!!selectedSeller} onOpenChange={(isOpen) => !isOpen && setSelectedSeller(null)}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>{selectedSeller?.companyName} - Details</DialogTitle>
-                        <DialogDescription>Full details for this seller signup request.</DialogDescription>
-                    </DialogHeader>
-                    {selectedSeller && (
-                        <div className="space-y-2 text-sm">
-                            <p><strong>Company:</strong> {selectedSeller.companyName}</p>
-                            <p><strong>Email:</strong> {selectedSeller.email}</p>
-                            <p><strong>Firebase UID:</strong> <span className="font-mono">{selectedSeller.id}</span></p>
-                            <p><strong>Status:</strong> <span className="capitalize">{selectedSeller.status}</span></p>
-                        </div>
-                    )}
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setSelectedSeller(null)}>Close</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
         </AppShell>
     );
 }
