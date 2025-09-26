@@ -27,13 +27,15 @@ export default function RootLayout({
         <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
       </head>
       <body className="font-body antialiased h-full">
-        <AuthProvider>
-            <PageRefreshProvider>
+        <PageRefreshProvider>
+            <AuthProvider>
                 {children}
                 <Toaster />
-            </PageRefreshProvider>
-        </AuthProvider>
+            </AuthProvider>
+        </PageRefreshProvider>
       </body>
     </html>
   );
 }
+
+    

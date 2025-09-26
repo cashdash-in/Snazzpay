@@ -6,12 +6,11 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, Trash2, Send, Loader2 as ButtonLoader } from "lucide-react";
+import { Loader2, Trash2, Send, Loader2 as ButtonLoader, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { EditableOrder } from '../orders/page';
 import { format } from "date-fns";
 import { usePageRefresh } from "@/hooks/usePageRefresh";
-import { saveOrder } from "@/services/firestore";
 import { v4 as uuidv4 } from "uuid";
 
 
@@ -20,7 +19,7 @@ export default function LeadsPage() {
   const [loading, setLoading] = useState(true);
   const [sendingLinkId, setSendingLinkId] = useState<string | null>(null);
   const { toast } = useToast();
-  const { refreshKey } = usePageRefresh();
+  const { refreshKey, triggerRefresh } = usePageRefresh();
 
   const fetchAndSetLeads = useCallback(() => {
     setLoading(true);
@@ -92,27 +91,36 @@ export default function LeadsPage() {
     }
   };
 
-  const handleConvertToOrder = async (lead: EditableOrder) => {
+  const handleConvertToOrder = (lead: EditableOrder) => {
     try {
         const newOrder = {
             ...lead,
-            id: uuidv4(), // Assign a unique ID for React keys and local storage
+            id: lead.id, // Keep the same ID to allow for overrides
             paymentStatus: 'Pending', // Set as a pending manual order
             source: 'Manual' as const,
         };
         
-        // Save to localStorage as a manual order
+        // Add to manualOrders in localStorage
         const manualOrdersJSON = localStorage.getItem('manualOrders');
         let manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
-        manualOrders.push(newOrder);
-        localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
         
-        handleRemoveLead(lead.id); // Remove from leads after converting
+        // Avoid adding duplicates
+        if (!manualOrders.some(o => o.id === newOrder.id)) {
+            manualOrders.push(newOrder);
+            localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
+        }
+
+        // Remove from leads after converting
+        handleRemoveLead(lead.id);
 
         toast({
             title: "Converted to Order",
-            description: `Lead for ${lead.customerName} has been converted to an order. It will now appear in the main orders list.`,
+            description: `Lead for ${lead.customerName} has been moved to the main orders list.`,
         });
+        
+        // Refresh all pages that depend on this data
+        triggerRefresh();
+
     } catch (error: any) {
         toast({
             variant: 'destructive',
@@ -178,7 +186,7 @@ export default function LeadsPage() {
                             size="sm" 
                             onClick={() => handleConvertToOrder(lead)}
                         >
-                            Convert to Order
+                           <ArrowRight className="mr-2 h-4 w-4" /> Convert to Order
                         </Button>
                         <Button variant="destructive" size="icon" onClick={() => handleRemoveLead(lead.id)}>
                             <Trash2 className="h-4 w-4" />
@@ -195,3 +203,5 @@ export default function LeadsPage() {
     </AppShell>
   );
 }
+
+    

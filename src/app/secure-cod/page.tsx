@@ -19,6 +19,7 @@ import { CancellationForm } from '@/components/cancellation-form';
 import { getRazorpayKeyId } from '../actions';
 import { ShaktiCard, ShaktiCardData } from '@/components/shakti-card';
 import { sanitizePhoneNumber } from '@/lib/utils';
+import { usePageRefresh } from '@/hooks/usePageRefresh';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -48,6 +49,7 @@ const getNextOrderId = () => {
 function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
     const searchParams = useSearchParams();
     const { toast } = useToast();
+    const { triggerRefresh } = usePageRefresh();
 
     const [step, setStep] = useState<Step>('details');
     const [orderDetails, setOrderDetails] = useState({
@@ -236,6 +238,7 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         toast({ title: 'Verification Successful!', description: 'Please proceed to secure your order.' });
         setStep('scratch'); // Move to scratch card step
         setIsProcessing(false);
+        triggerRefresh(); // Refresh all data-dependent components
     };
 
     const authorizationHandler = (response: any) => {
@@ -318,6 +321,7 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
         localStorage.setItem('loggedInUserMobile', customerDetails.contact);
         setStep('complete');
         setIsProcessing(false);
+        triggerRefresh(); // Refresh all data-dependent components
     };
     
     const handlePayment = async (isIntent: boolean) => {
@@ -519,6 +523,7 @@ function SecureCodForm({ razorpayKeyId }: SecureCodFormProps) {
 function Page() {
     const [razorpayKeyId, setRazorpayKeyId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
+    const { triggerRefresh } = usePageRefresh();
 
     useEffect(() => {
         async function fetchKey() {
@@ -556,3 +561,5 @@ export default function SuspendedPage() {
     </Suspense>
   );
 }
+
+    
