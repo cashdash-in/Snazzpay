@@ -11,7 +11,7 @@ export default function VendorSettingsPage() {
                 <CardDescription>
                     This is where you will manage your vendor profile and account settings. This page is currently a placeholder.
                 </CardDescription>
-            </Header>
+            </CardHeader>
             <CardContent>
                 <p>Vendor settings features will be added here soon.</p>
             </CardContent>
