@@ -154,3 +154,36 @@ export const addDocument = async <T extends DocumentData>(collectionName: string
   await updateDoc(docRef, { id: docRef.id });
   return docRef.id;
 };
+
+// Chat specific functions
+export const createChat = async (participants: string[], participantNames: { [key: string]: string }) => {
+    if (!db) throw new Error("Firestore is not initialized.");
+    const sortedParticipants = participants.sort();
+    const chatId = sortedParticipants.join('_');
+    const chatRef = doc(db, 'chats', chatId);
+    const docSnap = await getDoc(chatRef);
+
+    if (!docSnap.exists()) {
+        await setDoc(chatRef, { 
+            participants: sortedParticipants,
+            participantNames,
+            createdAt: new Date(),
+        });
+    }
+    return chatId;
+};
+
+export const sendMessage = async (chatId: string, senderId: string, text: string) => {
+    if (!db) throw new Error("Firestore is not initialized.");
+    const messagesRef = collection(db, `chats/${chatId}/messages`);
+    await addDoc(messagesRef, {
+        senderId,
+        text,
+        timestamp: new Date(),
+    });
+    // Also update the last message on the chat itself for previews
+    await updateDoc(doc(db, 'chats', chatId), {
+        lastMessage: text,
+        lastMessageTimestamp: new Date(),
+    });
+};
