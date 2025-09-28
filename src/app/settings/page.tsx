@@ -122,16 +122,17 @@ export default function SettingsPage() {
                 <Terminal className="h-4 w-4" />
                 <AlertTitle>Action Required!</AlertTitle>
                 <AlertDescription>
-                  For Razorpay integration to work, you must set your keys as environment variables in your hosting environment (e.g., Netlify, Vercel). The fields below save to your browser for local testing but are not used by the deployed server.
-                  <ul className="list-disc pl-5 mt-2">
-                    <li><span className="font-mono text-xs">RAZORPAY_KEY_ID</span></li>
-                    <li><span className="font-mono text-xs">RAZORPAY_KEY_SECRET</span></li>
-                    <li><span className="font-mono text-xs">NEXT_PUBLIC_RAZORPAY_KEY_ID</span> (must be the same as above)</li>
+                  For Razorpay integration to work on your live, deployed website, you must set your keys as **environment variables** in your hosting provider's dashboard (e.g., Vercel, Netlify, Firebase Hosting).
+                  <p className="mt-2 font-semibold">The fields below are for local development only and DO NOT affect your live site.</p>
+                  <ul className="list-disc pl-5 mt-2 font-mono text-xs space-y-1">
+                    <li>RAZORPAY_KEY_ID="your_key_id_here"</li>
+                    <li>RAZORPAY_KEY_SECRET="your_key_secret_here"</li>
+                    <li>NEXT_PUBLIC_RAZORPAY_KEY_ID="your_key_id_here"</li>
                   </ul>
                 </AlertDescription>
               </Alert>
               <div className="space-y-2">
-                <Label htmlFor="razorpay-key-id">Key ID</Label>
+                <Label htmlFor="razorpay-key-id">Key ID (for local browser)</Label>
                 <Input 
                   id="razorpay-key-id" 
                   name="keyId"
@@ -141,7 +142,7 @@ export default function SettingsPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="razorpay-key-secret">Key Secret</Label>
+                <Label htmlFor="razorpay-key-secret">Key Secret (for local browser)</Label>
                 <Input 
                   id="razorpay-key-secret" 
                   name="keySecret"
@@ -162,7 +163,7 @@ export default function SettingsPage() {
             <CardHeader>
               <CardTitle>Shopify Integration</CardTitle>
               <CardDescription>
-                Connect your Shopify store to sync orders and customer information.
+                Connect your Shopify store to sync orders and power the AI Product Uploader.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -170,15 +171,16 @@ export default function SettingsPage() {
                 <Terminal className="h-4 w-4" />
                 <AlertTitle>Action Required!</AlertTitle>
                 <AlertDescription>
-                  For Shopify integration to work, you must set your store details as environment variables in your hosting environment.
-                  <ul className="list-disc pl-5 mt-2">
-                    <li><span className="font-mono text-xs">SHOPIFY_STORE_URL</span> (e.g., your-store.myshopify.com)</li>
-                    <li><span className="font-mono text-xs">SHOPIFY_API_KEY</span> (Your Admin API access token, starts with shpat_)</li>
+                   For Shopify integration to work on your live, deployed website, you must set your store details as **environment variables** in your hosting provider's dashboard.
+                   <p className="mt-2 font-semibold">The fields below are for local development only and DO NOT affect your live site.</p>
+                  <ul className="list-disc pl-5 mt-2 font-mono text-xs space-y-1">
+                    <li>SHOPIFY_STORE_URL="your-store.myshopify.com"</li>
+                    <li>SHOPIFY_API_KEY="shpat_..." (Your Admin API access token)</li>
                   </ul>
                 </AlertDescription>
               </Alert>
               <div className="space-y-2">
-                <Label htmlFor="shopify-store-url">Store URL</Label>
+                <Label htmlFor="shopify-store-url">Store URL (for local browser)</Label>
                 <Input 
                   id="shopify-store-url"
                   name="storeUrl" 
@@ -188,7 +190,7 @@ export default function SettingsPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="shopify-api-key">Admin API access token</Label>
+                <Label htmlFor="shopify-api-key">Admin API access token (for local browser)</Label>
                 <Input 
                   id="shopify-api-key"
                   name="apiKey"
