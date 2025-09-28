@@ -55,6 +55,7 @@ import {
   MessageCircle,
   Sparkles,
   Wand2,
+  Factory,
 } from 'lucide-react';
 import { usePageRefresh } from '@/hooks/usePageRefresh';
 import { useAuth } from '@/hooks/use-auth';
@@ -74,6 +75,7 @@ const adminCoreMenuItems = [
 const adminGrowthMenuItems = [
     { href: '/ai-product-uploader', label: 'AI Product Uploader', icon: Wand2 },
     { href: '/seller-accounts', label: 'Seller Accounts', icon: UserCheckIcon },
+    { href: '/vendors', label: 'Vendors', icon: Factory },
     { href: '/partner-pay', label: 'Partner Pay', icon: Handshake },
     { href: '/settle', label: 'Settle Code', icon: SendToBack },
     { href: '/partner-cancellations', label: 'Partner Cancellations', icon: ShieldAlert },
@@ -93,6 +95,7 @@ const sellerMenuItems = [
     { href: '/seller/products', label: 'Products', icon: Package },
     { href: '/seller/ai-product-uploader', label: 'AI Product Uploader', icon: Sparkles },
     { href: '/seller/orders', label: 'Orders', icon: ShoppingCart },
+    { href: '/seller/resellers', label: 'My Resellers', icon: Users },
     { href: '/seller/earnings', label: 'Earnings', icon: DollarSign },
     { href: '/seller/reports', label: 'Reports', icon: FileSpreadsheet },
     { href: '/seller/settings', label: 'Settings', icon: Settings },
