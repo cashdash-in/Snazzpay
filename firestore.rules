@@ -4,31 +4,35 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Default to denying all access unless explicitly allowed.
-    match /{document=**} {
-      allow read, write: if false;
+    function isAdmin() {
+      return request.auth.token.email == 'admin@snazzpay.com';
     }
 
-    // USER PROFILES
-    // A user can only be created if the request is authenticated and the UID matches.
-    // ANY authenticated user can read the list of users (for chat).
     match /users/{userId} {
       allow list, get: if request.auth != null;
-      allow create, update: if request.auth.uid == userId;
+      // Allow create if user is creating their own doc OR if the request is from an admin
+      allow create: if (request.auth != null && request.auth.uid == userId) || isAdmin();
+      allow update: if request.auth.uid == userId || isAdmin();
+      allow delete: if false; 
     }
 
-    // CHATS
     match /chats/{chatId} {
-      // A user can list/read chats only if they are a participant.
-      allow list, get: if request.auth.uid in resource.data.participants;
-      // A user can create a chat if they are one of the participants in the new chat document.
-      allow create: if request.auth.uid in request.resource.data.participants;
-      
-      // MESSAGES SUBCOLLECTION
+      // Users can only see the list of chats they are a participant in.
+      allow list: if request.auth != null && request.auth.uid in resource.data.participants;
+
+      // Users can only get/create/update a chat if they are a participant.
+      allow get, create, update: if request.auth != null && request.auth.uid in resource.data.participants;
+
+      // Messages subcollection
       match /messages/{messageId} {
-        // A user can read/write messages only if they are a participant in the parent chat.
-        allow read, write: if get(/databases/$(database)/documents/chats/$(chatId)).data.participants.hasAny([request.auth.uid]);
+        // Users can only read/write messages in chats they are part of.
+        allow read, write: if request.auth != null && get(/databases/$(database)/documents/chats/$(chatId)).data.participants.hasAny([request.auth.uid]);
       }
+    }
+
+    // Fallback security rule to deny all other access
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
