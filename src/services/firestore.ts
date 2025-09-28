@@ -8,13 +8,12 @@ import type { PartnerData } from '@/app/partner-pay/page';
 import type { LogisticsPartnerData } from '@/app/logistics-secure/dashboard/page';
 import type { SellerUser as SellerAccount } from '@/app/seller-accounts/page';
 import type { TopUpRequest } from '@/app/partner-pay/page';
-import type { CashCode } from '@/app/settle/page';
 import type { ShaktiCardData } from '@/components/shakti-card';
 
 
 // Generic CRUD operations
 export const getCollection = async <T>(collectionName: string): Promise<T[]> => {
-    if (!db) return [];
+    if (!db) throw new Error("Firestore is not configured. Cannot get collection.");
     const q = query(collection(db, collectionName));
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as unknown as T));
@@ -88,11 +87,6 @@ export const saveTopUpRequest = async (request: Omit<TopUpRequest, 'id'>): Promi
 export const updateTopUpRequest = async (id: string, data: Partial<TopUpRequest>) => updateDocument('topUpRequests', id, data);
 
 
-// Cash Code specific functions
-export const getCashCodes = async (): Promise<CashCode[]> => getCollection<CashCode>('cashCodes');
-export const saveCashCode = async (code: CashCode) => saveDocument('cashCodes', code, code.code);
-
-
 // Shakti Card specific functions
 export const getShaktiCards = async (): Promise<ShaktiCardData[]> => getCollection<ShaktiCardData>('shakti_cards');
 export const getShaktiCardByPhone = async (phone: string): Promise<ShaktiCardData | null> => {
@@ -116,27 +110,6 @@ export const getLogisticsPartners = async (): Promise<LogisticsPartnerData[]> =>
 export const saveLogisticsPartner = async (partner: LogisticsPartnerData) => saveDocument('logisticsPartners', partner, partner.id);
 
 
-// Transaction (Partner Pay) specific functions
-export const getPartnerTransactions = async (partnerId: string): Promise<any[]> => {
-     if (!db) return [];
-    const q = query(collection(db, `payPartners/${partnerId}/transactions`));
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-};
-
-export const savePartnerTransaction = async (partnerId: string, transaction: any) => {
-    if (!db) throw new Error("Firestore is not initialized.");
-    const collectionRef = collection(db, `payPartners/${partnerId}/transactions`);
-    const docRef = await addDoc(collectionRef, transaction);
-    await updateDoc(docRef, { id: docRef.id });
-};
-
-export const updatePartnerTransaction = async (partnerId: string, txId: string, data: any) => {
-    if (!db) throw new Error("Firestore is not initialized.");
-    const docRef = doc(db, `payPartners/${partnerId}/transactions`, txId);
-    await updateDoc(docRef, data);
-};
-
 // Generic Batch Update
 export const batchUpdate = async (updates: { collection: string; id: string; data: DocumentData }[]) => {
     if (!db) throw new Error("Firestore is not initialized.");
@@ -159,7 +132,7 @@ export const addDocument = async <T extends DocumentData>(collectionName: string
 
 // Chat specific types
 export type ChatUser = {
-    id: string; // Firebase UID
+    id: string; // Firebase UID or other unique ID
     name: string;
     role: 'admin' | 'seller' | 'vendor';
     email: string;
@@ -230,54 +203,4 @@ export const sendMessage = async (chatId: string, senderId: string, content: Mes
     });
     
     return docRef.id;
-};
-
-// Search for users by name or email
-export const findUsers = async (searchTerm: string, currentUserEmail: string): Promise<ChatUser[]> => {
-    if (!db) return [];
-    
-    const lowerCaseTerm = searchTerm.toLowerCase();
-    const strlength = lowerCaseTerm.length;
-    const strFrontCode = lowerCaseTerm.slice(0, strlength - 1);
-    const strEndCode = lowerCaseTerm.slice(strlength - 1, strlength);
-    const end = strFrontCode + String.fromCharCode(strEndCode.charCodeAt(0) + 1);
-
-    const nameQuery = query(
-        collection(db, 'users'),
-        where('name', '>=', lowerCaseTerm),
-        where('name', '<', end)
-    );
-     const emailQuery = query(
-        collection(db, 'users'),
-        where('email', '>=', lowerCaseTerm),
-        where('email', '<', end)
-    );
-
-    try {
-        const [nameSnapshot, emailSnapshot] = await Promise.all([
-            getDocs(nameQuery),
-            getDocs(emailQuery)
-        ]);
-
-        const users: Map<string, ChatUser> = new Map();
-
-        nameSnapshot.forEach(doc => {
-            const user = { id: doc.id, ...doc.data() } as ChatUser;
-            if (user.email !== currentUserEmail) {
-                users.set(user.id, user);
-            }
-        });
-        emailSnapshot.forEach(doc => {
-             const user = { id: doc.id, ...doc.data() } as ChatUser;
-            if (user.email !== currentUserEmail) {
-                users.set(user.id, user);
-            }
-        });
-        
-        return Array.from(users.values());
-
-    } catch (error) {
-        console.error("Error in findUsers:", error);
-        throw new Error("Could not perform user search. Check Firestore rules and configuration.");
-    }
 };

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -10,12 +9,11 @@ import { useAuth } from "@/hooks/use-auth";
 import { useState, useEffect, useRef, FormEvent, useMemo } from "react";
 import { collection, onSnapshot, orderBy, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Loader2, Send, ImagePlus, Search, MessageCircle } from "lucide-react";
+import { Loader2, Send, ImagePlus, MessageCircle } from "lucide-react";
 import { format } from "date-fns";
-import { createChat, sendMessage, findUsers, type Message, type Chat, type ChatUser } from "@/services/firestore";
+import { sendMessage, type Message, type Chat, type ChatUser } from "@/services/firestore";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
-import { useDebounce } from 'use-debounce';
 
 function ChatWindow({ activeChat, currentUser }: { activeChat: Chat; currentUser: ChatUser }) {
     const [messages, setMessages] = useState<Message[]>([]);
@@ -139,10 +137,6 @@ export default function ChatPage() {
     const [chats, setChats] = useState<Chat[]>([]);
     const [activeChat, setActiveChat] = useState<Chat | null>(null);
     const [loadingChats, setLoadingChats] = useState(true);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [debouncedSearchTerm] = useDebounce(searchTerm, 500);
-    const [searchResults, setSearchResults] = useState<ChatUser[]>([]);
-    const [isSearching, setIsSearching] = useState(false);
 
     useEffect(() => {
         if (authLoading || !user) return;
@@ -186,62 +180,6 @@ export default function ChatPage() {
 
         return () => unsubscribe();
     }, [currentUser, toast]);
-
-     useEffect(() => {
-        const performSearch = async () => {
-            if (!debouncedSearchTerm || !currentUser) {
-                setSearchResults([]);
-                return;
-            }
-            setIsSearching(true);
-            try {
-                const results = await findUsers(debouncedSearchTerm, currentUser.email);
-                setSearchResults(results);
-            } catch (error) {
-                console.error("User search failed:", error);
-                toast({
-                    variant: 'destructive',
-                    title: 'Search Error',
-                    description: 'Could not perform user search. Check Firestore rules and configuration.'
-                });
-            } finally {
-                setIsSearching(false);
-            }
-        };
-
-        performSearch();
-    }, [debouncedSearchTerm, currentUser, toast]);
-
-
-    const handleCreateOrSelectChat = async (partner: ChatUser) => {
-        if (!currentUser) return;
-
-        try {
-            const chatId = await createChat([currentUser.id, partner.id], {
-                [currentUser.id]: currentUser.name,
-                [partner.id]: partner.name,
-            });
-
-            const existingChat = chats.find(c => c.id === chatId);
-            if(existingChat) {
-                setActiveChat(existingChat);
-            } else {
-                const newChat: Chat = {
-                    id: chatId,
-                    participants: [currentUser.id, partner.id],
-                    participantNames: { [currentUser.id]: currentUser.name, [partner.id]: partner.name }
-                };
-                setChats(prev => [newChat, ...prev]);
-                setActiveChat(newChat);
-            }
-            setSearchTerm('');
-            setSearchResults([]);
-
-        } catch (error: any) {
-            console.error("Error creating or selecting chat:", error);
-            toast({ variant: 'destructive', title: 'Chat Error', description: error.message });
-        }
-    };
     
     if (authLoading || !currentUser) {
         return (
@@ -259,36 +197,9 @@ export default function ChatPage() {
                 <aside className="w-1/3 border-r flex flex-col">
                     <header className="p-4 border-b space-y-2">
                         <CardTitle>Conversations</CardTitle>
-                        <div className="relative">
-                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input 
-                                placeholder="Search users to start chat..."
-                                value={searchTerm}
-                                onChange={e => setSearchTerm(e.target.value)}
-                                className="pl-8"
-                             />
-                        </div>
+                        <CardDescription>Select a conversation to start chatting.</CardDescription>
                     </header>
                     <div className="flex-1 overflow-y-auto">
-                        {isSearching ? <Loader2 className="animate-spin m-4"/> : searchResults.length > 0 && (
-                            <>
-                                <p className="p-2 text-xs text-muted-foreground border-b">Search Results:</p>
-                                {searchResults.map(u => (
-                                     <div key={u.id} onClick={() => handleCreateOrSelectChat(u)} className="p-4 border-b cursor-pointer hover:bg-muted">
-                                        <div className="flex items-center gap-3">
-                                            <Avatar className="h-10 w-10">
-                                                <AvatarFallback>{u.name[0].toUpperCase()}</AvatarFallback>
-                                            </Avatar>
-                                            <div>
-                                                <p className="font-semibold">{u.name}</p>
-                                                <p className="text-sm text-muted-foreground capitalize">{u.role}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </>
-                        )}
-                        
                         {(loadingChats) ? <Loader2 className="animate-spin m-4"/> : (
                              chats.map(chat => {
                                 const otherParticipantId = chat.participants.find(p => p !== currentUser?.id);
@@ -309,6 +220,12 @@ export default function ChatPage() {
                                 )
                              })
                         )}
+                         {!loadingChats && chats.length === 0 && (
+                            <div className="text-center text-muted-foreground p-8">
+                                <p>No conversations yet.</p>
+                                <p className="text-xs mt-2">Admins can start new chats from the Seller Accounts or Vendors page.</p>
+                            </div>
+                         )}
                     </div>
                 </aside>
                 <main className="w-2/3">
@@ -318,7 +235,8 @@ export default function ChatPage() {
                         <div className="h-full flex flex-col items-center justify-center text-muted-foreground text-center p-8">
                             <MessageCircle className="h-16 w-16 mb-4" />
                             <h3 className="text-lg font-semibold">Welcome to Chat</h3>
-                            <p>Select an existing conversation or search for a user to start a new one.</p>
+                            <p>Select an existing conversation to start.</p>
+                             <p className="text-xs mt-4">Admins can start new chats from the Seller Accounts or Vendors page.</p>
                         </div>
                     )}
                 </main>

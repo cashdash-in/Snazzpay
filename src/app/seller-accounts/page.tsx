@@ -1,4 +1,3 @@
-
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -9,9 +8,11 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
-import { Check, X, Eye } from "lucide-react";
-import { db } from '@/lib/firebase';
-import { doc, setDoc } from 'firebase/firestore';
+import { Check, X, Eye, MessageCircle } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
+import { createChat } from "@/services/firestore";
+import { useRouter } from "next/navigation";
+
 
 export type SellerUser = {
     id: string; // This will be the Firebase Auth UID
@@ -21,6 +22,8 @@ export type SellerUser = {
 };
 
 export default function SellerAccountsPage() {
+    const { user: adminUser } = useAuth();
+    const router = useRouter();
     const { toast } = useToast();
     const [sellerRequests, setSellerRequests] = useState<SellerUser[]>([]);
     const [approvedSellers, setApprovedSellers] = useState<SellerUser[]>([]);
@@ -44,9 +47,6 @@ export default function SellerAccountsPage() {
 
         try {
             if (newStatus === 'approved') {
-                // WORKAROUND: Do NOT create the Firestore document here.
-                // It will be created by the user on their first login.
-                // We just add them to the list of approved sellers.
                 const approvedSellersJSON = localStorage.getItem('approved_sellers');
                 let currentApprovedSellers: SellerUser[] = approvedSellersJSON ? JSON.parse(approvedSellersJSON) : [];
                 currentApprovedSellers.push({ ...seller, status: 'approved' });
@@ -54,7 +54,6 @@ export default function SellerAccountsPage() {
                 setApprovedSellers(currentApprovedSellers);
             }
             
-            // Remove the request from the pending list regardless of action
             const updatedRequests = sellerRequests.filter(s => s.id !== sellerId);
             setSellerRequests(updatedRequests);
             localStorage.setItem('seller_requests', JSON.stringify(updatedRequests));
@@ -72,6 +71,29 @@ export default function SellerAccountsPage() {
             });
         }
     };
+
+    const handleStartChat = async (seller: SellerUser) => {
+        if (!adminUser) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Admin user not found. Cannot start chat.' });
+            return;
+        }
+
+        try {
+            await createChat(
+                [adminUser.uid, seller.id],
+                {
+                    [adminUser.uid]: adminUser.displayName || 'Admin',
+                    [seller.id]: seller.companyName,
+                }
+            );
+            toast({ title: 'Chat Created!', description: `A chat with ${seller.companyName} has been started.` });
+            router.push('/chat-integration-info');
+        } catch (error: any) {
+            console.error("Error creating chat:", error);
+            toast({ variant: 'destructive', title: 'Chat Error', description: `Could not create chat. ${error.message}` });
+        }
+    };
+
 
     return (
         <AppShell title="Seller Accounts">
@@ -128,8 +150,8 @@ export default function SellerAccountsPage() {
                                     <TableRow>
                                         <TableHead>Company</TableHead>
                                         <TableHead>Email</TableHead>
-                                        <TableHead>Firebase UID</TableHead>
                                         <TableHead>Status</TableHead>
+                                        <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -137,8 +159,13 @@ export default function SellerAccountsPage() {
                                         <TableRow key={seller.id}>
                                             <TableCell className="font-medium">{seller.companyName}</TableCell>
                                             <TableCell>{seller.email}</TableCell>
-                                            <TableCell className="font-mono text-xs">{seller.id}</TableCell>
                                             <TableCell><Badge className="bg-green-100 text-green-800">{seller.status}</Badge></TableCell>
+                                            <TableCell className="text-right">
+                                                 <Button size="sm" variant="secondary" onClick={() => handleStartChat(seller)}>
+                                                    <MessageCircle className="mr-2 h-4 w-4" />
+                                                    Start Chat
+                                                </Button>
+                                            </TableCell>
                                         </TableRow>
                                    )) : (
                                      <TableRow><TableCell colSpan={4} className="text-center h-24 text-muted-foreground">No approved sellers yet.</TableCell></TableRow>
