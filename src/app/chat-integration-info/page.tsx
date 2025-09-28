@@ -1,3 +1,4 @@
+
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -6,17 +7,15 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/use-auth";
-import { useState, useEffect, useRef, FormEvent } from "react";
+import { useState, useEffect, useRef, FormEvent, useCallback } from "react";
 import { collection, onSnapshot, orderBy, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Loader2, Send, ImagePlus } from "lucide-react";
+import { Loader2, Send, ImagePlus, Search, UserPlus } from "lucide-react";
 import { format } from "date-fns";
-import type { SellerUser } from "@/app/seller-accounts/page";
-import type { Vendor } from "@/app/vendors/page";
-import { createChat, sendMessage, type Message, type Chat, type ChatUser, getCollection } from "@/services/firestore";
+import { createChat, sendMessage, findUsers, type Message, type Chat, type ChatUser } from "@/services/firestore";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
-
+import { useDebounce } from 'use-debounce';
 
 function ChatWindow({ activeChat, currentUser }: { activeChat: Chat; currentUser: ChatUser }) {
     const [messages, setMessages] = useState<Message[]>([]);
@@ -107,7 +106,7 @@ function ChatWindow({ activeChat, currentUser }: { activeChat: Chat; currentUser
                                 {!isSender && <Avatar className="h-8 w-8"><AvatarFallback>{activeChat.participantNames[message.senderId]?.[0]}</AvatarFallback></Avatar>}
                                 <div className={`max-w-xs md:max-w-md p-1 rounded-2xl ${isSender ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-muted rounded-bl-none'}`}>
                                     {message.content.type === 'text' ? (
-                                        <p className="text-sm p-2">{message.content.content}</p>
+                                        <p className="text-sm p-2 break-words">{message.content.content}</p>
                                     ) : (
                                         <Image src={message.content.content} alt="Shared image" width={250} height={250} className="rounded-xl object-cover" />
                                     )}
@@ -132,15 +131,17 @@ function ChatWindow({ activeChat, currentUser }: { activeChat: Chat; currentUser
     );
 }
 
-
 export default function ChatPage() {
     const { user } = useAuth();
     const { toast } = useToast();
     const [currentUser, setCurrentUser] = useState<ChatUser | null>(null);
-    const [allUsers, setAllUsers] = useState<ChatUser[]>([]);
     const [chats, setChats] = useState<Chat[]>([]);
     const [activeChat, setActiveChat] = useState<Chat | null>(null);
-    const [loadingUsers, setLoadingUsers] = useState(true);
+    const [loadingChats, setLoadingChats] = useState(true);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearchTerm] = useDebounce(searchTerm, 300);
+    const [searchResults, setSearchResults] = useState<ChatUser[]>([]);
+    const [isSearching, setIsSearching] = useState(false);
 
     useEffect(() => {
         if (!user || !db) return;
@@ -153,38 +154,21 @@ export default function ChatPage() {
             email: user.email || ''
         };
         setCurrentUser(cUser);
+    }, [user]);
 
-        const fetchUsers = async () => {
-            setLoadingUsers(true);
-            try {
-                const users = await getCollection<ChatUser>('users');
-                setAllUsers(users.filter(u => u.id !== cUser.id)); // Exclude current user from the list
-            } catch (error) {
-                console.error("Error fetching users:", error);
-                toast({
-                    variant: 'destructive',
-                    title: 'Error',
-                    description: 'Could not fetch list of users. Check Firestore rules for the `users` collection.'
-                });
-            }
-            setLoadingUsers(false);
-        };
-
-        fetchUsers();
-    }, [user, toast]);
-
-     useEffect(() => {
+    useEffect(() => {
         if (!currentUser || !db) return;
-        
-        const q = query(collection(db, "chats"), where("participants", "array-contains", currentUser.id));
+        setLoadingChats(true);
+        const q = query(collection(db, "chats"), where("participants", "array-contains", currentUser.id), orderBy("lastMessageTimestamp", "desc"));
         
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const userChats = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data(),
                 lastMessageTimestamp: doc.data().lastMessageTimestamp?.toDate(),
-            } as Chat)).sort((a,b) => (b.lastMessageTimestamp?.getTime() || 0) - (a.lastMessageTimestamp?.getTime() || 0));
+            } as Chat));
             setChats(userChats);
+            setLoadingChats(false);
         }, (err) => {
             console.error("Firestore snapshot error:", err);
             toast({
@@ -192,11 +176,34 @@ export default function ChatPage() {
                 title: 'Chat Error',
                 description: 'Could not load conversations. Check Firestore rules and configuration.'
             });
+            setLoadingChats(false);
         });
 
         return () => unsubscribe();
-
     }, [currentUser, toast]);
+
+    useEffect(() => {
+        const performSearch = async () => {
+            if (debouncedSearchTerm.trim().length < 2 || !currentUser) {
+                setSearchResults([]);
+                setIsSearching(false);
+                return;
+            }
+            setIsSearching(true);
+            try {
+                const results = await findUsers(debouncedSearchTerm, currentUser.email);
+                setSearchResults(results);
+            } catch (error) {
+                console.error('Error searching users:', error);
+                toast({ variant: 'destructive', title: 'Search Error', description: 'Could not perform user search.' });
+            } finally {
+                setIsSearching(false);
+            }
+        };
+
+        performSearch();
+    }, [debouncedSearchTerm, currentUser, toast]);
+
 
     const handleCreateOrSelectChat = async (partner: ChatUser) => {
         if (!currentUser) return;
@@ -207,24 +214,23 @@ export default function ChatPage() {
                 [partner.id]: partner.name,
             });
 
-            // Find the full chat object to set as active
-             const chatQ = query(collection(db, "chats"), where("id", "==", chatId));
-             const querySnapshot = await getDocs(chatQ);
-             if(!querySnapshot.empty){
-                const chatDoc = querySnapshot.docs[0];
-                setActiveChat({ id: chatDoc.id, ...chatDoc.data() } as Chat);
-             } else {
-                // If the chat was just created, it might not be immediately available.
-                // We can construct it manually for the UI.
-                setActiveChat({
+            // Check if this chat already exists in our state
+            const existingChat = chats.find(c => c.id === chatId);
+            if(existingChat) {
+                setActiveChat(existingChat);
+            } else {
+                 // If the chat was just created, it might not be immediately available via the listener.
+                 // We can construct it manually for the UI to be responsive.
+                const newChat: Chat = {
                     id: chatId,
                     participants: [currentUser.id, partner.id],
-                    participantNames: {
-                        [currentUser.id]: currentUser.name,
-                        [partner.id]: partner.name
-                    }
-                });
-             }
+                    participantNames: { [currentUser.id]: currentUser.name, [partner.id]: partner.name }
+                };
+                setChats(prev => [newChat, ...prev]);
+                setActiveChat(newChat);
+            }
+            setSearchTerm('');
+            setSearchResults([]);
 
         } catch (error: any) {
             console.error("Error creating or selecting chat:", error);
@@ -232,16 +238,44 @@ export default function ChatPage() {
         }
     };
 
-
     return (
         <AppShell title="Internal Chat">
             <div className="h-[calc(100vh-10rem)] border rounded-lg flex">
                 <aside className="w-1/3 border-r flex flex-col">
-                    <header className="p-4 border-b">
+                    <header className="p-4 border-b space-y-2">
                         <CardTitle>Conversations</CardTitle>
+                        <div className="relative">
+                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input 
+                                placeholder="Search users to start chat..."
+                                value={searchTerm}
+                                onChange={e => setSearchTerm(e.target.value)}
+                                className="pl-8"
+                             />
+                        </div>
                     </header>
                     <div className="flex-1 overflow-y-auto">
-                        {loadingUsers ? <Loader2 className="animate-spin m-4"/> : (
+                        {isSearching && <Loader2 className="animate-spin m-4"/>}
+                        {searchResults.length > 0 && (
+                            <>
+                                <p className="p-2 text-xs text-muted-foreground border-b">Search Results:</p>
+                                {searchResults.map(u => (
+                                     <div key={u.id} onClick={() => handleCreateOrSelectChat(u)} className="p-4 border-b cursor-pointer hover:bg-muted">
+                                        <div className="flex items-center gap-3">
+                                            <Avatar className="h-10 w-10">
+                                                <AvatarFallback>{u.name[0].toUpperCase()}</AvatarFallback>
+                                            </Avatar>
+                                            <div>
+                                                <p className="font-semibold">{u.name}</p>
+                                                <p className="text-sm text-muted-foreground capitalize">{u.role}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </>
+                        )}
+                        
+                        {loadingChats ? <Loader2 className="animate-spin m-4"/> : (
                              chats.map(chat => {
                                 const otherParticipantId = chat.participants.find(p => p !== currentUser?.id);
                                 const otherParticipantName = otherParticipantId ? chat.participantNames[otherParticipantId] : 'Unknown';
@@ -261,31 +295,16 @@ export default function ChatPage() {
                                 )
                              })
                         )}
-                         <p className="p-2 text-xs text-muted-foreground border-t">Start a new chat:</p>
-                        {allUsers.map(u => {
-                            if (chats.some(c => c.participants.includes(u.id))) return null;
-                            return (
-                                <div key={u.id} onClick={() => handleCreateOrSelectChat(u)} className="p-4 border-b cursor-pointer hover:bg-muted">
-                                    <div className="flex items-center gap-3">
-                                        <Avatar className="h-10 w-10">
-                                            <AvatarFallback>{u.name[0].toUpperCase()}</AvatarFallback>
-                                        </Avatar>
-                                        <div>
-                                            <p className="font-semibold">{u.name}</p>
-                                            <p className="text-sm text-muted-foreground capitalize">{u.role}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            )
-                        })}
                     </div>
                 </aside>
                 <main className="w-2/3">
                     {activeChat && currentUser ? (
                         <ChatWindow activeChat={activeChat} currentUser={currentUser} />
                     ) : (
-                        <div className="h-full flex items-center justify-center text-muted-foreground">
-                            <p>Select a conversation to start chatting.</p>
+                        <div className="h-full flex flex-col items-center justify-center text-muted-foreground text-center p-8">
+                            <MessageCircle className="h-16 w-16 mb-4" />
+                            <h3 className="text-lg font-semibold">Welcome to Chat</h3>
+                            <p>Select an existing conversation or search for a user to start a new one.</p>
                         </div>
                     )}
                 </main>
@@ -293,3 +312,5 @@ export default function ChatPage() {
         </AppShell>
     );
 }
+
+    

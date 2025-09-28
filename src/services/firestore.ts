@@ -2,7 +2,7 @@
 'use server';
 
 import { db } from '@/lib/firebase';
-import { collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, query, where, DocumentData, writeBatch } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, query, where, DocumentData, writeBatch, orderBy, startAt, endAt } from 'firebase/firestore';
 import type { EditableOrder } from '@/app/orders/page';
 import type { PartnerData } from '@/app/partner-pay/page';
 import type { LogisticsPartnerData } from '@/app/logistics-secure/dashboard/page';
@@ -64,13 +64,15 @@ export const updatePayPartner = async (id: string, data: Partial<PartnerData>) =
 // Seller User specific functions
 export const getSellerUsers = async (): Promise<SellerAccount[]> => getCollection<SellerAccount>('seller_users');
 
-// This function can now be called from the client-side safely
-// because of the new Firestore security rules.
 export const saveSellerUser = async (user: SellerAccount) => {
     if (!db) throw new Error("Firestore is not initialized.");
-    // The ID of the document will be the Firebase Auth user's UID
-    const docRef = doc(db, 'seller_users', user.id);
-    await setDoc(docRef, user);
+    const docRef = doc(db, 'users', user.id);
+    await setDoc(docRef, { 
+        id: user.id, 
+        name: user.companyName, 
+        email: user.email, 
+        role: 'seller' 
+    });
 };
 
 
@@ -229,3 +231,51 @@ export const sendMessage = async (chatId: string, senderId: string, content: Mes
     
     return docRef.id;
 };
+
+// Search for users by name or email
+export const findUsers = async (searchTerm: string, currentUserEmail: string): Promise<ChatUser[]> => {
+    if (!db) return [];
+    
+    const lowerCaseTerm = searchTerm.toLowerCase();
+
+    // Query for name
+    const nameQuery = query(
+        collection(db, 'users'),
+        orderBy('name'),
+        where('name', '>=', lowerCaseTerm),
+        where('name', '<=', lowerCaseTerm + '\uf8ff')
+    );
+
+    // Query for email
+    const emailQuery = query(
+        collection(db, 'users'),
+        orderBy('email'),
+        where('email', '>=', lowerCaseTerm),
+        where('email', '<=', lowerCaseTerm + '\uf8ff')
+    );
+
+    const [nameSnapshot, emailSnapshot] = await Promise.all([
+        getDocs(nameQuery),
+        getDocs(emailQuery)
+    ]);
+
+    const usersMap = new Map<string, ChatUser>();
+    
+    nameSnapshot.forEach(doc => {
+        const user = { id: doc.id, ...doc.data() } as ChatUser;
+        if (user.email !== currentUserEmail) {
+            usersMap.set(user.id, user);
+        }
+    });
+
+    emailSnapshot.forEach(doc => {
+        const user = { id: doc.id, ...doc.data() } as ChatUser;
+        if (user.email !== currentUserEmail) {
+            usersMap.set(user.id, user);
+        }
+    });
+
+    return Array.from(usersMap.values());
+};
+
+    

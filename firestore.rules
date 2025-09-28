@@ -4,31 +4,31 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Allow authenticated users to get the list of users for chat,
-    // but only allow users to create/update their OWN profile.
+    // For the users collection:
+    // 1. Any authenticated user can query the collection (for search).
+    // 2. A user can get their own document.
+    // 3. A user can create their own document on first login.
+    // 4. A user can update their own document.
     match /users/{userId} {
-      allow list, get: if request.auth != null;
-      allow create, update: if request.auth.uid == userId;
+      allow create: if request.auth.uid == userId;
+      allow get, update: if request.auth.uid == userId;
+      // Allow querying by any authenticated user for the search functionality
+      allow list: if request.auth != null; 
     }
 
-    // Secure the chat collections.
+    // For the chats collection:
+    // 1. A user can only see chats they are a participant in.
+    // 2. A user can only get, create, or update a chat if they are a participant.
     match /chats/{chatId} {
-      // Users can only see the list of chats they are a participant in.
-      allow list: if request.auth != null && request.auth.uid in resource.data.participants;
-
-      // Users can only get/create/update a chat if they are a participant.
-      allow get, create, update: if request.auth != null && request.auth.uid in resource.data.participants;
+      allow list, get, create, update: if request.auth != null && request.auth.uid in resource.data.participants;
 
       // Messages subcollection
       match /messages/{messageId} {
-        // Users can only read/write messages in chats they are part of.
+        // Users can read/write messages in chats they are part of.
         allow read, write: if request.auth != null && get(/databases/$(database)/documents/chats/$(chatId)).data.participants.hasAny([request.auth.uid]);
       }
     }
-
-    // Default deny all other collections unless explicitly allowed
-    match /{path=**}/ {
-        allow read, write: if false;
-    }
   }
 }
+
+    
