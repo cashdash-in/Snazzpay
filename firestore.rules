@@ -2,43 +2,42 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper functions
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
     function isUser(userId) {
-      return isSignedIn() && request.auth.uid == userId;
+      return request.auth != null && request.auth.uid == userId;
     }
 
-    // USERS collection
     match /users/{userId} {
-      // Anyone can read user profiles (for chat list, etc.)
-      allow get, list: if isSignedIn();
-      // Allow any authenticated user to create a user document (for signup)
-      allow create: if isSignedIn();
-      // Only the user themselves can update their own profile
-      allow update: if isUser(userId);
+      // Allow anyone to create a user document (for signup).
+      allow create;
+      
+      // Only the user themselves can read, update or delete their own document.
+      allow read, update, delete: if isUser(userId);
+      
+      // Any authenticated user can list users to populate the chat list.
+      allow list: if request.auth != null;
     }
 
-    // CHATS collection
     match /chats/{chatId} {
-      // Allow user to see list of their chats
-      allow list: if isSignedIn() && request.auth.uid in resource.data.participants;
-      // Allow participants to read/write/create chat document
-      allow read, update, create: if isSignedIn() && request.auth.uid in resource.data.participants;
-
-      // MESSAGES sub-collection
-      match /messages/{messageId} {
-        // Allow participants to read/write/delete messages
-        allow read, create, delete: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+      function isParticipant() {
+        return request.auth != null && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
       }
-    }
-    
-    // Default deny all other access
-    match /{document=**} {
-      allow read, write: if false;
+
+      // A user can only see chats they are a participant in.
+      allow list: if request.auth != null && request.auth.uid in resource.data.participants;
+      
+      // A user can get/read a chat if they are a participant.
+      allow get: if isParticipant();
+      
+      // Any authenticated user can create a chat.
+      allow create: if request.auth != null;
+      
+      // A user can only update a chat (e.g., last message) if they are a participant.
+      allow update: if isParticipant();
+
+      match /messages/{messageId} {
+        // A user can read/write/delete messages if they are a participant in the parent chat.
+        allow read, write, delete: if isParticipant();
+      }
     }
   }
 }
