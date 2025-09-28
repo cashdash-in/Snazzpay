@@ -1,24 +1,44 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /users/{userId} {
-      // Allow any authenticated user to get the list of users for chat.
-      allow get, list: if request.auth != null;
-      // Allow a user to create or update their own user document.
-      allow write: if request.auth != null && request.auth.uid == userId;
-    }
-    match /chats/{chatId} {
-      // Allow a user to list only the chats they are a participant in.
-      allow list: if request.auth != null && request.auth.uid in resource.data.participants;
-      // Allow a user to read or update a chat document if they are a participant.
-      allow read, update: if request.auth != null && request.auth.uid in resource.data.participants;
-      // Allow any authenticated user to create a chat.
-      allow create: if request.auth != null;
 
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isUser(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // USERS collection
+    match /users/{userId} {
+      // Anyone can read user profiles (for chat list, etc.)
+      allow get, list: if isSignedIn();
+      // Allow any authenticated user to create a user document (for signup)
+      allow create: if isSignedIn();
+      // Only the user themselves can update their own profile
+      allow update: if isUser(userId);
+    }
+
+    // CHATS collection
+    match /chats/{chatId} {
+      // Allow user to see list of their chats
+      allow list: if isSignedIn() && request.auth.uid in resource.data.participants;
+      // Allow participants to read/write/create chat document
+      allow read, update, create: if isSignedIn() && request.auth.uid in resource.data.participants;
+
+      // MESSAGES sub-collection
       match /messages/{messageId} {
-        // Allow users to read, write, and delete messages only in chats they are a part of.
-        allow read, write, delete: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+        // Allow participants to read/write/delete messages
+        allow read, create, delete: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
       }
+    }
+    
+    // Default deny all other access
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
