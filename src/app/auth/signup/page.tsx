@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ShieldCheck, Mail, Lock, Loader2, User } from "lucide-react";
+import { ShieldCheck, Mail, Lock, Loader2, User, Phone } from "lucide-react";
 import Link from "next/link";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -15,7 +15,6 @@ import { auth, db } from '@/lib/firebase';
 import { FirebaseError } from 'firebase/app';
 import type { SellerUser } from '@/app/seller-accounts/page';
 import { doc, setDoc } from 'firebase/firestore';
-import type { ChatUser } from '@/services/firestore';
 
 
 const ADMIN_EMAIL = "admin@snazzpay.com";
@@ -26,13 +25,14 @@ export default function SignupPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [companyName, setCompanyName] = useState('');
+    const [phone, setPhone] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     
     // This function will now ONLY be used for Admin creation, as admin is self-approved.
-    const createUserDocument = async (uid: string, name: string, role: ChatUser['role'], email: string) => {
+    const createUserDocument = async (uid: string, name: string, email: string) => {
         if (!db) return;
         const userRef = doc(db, "users", uid);
-        await setDoc(userRef, { id: uid, name, role, email });
+        await setDoc(userRef, { id: uid, name, role: 'admin', email });
     };
 
     const handleSignup = async () => {
@@ -51,7 +51,7 @@ export default function SignupPage() {
                     displayName: "Super Admin",
                 });
                 // Create the user document for the admin immediately
-                await createUserDocument(userCredential.user.uid, "Super Admin", 'admin', email);
+                await createUserDocument(userCredential.user.uid, "Super Admin", email);
                 toast({
                     title: "Admin Account Created!",
                     description: "You can now log in using these credentials on the Admin Login page.",
@@ -79,8 +79,8 @@ export default function SignupPage() {
         }
 
         // Standard seller signup
-        if (!companyName) {
-            toast({ variant: 'destructive', title: "Missing Fields", description: "Please fill out all required fields." });
+        if (!companyName || !phone) {
+            toast({ variant: 'destructive', title: "Missing Fields", description: "Please fill out all required fields, including phone number." });
             setIsLoading(false);
             return;
         }
@@ -94,17 +94,14 @@ export default function SignupPage() {
                 displayName: companyName,
             });
             
-            // WORKAROUND: DO NOT create the user document here.
-            // It will be created by the admin upon approval.
-
             const newSellerRequest: SellerUser = {
                 id: user.uid,
                 companyName: companyName,
                 email: user.email || '',
+                phone: phone,
                 status: 'pending',
             };
 
-            // Save the request to local storage for the admin to see
             const existingRequestsJSON = localStorage.getItem('seller_requests');
             const existingRequests: SellerUser[] = existingRequestsJSON ? JSON.parse(existingRequestsJSON) : [];
             localStorage.setItem('seller_requests', JSON.stringify([...existingRequests, newSellerRequest]));
@@ -120,7 +117,6 @@ export default function SignupPage() {
         } catch (error: any) {
             console.error("Signup failed:", error);
             
-            // If the auth user was created but the subsequent steps failed, delete the auth user.
             if (user) {
                 await deleteUser(user);
                 console.log("Cleaned up orphaned auth user due to error:", user.uid);
@@ -182,20 +178,36 @@ export default function SignupPage() {
                         </div>
                     </div>
                     {email.toLowerCase() !== ADMIN_EMAIL && (
-                    <div className="space-y-2">
-                        <Label htmlFor="companyName">Company Name (for Sellers)</Label>
-                        <div className="relative">
-                            <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input 
-                                id="companyName" 
-                                type="text" 
-                                placeholder="Your Company LLC" 
-                                value={companyName}
-                                onChange={(e) => setCompanyName(e.target.value)}
-                                className="pl-9" 
-                            />
-                        </div>
-                    </div>
+                        <>
+                            <div className="space-y-2">
+                                <Label htmlFor="companyName">Company Name (for Sellers)</Label>
+                                <div className="relative">
+                                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Input 
+                                        id="companyName" 
+                                        type="text" 
+                                        placeholder="Your Company LLC" 
+                                        value={companyName}
+                                        onChange={(e) => setCompanyName(e.target.value)}
+                                        className="pl-9" 
+                                    />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="phone">Phone Number (for WhatsApp)</Label>
+                                <div className="relative">
+                                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Input 
+                                        id="phone" 
+                                        type="tel" 
+                                        placeholder="e.g., 919876543210" 
+                                        value={phone}
+                                        onChange={(e) => setPhone(e.target.value)}
+                                        className="pl-9" 
+                                    />
+                                </div>
+                            </div>
+                        </>
                     )}
                     <div className="space-y-2">
                         <Label htmlFor="password">Password</Label>

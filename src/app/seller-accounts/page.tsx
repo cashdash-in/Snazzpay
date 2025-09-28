@@ -105,7 +105,7 @@ export default function SellerAccountsPage() {
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Company</TableHead>
-                                        <TableHead>Email</TableHead>
+                                        <TableHead>Email / Phone</TableHead>
                                         <TableHead>Firebase UID</TableHead>
                                         <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
@@ -114,7 +114,10 @@ export default function SellerAccountsPage() {
                                    {sellerRequests.length > 0 ? sellerRequests.map(req => (
                                         <TableRow key={req.id}>
                                             <TableCell className="font-medium">{req.companyName}</TableCell>
-                                            <TableCell>{req.email}</TableCell>
+                                            <TableCell>
+                                                <div>{req.email}</div>
+                                                <div className="text-xs text-muted-foreground">{req.phone || 'No phone provided'}</div>
+                                            </TableCell>
                                             <TableCell className="font-mono text-xs">{req.id}</TableCell>
                                             <TableCell className="text-right space-x-2">
                                                 <Button size="sm" variant="outline" className="text-green-600 border-green-600 hover:bg-green-50 hover:text-green-700" onClick={() => handleSellerRequest(req.id, 'approved')}><Check className="mr-2 h-4 w-4" />Approve</Button>
@@ -140,7 +143,7 @@ export default function SellerAccountsPage() {
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Company</TableHead>
-                                        <TableHead>Email</TableHead>
+                                        <TableHead>Email / Phone</TableHead>
                                         <TableHead>Status</TableHead>
                                         <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
@@ -149,10 +152,13 @@ export default function SellerAccountsPage() {
                                    {approvedSellers.length > 0 ? approvedSellers.map(seller => (
                                         <TableRow key={seller.id}>
                                             <TableCell className="font-medium">{seller.companyName}</TableCell>
-                                            <TableCell>{seller.email}</TableCell>
+                                            <TableCell>
+                                                <div>{seller.email}</div>
+                                                <div className="text-xs text-muted-foreground">{seller.phone || 'No phone provided'}</div>
+                                            </TableCell>
                                             <TableCell><Badge className="bg-green-100 text-green-800">{seller.status}</Badge></TableCell>
                                             <TableCell className="text-right">
-                                                 <Button size="sm" variant="secondary" onClick={() => handleWhatsAppChat(seller)}>
+                                                 <Button size="sm" variant="secondary" onClick={() => handleWhatsAppChat(seller)} disabled={!seller.phone}>
                                                     <MessageSquare className="mr-2 h-4 w-4" />
                                                     WhatsApp Chat
                                                 </Button>
