@@ -37,5 +37,11 @@ export const ProductListingOutputSchema = z.object({
     .describe(
       'The calculated selling price based on the cost and profit margin.'
     ),
+  sizes: z
+    .array(z.string())
+    .describe('An array of available sizes for the product (e.g., ["S", "M", "L", "XL"]).'),
+  colors: z
+    .array(z.string())
+    .describe('An array of available colors for the product (e.g., ["Red", "Blue", "Green"]).'),
 });
 export type ProductListingOutput = z.infer<typeof ProductListingOutputSchema>;

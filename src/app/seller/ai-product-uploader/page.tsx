@@ -239,6 +239,26 @@ export default function AiProductUploaderPage() {
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="generated-sizes">Sizes</Label>
+                    <Input
+                      id="generated-sizes"
+                      value={generatedListing.sizes.join(', ')}
+                      readOnly
+                      className="bg-muted"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="generated-colors">Colors</Label>
+                    <Input
+                      id="generated-colors"
+                      value={generatedListing.colors.join(', ')}
+                      readOnly
+                      className="bg-muted"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                     <Label htmlFor="generated-category">Category</Label>
                     <Input

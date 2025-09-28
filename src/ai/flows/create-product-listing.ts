@@ -31,6 +31,7 @@ const prompt = ai.definePrompt({
   - **Description:** Write a compelling product description. It should be well-formatted using Markdown. Start with a captivating sentence, followed by a bulleted list of key features and benefits.
   - **Category:** Suggest a standard Shopify product category (e.g., "Apparel & Accessories > Clothing > Shirts & Tops").
   - **Price:** Calculate the final selling price. The formula is: cost * (1 + (margin / 100)). Round the final price to the nearest logical number (e.g., 499 instead of 498.75).
+  - **Sizes & Colors:** Extract all available sizes and colors from the description and return them as arrays of strings.
 
   Here is the raw information:
   - **Cost Price:** {{{cost}}}
