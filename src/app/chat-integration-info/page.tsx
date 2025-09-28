@@ -10,7 +10,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useState, useEffect, useRef, FormEvent, useCallback } from "react";
 import { collection, onSnapshot, orderBy, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Loader2, Send, ImagePlus, Search, UserPlus } from "lucide-react";
+import { Loader2, Send, ImagePlus, Search, UserPlus, MessageCircle } from "lucide-react";
 import { format } from "date-fns";
 import { createChat, sendMessage, findUsers, type Message, type Chat, type ChatUser } from "@/services/firestore";
 import { useToast } from "@/hooks/use-toast";
@@ -57,7 +57,7 @@ function ChatWindow({ activeChat, currentUser }: { activeChat: Chat; currentUser
 
     const handleSendMessage = async (e: FormEvent) => {
         e.preventDefault();
-        if (!newMessage.trim()) return;
+        if (!newMessage.trim() || !currentUser) return;
 
         try {
             await sendMessage(activeChat.id, currentUser.id, { type: 'text', content: newMessage });
@@ -70,7 +70,7 @@ function ChatWindow({ activeChat, currentUser }: { activeChat: Chat; currentUser
     
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (!file) return;
+        if (!file || !currentUser) return;
 
         const reader = new FileReader();
         reader.onload = async (event) => {
@@ -85,7 +85,7 @@ function ChatWindow({ activeChat, currentUser }: { activeChat: Chat; currentUser
         reader.readAsDataURL(file);
     };
 
-    const otherParticipantName = Object.values(activeChat.participantNames).find(name => name !== currentUser.name);
+    const otherParticipantName = Object.values(activeChat.participantNames).find(name => name !== currentUser.name) || 'Chat';
 
     return (
         <div className="flex flex-col h-full">
@@ -101,9 +101,10 @@ function ChatWindow({ activeChat, currentUser }: { activeChat: Chat; currentUser
                 {loading ? <Loader2 className="animate-spin mx-auto"/> : (
                     messages.map(message => {
                         const isSender = message.senderId === currentUser.id;
+                        const senderName = activeChat.participantNames[message.senderId] || 'U';
                         return (
                             <div key={message.id} className={`flex items-end gap-2 ${isSender ? 'justify-end' : 'justify-start'}`}>
-                                {!isSender && <Avatar className="h-8 w-8"><AvatarFallback>{activeChat.participantNames[message.senderId]?.[0]}</AvatarFallback></Avatar>}
+                                {!isSender && <Avatar className="h-8 w-8"><AvatarFallback>{senderName[0]}</AvatarFallback></Avatar>}
                                 <div className={`max-w-xs md:max-w-md p-1 rounded-2xl ${isSender ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-muted rounded-bl-none'}`}>
                                     {message.content.type === 'text' ? (
                                         <p className="text-sm p-2 break-words">{message.content.content}</p>
@@ -132,7 +133,7 @@ function ChatWindow({ activeChat, currentUser }: { activeChat: Chat; currentUser
 }
 
 export default function ChatPage() {
-    const { user } = useAuth();
+    const { user, loading: authLoading } = useAuth();
     const { toast } = useToast();
     const [currentUser, setCurrentUser] = useState<ChatUser | null>(null);
     const [chats, setChats] = useState<Chat[]>([]);
@@ -144,7 +145,11 @@ export default function ChatPage() {
     const [isSearching, setIsSearching] = useState(false);
 
     useEffect(() => {
-        if (!user || !db) return;
+        if (authLoading || !user) return;
+        if (!db) {
+            toast({ variant: 'destructive', title: 'Firestore Error', description: 'Database is not configured. Please check Firebase setup.' });
+            return;
+        }
         
         const role = localStorage.getItem('userRole') || 'admin';
         const cUser: ChatUser = {
@@ -154,10 +159,10 @@ export default function ChatPage() {
             email: user.email || ''
         };
         setCurrentUser(cUser);
-    }, [user]);
+    }, [user, authLoading, toast]);
 
     useEffect(() => {
-        if (!currentUser || !db) return;
+        if (!currentUser) return;
         setLoadingChats(true);
         const q = query(collection(db, "chats"), where("participants", "array-contains", currentUser.id), orderBy("lastMessageTimestamp", "desc"));
         
@@ -214,13 +219,10 @@ export default function ChatPage() {
                 [partner.id]: partner.name,
             });
 
-            // Check if this chat already exists in our state
             const existingChat = chats.find(c => c.id === chatId);
             if(existingChat) {
                 setActiveChat(existingChat);
             } else {
-                 // If the chat was just created, it might not be immediately available via the listener.
-                 // We can construct it manually for the UI to be responsive.
                 const newChat: Chat = {
                     id: chatId,
                     participants: [currentUser.id, partner.id],
@@ -237,6 +239,16 @@ export default function ChatPage() {
             toast({ variant: 'destructive', title: 'Chat Error', description: error.message });
         }
     };
+    
+    if (authLoading || !currentUser) {
+        return (
+             <AppShell title="Internal Chat">
+                <div className="flex h-[calc(100vh-10rem)] items-center justify-center">
+                    <Loader2 className="h-10 w-10 animate-spin" />
+                </div>
+            </AppShell>
+        )
+    }
 
     return (
         <AppShell title="Internal Chat">
@@ -283,7 +295,7 @@ export default function ChatPage() {
                                     <div key={chat.id} onClick={() => setActiveChat(chat)} className={`p-4 border-b cursor-pointer hover:bg-muted ${activeChat?.id === chat.id ? 'bg-muted' : ''}`}>
                                         <div className="flex items-center gap-3">
                                              <Avatar className="h-10 w-10">
-                                                <AvatarFallback>{otherParticipantName?.[0]?.toUpperCase()}</AvatarFallback>
+                                                <AvatarFallback>{otherParticipantName?.[0]?.toUpperCase() || '?'}</AvatarFallback>
                                              </Avatar>
                                              <div className="flex-1 truncate">
                                                 <p className="font-semibold">{otherParticipantName}</p>
@@ -312,5 +324,3 @@ export default function ChatPage() {
         </AppShell>
     );
 }
-
-    
