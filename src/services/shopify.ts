@@ -42,6 +42,22 @@ const OrdersResponseSchema = z.object({
 
 export type Order = z.infer<typeof OrderSchema>;
 
+export type ShopifyProductInput = {
+    title: string;
+    body_html: string;
+    product_type: string;
+    vendor: string;
+    variants: {
+        price: number;
+        option1?: string; // For size
+        option2?: string; // For color
+    }[];
+    options?: { name: string; values: string[] }[];
+    images: {
+        attachment: string; // base64 encoded image data
+    }[];
+}
+
 async function shopifyFetch(endpoint: string, options: RequestInit = {}) {
     if (!SHOPIFY_STORE_URL || !SHOPIFY_API_KEY || !SHOPIFY_API_KEY.startsWith('shpat_')) {
         console.warn('Shopify API keys are not configured correctly on the server.');
@@ -62,7 +78,7 @@ async function shopifyFetch(endpoint: string, options: RequestInit = {}) {
     if (!response.ok) {
         const errorBody = await response.text();
         console.error(`Shopify API error: ${response.status} ${response.statusText} - ${errorBody}`);
-        throw new Error(`Shopify API Error: ${response.statusText}.`);
+        throw new Error(`Shopify API Error: ${response.statusText}. Check server logs for details.`);
     }
 
     return response.json();
@@ -83,6 +99,20 @@ export async function getOrders(): Promise<Order[]> {
     } catch (error: any) {
         console.error("Error fetching Shopify orders from internal API:", error);
         // Re-throw the error so the client-side useToast can display it.
+        throw error;
+    }
+}
+
+
+export async function createProduct(product: ShopifyProductInput): Promise<any> {
+    try {
+        const response = await shopifyFetch('products.json', {
+            method: 'POST',
+            body: JSON.stringify({ product }),
+        });
+        return response.product;
+    } catch (error: any) {
+        console.error("Error creating Shopify product:", error);
         throw error;
     }
 }

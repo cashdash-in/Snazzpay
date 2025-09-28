@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -30,6 +31,7 @@ import Image from 'next/image';
 export default function AiProductUploaderPage() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [isPushing, setIsPushing] = useState(false);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [imageDataUris, setImageDataUris] = useState<string[]>([]);
   const [vendorDescription, setVendorDescription] = useState('');
@@ -100,13 +102,48 @@ export default function AiProductUploaderPage() {
     }
   };
 
-  const handlePushToShopify = () => {
-    // This is a placeholder for the actual API call to Shopify
-    toast({
-      title: 'Ready for Shopify!',
-      description:
-        'In a real application, this would now push the product to your Shopify store.',
-    });
+  const handlePushToShopify = async () => {
+    if (!generatedListing) return;
+    setIsPushing(true);
+
+    try {
+        const productData = {
+            title: generatedListing.title,
+            body_html: generatedListing.description,
+            product_type: generatedListing.category,
+            vendor: 'Snazzify AI',
+            variants: [{ price: generatedListing.price }],
+             images: imageDataUris.map(uri => ({
+                attachment: uri.split(',')[1] // Send base64 data only
+            })),
+        };
+        
+        const response = await fetch('/api/shopify/products/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(productData),
+        });
+
+        const result = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(result.error || "Failed to create product in Shopify.");
+        }
+        
+        toast({
+            title: 'Product Pushed to Shopify!',
+            description: `Successfully created product "${result.product.title}".`,
+        });
+
+    } catch (error: any) {
+        toast({
+            variant: 'destructive',
+            title: 'Shopify Push Failed',
+            description: error.message,
+        });
+    } finally {
+        setIsPushing(false);
+    }
   };
 
   return (
@@ -305,8 +342,12 @@ export default function AiProductUploaderPage() {
                 </div>
               </CardContent>
               <CardFooter>
-                <Button onClick={handlePushToShopify} className="w-full">
-                  <Rocket className="mr-2 h-4 w-4" />
+                 <Button onClick={handlePushToShopify} className="w-full" disabled={isPushing}>
+                  {isPushing ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Rocket className="mr-2 h-4 w-4" />
+                  )}
                   Push to Shopify
                 </Button>
               </CardFooter>
