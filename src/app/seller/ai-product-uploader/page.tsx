@@ -14,10 +14,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  createProductListing,
-  ProductListingOutput,
-} from '@/ai/flows/create-product-listing';
+import { createProductListing } from '@/ai/flows/create-product-listing';
+import { type ProductListingOutput } from '@/ai/schemas/product-listing';
 import { useToast } from '@/hooks/use-toast';
 import {
   Loader2,
