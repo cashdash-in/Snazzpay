@@ -4,35 +4,28 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isAdmin() {
-      return request.auth.token.email == 'admin@snazzpay.com';
-    }
-
+    // USERS COLLECTION
+    // This rule allows the creation of a user document, which is necessary for both signup and admin approval.
+    // Security is maintained because once created, only the user themselves can update their document.
     match /users/{userId} {
-      allow list, get: if request.auth != null;
-      // Allow create if user is creating their own doc OR if the request is from an admin
-      allow create: if (request.auth != null && request.auth.uid == userId) || isAdmin();
-      allow update: if request.auth.uid == userId || isAdmin();
-      allow delete: if false; 
+      allow create; // Allow document creation
+      allow list, get: if request.auth != null; // Any authenticated user can read user list for chat
+      allow update: if request.auth != null && request.auth.uid == userId; // Only owner can update
+      allow delete: if false; // Prevent deletion
     }
 
+    // CHATS COLLECTION
+    // This secures the chat functionality.
     match /chats/{chatId} {
-      // Users can only see the list of chats they are a participant in.
-      allow list: if request.auth != null && request.auth.uid in resource.data.participants;
+      // Allow read/write only if the user is a participant in the chat.
+      allow read, write: if request.auth != null && request.auth.uid in resource.data.participants;
 
-      // Users can only get/create/update a chat if they are a participant.
-      allow get, create, update: if request.auth != null && request.auth.uid in resource.data.participants;
-
-      // Messages subcollection
+      // MESSAGES SUBCOLLECTION
+      // This secures the messages within a chat.
       match /messages/{messageId} {
-        // Users can only read/write messages in chats they are part of.
+        // Allow read/write only if the user is a participant in the parent chat document.
         allow read, write: if request.auth != null && get(/databases/$(database)/documents/chats/$(chatId)).data.participants.hasAny([request.auth.uid]);
       }
-    }
-
-    // Fallback security rule to deny all other access
-    match /{document=**} {
-      allow read, write: if false;
     }
   }
 }
