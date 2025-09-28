@@ -5,12 +5,15 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Trash2, Edit, Loader2 } from "lucide-react";
+import { PlusCircle, Trash2, Edit, Loader2, Check, X, Eye } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { v4 as uuidv4 } from 'uuid';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 
 export type Vendor = {
     id: string;
@@ -18,6 +21,7 @@ export type Vendor = {
     contactPerson: string;
     phone: string;
     email: string;
+    status: 'pending' | 'approved' | 'rejected';
 };
 
 export default function VendorsPage() {
@@ -54,13 +58,14 @@ export default function VendorsPage() {
         }
 
         const vendorToAdd: Vendor = {
-            id: uuidv4(),
-            ...newVendor
+            id: `VEND-${uuidv4().substring(0, 8).toUpperCase()}`,
+            ...newVendor,
+            status: 'approved' // Admins add vendors as approved by default
         };
 
         setVendors(prev => [...prev, vendorToAdd]);
         setNewVendor({ name: '', contactPerson: '', phone: '', email: '' });
-        toast({ title: "Vendor Added", description: `${vendorToAdd.name} has been added to your vendor list.` });
+        toast({ title: "Vendor Added", description: `${vendorToAdd.name} has been added and approved.` });
         document.getElementById('close-add-vendor-dialog')?.click();
     };
 
@@ -68,6 +73,13 @@ export default function VendorsPage() {
         setVendors(prev => prev.filter(v => v.id !== id));
         toast({ variant: 'destructive', title: "Vendor Removed" });
     };
+    
+    const handleUpdateStatus = (id: string, status: Vendor['status']) => {
+        setVendors(prev => prev.map(v => v.id === id ? { ...v, status } : v));
+        toast({ title: "Status Updated", description: `Vendor status has been changed to ${status}.` });
+    };
+
+    const approvedVendors = vendors.filter(v => v.status === 'approved');
 
     return (
         <AppShell title="Vendor Management">
@@ -75,7 +87,7 @@ export default function VendorsPage() {
                 <CardHeader className="flex flex-row items-center justify-between">
                     <div>
                         <CardTitle>Product Vendors</CardTitle>
-                        <CardDescription>Manage your list of suppliers and product vendors.</CardDescription>
+                        <CardDescription>Manage your list of approved suppliers and product vendors.</CardDescription>
                     </div>
                      <Dialog>
                         <DialogTrigger asChild>
@@ -90,7 +102,7 @@ export default function VendorsPage() {
                                 <div className="space-y-2"><Label htmlFor="vendor-name">Vendor/Company Name</Label><Input id="vendor-name" value={newVendor.name} onChange={(e) => setNewVendor(p => ({ ...p, name: e.target.value }))} placeholder="Global Textiles Inc." /></div>
                                 <div className="space-y-2"><Label htmlFor="contact-person">Contact Person</Label><Input id="contact-person" value={newVendor.contactPerson} onChange={(e) => setNewVendor(p => ({ ...p, contactPerson: e.target.value }))} placeholder="Anil Kumar" /></div>
                                 <div className="space-y-2"><Label htmlFor="vendor-phone">Phone Number</Label><Input id="vendor-phone" value={newVendor.phone} onChange={(e) => setNewVendor(p => ({ ...p, phone: e.target.value }))} placeholder="9876543210" /></div>
-                                <div className="space-y-2"><Label htmlFor="vendor-email">Email (Optional)</Label><Input id="vendor-email" type="email" value={newVendor.email} onChange={(e) => setNewVendor(p => ({ ...p, email: e.target.value }))} placeholder="contact@globaltextiles.com" /></div>
+                                <div className="space-y-2"><Label htmlFor="vendor-email">Email (for Login)</Label><Input id="vendor-email" type="email" value={newVendor.email} onChange={(e) => setNewVendor(p => ({ ...p, email: e.target.value }))} placeholder="vendor@example.com" /></div>
                             </div>
                             <DialogFooter>
                                 <Button onClick={handleAddVendor}>Save Vendor</Button>
@@ -108,20 +120,24 @@ export default function VendorsPage() {
                     <Table>
                         <TableHeader>
                             <TableRow>
+                                <TableHead>Vendor ID</TableHead>
                                 <TableHead>Vendor Name</TableHead>
                                 <TableHead>Contact Person</TableHead>
                                 <TableHead>Phone</TableHead>
                                 <TableHead>Email</TableHead>
+                                <TableHead>Status</TableHead>
                                 <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {vendors.length > 0 ? vendors.map(vendor => (
+                            {approvedVendors.length > 0 ? approvedVendors.map(vendor => (
                                 <TableRow key={vendor.id}>
+                                    <TableCell className="font-mono text-xs">{vendor.id}</TableCell>
                                     <TableCell className="font-medium">{vendor.name}</TableCell>
                                     <TableCell>{vendor.contactPerson}</TableCell>
                                     <TableCell>{vendor.phone}</TableCell>
                                     <TableCell>{vendor.email}</TableCell>
+                                    <TableCell><Badge className="bg-green-100 text-green-800">{vendor.status}</Badge></TableCell>
                                     <TableCell className="text-right space-x-2">
                                         <Button variant="outline" size="icon"><Edit className="h-4 w-4" /></Button>
                                         <Button variant="destructive" size="icon" onClick={() => handleRemoveVendor(vendor.id)}><Trash2 className="h-4 w-4" /></Button>
@@ -129,7 +145,7 @@ export default function VendorsPage() {
                                 </TableRow>
                             )) : (
                                 <TableRow>
-                                    <TableCell colSpan={5} className="text-center h-24">No vendors have been added yet.</TableCell>
+                                    <TableCell colSpan={7} className="text-center h-24">No vendors have been added yet.</TableCell>
                                 </TableRow>
                             )}
                         </TableBody>

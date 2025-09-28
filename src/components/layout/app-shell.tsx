@@ -101,7 +101,13 @@ const sellerMenuItems = [
     { href: '/seller/settings', label: 'Settings', icon: Settings },
 ]
 
-const ADMIN_EMAIL = "admin@snazzpay.com";
+const vendorMenuItems = [
+    { href: '/vendor/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/vendor/products', label: 'Products', icon: Package },
+    { href: '/vendor/orders', label: 'Orders', icon: ShoppingCart },
+    { href: '/vendor/settings', label: 'Settings', icon: Settings },
+];
+
 
 export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, title }) => {
   const pathname = usePathname();
@@ -110,21 +116,21 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
   
   const role = getCookie('userRole');
   const isSeller = role === 'seller';
+  const isVendor = role === 'vendor';
 
   const getMenuItems = () => {
-    if (!isSeller) { // Admin view
-        return {
-            core: adminCoreMenuItems,
-            growth: adminGrowthMenuItems,
-            config: adminConfigMenuItems
-        }
+    if (isSeller) {
+        return { core: sellerMenuItems, growth: [], config: [] };
     }
-    // Seller view
+    if (isVendor) {
+        return { core: vendorMenuItems, growth: [], config: [] };
+    }
+    // Default to Admin view
     return {
-        core: sellerMenuItems,
-        growth: [],
-        config: []
-    }
+        core: adminCoreMenuItems,
+        growth: adminGrowthMenuItems,
+        config: adminConfigMenuItems
+    };
   }
 
   const {core, growth, config} = getMenuItems();
@@ -232,6 +238,12 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
                     <span>Seller Login</span>
                   </DropdownMenuItem>
                 </Link>
+                 <Link href="/vendor/login" target="_blank">
+                  <DropdownMenuItem>
+                    <Factory className="mr-2 h-4 w-4" />
+                    <span>Vendor Login</span>
+                  </DropdownMenuItem>
+                </Link>
                  <Link href="/partner-pay/login" target="_blank">
                   <DropdownMenuItem>
                     <Handshake className="mr-2 h-4 w-4" />
@@ -251,7 +263,7 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
                   </DropdownMenuItem>
                 </Link>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => signOut(isSeller)}>
+                <DropdownMenuItem onClick={() => signOut(isSeller || isVendor)}>
                   <LogOut className="mr-2 h-4 w-4"/>
                   Logout
                 </DropdownMenuItem>

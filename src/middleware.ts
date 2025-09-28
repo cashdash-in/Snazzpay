@@ -11,6 +11,7 @@ export function middleware(request: NextRequest) {
   const publicPaths = [
     '/auth/login', 
     '/seller/login',
+    '/vendor/login',
     '/auth/signup', 
     '/secure-cod', 
     '/secure-cod-info', 
@@ -48,16 +49,22 @@ export function middleware(request: NextRequest) {
 
   // If a token exists, enforce role-based access for non-public pages
   const isSellerPath = pathname.startsWith('/seller/');
-  const isAdminPath = !isSellerPath;
+  const isVendorPath = pathname.startsWith('/vendor/');
+  const isAdminPath = !isSellerPath && !isVendorPath;
 
-  if (role === 'seller' && isAdminPath && pathname !== '/') {
-     console.log(`Redirecting seller from admin path: ${pathname}`);
+  if (role === 'seller' && (isAdminPath || isVendorPath) && pathname !== '/') {
+     console.log(`Redirecting seller from non-seller path: ${pathname}`);
      return NextResponse.redirect(new URL('/seller/dashboard', request.url));
   }
 
-  if (role === 'admin' && isSellerPath) {
-     console.log(`Redirecting admin from seller path: ${pathname}`);
+  if (role === 'admin' && (isSellerPath || isVendorPath)) {
+     console.log(`Redirecting admin from non-admin path: ${pathname}`);
      return NextResponse.redirect(new URL('/', request.url));
+  }
+
+  if (role === 'vendor' && (isAdminPath || isSellerPath) && pathname !== '/') {
+      console.log(`Redirecting vendor from non-vendor path: ${pathname}`);
+      return NextResponse.redirect(new URL('/vendor/dashboard', request.url));
   }
 
   return NextResponse.next();

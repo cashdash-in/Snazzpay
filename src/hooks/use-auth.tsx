@@ -15,12 +15,13 @@ import {
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
+import { getCookie } from 'cookies-next';
 
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  signOut: (isSeller?: boolean) => void;
+  signOut: (isMultiRole?: boolean) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -39,7 +40,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => unsubscribe();
   }, []);
 
-  const signOut = async (isSeller: boolean = false) => {
+  const signOut = async (isMultiRole: boolean = false) => {
     try {
         await firebaseSignOut(auth);
         // Call the API route to clear the httpOnly cookie
@@ -47,7 +48,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
         console.error("Error signing out:", error);
     } finally {
-        const loginPath = isSeller ? '/seller/login' : '/auth/login';
+        const role = getCookie('userRole');
+        let loginPath = '/auth/login'; // Default to admin
+        if (role === 'seller') {
+            loginPath = '/seller/login';
+        } else if (role === 'vendor') {
+            loginPath = '/vendor/login';
+        }
+        
         router.push(loginPath);
         router.refresh(); // This helps ensure the new state is reflected everywhere
     }
