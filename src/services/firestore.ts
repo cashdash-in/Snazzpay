@@ -6,18 +6,18 @@ import { collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
 import type { EditableOrder } from '@/app/orders/page';
 import type { PartnerData } from '@/app/partner-pay/page';
 import type { LogisticsPartnerData } from '@/app/logistics-secure/dashboard/page';
-import type { SellerUser } from '@/app/partner-pay/page';
+import type { SellerUser as SellerAccount } from '@/app/seller-accounts/page';
 import type { TopUpRequest } from '@/app/partner-pay/page';
 import type { CashCode } from '@/app/settle/page';
 import type { ShaktiCardData } from '@/components/shakti-card';
 
 
 // Generic CRUD operations
-const getCollection = async <T>(collectionName: string): Promise<T[]> => {
+export const getCollection = async <T>(collectionName: string): Promise<T[]> => {
     if (!db) return [];
     const q = query(collection(db, collectionName));
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as T));
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as unknown as T));
 };
 
 const getDocument = async <T>(collectionName: string, id: string): Promise<T | null> => {
@@ -62,11 +62,11 @@ export const updatePayPartner = async (id: string, data: Partial<PartnerData>) =
 
 
 // Seller User specific functions
-export const getSellerUsers = async (): Promise<SellerUser[]> => getCollection<SellerUser>('seller_users');
+export const getSellerUsers = async (): Promise<SellerAccount[]> => getCollection<SellerAccount>('seller_users');
 
 // This function can now be called from the client-side safely
 // because of the new Firestore security rules.
-export const saveSellerUser = async (user: SellerUser) => {
+export const saveSellerUser = async (user: SellerAccount) => {
     if (!db) throw new Error("Firestore is not initialized.");
     // The ID of the document will be the Firebase Auth user's UID
     const docRef = doc(db, 'seller_users', user.id);
@@ -157,9 +157,10 @@ export const addDocument = async <T extends DocumentData>(collectionName: string
 
 // Chat specific types
 export type ChatUser = {
-    id: string;
+    id: string; // Firebase UID
     name: string;
     role: 'admin' | 'seller' | 'vendor';
+    email: string;
 };
 
 export type MessageContent = {
@@ -212,16 +213,19 @@ export const sendMessage = async (chatId: string, senderId: string, content: Mes
     
     const messagesRef = collection(db, `chats/${chatId}/messages`);
     const messageData = {
+        chatId,
         senderId,
         content,
         timestamp: new Date(),
     };
 
-    await addDoc(messagesRef, messageData);
+    const docRef = await addDoc(messagesRef, messageData);
     
     // Also update the last message on the chat itself for previews
     await updateDoc(doc(db, 'chats', chatId), {
         lastMessage: content,
         lastMessageTimestamp: new Date(),
     });
+    
+    return docRef.id;
 };

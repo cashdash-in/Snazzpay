@@ -1,30 +1,38 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Allow user profile creation by the user themselves, but only allow users to read/update their own profile.
-    // ANY authenticated user can see the list of other users (for the chat).
-    match /users/{userId} {
-      allow list, get: if request.auth != null;
-      allow create: if request.auth != null && request.auth.uid == userId;
-      allow update: if request.auth != null && request.auth.uid == userId;
-      allow delete: if false; // Nobody can delete user profiles
+    // Default deny all reads and writes
+    match /{document=**} {
+      allow read, write: if false;
     }
 
-    // Secure the chat collections.
+    // Rules for the 'users' collection
+    match /users/{userId} {
+      // Any authenticated user can get the list of users (for chat).
+      allow list, get: if request.auth != null;
+      
+      // A user can only create their own user document.
+      allow create: if request.auth.uid == userId;
+      
+      // A user can only update their own profile.
+      allow update: if request.auth.uid == userId;
+    }
+
+    // Rules for the 'chats' collection and 'messages' subcollection
     match /chats/{chatId} {
-      // Users can only see the list of chats they are a participant in.
+      // A user can list chats only if they are a participant.
       allow list: if request.auth != null && request.auth.uid in resource.data.participants;
+      
+      // A user can get, create, or update a chat only if they are a participant.
+      allow get, create, update: if request.auth.uid in resource.data.participants;
 
-      // Users can only get/create/update a chat if they are a participant.
-      allow get, create, update: if request.auth != null && request.auth.uid in resource.data.participants;
-
-      // Messages subcollection
+      // Rules for the 'messages' subcollection within a chat
       match /messages/{messageId} {
-        // Users can only read/write messages in chats they are part of.
-        allow read, write: if request.auth != null && get(/databases/$(database)/documents/chats/$(chatId)).data.participants.hasAny([request.auth.uid]);
+        // A user can read/write messages only in chats they are a part of.
+        // This is checked by getting the parent chat document.
+        allow read, write: if get(/databases/$(database)/documents/chats/$(chatId)).data.participants.hasAny([request.auth.uid]);
       }
     }
   }

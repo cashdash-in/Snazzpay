@@ -27,7 +27,7 @@ function ChatWindow({ activeChat, currentUser }: { activeChat: Chat; currentUser
     const { toast } = useToast();
 
     useEffect(() => {
-        if (!activeChat.id) return;
+        if (!activeChat.id || !db) return;
         setLoading(true);
 
         const q = query(collection(db, `chats/${activeChat.id}/messages`), orderBy("timestamp", "asc"));
@@ -150,20 +150,15 @@ export default function ChatPage() {
             id: user.uid,
             name: user.displayName || user.email || 'User',
             role: role as ChatUser['role'],
+            email: user.email || ''
         };
         setCurrentUser(cUser);
 
         const fetchUsers = async () => {
             setLoadingUsers(true);
             try {
-                const usersSnapshot = await getDocs(collection(db, "users"));
-                const users: ChatUser[] = [];
-                usersSnapshot.forEach((doc) => {
-                    if (doc.id !== cUser.id) { // Exclude current user from the list
-                        users.push(doc.data() as ChatUser);
-                    }
-                });
-                setAllUsers(users);
+                const users = await getCollection<ChatUser>('users');
+                setAllUsers(users.filter(u => u.id !== cUser.id)); // Exclude current user from the list
             } catch (error) {
                 console.error("Error fetching users:", error);
                 toast({
@@ -218,6 +213,17 @@ export default function ChatPage() {
              if(!querySnapshot.empty){
                 const chatDoc = querySnapshot.docs[0];
                 setActiveChat({ id: chatDoc.id, ...chatDoc.data() } as Chat);
+             } else {
+                // If the chat was just created, it might not be immediately available.
+                // We can construct it manually for the UI.
+                setActiveChat({
+                    id: chatId,
+                    participants: [currentUser.id, partner.id],
+                    participantNames: {
+                        [currentUser.id]: currentUser.name,
+                        [partner.id]: partner.name
+                    }
+                });
              }
 
         } catch (error: any) {
