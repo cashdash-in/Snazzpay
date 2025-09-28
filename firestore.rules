@@ -2,23 +2,37 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Allow users to LIST chats they are a part of, and READ/UPDATE a specific chat if they are a participant.
-    match /chats/{chatId} {
-      allow list: if request.auth.uid != null && request.query.where.size() == 1 && request.query.where[0].field == 'participants' && request.query.where[0].op == 'array-contains' && request.query.where[0].value == request.auth.uid;
-      allow read, update: if request.auth.uid in resource.data.participants;
-      allow create: if request.auth.uid != null;
-
-      // Allow participants to read/write messages within their chat.
-      match /messages/{messageId} {
-        allow read, write: if get(/databases/$(database)/documents/chats/$(chatId)).data.participants.hasAny([request.auth.uid]);
-      }
-    }
-
-    // Placeholder rules for other collections.
-    // In a real app, you would define specific rules for each collection.
+  
+    // Default deny all reads and writes
     match /{document=**} {
       allow read, write: if false;
+    }
+    
+    // Allow any authenticated user to read the public user profiles
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      // Allow a user to create and update their OWN user document
+      allow create, update: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Rules for the chat functionality
+    match /chats/{chatId} {
+      // A user can read or update a chat document only if their UID is in the participants list.
+      allow read, update, create: if request.auth != null && request.auth.uid in resource.data.participants;
+      
+      // Allow a user to LIST chats they are a participant in.
+      // This is crucial for fetching the initial list of conversations.
+      allow list: if request.auth != null && request.query.where.size() == 1 &&
+                     request.query.where[0].fieldPath == 'participants' &&
+                     request.query.where[0].op == 'array-contains' &&
+                     request.query.where[0].value == request.auth.uid;
+
+      // Rules for messages subcollection
+      match /messages/{messageId} {
+        // A user can read, write, or delete messages in a chat they are a participant of.
+        // This checks the parent 'chat' document's data.
+        allow read, write, delete: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+      }
     }
   }
 }

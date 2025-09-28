@@ -15,6 +15,7 @@ import { auth, db } from '@/lib/firebase';
 import { FirebaseError } from 'firebase/app';
 import type { SellerUser } from '@/app/seller-accounts/page';
 import { doc, setDoc } from 'firebase/firestore';
+import type { ChatUser } from '@/services/firestore';
 
 
 const ADMIN_EMAIL = "admin@snazzpay.com";
@@ -26,6 +27,12 @@ export default function SignupPage() {
     const [password, setPassword] = useState('');
     const [companyName, setCompanyName] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    
+    const createUserDocument = async (uid: string, name: string, role: ChatUser['role'], email: string) => {
+        if (!db) return;
+        const userRef = doc(db, "users", uid);
+        await setDoc(userRef, { id: uid, name, role, email });
+    };
 
     const handleSignup = async () => {
         setIsLoading(true);
@@ -42,6 +49,7 @@ export default function SignupPage() {
                 await updateProfile(userCredential.user, {
                     displayName: "Super Admin",
                 });
+                await createUserDocument(userCredential.user.uid, "Super Admin", 'admin', email);
                 toast({
                     title: "Admin Account Created!",
                     description: "You can now log in using these credentials on the Admin Login page.",
@@ -81,6 +89,8 @@ export default function SignupPage() {
             await updateProfile(user, {
                 displayName: companyName,
             });
+            
+            await createUserDocument(user.uid, companyName, 'seller', email);
 
             const newSellerRequest: SellerUser = {
                 id: user.uid,

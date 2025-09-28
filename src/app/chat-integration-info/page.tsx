@@ -7,13 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/use-auth";
 import { useState, useEffect, useRef, FormEvent } from "react";
-import { collection, onSnapshot, orderBy, query, where } from "firebase/firestore";
+import { collection, onSnapshot, orderBy, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Loader2, Send, ImagePlus } from "lucide-react";
 import { format } from "date-fns";
 import type { SellerUser } from "@/app/seller-accounts/page";
 import type { Vendor } from "@/app/vendors/page";
-import { createChat, sendMessage, type Message, type Chat, type ChatUser } from "@/services/firestore";
+import { createChat, sendMessage, type Message, type Chat, type ChatUser, getCollection } from "@/services/firestore";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 
@@ -143,7 +143,7 @@ export default function ChatPage() {
     const [loadingUsers, setLoadingUsers] = useState(true);
 
     useEffect(() => {
-        if (!user) return;
+        if (!user || !db) return;
         
         const role = localStorage.getItem('userRole') || 'admin';
         const cUser: ChatUser = {
@@ -155,42 +155,31 @@ export default function ChatPage() {
 
         const fetchUsers = async () => {
             setLoadingUsers(true);
-            const users: ChatUser[] = [];
-            
-            if (cUser.role !== 'admin') {
-                 // Simplified: Assume one admin user. In a real app, this would be a query.
-                 // This ID must correspond to the admin user's Firebase UID.
-                 // For now, it's a placeholder. A robust implementation would query the 'users' collection.
-                 // For this prototype, we'll hardcode the known admin UID if it's available.
-                 // A better way is to look up admin from a users collection. This is a stopgap.
-                 // Since we don't have a users collection, let's assume we can't find it.
+            try {
+                const usersSnapshot = await getDocs(collection(db, "users"));
+                const users: ChatUser[] = [];
+                usersSnapshot.forEach((doc) => {
+                    if (doc.id !== cUser.id) { // Exclude current user from the list
+                        users.push(doc.data() as ChatUser);
+                    }
+                });
+                setAllUsers(users);
+            } catch (error) {
+                console.error("Error fetching users:", error);
+                toast({
+                    variant: 'destructive',
+                    title: 'Error',
+                    description: 'Could not fetch list of users. Check Firestore rules for the `users` collection.'
+                });
             }
-
-            const approvedSellers: SellerUser[] = JSON.parse(localStorage.getItem('approved_sellers') || '[]');
-            approvedSellers.forEach(s => {
-                if (s.id !== cUser.id) users.push({ id: s.id, name: s.companyName, role: 'seller' });
-            });
-
-            const approvedVendors: Vendor[] = JSON.parse(localStorage.getItem('vendors_db') || '[]').filter((v: Vendor) => v.status === 'approved');
-             approvedVendors.forEach(v => {
-                if (v.email) { // Assuming email is used for login and can act as an ID here
-                    // This is a weak link. A proper implementation would use Firebase UIDs for vendors too.
-                    // For the prototype, we find the vendor user.
-                    // This part is complex without a proper users collection. We will simplify.
-                    const vendorId = `vendor_${v.email}`; // Create a predictable ID
-                    users.push({ id: v.email, name: v.name, role: 'vendor' });
-                }
-            });
-            
-            setAllUsers(users);
             setLoadingUsers(false);
         };
 
         fetchUsers();
-    }, [user]);
+    }, [user, toast]);
 
      useEffect(() => {
-        if (!currentUser) return;
+        if (!currentUser || !db) return;
         
         const q = query(collection(db, "chats"), where("participants", "array-contains", currentUser.id));
         
@@ -224,12 +213,13 @@ export default function ChatPage() {
             });
 
             // Find the full chat object to set as active
-            const newOrExistingChat = chats.find(c => c.id === chatId) || {
-                id: chatId,
-                participants: [currentUser.id, partner.id],
-                participantNames: { [currentUser.id]: currentUser.name, [partner.id]: partner.name }
-            };
-            setActiveChat(newOrExistingChat);
+             const chatQ = query(collection(db, "chats"), where("id", "==", chatId));
+             const querySnapshot = await getDocs(chatQ);
+             if(!querySnapshot.empty){
+                const chatDoc = querySnapshot.docs[0];
+                setActiveChat({ id: chatDoc.id, ...chatDoc.data() } as Chat);
+             }
+
         } catch (error: any) {
             console.error("Error creating or selecting chat:", error);
             toast({ variant: 'destructive', title: 'Chat Error', description: error.message });
