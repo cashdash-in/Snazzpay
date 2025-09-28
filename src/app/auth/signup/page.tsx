@@ -28,6 +28,7 @@ export default function SignupPage() {
     const [companyName, setCompanyName] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     
+    // This function will now ONLY be used for Admin creation, as admin is self-approved.
     const createUserDocument = async (uid: string, name: string, role: ChatUser['role'], email: string) => {
         if (!db) return;
         const userRef = doc(db, "users", uid);
@@ -49,6 +50,7 @@ export default function SignupPage() {
                 await updateProfile(userCredential.user, {
                     displayName: "Super Admin",
                 });
+                // Create the user document for the admin immediately
                 await createUserDocument(userCredential.user.uid, "Super Admin", 'admin', email);
                 toast({
                     title: "Admin Account Created!",
@@ -62,6 +64,8 @@ export default function SignupPage() {
                     description = 'The admin account already exists. Please proceed to login.';
                 } else if (error instanceof FirebaseError && error.code === 'auth/weak-password') {
                     description = 'The password is too weak. It must be at least 6 characters long.';
+                } else {
+                     description = `An error occurred: ${error.message}`;
                 }
                 toast({
                     variant: 'destructive',
@@ -90,7 +94,8 @@ export default function SignupPage() {
                 displayName: companyName,
             });
             
-            await createUserDocument(user.uid, companyName, 'seller', email);
+            // WORKAROUND: DO NOT create the user document here.
+            // It will be created by the admin upon approval.
 
             const newSellerRequest: SellerUser = {
                 id: user.uid,
@@ -115,6 +120,7 @@ export default function SignupPage() {
         } catch (error: any) {
             console.error("Signup failed:", error);
             
+            // If the auth user was created but the subsequent steps failed, delete the auth user.
             if (user) {
                 await deleteUser(user);
                 console.log("Cleaned up orphaned auth user due to error:", user.uid);
@@ -135,7 +141,7 @@ export default function SignupPage() {
                         description = 'The email address is not valid.';
                         break;
                     case 'auth/permission-denied':
-                         description = 'Permission denied. The database security rules are preventing signup. Please contact the administrator.';
+                         description = 'Permission denied. The database security rules may be misconfigured. Please contact the administrator.';
                          break;
                     default:
                         description = `An error occurred: ${error.message}`;

@@ -10,18 +10,11 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { Check, X, Eye } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { db } from '@/lib/firebase';
+import { doc, setDoc } from 'firebase/firestore';
 
 export type SellerUser = {
-    id: string;
+    id: string; // This will be the Firebase Auth UID
     companyName: string;
     email: string;
     status: 'pending' | 'approved' | 'rejected';
@@ -34,12 +27,10 @@ export default function SellerAccountsPage() {
 
      useEffect(() => {
         function loadData() {
-            // Seller Users from localStorage
             const localSellerRequestsJSON = localStorage.getItem('seller_requests');
             const localSellerRequests: SellerUser[] = localSellerRequestsJSON ? JSON.parse(localSellerRequestsJSON) : [];
             setSellerRequests(localSellerRequests);
 
-            // Approved Sellers from localStorage
             const approvedSellersJSON = localStorage.getItem('approved_sellers');
             const approvedSellersList: SellerUser[] = approvedSellersJSON ? JSON.parse(approvedSellersJSON) : [];
             setApprovedSellers(approvedSellersList);
@@ -47,26 +38,47 @@ export default function SellerAccountsPage() {
         loadData();
     }, []);
 
-    const handleSellerRequest = (sellerId: string, newStatus: 'approved' | 'rejected') => {
+    const createUserDocumentInFirestore = async (user: SellerUser) => {
+        if (!db) {
+            toast({ variant: 'destructive', title: "Firestore Error", description: "Firestore is not initialized. Cannot create user profile." });
+            throw new Error("Firestore not initialized.");
+        }
+        const userRef = doc(db, "users", user.id);
+        await setDoc(userRef, { id: user.id, name: user.companyName, role: 'seller', email: user.email });
+    };
+
+    const handleSellerRequest = async (sellerId: string, newStatus: 'approved' | 'rejected') => {
         const seller = sellerRequests.find(s => s.id === sellerId);
         if (!seller) return;
 
-        if (newStatus === 'approved') {
-            const approvedSellersJSON = localStorage.getItem('approved_sellers');
-            let currentApprovedSellers: SellerUser[] = approvedSellersJSON ? JSON.parse(approvedSellersJSON) : [];
-            currentApprovedSellers.push({ ...seller, status: 'approved' });
-            localStorage.setItem('approved_sellers', JSON.stringify(currentApprovedSellers));
-            setApprovedSellers(currentApprovedSellers);
-        }
-        
-        const updatedRequests = sellerRequests.filter(s => s.id !== sellerId);
-        setSellerRequests(updatedRequests);
-        localStorage.setItem('seller_requests', JSON.stringify(updatedRequests));
+        try {
+            if (newStatus === 'approved') {
+                // Create the user document in Firestore upon approval
+                await createUserDocumentInFirestore(seller);
 
-        toast({
-            title: `Seller Request ${newStatus}`,
-            description: `The seller account request for ${seller.companyName} has been ${newStatus}.`,
-        });
+                const approvedSellersJSON = localStorage.getItem('approved_sellers');
+                let currentApprovedSellers: SellerUser[] = approvedSellersJSON ? JSON.parse(approvedSellersJSON) : [];
+                currentApprovedSellers.push({ ...seller, status: 'approved' });
+                localStorage.setItem('approved_sellers', JSON.stringify(currentApprovedSellers));
+                setApprovedSellers(currentApprovedSellers);
+            }
+            
+            const updatedRequests = sellerRequests.filter(s => s.id !== sellerId);
+            setSellerRequests(updatedRequests);
+            localStorage.setItem('seller_requests', JSON.stringify(updatedRequests));
+
+            toast({
+                title: `Seller Request ${newStatus}`,
+                description: `The seller account for ${seller.companyName} has been ${newStatus}.`,
+            });
+        } catch (error: any) {
+            console.error("Failed to handle seller request:", error);
+             toast({
+                variant: 'destructive',
+                title: `Approval Failed`,
+                description: `Could not create user profile in Firestore. Check Firestore rules and configuration. Error: ${error.message}`,
+            });
+        }
     };
 
     return (
