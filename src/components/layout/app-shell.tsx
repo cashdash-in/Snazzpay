@@ -54,6 +54,7 @@ import {
   UserCheck as UserCheckIcon,
   MessageCircle,
   Sparkles,
+  Wand2,
 } from 'lucide-react';
 import { usePageRefresh } from '@/hooks/usePageRefresh';
 import { useAuth } from '@/hooks/use-auth';
@@ -88,7 +89,7 @@ const adminConfigMenuItems = [
 const sellerMenuItems = [
     { href: '/seller/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/seller/products', label: 'Products', icon: Package },
-    { href: '/seller/ai-product-uploader', label: 'AI Product Uploader', icon: Sparkles },
+    { href: '/seller/ai-product-uploader', label: 'AI Product Uploader', icon: Wand2 },
     { href: '/seller/orders', label: 'Orders', icon: ShoppingCart },
     { href: '/seller/earnings', label: 'Earnings', icon: DollarSign },
     { href: '/seller/reports', label: 'Reports', icon: FileSpreadsheet },
