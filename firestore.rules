@@ -3,32 +3,31 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // For the users collection:
-    // 1. Any authenticated user can query the collection (for search).
-    // 2. A user can get their own document.
-    // 3. A user can create their own document on first login.
-    // 4. A user can update their own document.
-    match /users/{userId} {
-      allow create: if request.auth.uid == userId;
-      allow get, update: if request.auth.uid == userId;
-      // Allow querying by any authenticated user for the search functionality
-      allow list: if request.auth != null; 
+    
+    // Default to denying all access.
+    match /{document=**} {
+      allow read, write: if false;
     }
 
-    // For the chats collection:
-    // 1. A user can only see chats they are a participant in.
-    // 2. A user can only get, create, or update a chat if they are a participant.
+    // Allow user profile creation and limited reads
+    match /users/{userId} {
+      allow create: if true; // Anyone can create a user profile (for signup)
+      allow update, get: if request.auth != null && request.auth.uid == userId; // Only user can update/get their own profile
+      
+      // Allow authenticated users to query the collection (for search)
+      allow list: if request.auth != null;
+    }
+
+    // Secure the chat collections
     match /chats/{chatId} {
-      allow list, get, create, update: if request.auth != null && request.auth.uid in resource.data.participants;
+      // Allow read/write access only to participants of the chat
+      allow read, write: if request.auth != null && request.auth.uid in resource.data.participants;
 
       // Messages subcollection
       match /messages/{messageId} {
-        // Users can read/write messages in chats they are part of.
+        // Inherit read/write from parent chat document
         allow read, write: if request.auth != null && get(/databases/$(database)/documents/chats/$(chatId)).data.participants.hasAny([request.auth.uid]);
       }
     }
   }
 }
-
-    

@@ -238,44 +238,24 @@ export const findUsers = async (searchTerm: string, currentUserEmail: string): P
     
     const lowerCaseTerm = searchTerm.toLowerCase();
 
-    // Query for name
-    const nameQuery = query(
-        collection(db, 'users'),
-        orderBy('name'),
-        where('name', '>=', lowerCaseTerm),
-        where('name', '<=', lowerCaseTerm + '\uf8ff')
-    );
-
-    // Query for email
+    // Firestore doesn't support case-insensitive or partial-text search natively.
+    // This query finds exact matches for the email.
     const emailQuery = query(
         collection(db, 'users'),
-        orderBy('email'),
-        where('email', '>=', lowerCaseTerm),
-        where('email', '<=', lowerCaseTerm + '\uf8ff')
+        where('email', '==', lowerCaseTerm)
     );
 
-    const [nameSnapshot, emailSnapshot] = await Promise.all([
-        getDocs(nameQuery),
-        getDocs(emailQuery)
-    ]);
+    const snapshot = await getDocs(emailQuery);
 
-    const usersMap = new Map<string, ChatUser>();
-    
-    nameSnapshot.forEach(doc => {
+    const users: ChatUser[] = [];
+    snapshot.forEach(doc => {
         const user = { id: doc.id, ...doc.data() } as ChatUser;
+        // Exclude the current user from search results
         if (user.email !== currentUserEmail) {
-            usersMap.set(user.id, user);
+            users.push(user);
         }
     });
 
-    emailSnapshot.forEach(doc => {
-        const user = { id: doc.id, ...doc.data() } as ChatUser;
-        if (user.email !== currentUserEmail) {
-            usersMap.set(user.id, user);
-        }
-    });
-
-    return Array.from(usersMap.values());
+    return users;
 };
-
     
