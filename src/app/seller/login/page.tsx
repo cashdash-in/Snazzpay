@@ -14,7 +14,7 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { FirebaseError } from 'firebase/app';
-import type { SellerUser } from '@/app/partner-pay/page';
+import type { SellerUser } from '@/app/seller-accounts/page';
 
 
 export default function SellerLoginPage() {

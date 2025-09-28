@@ -13,7 +13,7 @@ import { useRouter } from 'next/navigation';
 import { createUserWithEmailAndPassword, updateProfile, deleteUser } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { FirebaseError } from 'firebase/app';
-import type { SellerUser } from '@/app/partner-pay/page';
+import type { SellerUser } from '@/app/seller-accounts/page';
 import { doc, setDoc } from 'firebase/firestore';
 
 
