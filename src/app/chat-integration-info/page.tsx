@@ -7,15 +7,14 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/use-auth";
-import { useState, useEffect, useRef, FormEvent, useCallback } from "react";
+import { useState, useEffect, useRef, FormEvent, useCallback, useMemo } from "react";
 import { collection, onSnapshot, orderBy, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Loader2, Send, ImagePlus, Search, UserPlus, MessageCircle } from "lucide-react";
 import { format } from "date-fns";
-import { createChat, sendMessage, findUsers, type Message, type Chat, type ChatUser } from "@/services/firestore";
+import { createChat, sendMessage, getCollection, type Message, type Chat, type ChatUser } from "@/services/firestore";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
-import { useDebounce } from 'use-debounce';
 
 function ChatWindow({ activeChat, currentUser }: { activeChat: Chat; currentUser: ChatUser }) {
     const [messages, setMessages] = useState<Message[]>([]);
@@ -136,13 +135,12 @@ export default function ChatPage() {
     const { user, loading: authLoading } = useAuth();
     const { toast } = useToast();
     const [currentUser, setCurrentUser] = useState<ChatUser | null>(null);
+    const [allUsers, setAllUsers] = useState<ChatUser[]>([]);
     const [chats, setChats] = useState<Chat[]>([]);
     const [activeChat, setActiveChat] = useState<Chat | null>(null);
     const [loadingChats, setLoadingChats] = useState(true);
+    const [loadingUsers, setLoadingUsers] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
-    const [debouncedSearchTerm] = useDebounce(searchTerm, 300);
-    const [searchResults, setSearchResults] = useState<ChatUser[]>([]);
-    const [isSearching, setIsSearching] = useState(false);
 
     useEffect(() => {
         if (authLoading || !user) return;
@@ -188,27 +186,36 @@ export default function ChatPage() {
     }, [currentUser, toast]);
 
     useEffect(() => {
-        const performSearch = async () => {
-            if (debouncedSearchTerm.trim().length < 2 || !currentUser) {
-                setSearchResults([]);
-                setIsSearching(false);
-                return;
-            }
-            setIsSearching(true);
+        const fetchAllUsers = async () => {
+            if (!currentUser) return;
+            setLoadingUsers(true);
             try {
-                const results = await findUsers(debouncedSearchTerm, currentUser.email);
-                setSearchResults(results);
+                const usersList = await getCollection<ChatUser>('users');
+                // Exclude the current user from the list
+                setAllUsers(usersList.filter(u => u.id !== currentUser.id));
             } catch (error) {
-                console.error('Error searching users:', error);
-                toast({ variant: 'destructive', title: 'Search Error', description: 'Could not perform user search.' });
+                console.error("Error fetching user list:", error);
+                toast({
+                    variant: 'destructive',
+                    title: 'Error fetching users',
+                    description: 'Could not fetch list of users. Check Firestore rules for the users collection.'
+                });
             } finally {
-                setIsSearching(false);
+                setLoadingUsers(false);
             }
         };
 
-        performSearch();
-    }, [debouncedSearchTerm, currentUser, toast]);
+        fetchAllUsers();
+    }, [currentUser, toast]);
 
+
+    const searchResults = useMemo(() => {
+        if (!searchTerm) return [];
+        return allUsers.filter(u => 
+            u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            u.email.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    }, [searchTerm, allUsers]);
 
     const handleCreateOrSelectChat = async (partner: ChatUser) => {
         if (!currentUser) return;
@@ -232,7 +239,6 @@ export default function ChatPage() {
                 setActiveChat(newChat);
             }
             setSearchTerm('');
-            setSearchResults([]);
 
         } catch (error: any) {
             console.error("Error creating or selecting chat:", error);
@@ -267,7 +273,7 @@ export default function ChatPage() {
                         </div>
                     </header>
                     <div className="flex-1 overflow-y-auto">
-                        {isSearching && <Loader2 className="animate-spin m-4"/>}
+                        {(loadingUsers) && <Loader2 className="animate-spin m-4"/>}
                         {searchResults.length > 0 && (
                             <>
                                 <p className="p-2 text-xs text-muted-foreground border-b">Search Results:</p>
@@ -287,7 +293,7 @@ export default function ChatPage() {
                             </>
                         )}
                         
-                        {loadingChats ? <Loader2 className="animate-spin m-4"/> : (
+                        {(loadingChats || loadingUsers) ? <Loader2 className="animate-spin m-4"/> : (
                              chats.map(chat => {
                                 const otherParticipantId = chat.participants.find(p => p !== currentUser?.id);
                                 const otherParticipantName = otherParticipantId ? chat.participantNames[otherParticipantId] : 'Unknown';
