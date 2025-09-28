@@ -237,25 +237,47 @@ export const findUsers = async (searchTerm: string, currentUserEmail: string): P
     if (!db) return [];
     
     const lowerCaseTerm = searchTerm.toLowerCase();
+    const strlength = lowerCaseTerm.length;
+    const strFrontCode = lowerCaseTerm.slice(0, strlength - 1);
+    const strEndCode = lowerCaseTerm.slice(strlength - 1, strlength);
+    const end = strFrontCode + String.fromCharCode(strEndCode.charCodeAt(0) + 1);
 
-    // Firestore doesn't support case-insensitive or partial-text search natively.
-    // This query finds exact matches for the email.
-    const emailQuery = query(
+    const nameQuery = query(
         collection(db, 'users'),
-        where('email', '==', lowerCaseTerm)
+        where('name', '>=', lowerCaseTerm),
+        where('name', '<', end)
+    );
+     const emailQuery = query(
+        collection(db, 'users'),
+        where('email', '>=', lowerCaseTerm),
+        where('email', '<', end)
     );
 
-    const snapshot = await getDocs(emailQuery);
+    try {
+        const [nameSnapshot, emailSnapshot] = await Promise.all([
+            getDocs(nameQuery),
+            getDocs(emailQuery)
+        ]);
 
-    const users: ChatUser[] = [];
-    snapshot.forEach(doc => {
-        const user = { id: doc.id, ...doc.data() } as ChatUser;
-        // Exclude the current user from search results
-        if (user.email !== currentUserEmail) {
-            users.push(user);
-        }
-    });
+        const users: Map<string, ChatUser> = new Map();
 
-    return users;
+        nameSnapshot.forEach(doc => {
+            const user = { id: doc.id, ...doc.data() } as ChatUser;
+            if (user.email !== currentUserEmail) {
+                users.set(user.id, user);
+            }
+        });
+        emailSnapshot.forEach(doc => {
+             const user = { id: doc.id, ...doc.data() } as ChatUser;
+            if (user.email !== currentUserEmail) {
+                users.set(user.id, user);
+            }
+        });
+        
+        return Array.from(users.values());
+
+    } catch (error) {
+        console.error("Error in findUsers:", error);
+        throw new Error("Could not perform user search. Check Firestore rules and configuration.");
+    }
 };
-    

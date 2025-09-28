@@ -3,18 +3,19 @@
 
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/use-auth";
-import { useState, useEffect, useRef, FormEvent, useCallback, useMemo } from "react";
-import { collection, onSnapshot, orderBy, query, where, getDocs } from "firebase/firestore";
+import { useState, useEffect, useRef, FormEvent, useMemo } from "react";
+import { collection, onSnapshot, orderBy, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Loader2, Send, ImagePlus, Search, UserPlus, MessageCircle } from "lucide-react";
+import { Loader2, Send, ImagePlus, Search, MessageCircle } from "lucide-react";
 import { format } from "date-fns";
-import { createChat, sendMessage, getCollection, type Message, type Chat, type ChatUser } from "@/services/firestore";
+import { createChat, sendMessage, findUsers, type Message, type Chat, type ChatUser } from "@/services/firestore";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
+import { useDebounce } from 'use-debounce';
 
 function ChatWindow({ activeChat, currentUser }: { activeChat: Chat; currentUser: ChatUser }) {
     const [messages, setMessages] = useState<Message[]>([]);
@@ -135,12 +136,13 @@ export default function ChatPage() {
     const { user, loading: authLoading } = useAuth();
     const { toast } = useToast();
     const [currentUser, setCurrentUser] = useState<ChatUser | null>(null);
-    const [allUsers, setAllUsers] = useState<ChatUser[]>([]);
     const [chats, setChats] = useState<Chat[]>([]);
     const [activeChat, setActiveChat] = useState<Chat | null>(null);
     const [loadingChats, setLoadingChats] = useState(true);
-    const [loadingUsers, setLoadingUsers] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearchTerm] = useDebounce(searchTerm, 500);
+    const [searchResults, setSearchResults] = useState<ChatUser[]>([]);
+    const [isSearching, setIsSearching] = useState(false);
 
     useEffect(() => {
         if (authLoading || !user) return;
@@ -185,37 +187,31 @@ export default function ChatPage() {
         return () => unsubscribe();
     }, [currentUser, toast]);
 
-    useEffect(() => {
-        const fetchAllUsers = async () => {
-            if (!currentUser) return;
-            setLoadingUsers(true);
+     useEffect(() => {
+        const performSearch = async () => {
+            if (!debouncedSearchTerm || !currentUser) {
+                setSearchResults([]);
+                return;
+            }
+            setIsSearching(true);
             try {
-                const usersList = await getCollection<ChatUser>('users');
-                // Exclude the current user from the list
-                setAllUsers(usersList.filter(u => u.id !== currentUser.id));
+                const results = await findUsers(debouncedSearchTerm, currentUser.email);
+                setSearchResults(results);
             } catch (error) {
-                console.error("Error fetching user list:", error);
+                console.error("User search failed:", error);
                 toast({
                     variant: 'destructive',
-                    title: 'Error fetching users',
-                    description: 'Could not fetch list of users. Check Firestore rules for the users collection.'
+                    title: 'Search Error',
+                    description: 'Could not perform user search. Check Firestore rules and configuration.'
                 });
             } finally {
-                setLoadingUsers(false);
+                setIsSearching(false);
             }
         };
 
-        fetchAllUsers();
-    }, [currentUser, toast]);
+        performSearch();
+    }, [debouncedSearchTerm, currentUser, toast]);
 
-
-    const searchResults = useMemo(() => {
-        if (!searchTerm) return [];
-        return allUsers.filter(u => 
-            u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            u.email.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-    }, [searchTerm, allUsers]);
 
     const handleCreateOrSelectChat = async (partner: ChatUser) => {
         if (!currentUser) return;
@@ -239,6 +235,7 @@ export default function ChatPage() {
                 setActiveChat(newChat);
             }
             setSearchTerm('');
+            setSearchResults([]);
 
         } catch (error: any) {
             console.error("Error creating or selecting chat:", error);
@@ -273,8 +270,7 @@ export default function ChatPage() {
                         </div>
                     </header>
                     <div className="flex-1 overflow-y-auto">
-                        {(loadingUsers) && <Loader2 className="animate-spin m-4"/>}
-                        {searchResults.length > 0 && (
+                        {isSearching ? <Loader2 className="animate-spin m-4"/> : searchResults.length > 0 && (
                             <>
                                 <p className="p-2 text-xs text-muted-foreground border-b">Search Results:</p>
                                 {searchResults.map(u => (
@@ -293,7 +289,7 @@ export default function ChatPage() {
                             </>
                         )}
                         
-                        {(loadingChats || loadingUsers) ? <Loader2 className="animate-spin m-4"/> : (
+                        {(loadingChats) ? <Loader2 className="animate-spin m-4"/> : (
                              chats.map(chat => {
                                 const otherParticipantId = chat.participants.find(p => p !== currentUser?.id);
                                 const otherParticipantName = otherParticipantId ? chat.participantNames[otherParticipantId] : 'Unknown';
