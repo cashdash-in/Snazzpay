@@ -1,39 +1,34 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Default deny all reads and writes
-    match /{document=**} {
-      allow read, write: if false;
-    }
-
-    // Rules for the 'users' collection
+    // Allow authenticated users to get the list of users for chat,
+    // but only allow users to create/update their OWN profile.
     match /users/{userId} {
-      // Any authenticated user can get the list of users (for chat).
       allow list, get: if request.auth != null;
-      
-      // A user can only create their own user document.
-      allow create: if request.auth.uid == userId;
-      
-      // A user can only update their own profile.
-      allow update: if request.auth.uid == userId;
+      allow create, update: if request.auth.uid == userId;
     }
 
-    // Rules for the 'chats' collection and 'messages' subcollection
+    // Secure the chat collections.
     match /chats/{chatId} {
-      // A user can list chats only if they are a participant.
+      // Users can only see the list of chats they are a participant in.
       allow list: if request.auth != null && request.auth.uid in resource.data.participants;
-      
-      // A user can get, create, or update a chat only if they are a participant.
-      allow get, create, update: if request.auth.uid in resource.data.participants;
 
-      // Rules for the 'messages' subcollection within a chat
+      // Users can only get/create/update a chat if they are a participant.
+      allow get, create, update: if request.auth != null && request.auth.uid in resource.data.participants;
+
+      // Messages subcollection
       match /messages/{messageId} {
-        // A user can read/write messages only in chats they are a part of.
-        // This is checked by getting the parent chat document.
-        allow read, write: if get(/databases/$(database)/documents/chats/$(chatId)).data.participants.hasAny([request.auth.uid]);
+        // Users can only read/write messages in chats they are part of.
+        allow read, write: if request.auth != null && get(/databases/$(database)/documents/chats/$(chatId)).data.participants.hasAny([request.auth.uid]);
       }
+    }
+
+    // Default deny all other collections unless explicitly allowed
+    match /{path=**}/ {
+        allow read, write: if false;
     }
   }
 }
