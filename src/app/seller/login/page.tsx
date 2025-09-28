@@ -12,7 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { FirebaseError } from 'firebase/app';
 import type { SellerUser } from '@/app/seller-accounts/page';
 
@@ -40,14 +40,30 @@ export default function SellerLoginPage() {
             // Check approval status from local storage
             const approvedSellersJSON = localStorage.getItem('approved_sellers');
             const approvedSellers: SellerUser[] = approvedSellersJSON ? JSON.parse(approvedSellersJSON) : [];
-            const isApproved = approvedSellers.some(seller => seller.id === loggedInUser.uid && seller.status === 'approved');
+            const sellerInfo = approvedSellers.find(seller => seller.id === loggedInUser.uid);
 
-            if (!isApproved) {
+            if (!sellerInfo || sellerInfo.status !== 'approved') {
                  await auth.signOut();
                  toast({ variant: 'destructive', title: "Account Not Approved", description: `Your seller account is pending approval or has been rejected. Please contact support.` });
                  setIsLoading(false);
                  return;
             }
+
+            // WORKAROUND: Create user document on first login after approval
+            if (db) {
+                const userDocRef = doc(db, 'users', loggedInUser.uid);
+                const userDoc = await getDoc(userDocRef);
+                if (!userDoc.exists()) {
+                    await setDoc(userDocRef, {
+                        id: loggedInUser.uid,
+                        name: loggedInUser.displayName || sellerInfo.companyName,
+                        role: 'seller',
+                        email: loggedInUser.email,
+                    });
+                     toast({ title: "Account Profile Created", description: "Your user profile has been successfully set up." });
+                }
+            }
+
 
             const idToken = await loggedInUser.getIdToken();
             

@@ -38,24 +38,15 @@ export default function SellerAccountsPage() {
         loadData();
     }, []);
 
-    const createUserDocumentInFirestore = async (user: SellerUser) => {
-        if (!db) {
-            toast({ variant: 'destructive', title: "Firestore Error", description: "Firestore is not initialized. Cannot create user profile." });
-            throw new Error("Firestore not initialized.");
-        }
-        const userRef = doc(db, "users", user.id);
-        await setDoc(userRef, { id: user.id, name: user.companyName, role: 'seller', email: user.email });
-    };
-
-    const handleSellerRequest = async (sellerId: string, newStatus: 'approved' | 'rejected') => {
+    const handleSellerRequest = (sellerId: string, newStatus: 'approved' | 'rejected') => {
         const seller = sellerRequests.find(s => s.id === sellerId);
         if (!seller) return;
 
         try {
             if (newStatus === 'approved') {
-                // Create the user document in Firestore upon approval
-                await createUserDocumentInFirestore(seller);
-
+                // WORKAROUND: Do NOT create the Firestore document here.
+                // It will be created by the user on their first login.
+                // We just add them to the list of approved sellers.
                 const approvedSellersJSON = localStorage.getItem('approved_sellers');
                 let currentApprovedSellers: SellerUser[] = approvedSellersJSON ? JSON.parse(approvedSellersJSON) : [];
                 currentApprovedSellers.push({ ...seller, status: 'approved' });
@@ -63,6 +54,7 @@ export default function SellerAccountsPage() {
                 setApprovedSellers(currentApprovedSellers);
             }
             
+            // Remove the request from the pending list regardless of action
             const updatedRequests = sellerRequests.filter(s => s.id !== sellerId);
             setSellerRequests(updatedRequests);
             localStorage.setItem('seller_requests', JSON.stringify(updatedRequests));
@@ -76,7 +68,7 @@ export default function SellerAccountsPage() {
              toast({
                 variant: 'destructive',
                 title: `Approval Failed`,
-                description: `Could not create user profile in Firestore. Check Firestore rules and configuration. Error: ${error.message}`,
+                description: `Could not update local storage. Error: ${error.message}`,
             });
         }
     };

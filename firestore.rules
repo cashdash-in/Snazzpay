@@ -4,26 +4,26 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // USERS COLLECTION
-    // This rule allows the creation of a user document, which is necessary for both signup and admin approval.
-    // Security is maintained because once created, only the user themselves can update their document.
+    // Allow user profile creation by the user themselves, but only allow users to read/update their own profile.
+    // ANY authenticated user can see the list of other users (for the chat).
     match /users/{userId} {
-      allow create; // Allow document creation
-      allow list, get: if request.auth != null; // Any authenticated user can read user list for chat
-      allow update: if request.auth != null && request.auth.uid == userId; // Only owner can update
-      allow delete: if false; // Prevent deletion
+      allow list, get: if request.auth != null;
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update: if request.auth != null && request.auth.uid == userId;
+      allow delete: if false; // Nobody can delete user profiles
     }
 
-    // CHATS COLLECTION
-    // This secures the chat functionality.
+    // Secure the chat collections.
     match /chats/{chatId} {
-      // Allow read/write only if the user is a participant in the chat.
-      allow read, write: if request.auth != null && request.auth.uid in resource.data.participants;
+      // Users can only see the list of chats they are a participant in.
+      allow list: if request.auth != null && request.auth.uid in resource.data.participants;
 
-      // MESSAGES SUBCOLLECTION
-      // This secures the messages within a chat.
+      // Users can only get/create/update a chat if they are a participant.
+      allow get, create, update: if request.auth != null && request.auth.uid in resource.data.participants;
+
+      // Messages subcollection
       match /messages/{messageId} {
-        // Allow read/write only if the user is a participant in the parent chat document.
+        // Users can only read/write messages in chats they are part of.
         allow read, write: if request.auth != null && get(/databases/$(database)/documents/chats/$(chatId)).data.participants.hasAny([request.auth.uid]);
       }
     }
