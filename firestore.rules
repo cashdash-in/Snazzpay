@@ -2,28 +2,23 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Default deny all reads and writes
+
+    // Allow users to LIST chats they are a part of, and READ/UPDATE a specific chat if they are a participant.
+    match /chats/{chatId} {
+      allow list: if request.auth.uid != null && request.query.where.size() == 1 && request.query.where[0].field == 'participants' && request.query.where[0].op == 'array-contains' && request.query.where[0].value == request.auth.uid;
+      allow read, update: if request.auth.uid in resource.data.participants;
+      allow create: if request.auth.uid != null;
+
+      // Allow participants to read/write messages within their chat.
+      match /messages/{messageId} {
+        allow read, write: if get(/databases/$(database)/documents/chats/$(chatId)).data.participants.hasAny([request.auth.uid]);
+      }
+    }
+
+    // Placeholder rules for other collections.
+    // In a real app, you would define specific rules for each collection.
     match /{document=**} {
       allow read, write: if false;
-    }
-
-    // Allow users to manage their own user document
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-
-    // Rules for the 'chats' collection
-    match /chats/{chatId} {
-      // Allow a user to read or update a chat document if they are a participant
-      allow read, update: if request.auth != null && request.auth.uid in resource.data.participants;
-      // Allow any authenticated user to create a new chat
-      allow create: if request.auth != null;
-
-      // Rules for the 'messages' sub-collection within a chat
-      match /messages/{messageId} {
-        // Allow a user to read, write, and delete messages if they are a participant of the parent chat
-        allow read, write, delete: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
-      }
     }
   }
 }
