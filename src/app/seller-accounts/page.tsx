@@ -1,3 +1,4 @@
+
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -8,22 +9,19 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
-import { Check, X, Eye, MessageCircle } from "lucide-react";
-import { useAuth } from "@/hooks/use-auth";
-import { createChat } from "@/services/firestore";
-import { useRouter } from "next/navigation";
+import { Check, X, MessageSquare } from "lucide-react";
+import { sanitizePhoneNumber } from "@/lib/utils";
 
 
 export type SellerUser = {
     id: string; // This will be the Firebase Auth UID
     companyName: string;
     email: string;
+    phone?: string;
     status: 'pending' | 'approved' | 'rejected';
 };
 
 export default function SellerAccountsPage() {
-    const { user: adminUser } = useAuth();
-    const router = useRouter();
     const { toast } = useToast();
     const [sellerRequests, setSellerRequests] = useState<SellerUser[]>([]);
     const [approvedSellers, setApprovedSellers] = useState<SellerUser[]>([]);
@@ -72,26 +70,19 @@ export default function SellerAccountsPage() {
         }
     };
 
-    const handleStartChat = async (seller: SellerUser) => {
-        if (!adminUser) {
-            toast({ variant: 'destructive', title: 'Error', description: 'Admin user not found. Cannot start chat.' });
+    const handleWhatsAppChat = (seller: SellerUser) => {
+        if (!seller.phone) {
+            toast({
+                variant: 'destructive',
+                title: 'Phone Number Missing',
+                description: 'Cannot start chat because a phone number is not available for this seller.',
+            });
             return;
         }
-
-        try {
-            await createChat(
-                [adminUser.uid, seller.id],
-                {
-                    [adminUser.uid]: adminUser.displayName || 'Admin',
-                    [seller.id]: seller.companyName,
-                }
-            );
-            toast({ title: 'Chat Created!', description: `A chat with ${seller.companyName} has been started.` });
-            router.push('/chat-integration-info');
-        } catch (error: any) {
-            console.error("Error creating chat:", error);
-            toast({ variant: 'destructive', title: 'Chat Error', description: `Could not create chat. ${error.message}` });
-        }
+        const sanitizedPhone = sanitizePhoneNumber(seller.phone);
+        const message = `Hi ${seller.companyName}, this is a message from SnazzPay admin.`;
+        const whatsappUrl = `https://wa.me/${sanitizedPhone}?text=${encodeURIComponent(message)}`;
+        window.open(whatsappUrl, '_blank');
     };
 
 
@@ -161,9 +152,9 @@ export default function SellerAccountsPage() {
                                             <TableCell>{seller.email}</TableCell>
                                             <TableCell><Badge className="bg-green-100 text-green-800">{seller.status}</Badge></TableCell>
                                             <TableCell className="text-right">
-                                                 <Button size="sm" variant="secondary" onClick={() => handleStartChat(seller)}>
-                                                    <MessageCircle className="mr-2 h-4 w-4" />
-                                                    Start Chat
+                                                 <Button size="sm" variant="secondary" onClick={() => handleWhatsAppChat(seller)}>
+                                                    <MessageSquare className="mr-2 h-4 w-4" />
+                                                    WhatsApp Chat
                                                 </Button>
                                             </TableCell>
                                         </TableRow>

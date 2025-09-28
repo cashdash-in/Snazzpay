@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -5,16 +6,15 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Trash2, Edit, Loader2, Check, X, Eye, MessageCircle } from "lucide-react";
+import { PlusCircle, Trash2, Edit, Loader2, MessageSquare } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { v4 as uuidv4 } from 'uuid';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { useAuth } from '@/hooks/use-auth';
-import { createChat } from '@/services/firestore';
-import { useRouter } from 'next/navigation';
+import { sanitizePhoneNumber } from '@/lib/utils';
+
 
 export type Vendor = {
     id: string;
@@ -26,8 +26,6 @@ export type Vendor = {
 };
 
 export default function VendorsPage() {
-    const { user: adminUser } = useAuth();
-    const router = useRouter();
     const { toast } = useToast();
     const [vendors, setVendors] = useState<Vendor[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -77,40 +75,12 @@ export default function VendorsPage() {
         toast({ variant: 'destructive', title: "Vendor Removed" });
     };
     
-    const handleUpdateStatus = (id: string, status: Vendor['status']) => {
-        setVendors(prev => prev.map(v => v.id === id ? { ...v, status } : v));
-        toast({ title: "Status Updated", description: `Vendor status has been changed to ${status}.` });
+    const handleWhatsAppChat = (vendor: Vendor) => {
+        const sanitizedPhone = sanitizePhoneNumber(vendor.phone);
+        const message = `Hi ${vendor.name}, regarding our partnership with SnazzPay...`;
+        const whatsappUrl = `https://wa.me/${sanitizedPhone}?text=${encodeURIComponent(message)}`;
+        window.open(whatsappUrl, '_blank');
     };
-
-    const handleStartChat = async (vendor: Vendor) => {
-        if (!adminUser) {
-            toast({ variant: 'destructive', title: 'Error', description: 'Admin user not found. Cannot start chat.' });
-            return;
-        }
-        if (!vendor.email) {
-             toast({ variant: 'destructive', title: 'Error', description: 'Vendor does not have an email for chat ID. Please add one.' });
-            return;
-        }
-
-        // We use a predictable ID based on email for the chat user, as vendors don't have auth UIDs
-        const vendorChatId = `vendor_${vendor.email.replace(/[^a-zA-Z0-9]/g, '')}`;
-
-        try {
-            await createChat(
-                [adminUser.uid, vendorChatId],
-                {
-                    [adminUser.uid]: adminUser.displayName || 'Admin',
-                    [vendorChatId]: vendor.name,
-                }
-            );
-            toast({ title: 'Chat Created!', description: `A chat with ${vendor.name} has been started.` });
-            router.push('/chat-integration-info');
-        } catch (error: any) {
-            console.error("Error creating chat:", error);
-            toast({ variant: 'destructive', title: 'Chat Error', description: `Could not create chat. ${error.message}` });
-        }
-    };
-
 
     const approvedVendors = vendors.filter(v => v.status === 'approved');
 
@@ -135,7 +105,7 @@ export default function VendorsPage() {
                                 <div className="space-y-2"><Label htmlFor="vendor-name">Vendor/Company Name</Label><Input id="vendor-name" value={newVendor.name} onChange={(e) => setNewVendor(p => ({ ...p, name: e.target.value }))} placeholder="Global Textiles Inc." /></div>
                                 <div className="space-y-2"><Label htmlFor="contact-person">Contact Person</Label><Input id="contact-person" value={newVendor.contactPerson} onChange={(e) => setNewVendor(p => ({ ...p, contactPerson: e.target.value }))} placeholder="Anil Kumar" /></div>
                                 <div className="space-y-2"><Label htmlFor="vendor-phone">Phone Number</Label><Input id="vendor-phone" value={newVendor.phone} onChange={(e) => setNewVendor(p => ({ ...p, phone: e.target.value }))} placeholder="9876543210" /></div>
-                                <div className="space-y-2"><Label htmlFor="vendor-email">Email (Required for Chat)</Label><Input id="vendor-email" type="email" value={newVendor.email} onChange={(e) => setNewVendor(p => ({ ...p, email: e.target.value }))} placeholder="vendor@example.com" /></div>
+                                <div className="space-y-2"><Label htmlFor="vendor-email">Email (Optional)</Label><Input id="vendor-email" type="email" value={newVendor.email} onChange={(e) => setNewVendor(p => ({ ...p, email: e.target.value }))} placeholder="vendor@example.com" /></div>
                             </div>
                             <DialogFooter>
                                 <Button onClick={handleAddVendor}>Save Vendor</Button>
@@ -168,13 +138,12 @@ export default function VendorsPage() {
                                      <TableCell>
                                         <div>{vendor.contactPerson}</div>
                                         <div className="text-xs text-muted-foreground">{vendor.phone}</div>
-                                        <div className="text-xs text-muted-foreground">{vendor.email}</div>
                                     </TableCell>
                                     <TableCell><Badge className="bg-green-100 text-green-800">{vendor.status}</Badge></TableCell>
                                     <TableCell className="text-right space-x-2">
-                                        <Button size="sm" variant="secondary" onClick={() => handleStartChat(vendor)} disabled={!vendor.email}>
-                                            <MessageCircle className="mr-2 h-4 w-4" />
-                                            Chat
+                                        <Button size="sm" variant="secondary" onClick={() => handleWhatsAppChat(vendor)}>
+                                            <MessageSquare className="mr-2 h-4 w-4" />
+                                            WhatsApp Chat
                                         </Button>
                                         <Button variant="outline" size="icon"><Edit className="h-4 w-4" /></Button>
                                         <Button variant="destructive" size="icon" onClick={() => handleRemoveVendor(vendor.id)}><Trash2 className="h-4 w-4" /></Button>
