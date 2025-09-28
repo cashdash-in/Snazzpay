@@ -7,40 +7,24 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/use-auth";
 import { useState, useEffect, useRef, FormEvent } from "react";
-import { getDocs, collection, query, where, addDoc, onSnapshot, orderBy, doc, getDoc, setDoc } from "firebase/firestore";
+import { collection, onSnapshot, orderBy, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Loader2, Send } from "lucide-react";
+import { Loader2, Send, ImagePlus } from "lucide-react";
 import { format } from "date-fns";
 import type { SellerUser } from "@/app/seller-accounts/page";
 import type { Vendor } from "@/app/vendors/page";
+import { createChat, sendMessage, type Message, type Chat, type ChatUser } from "@/services/firestore";
+import { useToast } from "@/hooks/use-toast";
+import Image from "next/image";
 
-type ChatUser = {
-    id: string;
-    name: string;
-    role: 'admin' | 'seller' | 'vendor';
-};
-
-type Message = {
-    id: string;
-    chatId: string;
-    senderId: string;
-    text: string;
-    timestamp: Date;
-};
-
-type Chat = {
-    id: string;
-    participants: string[]; // array of user IDs
-    participantNames: { [key: string]: string };
-    lastMessage?: string;
-    lastMessageTimestamp?: Date;
-};
 
 function ChatWindow({ activeChat, currentUser }: { activeChat: Chat; currentUser: ChatUser }) {
     const [messages, setMessages] = useState<Message[]>([]);
     const [newMessage, setNewMessage] = useState('');
     const [loading, setLoading] = useState(true);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const { toast } = useToast();
 
     useEffect(() => {
         if (!activeChat.id) return;
@@ -74,29 +58,32 @@ function ChatWindow({ activeChat, currentUser }: { activeChat: Chat; currentUser
 
     const handleSendMessage = async (e: FormEvent) => {
         e.preventDefault();
-        if (!newMessage.trim() || !currentUser.id || !activeChat.id) return;
-
-        const messageData = {
-            chatId: activeChat.id,
-            senderId: currentUser.id,
-            text: newMessage,
-            timestamp: new Date(),
-        };
+        if (!newMessage.trim()) return;
 
         try {
-            await addDoc(collection(db, `chats/${activeChat.id}/messages`), messageData);
-
-            // Update the last message on the chat document
-            const chatRef = doc(db, "chats", activeChat.id);
-            await setDoc(chatRef, {
-                lastMessage: newMessage,
-                lastMessageTimestamp: messageData.timestamp
-            }, { merge: true });
-
+            await sendMessage(activeChat.id, currentUser.id, { type: 'text', content: newMessage });
             setNewMessage('');
         } catch (error) {
             console.error("Error sending message:", error);
+             toast({ variant: 'destructive', title: 'Send Failed', description: 'Could not send message.' });
         }
+    };
+    
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            const dataUri = event.target?.result as string;
+            try {
+                await sendMessage(activeChat.id, currentUser.id, { type: 'image', content: dataUri });
+            } catch (error) {
+                console.error("Error sending image:", error);
+                toast({ variant: 'destructive', title: 'Image Send Failed', description: 'Could not send the image.' });
+            }
+        };
+        reader.readAsDataURL(file);
     };
 
     const otherParticipantName = Object.values(activeChat.participantNames).find(name => name !== currentUser.name);
@@ -118,9 +105,13 @@ function ChatWindow({ activeChat, currentUser }: { activeChat: Chat; currentUser
                         return (
                             <div key={message.id} className={`flex items-end gap-2 ${isSender ? 'justify-end' : 'justify-start'}`}>
                                 {!isSender && <Avatar className="h-8 w-8"><AvatarFallback>{activeChat.participantNames[message.senderId]?.[0]}</AvatarFallback></Avatar>}
-                                <div className={`max-w-xs md:max-w-md p-3 rounded-2xl ${isSender ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-muted rounded-bl-none'}`}>
-                                    <p className="text-sm">{message.text}</p>
-                                    <p className={`text-xs mt-1 ${isSender ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>{message.timestamp ? format(message.timestamp, 'p') : ''}</p>
+                                <div className={`max-w-xs md:max-w-md p-1 rounded-2xl ${isSender ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-muted rounded-bl-none'}`}>
+                                    {message.content.type === 'text' ? (
+                                        <p className="text-sm p-2">{message.content.content}</p>
+                                    ) : (
+                                        <Image src={message.content.content} alt="Shared image" width={250} height={250} className="rounded-xl object-cover" />
+                                    )}
+                                    <p className={`text-xs px-2 pb-1 ${isSender ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>{message.timestamp ? format(message.timestamp, 'p') : ''}</p>
                                 </div>
                                 {isSender && <Avatar className="h-8 w-8"><AvatarFallback>{currentUser.name[0]}</AvatarFallback></Avatar>}
                             </div>
@@ -131,6 +122,8 @@ function ChatWindow({ activeChat, currentUser }: { activeChat: Chat; currentUser
             </div>
             <footer className="p-4 border-t">
                 <form onSubmit={handleSendMessage} className="flex gap-2">
+                    <input type="file" ref={fileInputRef} onChange={handleImageUpload} accept="image/*" className="hidden" />
+                    <Button type="button" variant="outline" size="icon" onClick={() => fileInputRef.current?.click()}><ImagePlus className="h-4 w-4"/></Button>
                     <Input value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder="Type a message..." />
                     <Button type="submit"><Send className="h-4 w-4"/></Button>
                 </form>
@@ -142,6 +135,7 @@ function ChatWindow({ activeChat, currentUser }: { activeChat: Chat; currentUser
 
 export default function ChatPage() {
     const { user } = useAuth();
+    const { toast } = useToast();
     const [currentUser, setCurrentUser] = useState<ChatUser | null>(null);
     const [allUsers, setAllUsers] = useState<ChatUser[]>([]);
     const [chats, setChats] = useState<Chat[]>([]);
@@ -151,7 +145,6 @@ export default function ChatPage() {
     useEffect(() => {
         if (!user) return;
         
-        // Define current user based on auth
         const role = localStorage.getItem('userRole') || 'admin';
         const cUser: ChatUser = {
             id: user.uid,
@@ -160,27 +153,33 @@ export default function ChatPage() {
         };
         setCurrentUser(cUser);
 
-        // Fetch all potential chat partners
         const fetchUsers = async () => {
             setLoadingUsers(true);
             const users: ChatUser[] = [];
             
-            // Add admin user(s)
-            // This is a simplification. A real app would query a 'users' collection.
-            if(cUser.role !== 'admin') {
-                users.push({ id: 'ADMIN_USER_ID', name: 'Admin', role: 'admin' });
+            if (cUser.role !== 'admin') {
+                 // Simplified: Assume one admin user. In a real app, this would be a query.
+                 // This ID must correspond to the admin user's Firebase UID.
+                 // For now, it's a placeholder. A robust implementation would query the 'users' collection.
+                 // For this prototype, we'll hardcode the known admin UID if it's available.
+                 // A better way is to look up admin from a users collection. This is a stopgap.
+                 // Since we don't have a users collection, let's assume we can't find it.
             }
 
-            // Fetch sellers
             const approvedSellers: SellerUser[] = JSON.parse(localStorage.getItem('approved_sellers') || '[]');
             approvedSellers.forEach(s => {
                 if (s.id !== cUser.id) users.push({ id: s.id, name: s.companyName, role: 'seller' });
             });
 
-            // Fetch vendors
             const approvedVendors: Vendor[] = JSON.parse(localStorage.getItem('vendors_db') || '[]').filter((v: Vendor) => v.status === 'approved');
              approvedVendors.forEach(v => {
-                if (v.id !== cUser.id) users.push({ id: v.id, name: v.name, role: 'vendor' });
+                if (v.email) { // Assuming email is used for login and can act as an ID here
+                    // This is a weak link. A proper implementation would use Firebase UIDs for vendors too.
+                    // For the prototype, we find the vendor user.
+                    // This part is complex without a proper users collection. We will simplify.
+                    const vendorId = `vendor_${v.email}`; // Create a predictable ID
+                    users.push({ id: v.email, name: v.name, role: 'vendor' });
+                }
             });
             
             setAllUsers(users);
@@ -202,34 +201,38 @@ export default function ChatPage() {
                 lastMessageTimestamp: doc.data().lastMessageTimestamp?.toDate(),
             } as Chat)).sort((a,b) => (b.lastMessageTimestamp?.getTime() || 0) - (a.lastMessageTimestamp?.getTime() || 0));
             setChats(userChats);
+        }, (err) => {
+            console.error("Firestore snapshot error:", err);
+            toast({
+                variant: 'destructive',
+                title: 'Chat Error',
+                description: 'Could not load conversations. Check Firestore rules and configuration.'
+            });
         });
 
         return () => unsubscribe();
 
-    }, [currentUser]);
+    }, [currentUser, toast]);
 
     const handleCreateOrSelectChat = async (partner: ChatUser) => {
         if (!currentUser) return;
 
-        const sortedParticipants = [currentUser.id, partner.id].sort();
-        const chatId = sortedParticipants.join('_');
+        try {
+            const chatId = await createChat([currentUser.id, partner.id], {
+                [currentUser.id]: currentUser.name,
+                [partner.id]: partner.name,
+            });
 
-        const chatRef = doc(db, "chats", chatId);
-        const chatSnap = await getDoc(chatRef);
-
-        if (chatSnap.exists()) {
-            setActiveChat({ id: chatSnap.id, ...chatSnap.data() } as Chat);
-        } else {
-            const newChat: Chat = {
+            // Find the full chat object to set as active
+            const newOrExistingChat = chats.find(c => c.id === chatId) || {
                 id: chatId,
-                participants: sortedParticipants,
-                participantNames: {
-                    [currentUser.id]: currentUser.name,
-                    [partner.id]: partner.name,
-                },
+                participants: [currentUser.id, partner.id],
+                participantNames: { [currentUser.id]: currentUser.name, [partner.id]: partner.name }
             };
-            await setDoc(chatRef, newChat);
-            setActiveChat(newChat);
+            setActiveChat(newOrExistingChat);
+        } catch (error: any) {
+            console.error("Error creating or selecting chat:", error);
+            toast({ variant: 'destructive', title: 'Chat Error', description: error.message });
         }
     };
 
@@ -250,11 +253,11 @@ export default function ChatPage() {
                                     <div key={chat.id} onClick={() => setActiveChat(chat)} className={`p-4 border-b cursor-pointer hover:bg-muted ${activeChat?.id === chat.id ? 'bg-muted' : ''}`}>
                                         <div className="flex items-center gap-3">
                                              <Avatar className="h-10 w-10">
-                                                <AvatarFallback>{otherParticipantName[0].toUpperCase()}</AvatarFallback>
+                                                <AvatarFallback>{otherParticipantName?.[0]?.toUpperCase()}</AvatarFallback>
                                              </Avatar>
                                              <div className="flex-1 truncate">
                                                 <p className="font-semibold">{otherParticipantName}</p>
-                                                <p className="text-sm text-muted-foreground truncate">{chat.lastMessage || 'No messages yet'}</p>
+                                                <p className="text-sm text-muted-foreground truncate">{chat.lastMessage?.type === 'image' ? 'Image' : chat.lastMessage?.content || 'No messages yet'}</p>
                                              </div>
                                              {chat.lastMessageTimestamp && <p className="text-xs text-muted-foreground">{format(chat.lastMessageTimestamp, 'p')}</p>}
                                         </div>
@@ -264,11 +267,18 @@ export default function ChatPage() {
                         )}
                          <p className="p-2 text-xs text-muted-foreground border-t">Start a new chat:</p>
                         {allUsers.map(u => {
-                            // Don't show users we already have a chat with
-                             if (chats.some(c => c.participants.includes(u.id))) return null;
+                            if (chats.some(c => c.participants.includes(u.id))) return null;
                             return (
                                 <div key={u.id} onClick={() => handleCreateOrSelectChat(u)} className="p-4 border-b cursor-pointer hover:bg-muted">
-                                    <p>{u.name} <span className="text-xs text-muted-foreground">({u.role})</span></p>
+                                    <div className="flex items-center gap-3">
+                                        <Avatar className="h-10 w-10">
+                                            <AvatarFallback>{u.name[0].toUpperCase()}</AvatarFallback>
+                                        </Avatar>
+                                        <div>
+                                            <p className="font-semibold">{u.name}</p>
+                                            <p className="text-sm text-muted-foreground capitalize">{u.role}</p>
+                                        </div>
+                                    </div>
                                 </div>
                             )
                         })}

@@ -155,16 +155,50 @@ export const addDocument = async <T extends DocumentData>(collectionName: string
   return docRef.id;
 };
 
+// Chat specific types
+export type ChatUser = {
+    id: string;
+    name: string;
+    role: 'admin' | 'seller' | 'vendor';
+};
+
+export type MessageContent = {
+    type: 'text' | 'image';
+    content: string; // text content or image data URI
+};
+
+export type Message = {
+    id: string;
+    chatId: string;
+    senderId: string;
+    content: MessageContent;
+    timestamp: Date;
+};
+
+export type Chat = {
+    id: string;
+    participants: string[]; // array of user IDs
+    participantNames: { [key: string]: string };
+    lastMessage?: MessageContent;
+    lastMessageTimestamp?: Date;
+    createdAt?: Date;
+};
+
+
 // Chat specific functions
-export const createChat = async (participants: string[], participantNames: { [key: string]: string }) => {
+export const createChat = async (participants: string[], participantNames: { [key: string]: string }): Promise<string> => {
     if (!db) throw new Error("Firestore is not initialized.");
+    
+    // Ensure consistent chat ID by sorting participant UIDs
     const sortedParticipants = participants.sort();
     const chatId = sortedParticipants.join('_');
+    
     const chatRef = doc(db, 'chats', chatId);
     const docSnap = await getDoc(chatRef);
 
     if (!docSnap.exists()) {
         await setDoc(chatRef, { 
+            id: chatId,
             participants: sortedParticipants,
             participantNames,
             createdAt: new Date(),
@@ -173,17 +207,21 @@ export const createChat = async (participants: string[], participantNames: { [ke
     return chatId;
 };
 
-export const sendMessage = async (chatId: string, senderId: string, text: string) => {
+export const sendMessage = async (chatId: string, senderId: string, content: MessageContent) => {
     if (!db) throw new Error("Firestore is not initialized.");
+    
     const messagesRef = collection(db, `chats/${chatId}/messages`);
-    await addDoc(messagesRef, {
+    const messageData = {
         senderId,
-        text,
+        content,
         timestamp: new Date(),
-    });
+    };
+
+    await addDoc(messagesRef, messageData);
+    
     // Also update the last message on the chat itself for previews
     await updateDoc(doc(db, 'chats', chatId), {
-        lastMessage: text,
+        lastMessage: content,
         lastMessageTimestamp: new Date(),
     });
 };
