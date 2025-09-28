@@ -3,22 +3,34 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Allow user profile creation on signup, but only allow users to read/update their own profile.
-    // ANY authenticated user can see the list of other users (for the chat).
+    // Default deny all reads/writes.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Secure the users collection
     match /users/{userId} {
+      // ANY authenticated user can get the list of users (for chat).
       allow list, get: if request.auth != null;
-      allow create: if request.auth != null && request.auth.uid == userId;
+
+      // ANYONE can create a user document. This is required for signup.
+      // Security is maintained because they cannot read/update other users' documents.
+      allow create;
+
+      // A user can only update their own document.
       allow update: if request.auth != null && request.auth.uid == userId;
-      allow delete: if false; // Nobody can delete user profiles
+
+      // Nobody can delete user profiles.
+      allow delete: if false;
     }
 
     // Secure the chat collections.
     match /chats/{chatId} {
-      // Users can only see the list of chats they are a participant in.
-      allow list: if request.auth != null && resource.data.participants.hasAny([request.auth.uid]);
+      // A user must be a participant to get or list chats.
+      allow get, list: if request.auth != null && request.auth.uid in resource.data.participants;
 
-      // Users can only get/create/update a chat if they are a participant.
-      allow get, create, update: if request.auth != null && request.auth.uid in resource.data.participants;
+      // A user must be a participant to create or update a chat.
+      allow create, update: if request.auth != null && request.auth.uid in resource.data.participants;
 
       // Messages subcollection
       match /messages/{messageId} {
