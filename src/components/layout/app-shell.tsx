@@ -71,6 +71,7 @@ const adminCoreMenuItems = [
 ];
 
 const adminGrowthMenuItems = [
+    { href: '/ai-product-uploader', label: 'AI Product Uploader', icon: Wand2 },
     { href: '/seller-accounts', label: 'Seller Accounts', icon: UserCheckIcon },
     { href: '/partner-pay', label: 'Partner Pay', icon: Handshake },
     { href: '/settle', label: 'Settle Code', icon: SendToBack },
