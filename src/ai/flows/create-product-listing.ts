@@ -23,9 +23,9 @@ const prompt = ai.definePrompt({
   name: 'createProductListingPrompt',
   input: { schema: ProductListingInputSchema },
   output: { schema: ProductListingOutputSchema },
-  prompt: `You are an expert e-commerce merchandiser. Your task is to take a raw product description, an image, a cost price, and a profit margin to generate a market-ready product listing for a Shopify store.
+  prompt: `You are an expert e-commerce merchandiser. Your task is to take a raw product description, a set of images, a cost price, and a profit margin to generate a market-ready product listing for a Shopify store.
 
-  Analyze the provided image and the raw text description to understand the product.
+  Analyze the provided images and the raw text description to understand the product.
 
   - **Title:** Create a concise, catchy, and SEO-friendly title. It should be under 60 characters.
   - **Description:** Write a compelling product description. It should be well-formatted using Markdown. Start with a captivating sentence, followed by a bulleted list of key features and benefits.
@@ -37,7 +37,10 @@ const prompt = ai.definePrompt({
   - **Cost Price:** {{{cost}}}
   - **Desired Margin:** {{{margin}}}%
   - **Raw Description:** {{{description}}}
-  - **Product Image:** {{media url=imageDataUri}}`,
+  - **Product Images:**
+    {{#each imageDataUris}}
+        {{media url=this}}
+    {{/each}}`,
 });
 
 const createProductListingFlow = ai.defineFlow(

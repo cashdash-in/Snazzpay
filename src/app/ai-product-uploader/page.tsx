@@ -30,8 +30,8 @@ import Image from 'next/image';
 export default function AiProductUploaderPage() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [imageDataUri, setImageDataUri] = useState<string | null>(null);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [imageDataUris, setImageDataUris] = useState<string[]>([]);
   const [vendorDescription, setVendorDescription] = useState('');
   const [cost, setCost] = useState('');
   const [margin, setMargin] = useState('100'); // Default 100% margin
@@ -39,24 +39,36 @@ export default function AiProductUploaderPage() {
     useState<ProductListingOutput | null>(null);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const result = reader.result as string;
-        setImagePreview(result);
-        setImageDataUri(result);
-      };
-      reader.readAsDataURL(file);
+    const files = e.target.files;
+    if (files) {
+      const newPreviews: string[] = [];
+      const newDataUris: string[] = [];
+      const fileReaders: FileReader[] = [];
+
+      Array.from(files).forEach((file) => {
+        const reader = new FileReader();
+        fileReaders.push(reader);
+        reader.onloadend = () => {
+          const result = reader.result as string;
+          newPreviews.push(result);
+          newDataUris.push(result);
+
+          if (newPreviews.length === files.length) {
+            setImagePreviews(newPreviews);
+            setImageDataUris(newDataUris);
+          }
+        };
+        reader.readAsDataURL(file);
+      });
     }
   };
 
   const handleGenerateListing = async () => {
-    if (!imageDataUri || !vendorDescription || !cost || !margin) {
+    if (imageDataUris.length === 0 || !vendorDescription || !cost || !margin) {
       toast({
         variant: 'destructive',
         title: 'Missing Information',
-        description: 'Please provide an image, description, cost, and margin.',
+        description: 'Please provide at least one image, a description, cost, and margin.',
       });
       return;
     }
@@ -65,7 +77,7 @@ export default function AiProductUploaderPage() {
 
     try {
       const result = await createProductListing({
-        imageDataUri,
+        imageDataUris,
         description: vendorDescription,
         cost: parseFloat(cost),
         margin: parseFloat(margin),
@@ -104,28 +116,32 @@ export default function AiProductUploaderPage() {
           <CardHeader>
             <CardTitle>1. Provide Product Details</CardTitle>
             <CardDescription>
-              Upload an image and paste the raw description from your vendor.
+              Upload images and paste the raw description from your vendor.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="product-image">Product Image</Label>
+              <Label htmlFor="product-image">Product Images</Label>
               <Input
                 id="product-image"
                 type="file"
                 accept="image/*"
                 onChange={handleImageChange}
                 className="cursor-pointer"
+                multiple
               />
-              {imagePreview && (
-                <div className="mt-4 flex justify-center rounded-lg border-dashed border-2 p-4">
-                  <Image
-                    src={imagePreview}
-                    alt="Product preview"
-                    width={200}
-                    height={200}
-                    className="object-contain rounded-md"
-                  />
+              {imagePreviews.length > 0 && (
+                <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-4 rounded-lg border-dashed border-2 p-4">
+                  {imagePreviews.map((src, index) => (
+                     <Image
+                        key={index}
+                        src={src}
+                        alt={`Product preview ${index + 1}`}
+                        width={150}
+                        height={150}
+                        className="object-contain rounded-md aspect-square"
+                      />
+                  ))}
                 </div>
               )}
             </div>
@@ -133,7 +149,7 @@ export default function AiProductUploaderPage() {
               <Label htmlFor="vendor-description">Vendor Description</Label>
               <Textarea
                 id="vendor-description"
-                placeholder="Paste raw text from WhatsApp, etc. e.g., 'Pure cotton shirt new stock full sleeves all sizes available price 499 only'"
+                placeholder="Paste raw text from WhatsApp, etc. e.g., 'Pure cotton shirt new stock full sleeves all sizes (M, L, XL) available colors red blue price 499 only'"
                 value={vendorDescription}
                 onChange={(e) => setVendorDescription(e.target.value)}
                 rows={6}
@@ -187,7 +203,7 @@ export default function AiProductUploaderPage() {
               <Sparkles className="h-12 w-12 text-primary animate-pulse" />
               <h3 className="text-xl font-semibold">AI is at work...</h3>
               <p className="text-muted-foreground">
-                Analyzing your image and text to craft the perfect product
+                Analyzing your images and text to craft the perfect product
                 listing. This might take a moment.
               </p>
             </div>

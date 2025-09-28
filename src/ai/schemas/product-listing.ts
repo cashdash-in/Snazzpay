@@ -5,10 +5,10 @@
 import { z } from 'zod';
 
 export const ProductListingInputSchema = z.object({
-  imageDataUri: z
-    .string()
+  imageDataUris: z
+    .array(z.string())
     .describe(
-      "A photo of the product, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
+      "A list of photos of the product, each as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
     ),
   description: z
     .string()
