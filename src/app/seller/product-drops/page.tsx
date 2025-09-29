@@ -1,0 +1,109 @@
+
+'use client';
+
+import { useState, useEffect } from 'react';
+import { AppShell } from "@/components/layout/app-shell";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import Image from 'next/image';
+import { Loader2, Package, Sparkles, ShoppingCart, Info } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+
+// This interface must match the one in the vendor's page
+export interface ProductDrop {
+    id: string;
+    vendorId: string;
+    vendorName: string;
+    title: string;
+    description: string;
+    costPrice: number;
+    imageDataUris: string[];
+    createdAt: string;
+}
+
+export default function SellerProductDropsPage() {
+    const { toast } = useToast();
+    const [drops, setDrops] = useState<ProductDrop[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        try {
+            const storedDrops = JSON.parse(localStorage.getItem('product_drops') || '[]');
+            setDrops(storedDrops);
+        } catch (error) {
+            toast({
+                variant: 'destructive',
+                title: 'Error loading drops',
+                description: 'Could not load product drops from local storage.',
+            });
+        } finally {
+            setIsLoading(false);
+        }
+    }, [toast]);
+
+    const handleUseThisProduct = (drop: ProductDrop) => {
+        // This is a placeholder for future functionality.
+        // For example, this could pre-fill the AI Product Uploader page.
+        toast({
+            title: "Feature Coming Soon!",
+            description: "Soon, you'll be able to automatically use this product in the AI Uploader.",
+        });
+    };
+
+    return (
+        <AppShell title="Product Drops">
+            <div className="space-y-8">
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Incoming Product Drops</CardTitle>
+                        <CardDescription>
+                            This is your feed of new products shared by approved vendors. Review the details and decide which products to sell.
+                        </CardDescription>
+                    </CardHeader>
+                </Card>
+
+                {isLoading ? (
+                    <div className="flex justify-center items-center h-64">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                ) : drops.length === 0 ? (
+                    <Card className="text-center py-16">
+                        <CardContent>
+                             <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4"/>
+                            <h3 className="text-xl font-semibold">No Product Drops Yet</h3>
+                            <p className="text-muted-foreground mt-2">When vendors share new products, they will appear here.</p>
+                        </CardContent>
+                    </Card>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {drops.map(drop => (
+                            <Card key={drop.id} className="flex flex-col">
+                                <CardHeader>
+                                    <div className="flex justify-center mb-4 h-40">
+                                         <Image src={drop.imageDataUris[0]} alt={drop.title} width={200} height={200} className="object-contain rounded-md"/>
+                                    </div>
+                                    <CardTitle>{drop.title}</CardTitle>
+                                    <CardDescription>From: {drop.vendorName} &bull; {formatDistanceToNow(new Date(drop.createdAt), { addSuffix: true })}</CardDescription>
+                                </CardHeader>
+                                <CardContent className="flex-grow">
+                                    <p className="text-sm text-muted-foreground line-clamp-3">{drop.description}</p>
+                                    <div className="mt-4">
+                                        <p className="text-lg font-bold">Cost: ₹{drop.costPrice.toFixed(2)}</p>
+                                    </div>
+                                </CardContent>
+                                <CardFooter>
+                                     <Button className="w-full" onClick={() => handleUseThisProduct(drop)}>
+                                        <Sparkles className="mr-2 h-4 w-4"/>
+                                        Use this Product
+                                    </Button>
+                                </CardFooter>
+                            </Card>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </AppShell>
+    );
+}
+

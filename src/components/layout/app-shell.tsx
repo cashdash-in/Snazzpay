@@ -57,6 +57,7 @@ import {
   Sparkles,
   Wand2,
   Factory,
+  Send,
 } from 'lucide-react';
 import { usePageRefresh } from '@/hooks/usePageRefresh';
 import { useAuth } from '@/hooks/use-auth';
@@ -92,9 +93,10 @@ const adminConfigMenuItems = [
 
 const sellerMenuItems = [
     { href: '/seller/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { href: '/seller/products', label: 'Products', icon: Package },
+    { href: '/seller/product-drops', label: 'Product Drops', icon: Send },
+    { href: '/seller/products', label: 'My Products', icon: Package },
     { href: '/seller/ai-product-uploader', label: 'AI Product Uploader', icon: Sparkles },
-    { href: '/seller/orders', label: 'Orders', icon: ShoppingCart },
+    { href: '/seller/orders', label: 'My Orders', icon: ShoppingCart },
     { href: '/seller/resellers', label: 'My Resellers', icon: Users },
     { href: '/seller/earnings', label: 'Earnings', icon: DollarSign },
     { href: '/seller/reports', label: 'Reports', icon: FileSpreadsheet },
@@ -103,8 +105,9 @@ const sellerMenuItems = [
 
 const vendorMenuItems = [
     { href: '/vendor/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { href: '/vendor/products', label: 'Products', icon: Package },
-    { href: '/vendor/orders', label: 'Orders', icon: ShoppingCart },
+    { href: '/vendor/product-drops', label: 'Product Drops', icon: Send },
+    { href: '/vendor/products', label: 'My Products', icon: Package },
+    { href: '/vendor/orders', label: 'Orders from Sellers', icon: ShoppingCart },
     { href: '/vendor/settings', label: 'Settings', icon: Settings },
 ];
 

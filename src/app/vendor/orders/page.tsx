@@ -1,13 +1,14 @@
+
 'use client';
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 
 export default function VendorOrdersPage() {
   return (
-    <AppShell title="My Orders">
+    <AppShell title="Orders from Sellers">
         <Card>
             <CardHeader>
-                <CardTitle>My Orders</CardTitle>
+                <CardTitle>Orders from Sellers</CardTitle>
                 <CardDescription>
                     This is where you will manage your orders from sellers. This page is currently a placeholder.
                 </CardDescription>

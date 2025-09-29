@@ -1,3 +1,4 @@
+
 'use client';
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
@@ -9,7 +10,7 @@ export default function VendorProductsPage() {
             <CardHeader>
                 <CardTitle>My Products</CardTitle>
                 <CardDescription>
-                    This is where you will manage your product catalog. This page is currently a placeholder.
+                    This is where you will manage your product catalog. This feature is not yet implemented.
                 </CardDescription>
             </CardHeader>
             <CardContent>

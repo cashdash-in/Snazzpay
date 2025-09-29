@@ -10,7 +10,7 @@ export default function SellerProductsPage() {
             <CardHeader>
                 <CardTitle>My Products</CardTitle>
                 <CardDescription>
-                    This is where you will manage your product listings. This page is currently a placeholder.
+                    This is where you will manage your product listings. This feature is not yet implemented.
                 </CardDescription>
             </CardHeader>
             <CardContent>
