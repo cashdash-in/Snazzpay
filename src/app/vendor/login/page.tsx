@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -36,10 +37,9 @@ export default function VendorLoginPage() {
             const loggedInUser = userCredential.user;
             
             // For prototype purposes, we check against the vendor list in localStorage.
-            // In a real app, this would be a backend check against a database.
             const vendorsJSON = localStorage.getItem('vendors_db');
             const vendors: Vendor[] = vendorsJSON ? JSON.parse(vendorsJSON) : [];
-            const isApprovedVendor = vendors.some(v => v.email === email && v.status === 'approved');
+            const isApprovedVendor = vendors.some(v => v.id === loggedInUser.uid && v.status === 'approved');
 
             if (!isApprovedVendor) {
                  await auth.signOut();
@@ -132,3 +132,5 @@ export default function VendorLoginPage() {
         </div>
     );
 }
+
+    
