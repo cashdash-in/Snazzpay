@@ -90,7 +90,7 @@ export default function VendorProductDropsPage() {
             
             toast({
                 title: 'Product Drop Sent!',
-                description: 'Your new product has been made available to all sellers.',
+                description: 'Your new product has been made available to all sellers in your network.',
             });
 
             // Reset form
@@ -148,10 +148,12 @@ export default function VendorProductDropsPage() {
                 <CardFooter>
                     <Button onClick={handleSendDrop} disabled={isLoading} className="w-full">
                         {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Send className="mr-2 h-4 w-4"/>}
-                        Send Product Drop to Sellers
+                        Send Product Drop to My Sellers
                     </Button>
                 </CardFooter>
             </Card>
         </AppShell>
     );
 }
+
+    

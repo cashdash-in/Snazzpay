@@ -14,6 +14,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { useAuth } from '@/hooks/use-auth';
+import type { SellerUser } from '@/app/seller-accounts/page';
 
 
 // This interface must match the one in the vendor's page
@@ -134,11 +136,32 @@ export default function SellerProductDropsPage() {
     const router = useRouter();
     const [drops, setDrops] = useState<ProductDrop[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const { user } = useAuth();
 
     useEffect(() => {
+        if (!user) {
+            setIsLoading(false);
+            return;
+        };
+
         try {
-            const storedDrops = JSON.parse(localStorage.getItem('product_drops') || '[]');
-            setDrops(storedDrops);
+            // Get the seller's vendor ID
+            const approvedSellersJSON = localStorage.getItem('approved_sellers');
+            const approvedSellers: SellerUser[] = approvedSellersJSON ? JSON.parse(approvedSellersJSON) : [];
+            const currentSeller = approvedSellers.find(s => s.id === user.uid);
+            const sellerVendorId = currentSeller?.vendorId;
+
+            // Load all drops
+            const storedDropsJSON = localStorage.getItem('product_drops');
+            const storedDrops: ProductDrop[] = storedDropsJSON ? JSON.parse(storedDropsJSON) : [];
+            
+            // Filter drops to only show those from the seller's vendor
+            if (sellerVendorId) {
+                setDrops(storedDrops.filter(drop => drop.vendorId === sellerVendorId));
+            } else {
+                 setDrops([]); // If seller has no vendor, show no drops
+            }
+
         } catch (error) {
             toast({
                 variant: 'destructive',
@@ -148,7 +171,7 @@ export default function SellerProductDropsPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [toast]);
+    }, [toast, user]);
 
     const handleUseThisProduct = (drop: ProductDrop) => {
         const prefillData = {
@@ -170,9 +193,9 @@ export default function SellerProductDropsPage() {
             <div className="space-y-8">
                  <Card>
                     <CardHeader>
-                        <CardTitle>Incoming Product Drops</CardTitle>
+                        <CardTitle>Incoming Product Drops from Your Vendor</CardTitle>
                         <CardDescription>
-                            This is your feed of new products shared by approved vendors. Review the details and decide which products to sell.
+                            This is your feed of new products shared by your approved vendor. Review the details and decide which products to sell.
                         </CardDescription>
                     </CardHeader>
                 </Card>
@@ -186,7 +209,7 @@ export default function SellerProductDropsPage() {
                         <CardContent>
                              <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4"/>
                             <h3 className="text-xl font-semibold">No Product Drops Yet</h3>
-                            <p className="text-muted-foreground mt-2">When vendors share new products, they will appear here.</p>
+                            <p className="text-muted-foreground mt-2">When your vendor shares new products, they will appear here.</p>
                         </CardContent>
                     </Card>
                 ) : (
@@ -229,3 +252,5 @@ export default function SellerProductDropsPage() {
         </AppShell>
     );
 }
+
+    

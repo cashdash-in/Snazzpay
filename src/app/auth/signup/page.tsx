@@ -1,12 +1,12 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ShieldCheck, Mail, Lock, Loader2, User, Phone } from "lucide-react";
+import { ShieldCheck, Mail, Lock, Loader2, User, Phone, Factory } from "lucide-react";
 import Link from "next/link";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -15,6 +15,8 @@ import { auth, db } from '@/lib/firebase';
 import { FirebaseError } from 'firebase/app';
 import type { SellerUser } from '@/app/seller-accounts/page';
 import { doc, setDoc } from 'firebase/firestore';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import type { Vendor } from '@/app/vendors/page';
 
 
 const ADMIN_EMAIL = "admin@snazzpay.com";
@@ -27,7 +29,21 @@ export default function SignupPage() {
     const [companyName, setCompanyName] = useState('');
     const [phone, setPhone] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [approvedVendors, setApprovedVendors] = useState<Vendor[]>([]);
+    const [selectedVendor, setSelectedVendor] = useState<string>('');
     
+    useEffect(() => {
+        try {
+            const vendorsJSON = localStorage.getItem('vendors_db');
+            if (vendorsJSON) {
+                const allVendors: Vendor[] = JSON.parse(vendorsJSON);
+                setApprovedVendors(allVendors.filter(v => v.status === 'approved'));
+            }
+        } catch (error) {
+            console.error("Failed to load vendors for signup form:", error);
+        }
+    }, []);
+
     // This function will now ONLY be used for Admin creation, as admin is self-approved.
     const createUserDocument = async (uid: string, name: string, email: string) => {
         if (!db) return;
@@ -79,8 +95,8 @@ export default function SignupPage() {
         }
 
         // Standard seller signup
-        if (!companyName || !phone) {
-            toast({ variant: 'destructive', title: "Missing Fields", description: "Please fill out all required fields, including phone number." });
+        if (!companyName || !phone || !selectedVendor) {
+            toast({ variant: 'destructive', title: "Missing Fields", description: "Please fill out all required fields, including selecting a vendor." });
             setIsLoading(false);
             return;
         }
@@ -94,12 +110,16 @@ export default function SignupPage() {
                 displayName: companyName,
             });
             
+            const vendorInfo = approvedVendors.find(v => v.id === selectedVendor);
+
             const newSellerRequest: SellerUser = {
                 id: user.uid,
                 companyName: companyName,
                 email: user.email || '',
                 phone: phone,
                 status: 'pending',
+                vendorId: vendorInfo?.id,
+                vendorName: vendorInfo?.name
             };
 
             const existingRequestsJSON = localStorage.getItem('seller_requests');
@@ -180,6 +200,19 @@ export default function SignupPage() {
                     {email.toLowerCase() !== ADMIN_EMAIL && (
                         <>
                             <div className="space-y-2">
+                                <Label htmlFor="vendor-select">Select Your Vendor</Label>
+                                <Select onValueChange={setSelectedVendor} value={selectedVendor}>
+                                    <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="Choose the vendor you work with..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {approvedVendors.map(vendor => (
+                                            <SelectItem key={vendor.id} value={vendor.id}>{vendor.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
                                 <Label htmlFor="companyName">Company Name (for Sellers)</Label>
                                 <div className="relative">
                                     <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -243,3 +276,5 @@ export default function SignupPage() {
         </div>
     );
 }
+
+    

@@ -9,7 +9,7 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
-import { Check, X, MessageSquare } from "lucide-react";
+import { Check, X, MessageSquare, Factory } from "lucide-react";
 import { sanitizePhoneNumber } from "@/lib/utils";
 
 
@@ -19,6 +19,8 @@ export type SellerUser = {
     email: string;
     phone?: string;
     status: 'pending' | 'approved' | 'rejected';
+    vendorId?: string;
+    vendorName?: string;
 };
 
 export default function SellerAccountsPage() {
@@ -106,7 +108,7 @@ export default function SellerAccountsPage() {
                                     <TableRow>
                                         <TableHead>Company</TableHead>
                                         <TableHead>Email / Phone</TableHead>
-                                        <TableHead>Firebase UID</TableHead>
+                                        <TableHead>Linked Vendor</TableHead>
                                         <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -118,7 +120,12 @@ export default function SellerAccountsPage() {
                                                 <div>{req.email}</div>
                                                 <div className="text-xs text-muted-foreground">{req.phone || 'No phone provided'}</div>
                                             </TableCell>
-                                            <TableCell className="font-mono text-xs">{req.id}</TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center gap-2 text-sm">
+                                                    <Factory className="h-4 w-4 text-muted-foreground" />
+                                                    <span>{req.vendorName || 'N/A'}</span>
+                                                </div>
+                                            </TableCell>
                                             <TableCell className="text-right space-x-2">
                                                 <Button size="sm" variant="outline" className="text-green-600 border-green-600 hover:bg-green-50 hover:text-green-700" onClick={() => handleSellerRequest(req.id, 'approved')}><Check className="mr-2 h-4 w-4" />Approve</Button>
                                                 <Button size="sm" variant="destructive" onClick={() => handleSellerRequest(req.id, 'rejected')}><X className="mr-2 h-4 w-4" />Reject</Button>
@@ -144,6 +151,7 @@ export default function SellerAccountsPage() {
                                     <TableRow>
                                         <TableHead>Company</TableHead>
                                         <TableHead>Email / Phone</TableHead>
+                                        <TableHead>Vendor</TableHead>
                                         <TableHead>Status</TableHead>
                                         <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
@@ -156,6 +164,9 @@ export default function SellerAccountsPage() {
                                                 <div>{seller.email}</div>
                                                 <div className="text-xs text-muted-foreground">{seller.phone || 'No phone provided'}</div>
                                             </TableCell>
+                                            <TableCell>
+                                                 <div className="text-sm text-muted-foreground">{seller.vendorName || 'N/A'}</div>
+                                            </TableCell>
                                             <TableCell><Badge className="bg-green-100 text-green-800">{seller.status}</Badge></TableCell>
                                             <TableCell className="text-right">
                                                  <Button size="sm" variant="secondary" onClick={() => handleWhatsAppChat(seller)} disabled={!seller.phone}>
@@ -165,7 +176,7 @@ export default function SellerAccountsPage() {
                                             </TableCell>
                                         </TableRow>
                                    )) : (
-                                     <TableRow><TableCell colSpan={4} className="text-center h-24 text-muted-foreground">No approved sellers yet.</TableCell></TableRow>
+                                     <TableRow><TableCell colSpan={5} className="text-center h-24 text-muted-foreground">No approved sellers yet.</TableCell></TableRow>
                                    )}
                                 </TableBody>
                            </Table>
@@ -176,3 +187,5 @@ export default function SellerAccountsPage() {
         </AppShell>
     );
 }
+
+    

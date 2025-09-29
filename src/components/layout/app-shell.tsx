@@ -108,6 +108,7 @@ const vendorMenuItems = [
     { href: '/vendor/product-drops', label: 'Product Drops', icon: Send },
     { href: '/vendor/products', label: 'My Products', icon: Package },
     { href: '/vendor/orders', label: 'Orders from Sellers', icon: ShoppingCart },
+    { href: '/vendor/sellers', label: 'My Sellers', icon: Users },
     { href: '/vendor/settings', label: 'Settings', icon: Settings },
 ];
 
@@ -281,3 +282,5 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
     </SidebarProvider>
   );
 };
+
+    
