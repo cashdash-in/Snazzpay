@@ -92,7 +92,7 @@ export default function SellerProductDropsPage() {
                 });
                 toast({ title: "Shared successfully!" });
             } else {
-                 throw new Error("Sharing with files is not supported on this browser/device.");
+                 throw new Error("Web Share API not supported on this device.");
             }
         } catch (error) {
             console.error("Web Share API failed:", error);
@@ -139,7 +139,7 @@ export default function SellerProductDropsPage() {
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {drops.map(drop => {
-                            const shareText = `Check out this new product drop!\n\n*${drop.title}*\n*Cost Price:* ₹${drop.costPrice.toFixed(2)}\n\n${drop.description}\n\nContact me to place your order!`;
+                            const shareText = `Check out this new product drop from ${drop.vendorName}!\n\n*${drop.title}*\n*Cost Price:* ₹${drop.costPrice.toFixed(2)}\n\n${drop.description}\n\nContact me to place your order!`;
                             return (
                             <Card key={drop.id} className="flex flex-col">
                                 <CardHeader>
@@ -171,12 +171,12 @@ export default function SellerProductDropsPage() {
                                              <AlertDialogHeader>
                                                 <AlertDialogTitle>Share Product</AlertDialogTitle>
                                                 <AlertDialogDescription>
-                                                    Choose an option below. The mobile/app option is best for sharing images and text together.
+                                                    Choose how to share. The mobile option works best for including images.
                                                 </AlertDialogDescription>
                                             </AlertDialogHeader>
-                                            <AlertDialogFooter className="flex-col sm:flex-row gap-2 pt-2">
-                                                 <AlertDialogAction className="w-full sm:w-auto" onClick={() => shareWithApi(drop, shareText)}>Share with Images (Mobile/App)</AlertDialogAction>
-                                                 <AlertDialogAction className="w-full sm:w-auto" onClick={() => openWhatsAppWeb(shareText)}>Open WhatsApp Web (Text Only)</AlertDialogAction>
+                                            <AlertDialogFooter className="flex-col gap-2 pt-2">
+                                                 <AlertDialogAction className="w-full" onClick={() => shareWithApi(drop, shareText)}>Share with Images (Mobile/App)</AlertDialogAction>
+                                                 <AlertDialogAction className="w-full" onClick={() => openWhatsAppWeb(shareText)}>Open WhatsApp Web (Text Only)</AlertDialogAction>
                                             </AlertDialogFooter>
                                         </AlertDialogContent>
                                     </AlertDialog>
