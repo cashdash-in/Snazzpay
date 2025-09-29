@@ -37,37 +37,22 @@ export default function SellerLoginPage() {
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const loggedInUser = userCredential.user;
             
-            // Check approval status from local storage
+            // WORKAROUND: Check approval status from local storage ONLY.
+            // This avoids any Firestore interaction during login, which was causing permission errors.
             const approvedSellersJSON = localStorage.getItem('approved_sellers');
             const approvedSellers: SellerUser[] = approvedSellersJSON ? JSON.parse(approvedSellersJSON) : [];
-            const sellerInfo = approvedSellers.find(seller => seller.id === loggedInUser.uid);
+            const isApproved = approvedSellers.some(seller => seller.id === loggedInUser.uid);
 
-            if (!sellerInfo || sellerInfo.status !== 'approved') {
+            if (!isApproved) {
                  await auth.signOut();
                  toast({ variant: 'destructive', title: "Account Not Approved", description: `Your seller account is pending approval or has been rejected. Please contact support.` });
                  setIsLoading(false);
                  return;
             }
 
-            // WORKAROUND: Create user document on first login after approval
-            if (db) {
-                const userDocRef = doc(db, 'users', loggedInUser.uid);
-                const userDoc = await getDoc(userDocRef);
-                if (!userDoc.exists()) {
-                    await setDoc(userDocRef, {
-                        id: loggedInUser.uid,
-                        name: loggedInUser.displayName || sellerInfo.companyName,
-                        role: 'seller',
-                        email: loggedInUser.email,
-                    });
-                     toast({ title: "Account Profile Created", description: "Your user profile has been successfully set up." });
-                }
-            }
-
-
             const idToken = await loggedInUser.getIdToken();
             
-            // Explicitly set role to 'seller'
+            // Explicitly set role to 'seller' in the session cookie
             await fetch('/api/auth/session', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -84,8 +69,6 @@ export default function SellerLoginPage() {
              if (error instanceof FirebaseError) {
                 if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found') {
                     description = 'Invalid email or password. Please check your credentials and try again.';
-                } else if (error.code === 'permission-denied') {
-                    description = 'Permission Denied. Could not verify your account status.';
                 }
              }
             toast({ variant: 'destructive', title: "Login Error", description: description });
