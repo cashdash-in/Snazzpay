@@ -6,13 +6,14 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, PlusCircle, Trash2 } from "lucide-react";
+import { Loader2, PlusCircle, Trash2, MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { usePageRefresh } from "@/hooks/usePageRefresh";
 import { useAuth } from "@/hooks/use-auth";
 import type { EditableOrder } from '@/app/orders/page';
 import { Badge } from "@/components/ui/badge";
+import { sanitizePhoneNumber } from "@/lib/utils";
 
 export default function SellerOrdersPage() {
   const [orders, setOrders] = useState<EditableOrder[]>([]);
@@ -25,16 +26,12 @@ export default function SellerOrdersPage() {
     if (!user) return;
     setLoading(true);
     try {
-      // In a real multi-tenant app, you'd filter by a sellerId.
-      // For this prototype, we combine orders from the seller's own submissions
-      // and any manual orders from the main pool, then apply overrides.
       const allSellerOrdersJSON = localStorage.getItem('seller_orders');
       const allSellerOrders: EditableOrder[] = allSellerOrdersJSON ? JSON.parse(allSellerOrdersJSON) : [];
       
       const allAdminOrdersJSON = localStorage.getItem('manualOrders');
       const allAdminOrders: EditableOrder[] = allAdminOrdersJSON ? JSON.parse(allAdminOrdersJSON) : [];
 
-      // Combine and create a map to handle potential duplicates and apply overrides
       const orderMap = new Map<string, EditableOrder>();
       
       [...allSellerOrders, ...allAdminOrders].forEach(order => {
@@ -45,7 +42,6 @@ export default function SellerOrdersPage() {
              
         const isDefinitive = (status: string) => ['Paid', 'Authorized', 'Fee Charged'].includes(status);
         
-        // Prioritize definitive statuses to prevent them from being overwritten by stale data
         if (!existing || isDefinitive(finalOrder.paymentStatus) || !isDefinitive(existing.paymentStatus)) {
              orderMap.set(finalOrder.orderId, finalOrder);
         }
@@ -73,7 +69,6 @@ export default function SellerOrdersPage() {
     const updatedOrders = orders.filter(order => order.id !== orderId);
     setOrders(updatedOrders);
     
-    // Attempt to remove from both seller and manual order lists
     const sellerOrdersJSON = localStorage.getItem('seller_orders');
     if (sellerOrdersJSON) {
         let sellerOrders: EditableOrder[] = JSON.parse(sellerOrdersJSON);
@@ -86,6 +81,22 @@ export default function SellerOrdersPage() {
         title: "Order Removed",
         description: "The order has been removed successfully.",
     });
+  };
+
+  const handleShareOnWhatsApp = (order: EditableOrder) => {
+    if (!order.contactNo) {
+        toast({
+            variant: 'destructive',
+            title: 'Customer Contact Missing',
+            description: 'Cannot share on WhatsApp without a customer phone number.'
+        });
+        return;
+    }
+    
+    const secureUrl = `${window.location.origin}/secure-cod?amount=${encodeURIComponent(order.price)}&name=${encodeURIComponent(order.productOrdered)}&order_id=${encodeURIComponent(order.orderId)}`;
+    const message = `Hi ${order.customerName}, your order for "${order.productOrdered}" (₹${order.price}) is ready. Please confirm your order and pay securely using this link: ${secureUrl}`;
+    const whatsappUrl = `https://wa.me/${sanitizePhoneNumber(order.contactNo)}?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
   };
 
   return (
@@ -148,7 +159,10 @@ export default function SellerOrdersPage() {
                                 {order.paymentStatus}
                             </Badge>
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right space-x-2">
+                          <Button variant="secondary" size="sm" onClick={() => handleShareOnWhatsApp(order)}>
+                            <MessageSquare className="mr-2 h-4 w-4" /> Share
+                          </Button>
                           <Button variant="destructive" size="icon" onClick={() => handleRemoveOrder(order.id)}>
                             <Trash2 className="h-4 w-4" />
                           </Button>

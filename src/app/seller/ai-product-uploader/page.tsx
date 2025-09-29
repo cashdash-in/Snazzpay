@@ -2,7 +2,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
 import { AppShell } from '@/components/layout/app-shell';
 import {
   Card,
@@ -31,7 +30,6 @@ import Image from 'next/image';
 
 export default function AiProductUploaderPage() {
   const { toast } = useToast();
-  const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(false);
   const [isPushing, setIsPushing] = useState(false);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
@@ -43,10 +41,10 @@ export default function AiProductUploaderPage() {
     useState<ProductListingOutput | null>(null);
 
     useEffect(() => {
-        const prefillData = searchParams.get('prefill');
-        if (prefillData) {
+        const prefillDataJSON = localStorage.getItem('ai_uploader_prefill');
+        if (prefillDataJSON) {
             try {
-                const data = JSON.parse(prefillData);
+                const data = JSON.parse(prefillDataJSON);
                 setVendorDescription(data.description || '');
                 setCost(data.cost?.toString() || '');
                 if (data.imageDataUris) {
@@ -59,6 +57,8 @@ export default function AiProductUploaderPage() {
                     title: "Product Data Pre-filled",
                     description: "Details from the product drop have been loaded into the form.",
                 });
+                // Clean up local storage after using the data
+                localStorage.removeItem('ai_uploader_prefill');
             } catch (error) {
                 console.error("Failed to parse prefill data:", error);
                 toast({
@@ -67,7 +67,7 @@ export default function AiProductUploaderPage() {
                 });
             }
         }
-    }, [searchParams, toast]);
+    }, [toast]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
