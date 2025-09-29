@@ -61,8 +61,16 @@ export default function SellerProductDropsPage() {
     };
     
     const handleShareOnWhatsApp = (drop: ProductDrop) => {
-        const message = `Check out this new product!\n\n*${drop.title}*\n\n${drop.description}\n\nContact me to place your order!`;
+        const message = `Check out this new product drop!\n\n*${drop.title}*\n\n${drop.description}\n\n*Cost Price:* ₹${drop.costPrice.toFixed(2)}\n\nContact me to place your order!`;
         const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+        
+        // Instruct user on how to add images
+        toast({
+            title: "Sharing to WhatsApp...",
+            description: "To add images, please save them from this page first, then attach them in your WhatsApp message.",
+            duration: 8000,
+        });
+
         window.open(whatsappUrl, '_blank');
     };
 
