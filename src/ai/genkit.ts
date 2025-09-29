@@ -1,6 +1,6 @@
 
 import {genkit, Plugin} from 'genkit';
-import {googleAI} from '@gen-ai/googleai';
+import {googleAI} from '@genkit-ai/googleai';
 
 // Define the plugins array.
 const plugins: Plugin[] = [];
