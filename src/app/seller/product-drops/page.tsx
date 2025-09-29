@@ -7,9 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import Image from 'next/image';
-import { Loader2, Package, Sparkles, ShoppingCart, Info } from 'lucide-react';
+import { Loader2, Package, Sparkles, ShoppingCart, Info, MessageSquare } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useRouter } from 'next/navigation';
+import { sanitizePhoneNumber } from '@/lib/utils';
 
 // This interface must match the one in the vendor's page
 export interface ProductDrop {
@@ -58,6 +59,12 @@ export default function SellerProductDropsPage() {
         });
         router.push('/seller/ai-product-uploader');
     };
+    
+    const handleShareOnWhatsApp = (drop: ProductDrop) => {
+        const message = `Check out this new product!\n\n*${drop.title}*\n\n${drop.description}\n\nContact me to place your order!`;
+        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+        window.open(whatsappUrl, '_blank');
+    };
 
     return (
         <AppShell title="Product Drops">
@@ -100,10 +107,14 @@ export default function SellerProductDropsPage() {
                                         <p className="text-lg font-bold">Cost: ₹{drop.costPrice.toFixed(2)}</p>
                                     </div>
                                 </CardContent>
-                                <CardFooter>
+                                <CardFooter className="flex-col items-stretch space-y-2">
                                      <Button className="w-full" onClick={() => handleUseThisProduct(drop)}>
                                         <Sparkles className="mr-2 h-4 w-4"/>
                                         Use this Product
+                                    </Button>
+                                    <Button className="w-full" variant="secondary" onClick={() => handleShareOnWhatsApp(drop)}>
+                                        <MessageSquare className="mr-2 h-4 w-4" />
+                                        Share on WhatsApp
                                     </Button>
                                 </CardFooter>
                             </Card>
