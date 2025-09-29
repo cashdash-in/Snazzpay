@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { AppShell } from "@/components/layout/app-shell";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import Image from 'next/image';
@@ -92,15 +92,12 @@ export default function SellerProductDropsPage() {
                 });
                 toast({ title: "Shared successfully!" });
             } else {
-                 throw new Error("Web Share API for files is not supported on this browser.");
+                 throw new Error("Sharing with files is not supported on this browser/device.");
             }
         } catch (error) {
             console.error("Web Share API failed:", error);
-            toast({
-                variant: 'destructive',
-                title: 'Sharing Failed',
-                description: 'This feature is best used on a mobile device. Try opening WhatsApp Web instead.',
-            });
+            // This catch block will now handle the fallback for desktop
+            openWhatsAppWeb(shareText);
         }
     };
 
@@ -142,7 +139,7 @@ export default function SellerProductDropsPage() {
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {drops.map(drop => {
-                            const shareText = `Check out this new product drop!\n\n*${drop.title}*\n\n${drop.description}\n\n*Cost Price:* ₹${drop.costPrice.toFixed(2)}\n\nContact me to place your order!`;
+                            const shareText = `Check out this new product drop!\n\n*${drop.title}*\n*Cost Price:* ₹${drop.costPrice.toFixed(2)}\n\n${drop.description}\n\nContact me to place your order!`;
                             return (
                             <Card key={drop.id} className="flex flex-col">
                                 <CardHeader>
@@ -174,12 +171,12 @@ export default function SellerProductDropsPage() {
                                              <AlertDialogHeader>
                                                 <AlertDialogTitle>Share Product</AlertDialogTitle>
                                                 <AlertDialogDescription>
-                                                    Choose how you want to share this product. The mobile option works best for sharing images and text together.
+                                                    Choose an option below. The mobile/app option is best for sharing images and text together.
                                                 </AlertDialogDescription>
                                             </AlertDialogHeader>
-                                            <AlertDialogFooter className="sm:justify-center gap-2 pt-2">
-                                                 <AlertDialogAction onClick={() => shareWithApi(drop, shareText)}>Share with Images (Mobile/App)</AlertDialogAction>
-                                                 <AlertDialogAction onClick={() => openWhatsAppWeb(shareText)}>Open WhatsApp Web (Text Only)</AlertDialogAction>
+                                            <AlertDialogFooter className="flex-col sm:flex-row gap-2 pt-2">
+                                                 <AlertDialogAction className="w-full sm:w-auto" onClick={() => shareWithApi(drop, shareText)}>Share with Images (Mobile/App)</AlertDialogAction>
+                                                 <AlertDialogAction className="w-full sm:w-auto" onClick={() => openWhatsAppWeb(shareText)}>Open WhatsApp Web (Text Only)</AlertDialogAction>
                                             </AlertDialogFooter>
                                         </AlertDialogContent>
                                     </AlertDialog>
