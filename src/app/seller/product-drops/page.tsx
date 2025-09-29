@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import Image from 'next/image';
 import { Loader2, Package, Sparkles, ShoppingCart, Info } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import Link from 'next/link';
 
 // This interface must match the one in the vendor's page
 export interface ProductDrop {
@@ -43,12 +44,19 @@ export default function SellerProductDropsPage() {
     }, [toast]);
 
     const handleUseThisProduct = (drop: ProductDrop) => {
-        // This is a placeholder for future functionality.
-        // For example, this could pre-fill the AI Product Uploader page.
+        // This functionality would pass the product data to the AI Uploader page.
+        // We can store it in localStorage and redirect.
+        localStorage.setItem('prefill_ai_uploader', JSON.stringify({
+            description: drop.description,
+            cost: drop.costPrice,
+            imageDataUris: drop.imageDataUris,
+        }));
         toast({
-            title: "Feature Coming Soon!",
-            description: "Soon, you'll be able to automatically use this product in the AI Uploader.",
+            title: "Redirecting to AI Uploader",
+            description: `Pre-filling details for "${drop.title}".`,
         });
+        // In a real app, you would use next/navigation. Using window.location for simplicity here.
+        window.location.href = '/seller/ai-product-uploader';
     };
 
     return (
@@ -93,10 +101,24 @@ export default function SellerProductDropsPage() {
                                     </div>
                                 </CardContent>
                                 <CardFooter>
-                                     <Button className="w-full" onClick={() => handleUseThisProduct(drop)}>
-                                        <Sparkles className="mr-2 h-4 w-4"/>
-                                        Use this Product
-                                    </Button>
+                                     <Link href={{
+                                        pathname: '/seller/ai-product-uploader',
+                                        query: {
+                                            prefill: JSON.stringify({
+                                                description: drop.description,
+                                                cost: drop.costPrice,
+                                                imageDataUris: drop.imageDataUris,
+                                                imagePreviews: drop.imageDataUris,
+                                            })
+                                        }
+                                     }}
+                                     passHref
+                                     >
+                                         <Button className="w-full">
+                                            <Sparkles className="mr-2 h-4 w-4"/>
+                                            Use this Product
+                                        </Button>
+                                     </Link>
                                 </CardFooter>
                             </Card>
                         ))}
@@ -106,4 +128,3 @@ export default function SellerProductDropsPage() {
         </AppShell>
     );
 }
-

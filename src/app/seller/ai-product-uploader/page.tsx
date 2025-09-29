@@ -1,7 +1,8 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { AppShell } from '@/components/layout/app-shell';
 import {
   Card,
@@ -30,6 +31,7 @@ import Image from 'next/image';
 
 export default function AiProductUploaderPage() {
   const { toast } = useToast();
+  const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(false);
   const [isPushing, setIsPushing] = useState(false);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
@@ -39,6 +41,33 @@ export default function AiProductUploaderPage() {
   const [margin, setMargin] = useState('100'); // Default 100% margin
   const [generatedListing, setGeneratedListing] =
     useState<ProductListingOutput | null>(null);
+
+    useEffect(() => {
+        const prefillData = searchParams.get('prefill');
+        if (prefillData) {
+            try {
+                const data = JSON.parse(prefillData);
+                setVendorDescription(data.description || '');
+                setCost(data.cost?.toString() || '');
+                if (data.imageDataUris) {
+                    setImageDataUris(data.imageDataUris);
+                }
+                 if (data.imagePreviews) {
+                    setImagePreviews(data.imagePreviews);
+                }
+                toast({
+                    title: "Product Data Pre-filled",
+                    description: "Details from the product drop have been loaded into the form.",
+                });
+            } catch (error) {
+                console.error("Failed to parse prefill data:", error);
+                toast({
+                    variant: 'destructive',
+                    title: 'Error pre-filling data',
+                });
+            }
+        }
+    }, [searchParams, toast]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -113,7 +142,7 @@ export default function AiProductUploaderPage() {
             product_type: generatedListing.category,
             vendor: 'Snazzify AI',
             variants: [{ price: generatedListing.price }],
-            images: imageDataUris.map(uri => ({
+             images: imageDataUris.map(uri => ({
                 attachment: uri.split(',')[1] // Send base64 data only
             })),
         };
