@@ -10,7 +10,18 @@ import Image from 'next/image';
 import { Loader2, Package, Sparkles, ShoppingCart, Info, MessageSquare } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useRouter } from 'next/navigation';
-import { sanitizePhoneNumber } from '@/lib/utils';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+
 
 // This interface must match the one in the vendor's page
 export interface ProductDrop {
@@ -67,39 +78,42 @@ export default function SellerProductDropsPage() {
         router.push('/seller/ai-product-uploader');
     };
     
-    const handleShareOnWhatsApp = async (drop: ProductDrop) => {
-        const shareText = `Check out this new product drop!\n\n*${drop.title}*\n\n${drop.description}\n\n*Cost Price:* ₹${drop.costPrice.toFixed(2)}\n\nContact me to place your order!`;
-
+    const shareWithApi = async (drop: ProductDrop, shareText: string) => {
         try {
-            // First, try to use the Web Share API, which is great for mobile
             const files = await Promise.all(
                 drop.imageDataUris.map((uri, index) => dataUriToFile(uri, `product_${drop.id}_${index}.png`))
             );
 
-            if (!navigator.share) {
-                throw new Error("Web Share API not supported.");
+            if (navigator.share && navigator.canShare({ files })) {
+                 await navigator.share({
+                    title: drop.title,
+                    text: shareText,
+                    files: files,
+                });
+                toast({ title: "Shared successfully!" });
+            } else {
+                 throw new Error("Web Share API for files is not supported on this browser.");
             }
-
-            await navigator.share({
-                title: drop.title,
-                text: shareText,
-                files: files,
-            });
-            toast({ title: "Shared successfully!" });
-
         } catch (error) {
-            // If the share API fails or is not supported (like on most desktop browsers),
-            // fall back to opening WhatsApp Web.
-            console.warn("Web Share API failed, falling back to WhatsApp Web:", error);
-            const whatsappUrl = `https://web.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
-            window.open(whatsappUrl, '_blank');
+            console.error("Web Share API failed:", error);
             toast({
-                title: "Opening WhatsApp Web...",
-                description: "Please drag and drop the product images into your WhatsApp message.",
-                duration: 8000,
+                variant: 'destructive',
+                title: 'Sharing Failed',
+                description: 'This feature is best used on a mobile device. Try opening WhatsApp Web instead.',
             });
         }
     };
+
+    const openWhatsAppWeb = (shareText: string) => {
+        const whatsappUrl = `https://web.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
+        window.open(whatsappUrl, '_blank');
+        toast({
+            title: "Opening WhatsApp Web...",
+            description: "Please add the product images to your message manually.",
+            duration: 8000,
+        });
+    };
+
 
     return (
         <AppShell title="Product Drops">
@@ -127,7 +141,9 @@ export default function SellerProductDropsPage() {
                     </Card>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {drops.map(drop => (
+                        {drops.map(drop => {
+                            const shareText = `Check out this new product drop!\n\n*${drop.title}*\n\n${drop.description}\n\n*Cost Price:* ₹${drop.costPrice.toFixed(2)}\n\nContact me to place your order!`;
+                            return (
                             <Card key={drop.id} className="flex flex-col">
                                 <CardHeader>
                                     <div className="flex justify-center mb-4 h-40">
@@ -147,13 +163,29 @@ export default function SellerProductDropsPage() {
                                         <Sparkles className="mr-2 h-4 w-4"/>
                                         Use this Product
                                     </Button>
-                                    <Button className="w-full" variant="secondary" onClick={() => handleShareOnWhatsApp(drop)}>
-                                        <MessageSquare className="mr-2 h-4 w-4" />
-                                        Share on WhatsApp
-                                    </Button>
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <Button className="w-full" variant="secondary">
+                                                <MessageSquare className="mr-2 h-4 w-4" />
+                                                Share on WhatsApp
+                                            </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                             <AlertDialogHeader>
+                                                <AlertDialogTitle>Share Product</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    Choose how you want to share this product. The mobile option works best for sharing images and text together.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter className="sm:justify-center gap-2 pt-2">
+                                                 <AlertDialogAction onClick={() => shareWithApi(drop, shareText)}>Share with Images (Mobile/App)</AlertDialogAction>
+                                                 <AlertDialogAction onClick={() => openWhatsAppWeb(shareText)}>Open WhatsApp Web (Text Only)</AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
                                 </CardFooter>
                             </Card>
-                        ))}
+                        )})}
                     </div>
                 )}
             </div>
