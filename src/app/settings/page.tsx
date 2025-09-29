@@ -169,13 +169,28 @@ export default function SettingsPage() {
             <CardContent className="space-y-4">
               <Alert>
                 <Terminal className="h-4 w-4" />
-                <AlertTitle>Action Required!</AlertTitle>
+                <AlertTitle>Action Required: Configure Shopify API Access</AlertTitle>
                 <AlertDescription>
-                   For Shopify integration to work on your live, deployed website, you must set your store details as **environment variables** in your hosting provider's dashboard.
-                   <p className="mt-2 font-semibold">The fields below are for local development only and DO NOT affect your live site.</p>
-                  <ul className="list-disc pl-5 mt-2 font-mono text-xs space-y-1">
-                    <li>SHOPIFY_STORE_URL="your-store.myshopify.com"</li>
-                    <li>SHOPIFY_API_KEY="shpat_..." (Your Admin API access token)</li>
+                   <p>For Shopify integration to work on your live site, you must set these as **environment variables** in your hosting provider's dashboard.</p>
+                   <p className="font-semibold mt-2">Step 1: Get your Admin API access token</p>
+                   <ol className="list-decimal pl-5 mt-1 text-xs space-y-1">
+                        <li>In your Shopify admin, go to <strong>Apps</strong>.</li>
+                        <li>Click <strong>"Develop apps for your store"</strong> (or "Manage private apps").</li>
+                        <li>Create a new custom app. Give it a name like "SnazzPay Connector".</li>
+                        <li>Under <strong>Admin API integration</strong>, click "Configure".</li>
+                        <li>Grant the following permissions (scopes):
+                            <ul className="list-disc pl-5 mt-1 font-mono text-xs">
+                                <li>`read_orders`, `write_orders`</li>
+                                <li>`read_products`, `write_products`</li>
+                            </ul>
+                        </li>
+                        <li>Save and install the app. In the <strong>API credentials</strong> tab, you will find your Admin API access token. It starts with `shpat_`.</li>
+                   </ol>
+                   <p className="font-semibold mt-2">Step 2: Set Environment Variables</p>
+                   <p>In your hosting environment (e.g., Vercel), set the following variables:</p>
+                  <ul className="list-disc pl-5 mt-1 font-mono text-xs">
+                    <li>SHOPIFY_STORE_URL="your-store-name.myshopify.com"</li>
+                    <li>SHOPIFY_API_KEY="shpat_..." (Your Admin API access token from Step 1)</li>
                   </ul>
                 </AlertDescription>
               </Alert>
