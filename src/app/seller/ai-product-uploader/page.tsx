@@ -27,9 +27,19 @@ import {
   CheckCircle,
 } from 'lucide-react';
 import Image from 'next/image';
+import { useAuth } from '@/hooks/use-auth';
+import { v4 as uuidv4 } from 'uuid';
+
+export interface SellerProduct extends ProductListingOutput {
+    id: string;
+    sellerId: string;
+    imageDataUris: string[];
+    createdAt: string;
+}
 
 export default function AiProductUploaderPage() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [isPushing, setIsPushing] = useState(false);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
@@ -93,6 +103,32 @@ export default function AiProductUploaderPage() {
       });
     }
   };
+  
+  const saveGeneratedProduct = (listing: ProductListingOutput) => {
+    if (!user) return;
+    try {
+        const newSellerProduct: SellerProduct = {
+            id: uuidv4(),
+            sellerId: user.uid,
+            ...listing,
+            imageDataUris: imageDataUris,
+            createdAt: new Date().toISOString(),
+        };
+
+        const storageKey = `seller_products_${user.uid}`;
+        const existingProductsJSON = localStorage.getItem(storageKey);
+        const existingProducts: SellerProduct[] = existingProductsJSON ? JSON.parse(existingProductsJSON) : [];
+        
+        localStorage.setItem(storageKey, JSON.stringify([newSellerProduct, ...existingProducts]));
+    } catch(e) {
+        console.error("Failed to save product to seller's catalog", e);
+        toast({
+            variant: 'destructive',
+            title: 'Could not save to My Products',
+            description: 'There was an error saving the generated listing to your catalog.',
+        });
+    }
+  };
 
   const handleGenerateListing = async () => {
     if (imageDataUris.length === 0 || !vendorDescription || !cost || !margin) {
@@ -114,9 +150,10 @@ export default function AiProductUploaderPage() {
         margin: parseFloat(margin),
       });
       setGeneratedListing(result);
+      saveGeneratedProduct(result);
       toast({
         title: 'Listing Generated!',
-        description: 'Review the AI-generated details below.',
+        description: "Review the details below. This has also been saved to your 'My Products' page.",
       });
     } catch (error: any) {
       toast({
