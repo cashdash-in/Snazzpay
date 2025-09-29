@@ -71,38 +71,33 @@ export default function SellerProductDropsPage() {
         const shareText = `Check out this new product drop!\n\n*${drop.title}*\n\n${drop.description}\n\n*Cost Price:* ₹${drop.costPrice.toFixed(2)}\n\nContact me to place your order!`;
 
         try {
-             const files = await Promise.all(
+            // First, try to use the Web Share API, which is great for mobile
+            const files = await Promise.all(
                 drop.imageDataUris.map((uri, index) => dataUriToFile(uri, `product_${drop.id}_${index}.png`))
             );
 
-            // Check if the browser can share files
-            if (navigator.canShare && navigator.canShare({ files })) {
-                 await navigator.share({
-                    title: drop.title,
-                    text: shareText,
-                    files: files,
-                });
-                toast({ title: "Shared successfully!" });
-            } else {
-                // Fallback for desktop browsers or those that can't share files
-                const whatsappUrl = `https://web.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
-                window.open(whatsappUrl, '_blank');
-                toast({
-                    title: "Sharing to WhatsApp Web...",
-                    description: "Please drag and drop or copy the product images into your WhatsApp message.",
-                    duration: 8000,
-                });
+            if (!navigator.share) {
+                throw new Error("Web Share API not supported.");
             }
+
+            await navigator.share({
+                title: drop.title,
+                text: shareText,
+                files: files,
+            });
+            toast({ title: "Shared successfully!" });
+
         } catch (error) {
-            console.error('Error using Web Share API or fallback:', error);
-            // Generic fallback if everything else fails
-             const whatsappUrl = `https://web.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
-             window.open(whatsappUrl, '_blank');
-             toast({
-                variant: 'destructive',
-                title: 'Could not share automatically',
-                description: 'Please copy the product details and images to WhatsApp manually.',
-             });
+            // If the share API fails or is not supported (like on most desktop browsers),
+            // fall back to opening WhatsApp Web.
+            console.warn("Web Share API failed, falling back to WhatsApp Web:", error);
+            const whatsappUrl = `https://web.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
+            window.open(whatsappUrl, '_blank');
+            toast({
+                title: "Opening WhatsApp Web...",
+                description: "Please drag and drop the product images into your WhatsApp message.",
+                duration: 8000,
+            });
         }
     };
 
