@@ -24,6 +24,13 @@ export interface ProductDrop {
     createdAt: string;
 }
 
+// Helper function to convert data URI to File object
+async function dataUriToFile(dataUri: string, fileName: string): Promise<File> {
+    const res = await fetch(dataUri);
+    const blob = await res.blob();
+    return new File([blob], fileName, { type: blob.type });
+}
+
 export default function SellerProductDropsPage() {
     const { toast } = useToast();
     const router = useRouter();
@@ -60,18 +67,44 @@ export default function SellerProductDropsPage() {
         router.push('/seller/ai-product-uploader');
     };
     
-    const handleShareOnWhatsApp = (drop: ProductDrop) => {
-        const message = `Check out this new product drop!\n\n*${drop.title}*\n\n${drop.description}\n\n*Cost Price:* ₹${drop.costPrice.toFixed(2)}\n\nContact me to place your order!`;
-        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
-        
-        // Instruct user on how to add images
-        toast({
-            title: "Sharing to WhatsApp...",
-            description: "To add images, please save them from this page first, then attach them in your WhatsApp message.",
-            duration: 8000,
-        });
+    const handleShareOnWhatsApp = async (drop: ProductDrop) => {
+        const shareText = `Check out this new product drop!\n\n*${drop.title}*\n\n${drop.description}\n\n*Cost Price:* ₹${drop.costPrice.toFixed(2)}\n\nContact me to place your order!`;
 
-        window.open(whatsappUrl, '_blank');
+        if (navigator.share) {
+            try {
+                const files = await Promise.all(
+                    drop.imageDataUris.map((uri, index) => dataUriToFile(uri, `product_${drop.id}_${index}.png`))
+                );
+
+                if (navigator.canShare && navigator.canShare({ files })) {
+                     await navigator.share({
+                        title: drop.title,
+                        text: shareText,
+                        files: files,
+                    });
+                    toast({ title: "Shared successfully!" });
+                } else {
+                     // Fallback for when files can't be shared
+                    await navigator.share({ title: drop.title, text: shareText });
+                }
+            } catch (error) {
+                console.error('Error using Web Share API:', error);
+                toast({
+                    variant: 'destructive',
+                    title: 'Could not share',
+                    description: 'There was an error trying to share the product.',
+                });
+            }
+        } else {
+            // Fallback for browsers that don't support Web Share API
+            const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+            window.open(whatsappUrl, '_blank');
+            toast({
+                title: "Sharing to WhatsApp...",
+                description: "Your browser doesn't support direct image sharing. Please add images to your message manually.",
+                duration: 8000,
+            });
+        }
     };
 
     return (
