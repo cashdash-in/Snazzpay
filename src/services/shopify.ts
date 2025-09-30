@@ -59,29 +59,43 @@ export type ShopifyProductInput = {
 }
 
 async function shopifyFetch(endpoint: string, options: RequestInit = {}) {
-    if (!SHOPIFY_STORE_URL || !SHOPIFY_API_KEY || !SHOPIFY_API_KEY.startsWith('shpat_')) {
-        console.warn('Shopify API keys are not configured correctly on the server.');
-        throw new Error("Shopify API keys are not configured on the server. Please check your hosting environment variables.");
+    if (!SHOPIFY_STORE_URL) {
+        throw new Error("The SHOPIFY_STORE_URL environment variable is not set.");
     }
+    if (!SHOPIFY_API_KEY) {
+        throw new Error("The SHOPIFY_API_KEY environment variable is not set.");
+    }
+     if (!SHOPIFY_API_KEY.startsWith('shpat_')) {
+        throw new Error("The SHOPIFY_API_KEY does not look like a valid Admin API access token. It should start with 'shpat_'.");
+    }
+
     const url = `https://${SHOPIFY_STORE_URL}/admin/api/2023-10/${endpoint}`;
 
-    const response = await fetch(url, {
-        ...options,
-        headers: {
-            'X-Shopify-Access-Token': SHOPIFY_API_KEY,
-            'Content-Type': 'application/json',
-            ...options.headers,
-        },
-        cache: 'no-store', 
-    });
-    
-    if (!response.ok) {
-        const errorBody = await response.text();
-        console.error(`Shopify API error: ${response.status} ${response.statusText} - ${errorBody}`);
-        throw new Error(`Shopify API Error: ${response.statusText}. Check server logs for details.`);
-    }
+    try {
+        const response = await fetch(url, {
+            ...options,
+            headers: {
+                'X-Shopify-Access-Token': SHOPIFY_API_KEY,
+                'Content-Type': 'application/json',
+                ...options.headers,
+            },
+            cache: 'no-store', 
+        });
+        
+        if (!response.ok) {
+            const errorBody = await response.json().catch(() => response.text());
+            console.error(`Shopify API error: ${response.status} ${response.statusText}`, errorBody);
+            // Try to extract a meaningful error from Shopify's response
+            const shopifyError = (typeof errorBody === 'object' && errorBody.errors) ? JSON.stringify(errorBody.errors) : errorBody;
+            throw new Error(`Shopify API Error (${response.status}): ${shopifyError}`);
+        }
 
-    return response.json();
+        return response.json();
+    } catch (error: any) {
+        // Catch network errors from fetch itself
+        console.error("Network or fetch error calling Shopify API:", error);
+        throw new Error(`Failed to connect to Shopify API: ${error.message}`);
+    }
 }
 
 export async function getOrders(): Promise<Order[]> {
@@ -112,7 +126,7 @@ export async function createProduct(product: ShopifyProductInput): Promise<any> 
         });
         return response.product;
     } catch (error: any) {
-        console.error("Error creating Shopify product:", error);
+        // The detailed error is already logged in shopifyFetch, just re-throw.
         throw error;
     }
 }

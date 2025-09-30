@@ -15,8 +15,10 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: true, product: shopifyResponse });
 
     } catch (error: any) {
-        console.error("--- Shopify Product Creation Error ---");
-        console.error(error);
+        console.error("--- Shopify Product Creation API Route Error ---");
+        // Log the full error to the server console for debugging
+        console.error(error); 
+        // Send back a sanitized error message to the client
         const errorMessage = error.message || 'An unknown error occurred while creating the product in Shopify.';
         return NextResponse.json({ error: errorMessage }, { status: 500 });
     }

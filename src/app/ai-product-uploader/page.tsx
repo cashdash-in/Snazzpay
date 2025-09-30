@@ -126,7 +126,8 @@ export default function AiProductUploaderPage() {
         const result = await response.json();
         
         if (!response.ok) {
-            throw new Error(result.error || "Failed to create product in Shopify.");
+            // Use the detailed error message from our improved API route
+            throw new Error(result.error || "An unknown error occurred while communicating with Shopify.");
         }
         
         toast({
@@ -138,7 +139,7 @@ export default function AiProductUploaderPage() {
         toast({
             variant: 'destructive',
             title: 'Shopify Push Failed',
-            description: error.message,
+            description: error.message, // This will now show the more detailed error
         });
     } finally {
         setIsPushing(false);
