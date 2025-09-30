@@ -112,7 +112,7 @@ export default function OrdersPage() {
              
              const isDefinitive = (status: string) => ['Paid', 'Authorized', 'Fee Charged'].includes(status);
              
-             if (!existing || isDefinitive(finalOrder.paymentStatus) || (!isDefinitive(existing?.paymentStatus || '') && finalOrder.source !== 'Shopify')) {
+             if (!existing || isDefinitive(finalOrder.paymentStatus) || (!isDefinitive(existing?.paymentStatus || '') && finalOrder.paymentStatus !== 'Voided')) {
                   orderMap.set(finalOrder.orderId, finalOrder);
              }
         });

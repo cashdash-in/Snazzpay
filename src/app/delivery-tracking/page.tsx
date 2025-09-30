@@ -109,7 +109,7 @@ export default function DeliveryTrackingPage() {
 
         setOrders(unifiedOrders.filter(o => o.paymentStatus !== 'Intent Verified'));
         setLoading(false);
-    }, [toast]);
+    }, []);
 
     useEffect(() => {
         fetchAndSetOrders();
