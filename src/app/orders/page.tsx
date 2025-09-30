@@ -167,7 +167,7 @@ export default function OrdersPage() {
     const orderToSave = orders.find(o => o.id === orderId);
     if (!orderToSave) return;
     try {
-        localStorage.setItem(`order-override-${orderId}`, JSON.stringify(orderToSave));
+        await updateOrder(orderToSave.id, orderToSave);
         toast({
             title: "Changes Saved",
             description: `Order ${orderToSave?.orderId} has been updated.`,
@@ -232,9 +232,9 @@ export default function OrdersPage() {
 
     const handleQuickCapture = async (order: EditableOrder) => {
         setProcessingChargeId(order.id);
-        const paymentInfoJSON = localStorage.getItem(`payment_info_${order.orderId}`);
+        const paymentInfo = await getPaymentInfo(order.orderId);
 
-        if (!paymentInfoJSON) {
+        if (!paymentInfo) {
             toast({
                 variant: 'destructive',
                 title: "Payment Info Not Found",
@@ -243,8 +243,6 @@ export default function OrdersPage() {
             setProcessingChargeId(null);
             return;
         }
-
-        const paymentInfo = JSON.parse(paymentInfoJSON);
 
         try {
             const response = await fetch('/api/charge-mandate', {
@@ -260,9 +258,8 @@ export default function OrdersPage() {
             if (!response.ok) throw new Error(result.error || 'Failed to charge payment.');
 
             const updatedOrder = { ...order, paymentStatus: 'Paid' };
+            await updateOrder(order.id, { paymentStatus: 'Paid' });
             setOrders(prev => prev.map(o => o.id === order.id ? updatedOrder : o));
-            localStorage.setItem(`order-override-${order.id}`, JSON.stringify(updatedOrder));
-
 
             toast({
                 title: "Charge Successful!",
