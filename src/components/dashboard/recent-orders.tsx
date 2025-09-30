@@ -10,6 +10,7 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { getOrders as getShopifyOrders } from "@/services/shopify";
+import { getAllOrders as getFirestoreOrders } from "@/services/firestore";
 import { useState, useEffect } from "react";
 import type { EditableOrder } from "@/app/orders/page";
 import { format } from "date-fns";
@@ -47,48 +48,41 @@ export function RecentOrders() {
         setLoading(true);
         let combinedOrders: EditableOrder[] = [];
         try {
-            const shopifyOrders = await getShopifyOrders();
+            const shopifyPromise = getShopifyOrders().catch(e => {
+                console.error("Shopify fetch failed for recent orders:", e.message);
+                return []; // Non-blocking
+            });
+            const firestoreOrders = await getFirestoreOrders();
+
+            combinedOrders.push(...firestoreOrders);
+            const shopifyOrders = await shopifyPromise;
             combinedOrders.push(...shopifyOrders.map(mapShopifyToEditable));
-        } catch (error) {
-            console.error("Failed to fetch Shopify orders:", error);
-            // Non-blocking, we can still show manual orders
-        }
 
-        try {
-            const manualOrdersJSON = localStorage.getItem('manualOrders');
-            const manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
-            combinedOrders.push(...manualOrders);
-
-             const sellerOrdersJSON = localStorage.getItem('seller_orders');
-            if (sellerOrdersJSON) {
-                combinedOrders.push(...JSON.parse(sellerOrdersJSON));
-            }
         } catch (error) {
-            console.error("Failed to load manual orders:", error);
+            console.error("Failed to load orders:", error);
             toast({
                 variant: 'destructive',
-                title: "Error loading manual orders",
-                description: "Could not load orders from local storage.",
+                title: "Error loading recent orders",
             });
         }
 
         const orderMap = new Map<string, EditableOrder>();
 
         combinedOrders.forEach(order => {
-            const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
-            const finalOrder = { ...order, ...storedOverrides };
-            const existing = orderMap.get(finalOrder.orderId);
-
+            const existing = orderMap.get(order.orderId);
             const isDefinitive = (status: string) => ['Paid', 'Authorized', 'Fee Charged'].includes(status);
-             
-            if (!existing || isDefinitive(finalOrder.paymentStatus) || (!isDefinitive(existing.paymentStatus) && finalOrder.source !== 'Shopify')) {
-                orderMap.set(finalOrder.orderId, finalOrder);
+            if (!existing || isDefinitive(order.paymentStatus) || (!isDefinitive(existing.paymentStatus) && order.source !== 'Shopify')) {
+                orderMap.set(order.orderId, order);
             }
         });
         
         const unifiedOrders = Array.from(orderMap.values());
 
-        const sortedOrders = unifiedOrders.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        const sortedOrders = unifiedOrders.sort((a, b) => {
+            try {
+                return new Date(b.date).getTime() - new Date(a.date).getTime();
+            } catch(e) { return 0; }
+        });
         const recentOrders = sortedOrders.slice(0, 5);
         setOrders(recentOrders);
         setLoading(false);

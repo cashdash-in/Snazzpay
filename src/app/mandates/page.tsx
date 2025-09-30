@@ -4,7 +4,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { MandateStatus } from "@/components/mandate-status";
-import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
+import { getOrders as getShopifyOrders } from "@/services/shopify";
 import { format } from "date-fns";
 import { useEffect, useState, useCallback } from "react";
 import type { EditableOrder } from "../orders/page";
@@ -59,7 +59,17 @@ export default function MandatesPage() {
     setLoading(true);
     let combinedOrders: EditableOrder[] = [];
     try {
-        const shopifyOrders = await getOrders();
+        const shopifyPromise = getShopifyOrders().catch(e => {
+            console.error("Shopify fetch failed:", e.message);
+            toast({
+                variant: 'destructive',
+                title: "Could not load Shopify Orders",
+                description: "Displaying Firestore orders only. Check API keys in Settings.",
+            });
+            return [];
+        });
+
+        const shopifyOrders = await shopifyPromise;
         const shopifyEditableOrders: EditableOrder[] = shopifyOrders.map(o => ({
             id: o.id.toString(),
             orderId: o.name,
@@ -75,15 +85,11 @@ export default function MandatesPage() {
         }));
         combinedOrders = [...shopifyEditableOrders];
     } catch (error) {
-        console.error("Failed to fetch Shopify orders:", error);
-        toast({
-            variant: 'destructive',
-            title: "Failed to load Shopify Orders",
-            description: "Displaying manually added orders only. Check Shopify API keys in Settings.",
-        });
+        // Errors are caught and toasted inside the try block now
     }
 
     try {
+        // For prototype, we'll get this from a local copy. In prod, this would be a DB call.
         const manualOrdersJSON = localStorage.getItem('manualOrders');
         const manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
         combinedOrders = [...combinedOrders, ...manualOrders];

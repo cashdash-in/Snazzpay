@@ -12,6 +12,29 @@ import { DollarSign, WalletCards, CheckCircle2, AlertTriangle, Users, CircleDoll
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts"
 import { RecentOrders } from "@/components/dashboard/recent-orders";
 
+function mapShopifyOrderToEditableOrder(shopifyOrder: any): EditableOrder {
+    const customer = shopifyOrder.customer;
+    const customerName = customer ? `${customer.first_name || ''} ${customer.last_name || ''}`.trim() : 'N/A';
+    const products = shopifyOrder.line_items.map((item: any) => item.title).join(', ');
+
+    return {
+        id: `shopify-${shopifyOrder.id.toString()}`,
+        orderId: shopifyOrder.name,
+        customerName,
+        customerEmail: customer?.email || undefined,
+        customerAddress: shopifyOrder.shipping_address ? `${shopifyOrder.shipping_address.address1}, ${shopifyOrder.shipping_address.city}, ${shopifyOrder.shipping_address.zip}` : 'N/A',
+        pincode: shopifyOrder.shipping_address?.zip || 'N/A',
+        contactNo: shopifyOrder.customer?.phone || 'N/A',
+        productOrdered: products,
+        quantity: shopifyOrder.line_items.reduce((sum: number, item: any) => sum + item.quantity, 0),
+        price: shopifyOrder.total_price,
+        paymentStatus: shopifyOrder.financial_status || 'Pending',
+        date: format(new Date(shopifyOrder.created_at), "yyyy-MM-dd"),
+        source: 'Shopify'
+    };
+}
+
+
 export function MainDashboard() {
     const [stats, setStats] = useState({
         totalSecuredValue: 0,
@@ -29,24 +52,43 @@ export function MainDashboard() {
             try {
                 const firestoreOrders = await getFirestoreOrders();
 
+                const shopifyPromise = getShopifyOrders().catch(e => {
+                    console.error("Shopify fetch failed for dashboard:", e.message);
+                    // Silently fail on dashboard, don't show toast
+                    return [];
+                });
+                const shopifyOrders = await shopifyPromise;
+                
+                const allOrders = [...firestoreOrders, ...shopifyOrders.map(mapShopifyOrderToEditableOrder)];
+
+                const orderMap = new Map<string, EditableOrder>();
+                 allOrders.forEach(order => {
+                     const existing = orderMap.get(order.orderId);
+                     const isDefinitive = (status: string) => ['Paid', 'Authorized', 'Fee Charged'].includes(status);
+                     if (!existing || isDefinitive(order.paymentStatus) || (!isDefinitive(existing?.paymentStatus || '') && order.paymentStatus !== 'Voided')) {
+                          orderMap.set(order.orderId, order);
+                     }
+                });
+                const unifiedOrders = Array.from(orderMap.values());
+
                 // Calculate Stats
-                const totalSecuredValue = firestoreOrders
+                const totalSecuredValue = unifiedOrders
                     .filter(o => o.paymentStatus === 'Authorized')
                     .reduce((sum, o) => sum + parseFloat(o.price || '0'), 0);
 
-                const successfulCharges = firestoreOrders
-                    .filter(o => o.paymentStatus === 'Paid')
+                const successfulCharges = unifiedOrders
+                    .filter(o => o.paymentStatus === 'Paid' || o.paymentStatus === 'Fee Charged')
                     .reduce((sum, o) => sum + parseFloat(o.price || '0'), 0);
 
-                const totalRefunds = firestoreOrders
+                const totalRefunds = unifiedOrders
                     .filter(o => ['Refunded', 'Voided'].includes(o.paymentStatus))
                     .reduce((sum, o) => sum + parseFloat(o.price || '0'), 0);
-
-                const activeLeads = firestoreOrders.filter(o => o.paymentStatus === 'Intent Verified').length;
+                
+                const leads = unifiedOrders.filter(o => o.paymentStatus === 'Intent Verified');
 
                 setStats({
                     totalSecuredValue,
-                    activeLeads,
+                    activeLeads: leads.length,
                     successfulCharges,
                     totalRefunds,
                 });
@@ -59,14 +101,18 @@ export function MainDashboard() {
                     salesByDay[formattedDate] = 0;
                 }
 
-                firestoreOrders
-                    .filter(o => o.paymentStatus === 'Paid')
+                unifiedOrders
+                    .filter(o => o.paymentStatus === 'Paid' || o.paymentStatus === 'Fee Charged')
                     .forEach(o => {
-                        const orderDate = new Date(o.date);
-                        const today = new Date();
-                        if (subDays(today, 7) <= orderDate && orderDate <= today) {
-                             const formattedDate = format(orderDate, 'MMM d');
-                             salesByDay[formattedDate] = (salesByDay[formattedDate] || 0) + parseFloat(o.price);
+                        try {
+                             const orderDate = new Date(o.date);
+                             const today = new Date();
+                            if (subDays(today, 7) <= orderDate && orderDate <= today) {
+                                const formattedDate = format(orderDate, 'MMM d');
+                                salesByDay[formattedDate] = (salesByDay[formattedDate] || 0) + parseFloat(o.price);
+                            }
+                        } catch(e){
+                            // ignore invalid date formats
                         }
                     });
                 
@@ -197,5 +243,3 @@ export function MainDashboard() {
         </div>
     );
 }
-
-    

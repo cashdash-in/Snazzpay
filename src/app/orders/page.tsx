@@ -86,7 +86,7 @@ export default function OrdersPage() {
         
         const shopifyPromise = getShopifyOrders().catch(e => {
             console.error("Shopify fetch failed:", e.message);
-            toast({ variant: "destructive", title: "Could not load Shopify orders."});
+            toast({ variant: "destructive", title: "Could not load Shopify orders.", description: "Check API keys in Settings. Displaying Firestore orders only."});
             return [];
         });
 
@@ -371,5 +371,3 @@ export default function OrdersPage() {
     </AppShell>
   );
 }
-
-    
