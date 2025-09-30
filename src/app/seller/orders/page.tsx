@@ -9,8 +9,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Loader2, PlusCircle, Trash2, MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
-import { usePageRefresh } from "@/hooks/usePageRefresh";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from '@/hooks/use-auth';
 import type { EditableOrder } from '@/app/orders/page';
 import { Badge } from "@/components/ui/badge";
 import { sanitizePhoneNumber } from "@/lib/utils";
@@ -19,7 +18,6 @@ export default function SellerOrdersPage() {
   const [orders, setOrders] = useState<EditableOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-  const { refreshKey } = usePageRefresh();
   const { user } = useAuth();
 
   const fetchSellerOrders = useCallback(() => {
@@ -63,7 +61,7 @@ export default function SellerOrdersPage() {
 
   useEffect(() => {
     fetchSellerOrders();
-  }, [fetchSellerOrders, refreshKey]);
+  }, [fetchSellerOrders]);
 
   const handleRemoveOrder = (orderId: string) => {
     const updatedOrders = orders.filter(order => order.id !== orderId);

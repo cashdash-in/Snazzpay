@@ -4,7 +4,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { MandateStatus } from "@/components/mandate-status";
-import { getOrders as getShopifyOrders } from "@/services/shopify";
+import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import { format } from "date-fns";
 import { useEffect, useState, useCallback } from "react";
 import type { EditableOrder } from "../orders/page";
@@ -13,7 +13,6 @@ import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
 import { Button } from "@/components/ui/button";
-import { usePageRefresh } from "@/hooks/usePageRefresh";
 
 type Mandate = {
   id: string;
@@ -53,23 +52,12 @@ export default function MandatesPage() {
   const [allMandates, setAllMandates] = useState<Mandate[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-  const { refreshKey } = usePageRefresh();
 
   const fetchAndSetOrders = useCallback(async () => {
     setLoading(true);
     let combinedOrders: EditableOrder[] = [];
     try {
-        const shopifyPromise = getShopifyOrders().catch(e => {
-            console.error("Shopify fetch failed:", e.message);
-            toast({
-                variant: 'destructive',
-                title: "Could not load Shopify Orders",
-                description: "Displaying Firestore orders only. Check API keys in Settings.",
-            });
-            return [];
-        });
-
-        const shopifyOrders = await shopifyPromise;
+        const shopifyOrders = await getOrders();
         const shopifyEditableOrders: EditableOrder[] = shopifyOrders.map(o => ({
             id: o.id.toString(),
             orderId: o.name,
@@ -85,7 +73,12 @@ export default function MandatesPage() {
         }));
         combinedOrders = [...shopifyEditableOrders];
     } catch (error) {
-        // Errors are caught and toasted inside the try block now
+        console.error("Failed to fetch Shopify orders:", error);
+        toast({
+            variant: 'destructive',
+            title: "Failed to load Shopify Orders",
+            description: "Displaying manually added orders only. Check Shopify API keys in Settings.",
+        });
     }
 
     try {
@@ -154,7 +147,7 @@ export default function MandatesPage() {
 
   useEffect(() => {
     fetchAndSetOrders();
-  }, [fetchAndSetOrders, refreshKey]);
+  }, [fetchAndSetOrders]);
 
     const sendWhatsAppReminder = (mandate: Mandate) => {
         const secureUrl = `${window.location.origin}/secure-cod?amount=${encodeURIComponent(mandate.amount)}&name=${encodeURIComponent(mandate.productOrdered)}&order_id=${encodeURIComponent(mandate.orderId)}`;

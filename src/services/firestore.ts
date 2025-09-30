@@ -2,7 +2,7 @@
 'use server';
 
 import { db } from '@/lib/firebase';
-import { collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, query, where, DocumentData, writeBatch, orderBy, startAt, endAt } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, query, where, DocumentData, writeBatch } from 'firebase/firestore';
 import type { EditableOrder } from '@/app/orders/page';
 import type { PartnerData } from '@/app/partner-pay/page';
 import type { LogisticsPartnerData } from '@/app/logistics-secure/dashboard/page';
@@ -12,8 +12,8 @@ import type { ShaktiCardData } from '@/components/shakti-card';
 
 
 // Generic CRUD operations
-export const getCollection = async <T>(collectionName: string): Promise<T[]> => {
-    if (!db) throw new Error("Firestore is not configured. Cannot get collection.");
+const getCollection = async <T>(collectionName: string): Promise<T[]> => {
+    if (!db) return [];
     const q = query(collection(db, collectionName));
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as unknown as T));
@@ -52,19 +52,6 @@ export const saveOrder = async (order: Omit<EditableOrder, 'id'>, id?: string): 
 export const updateOrder = async (id: string, data: Partial<EditableOrder>) => updateDocument('orders', id, data);
 export const deleteOrder = async (id: string) => deleteDocument('orders', id);
 
-export const getOrdersByPhone = async (phone: string): Promise<EditableOrder[]> => {
-    if (!db) return [];
-    if (!phone) return [];
-    
-    const ordersRef = collection(db, 'orders');
-    // Query for exact match on contactNo
-    const q = query(ordersRef, where("contactNo", "==", phone));
-    
-    const querySnapshot = await getDocs(q);
-    
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as unknown as EditableOrder));
-};
-
 
 // Partner Pay specific functions
 export const getPayPartners = async (): Promise<PartnerData[]> => getCollection<PartnerData>('payPartners');
@@ -102,14 +89,6 @@ export const updateTopUpRequest = async (id: string, data: Partial<TopUpRequest>
 
 // Shakti Card specific functions
 export const getShaktiCards = async (): Promise<ShaktiCardData[]> => getCollection<ShaktiCardData>('shakti_cards');
-export const getShaktiCardByPhone = async (phone: string): Promise<ShaktiCardData | null> => {
-    if (!db) return null;
-    const q = query(collection(db, 'shakti_cards'), where("customerPhone", "==", phone));
-    const snapshot = await getDocs(q);
-    if (snapshot.empty) return null;
-    const doc = snapshot.docs[0];
-    return { id: doc.id, ...doc.data() } as ShaktiCardData;
-};
 export const saveShaktiCard = async (card: ShaktiCardData) => saveDocument('shakti_cards', card, card.cardNumber);
 export const updateShaktiCard = async (id: string, data: Partial<ShaktiCardData>) => updateDocument('shakti_cards', id, data);
 

@@ -6,8 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { getPaymentInfo, updateOrder, getAllOrders as getFirestoreOrders, deleteOrder } from "@/services/firestore";
-import { getOrders as getShopifyOrders } from "@/services/shopify";
+import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import { format } from "date-fns";
 import { useState, useEffect, useCallback } from "react";
 import { Loader2, PlusCircle, Trash2, Save, MessageSquare, CreditCard, Ban, CircleDollarSign } from "lucide-react";
@@ -17,10 +16,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { sanitizePhoneNumber } from "@/lib/utils";
-import { usePageRefresh } from "@/hooks/usePageRefresh";
 
 export type EditableOrder = {
-  id: string; // Firestore document ID or unique local ID
+  id: string;
   orderId: string;
   customerName: string;
   customerEmail?: string;
@@ -41,32 +39,33 @@ export type EditableOrder = {
   cancellationId?: string;
   cancellationReason?: string;
   cancellationStatus?: 'Pending' | 'Processed' | 'Failed';
-  cancellationFee?: string;
   refundAmount?: string;
   refundReason?: string;
   refundStatus?: 'Pending' | 'Processed' | 'Failed';
   source?: 'Shopify' | 'Manual' | 'Seller';
 };
 
-function mapShopifyOrderToEditableOrder(shopifyOrder: any): EditableOrder {
-    const customer = shopifyOrder.customer;
-    const customerName = customer ? `${customer.first_name || ''} ${customer.last_name || ''}`.trim() : 'N/A';
-    const products = shopifyOrder.line_items.map((item: any) => item.title).join(', ');
+function formatAddress(address: ShopifyOrder['shipping_address']): string {
+    if (!address) return 'N/A';
+    const parts = [address.address1, address.city, address.province, address.country, address.zip];
+    return parts.filter(Boolean).join(', ');
+}
 
+function mapShopifyToEditable(order: ShopifyOrder): EditableOrder {
     return {
-        id: `shopify-${shopifyOrder.id.toString()}`,
-        orderId: shopifyOrder.name,
-        customerName,
-        customerEmail: customer?.email || undefined,
-        customerAddress: shopifyOrder.shipping_address ? `${shopifyOrder.shipping_address.address1}, ${shopifyOrder.shipping_address.city}, ${shopifyOrder.shipping_address.zip}` : 'N/A',
-        pincode: shopifyOrder.shipping_address?.zip || 'N/A',
-        contactNo: shopifyOrder.customer?.phone || 'N/A',
-        productOrdered: products,
-        quantity: shopifyOrder.line_items.reduce((sum: number, item: any) => sum + item.quantity, 0),
-        price: shopifyOrder.total_price,
-        paymentStatus: shopifyOrder.financial_status || 'Pending',
-        date: format(new Date(shopifyOrder.created_at), "yyyy-MM-dd"),
-        source: 'Shopify',
+        id: order.id.toString(),
+        orderId: order.name,
+        customerName: `${order.customer?.first_name || ''} ${order.customer?.last_name || ''}`.trim(),
+        customerEmail: order.customer?.email || undefined,
+        customerAddress: formatAddress(order.shipping_address),
+        pincode: order.shipping_address?.zip || 'N/A',
+        contactNo: order.customer?.phone || 'N/A',
+        productOrdered: order.line_items.map(item => item.title).join(', '),
+        quantity: order.line_items.reduce((sum, item) => sum + item.quantity, 0),
+        price: order.total_price,
+        paymentStatus: order.financial_status || 'Pending',
+        date: format(new Date(order.created_at), "yyyy-MM-dd"),
+        source: 'Shopify'
     };
 }
 
@@ -77,75 +76,95 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true);
   const [processingChargeId, setProcessingChargeId] = useState<string | null>(null);
   const { toast } = useToast();
-  const { refreshKey } = usePageRefresh();
 
   const fetchAndSetOrders = useCallback(async () => {
     setLoading(true);
+    let combinedOrders: EditableOrder[] = [];
     try {
-        let allOrders: EditableOrder[] = [];
-        
-        const shopifyPromise = getShopifyOrders().catch(e => {
-            console.error("Shopify fetch failed:", e.message);
-            toast({ variant: "destructive", title: "Could not load Shopify orders.", description: "Check API keys in Settings. Displaying Firestore orders only."});
-            return [];
-        });
-
-        const firestoreOrders = await getFirestoreOrders();
-        allOrders.push(...firestoreOrders);
-
-        const shopifyOrders = await shopifyPromise;
-        allOrders.push(...shopifyOrders.map(mapShopifyOrderToEditableOrder));
-        
-        const orderMap = new Map<string, EditableOrder>();
-
-        allOrders.forEach(order => {
-             const existing = orderMap.get(order.orderId);
-             const isDefinitive = (status: string) => ['Paid', 'Authorized', 'Fee Charged'].includes(status);
-             
-             if (!existing || isDefinitive(order.paymentStatus) || (!isDefinitive(existing?.paymentStatus || '') && order.paymentStatus !== 'Voided')) {
-                  orderMap.set(order.orderId, order);
-             }
-        });
-        
-        let unifiedOrders = Array.from(orderMap.values());
-
-        const testOrderExists = unifiedOrders.some(order => order.orderId === TEST_ORDER_ID);
-        if (!testOrderExists) {
-             const testOrder: EditableOrder = {
-                id: uuidv4(),
-                orderId: TEST_ORDER_ID,
-                customerName: 'Test Customer',
-                customerEmail: 'test@example.com',
-                customerAddress: '123 Test Street, Testville',
-                pincode: '12345',
-                contactNo: '9876543210',
-                productOrdered: 'Sample Product for Testing',
-                quantity: 1,
-                price: '499.00',
-                paymentStatus: 'Pending',
-                date: format(new Date(), 'yyyy-MM-dd'),
-                source: 'Manual',
-            };
-            unifiedOrders.unshift(testOrder);
-        }
-        
-        const finalOrders = unifiedOrders.filter(o => o.paymentStatus !== 'Intent Verified');
-        setOrders(finalOrders);
-
-    } catch (error: any) {
-        console.error("Failed to load orders:", error);
+        const shopifyOrders = await getOrders();
+        const shopifyEditableOrders = shopifyOrders.map(mapShopifyToEditable);
+        combinedOrders = [...combinedOrders, ...shopifyEditableOrders];
+    } catch (error) {
+        console.error("Failed to fetch Shopify orders:", error);
         toast({
             variant: 'destructive',
-            title: "Failed to load orders",
-            description: error.message || "Could not retrieve order data.",
+            title: "Failed to load Shopify Orders",
+            description: "Displaying manually added orders only. Check Shopify API keys in Settings.",
         });
     }
+
+    try {
+        const manualOrdersJSON = localStorage.getItem('manualOrders');
+        const manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
+        combinedOrders = [...combinedOrders, ...manualOrders];
+    } catch (error) {
+        console.error("Failed to load manual orders:", error);
+        toast({
+            variant: 'destructive',
+            title: "Error loading manual orders",
+            description: "Could not load orders from local storage.",
+        });
+    }
+
+    const testOrderExists = combinedOrders.some(order => order.orderId === TEST_ORDER_ID);
+    if (!testOrderExists) {
+        const testOrder: EditableOrder = {
+            id: uuidv4(),
+            orderId: TEST_ORDER_ID,
+            customerName: 'Test Customer',
+            customerEmail: 'test@example.com',
+            customerAddress: '123 Test Street, Testville',
+            pincode: '12345',
+            contactNo: '9876543210',
+            productOrdered: 'Sample Product for Testing',
+            quantity: 1,
+            price: '499.00',
+            paymentStatus: 'Pending',
+            date: format(new Date(), 'yyyy-MM-dd'),
+            source: 'Manual',
+        };
+        combinedOrders.unshift(testOrder);
+    }
+
+    const orderGroups = new Map<string, EditableOrder[]>();
+    combinedOrders.forEach(order => {
+        const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
+        const finalOrder = { ...order, ...storedOverrides };
+        const group = orderGroups.get(finalOrder.orderId) || [];
+        group.push(finalOrder);
+        orderGroups.set(finalOrder.orderId, group);
+    });
+
+    const unifiedOrders: EditableOrder[] = [];
+    orderGroups.forEach((group) => {
+        let representativeOrder = group.reduce((acc, curr) => ({ ...acc, ...curr }), group[0]);
+
+        const hasVoided = group.some(o => o.paymentStatus === 'Voided' || o.cancellationStatus === 'Processed');
+        const hasRefunded = group.some(o => o.paymentStatus === 'Refunded' || o.refundStatus === 'Processed');
+
+        if (hasVoided) {
+            representativeOrder.paymentStatus = 'Voided';
+        } else if (hasRefunded) {
+            representativeOrder.paymentStatus = 'Refunded';
+        }
+        
+        const sharedCancellationId = group.find(o => o.cancellationId)?.cancellationId;
+        if (sharedCancellationId) {
+            representativeOrder.cancellationId = sharedCancellationId;
+        } else {
+             representativeOrder.cancellationId = `CNCL-${uuidv4().substring(0, 8).toUpperCase()}`;
+        }
+
+        unifiedOrders.push(representativeOrder);
+    });
+
+    setOrders(unifiedOrders.filter(o => o.paymentStatus !== 'Intent Verified'));
     setLoading(false);
   }, [toast]);
 
   useEffect(() => {
     fetchAndSetOrders();
-  }, [fetchAndSetOrders, refreshKey]);
+  }, [fetchAndSetOrders]);
 
   const handleFieldChange = (orderId: string, field: keyof EditableOrder, value: string | number) => {
     setOrders(prevOrders => prevOrders.map(order =>
@@ -153,40 +172,40 @@ export default function OrdersPage() {
     ));
   };
   
-  const handleSaveOrder = async (orderId: string) => {
+  const handleSaveOrder = (orderId: string) => {
     const orderToSave = orders.find(o => o.id === orderId);
     if (!orderToSave) return;
-    try {
-        await updateOrder(orderToSave.id, orderToSave);
-        toast({
-            title: "Changes Saved",
-            description: `Order ${orderToSave?.orderId} has been updated.`,
-        });
-    } catch (error: any) {
-        toast({
-            variant: 'destructive',
-            title: "Error Saving Order",
-            description: error.message,
-        });
-    }
+    
+    // We only save overrides, never the original shopify/manual order data
+    const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${orderId}`) || '{}');
+    const newOverrides = { ...storedOverrides, ...orderToSave };
+    localStorage.setItem(`order-override-${orderId}`, JSON.stringify(newOverrides));
+
+    toast({
+        title: "Changes Saved",
+        description: `Order ${orderToSave?.orderId} has been updated.`,
+    });
   };
 
-  const handleRemoveOrder = async (orderId: string, sourceId: string) => {
-    try {
-      await deleteOrder(sourceId);
-      setOrders(prev => prev.filter(order => order.id !== sourceId));
-      toast({
-          variant: 'destructive',
-          title: "Order Removed",
-          description: "The order has been removed from the database.",
-      });
-    } catch (error: any) {
-        toast({
-            variant: 'destructive',
-            title: "Error Removing Order",
-            description: error.message,
-        });
+  const handleRemoveOrder = (orderId: string, source: 'Shopify' | 'Manual' | 'Seller' | undefined) => {
+    if (source === 'Manual' || source === 'Seller') {
+        const manualOrdersJSON = localStorage.getItem('manualOrders');
+        if (manualOrdersJSON) {
+            let manualOrders: EditableOrder[] = JSON.parse(manualOrdersJSON);
+            manualOrders = manualOrders.filter(o => o.id !== orderId);
+            localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
+        }
     }
+    
+    localStorage.removeItem(`order-override-${orderId}`);
+    
+    setOrders(prev => prev.filter(order => order.id !== orderId));
+    
+    toast({
+        variant: 'destructive',
+        title: "Order Removed",
+        description: "The order has been removed from this view.",
+    });
   };
 
   const sendWhatsAppNotification = (order: EditableOrder) => {
@@ -211,18 +230,19 @@ export default function OrdersPage() {
 
     const handleQuickCapture = async (order: EditableOrder) => {
         setProcessingChargeId(order.id);
-        const paymentInfo = await getPaymentInfo(order.orderId);
-
-        if (!paymentInfo) {
+        const paymentInfoJSON = localStorage.getItem(`payment_info_${order.orderId}`);
+        if (!paymentInfoJSON) {
             toast({
                 variant: 'destructive',
                 title: "Payment Info Not Found",
-                description: `Cannot charge order ${order.orderId}. No payment authorization found.`,
+                description: `Cannot charge order ${order.orderId}. No payment authorization found. Please process from the Order Details page.`,
             });
             setProcessingChargeId(null);
             return;
         }
 
+        const paymentInfo = JSON.parse(paymentInfoJSON);
+        
         try {
             const response = await fetch('/api/charge-mandate', {
                 method: 'POST',
@@ -236,9 +256,15 @@ export default function OrdersPage() {
             const result = await response.json();
             if (!response.ok) throw new Error(result.error || 'Failed to charge payment.');
 
-            const updatedOrder = { ...order, paymentStatus: 'Paid' };
-            await updateOrder(order.id, { paymentStatus: 'Paid' });
-            setOrders(prev => prev.map(o => o.id === order.id ? updatedOrder : o));
+            const updatedOrders = orders.map(o => o.id === order.id ? {...o, paymentStatus: 'Paid'} : o)
+            setOrders(updatedOrders);
+            
+            const orderToSave = updatedOrders.find(o => o.id === order.id);
+            if (orderToSave) {
+                const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
+                const newOverrides = { ...storedOverrides, ...orderToSave };
+                localStorage.setItem(`order-override-${order.id}`, JSON.stringify(newOverrides));
+            }
 
             toast({
                 title: "Charge Successful!",
@@ -355,7 +381,7 @@ export default function OrdersPage() {
                                 <Button variant="outline" size="icon" onClick={() => handleSaveOrder(order.id)}>
                                     <Save className="h-4 w-4" />
                                 </Button>
-                                <Button variant="destructive" size="icon" onClick={() => handleRemoveOrder(order.orderId, order.id)}>
+                                <Button variant="destructive" size="icon" onClick={() => handleRemoveOrder(order.id, order.source)}>
                                     <Trash2 className="h-4 w-4" />
                                 </Button>
                             </TableCell>

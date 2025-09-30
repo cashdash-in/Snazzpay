@@ -9,6 +9,9 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { db, auth } from '@/lib/firebase';
+import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { Check, X, MessageSquare, Factory } from "lucide-react";
 import { sanitizePhoneNumber } from "@/lib/utils";
 
@@ -30,6 +33,8 @@ export default function SellerAccountsPage() {
 
      useEffect(() => {
         function loadData() {
+            // This is a prototype implementation using localStorage.
+            // In a production app, you would fetch this from a Firestore collection.
             const localSellerRequestsJSON = localStorage.getItem('seller_requests');
             const localSellerRequests: SellerUser[] = localSellerRequestsJSON ? JSON.parse(localSellerRequestsJSON) : [];
             setSellerRequests(localSellerRequests);
@@ -41,12 +46,21 @@ export default function SellerAccountsPage() {
         loadData();
     }, []);
 
-    const handleSellerRequest = (sellerId: string, newStatus: 'approved' | 'rejected') => {
+    const handleSellerRequest = async (sellerId: string, newStatus: 'approved' | 'rejected') => {
         const seller = sellerRequests.find(s => s.id === sellerId);
         if (!seller) return;
 
         try {
             if (newStatus === 'approved') {
+                const docRef = doc(db, "users", seller.id);
+                await setDoc(docRef, { 
+                    id: seller.id,
+                    name: seller.companyName, 
+                    email: seller.email, 
+                    role: 'seller' 
+                });
+                
+                // Add to approved sellers in local storage for the prototype's UI to update
                 const approvedSellersJSON = localStorage.getItem('approved_sellers');
                 let currentApprovedSellers: SellerUser[] = approvedSellersJSON ? JSON.parse(approvedSellersJSON) : [];
                 currentApprovedSellers.push({ ...seller, status: 'approved' });
@@ -54,6 +68,7 @@ export default function SellerAccountsPage() {
                 setApprovedSellers(currentApprovedSellers);
             }
             
+            // Remove from requests list regardless of approval/rejection
             const updatedRequests = sellerRequests.filter(s => s.id !== sellerId);
             setSellerRequests(updatedRequests);
             localStorage.setItem('seller_requests', JSON.stringify(updatedRequests));
@@ -67,7 +82,7 @@ export default function SellerAccountsPage() {
              toast({
                 variant: 'destructive',
                 title: `Approval Failed`,
-                description: `Could not update local storage. Error: ${error.message}`,
+                description: `Could not write to Firestore database. Please ensure Firestore is set up correctly. Error: ${error.message}`,
             });
         }
     };

@@ -14,7 +14,6 @@ import { format } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { saveOrder } from '@/services/firestore';
 
 export default function NewOrderPage() {
     const router = useRouter();
@@ -42,27 +41,24 @@ export default function NewOrderPage() {
         setOrder(prev => ({ ...prev, paymentStatus: value }));
     };
     
-    const handleSave = async () => {
+    const handleSave = () => {
         const newOrder = {
             ...order,
             id: uuidv4(), // Assign a unique ID for React keys and local storage
             source: 'Manual'
         };
         
-        try {
-            await saveOrder(newOrder, newOrder.id);
-            toast({
-                title: "Order Created",
-                description: "The new order has been saved successfully.",
-            });
-            router.push('/orders');
-        } catch (error: any) {
-             toast({
-                variant: 'destructive',
-                title: "Error Creating Order",
-                description: error.message,
-            });
-        }
+        const existingOrdersJSON = localStorage.getItem('manualOrders');
+        const existingOrders = existingOrdersJSON ? JSON.parse(existingOrdersJSON) : [];
+        const updatedOrders = [...existingOrders, newOrder];
+        localStorage.setItem('manualOrders', JSON.stringify(updatedOrders));
+
+        toast({
+            title: "Order Created",
+            description: "The new order has been saved successfully.",
+        });
+
+        router.push('/orders');
     };
 
     return (

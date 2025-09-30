@@ -14,7 +14,6 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { FirebaseError } from 'firebase/app';
-import type { SellerUser } from '@/app/seller-accounts/page';
 
 
 export default function SellerLoginPage() {
@@ -37,15 +36,10 @@ export default function SellerLoginPage() {
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const loggedInUser = userCredential.user;
             
-            // WORKAROUND: Check approval status from local storage ONLY.
-            // This avoids any Firestore interaction during login, which was causing permission errors.
-            const approvedSellersJSON = localStorage.getItem('approved_sellers');
-            const approvedSellers: SellerUser[] = approvedSellersJSON ? JSON.parse(approvedSellersJSON) : [];
-            const isApproved = approvedSellers.some(seller => seller.id === loggedInUser.uid);
-
-            if (!isApproved) {
+            const userDoc = await getDoc(doc(db, "users", loggedInUser.uid));
+            if (!userDoc.exists() || userDoc.data().role !== 'seller') {
                  await auth.signOut();
-                 toast({ variant: 'destructive', title: "Account Not Approved", description: `Your seller account is pending approval or has been rejected. Please contact support.` });
+                 toast({ variant: 'destructive', title: "Access Denied", description: `Your account is not approved as a seller. Please contact support.` });
                  setIsLoading(false);
                  return;
             }
