@@ -52,6 +52,19 @@ export const saveOrder = async (order: Omit<EditableOrder, 'id'>, id?: string): 
 export const updateOrder = async (id: string, data: Partial<EditableOrder>) => updateDocument('orders', id, data);
 export const deleteOrder = async (id: string) => deleteDocument('orders', id);
 
+export const getOrdersByPhone = async (phone: string): Promise<EditableOrder[]> => {
+    if (!db) return [];
+    if (!phone) return [];
+    
+    const ordersRef = collection(db, 'orders');
+    // Query for exact match on contactNo
+    const q = query(ordersRef, where("contactNo", "==", phone));
+    
+    const querySnapshot = await getDocs(q);
+    
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as unknown as EditableOrder));
+};
+
 
 // Partner Pay specific functions
 export const getPayPartners = async (): Promise<PartnerData[]> => getCollection<PartnerData>('payPartners');

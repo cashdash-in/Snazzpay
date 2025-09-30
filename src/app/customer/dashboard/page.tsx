@@ -20,7 +20,7 @@ import { format, addYears } from 'date-fns';
 import { sanitizePhoneNumber } from '@/lib/utils';
 import { ShaktiCard, ShaktiCardData } from '@/components/shakti-card';
 import Link from 'next/link';
-import { getAllOrders, getPaymentInfo, getShaktiCardByPhone, updateOrder } from '@/services/firestore';
+import { getOrdersByPhone, getPaymentInfo, getShaktiCardByPhone, updateOrder } from '@/services/firestore';
 
 type PaymentInfo = {
     paymentId: string;
@@ -64,7 +64,7 @@ export default function CustomerDashboardPage() {
     const [paymentInfos, setPaymentInfos] = useState<Map<string, PaymentInfo>>(new Map());
     const [shaktiCard, setShaktiCard] = useState<ShaktiCardData | null>(null);
 
-    const loadCustomerData = useCallback(async (mobileNumber: string) => {
+     const loadCustomerData = useCallback(async (mobileNumber: string) => {
         if (!mobileNumber) {
             setIsLoading(false);
             return;
@@ -72,31 +72,32 @@ export default function CustomerDashboardPage() {
         setIsLoading(true);
         try {
             const sanitizedMobile = sanitizePhoneNumber(mobileNumber);
-            const cardData = await getShaktiCardByPhone(sanitizedMobile);
+
+            // Fetch Shakti Card and Orders concurrently
+            const [cardData, customerOrders] = await Promise.all([
+                getShaktiCardByPhone(sanitizedMobile),
+                getOrdersByPhone(mobileNumber) // Use direct query
+            ]);
+
             if (cardData) {
                 setShaktiCard(cardData);
             }
 
-            const allSnazzPayOrders = await getAllOrders();
-
-            const customerSnazzPayOrders = allSnazzPayOrders.filter(order => {
-                const normalize = (phone: string = '') => (phone || '').replace(/[^0-9]/g, '');
-                const orderContact = normalize(order.contactNo);
-                const loggedInContact = normalize(mobileNumber);
-                if (!orderContact || !loggedInContact) return false;
-                return orderContact.endsWith(loggedInContact) || loggedInContact.endsWith(orderContact);
+            const loadedPaymentInfos = new Map<string, PaymentInfo>();
+            const paymentInfoPromises = customerOrders.map(order => 
+                getPaymentInfo(order.orderId).then(info => ({orderId: order.orderId, info}))
+            );
+            const paymentInfoResults = await Promise.all(paymentInfoPromises);
+            
+            paymentInfoResults.forEach(({orderId, info}) => {
+                if (info) {
+                    loadedPaymentInfos.set(orderId, info);
+                }
             });
 
-            const loadedPaymentInfos = new Map<string, PaymentInfo>();
-            for (const order of customerSnazzPayOrders) {
-                const paymentInfo = await getPaymentInfo(order.orderId);
-                if (paymentInfo) {
-                    loadedPaymentInfos.set(order.orderId, paymentInfo);
-                }
-            }
-            
-            const finalOrders = customerSnazzPayOrders.filter(o => o.paymentStatus !== 'Intent Verified');
+            const finalOrders = customerOrders.filter(o => o.paymentStatus !== 'Intent Verified');
             const customerName = finalOrders.length > 0 ? finalOrders[0].customerName : cardData?.customerName || 'Valued Customer';
+            
             setUser({ name: customerName, mobile: mobileNumber });
 
             const activeTrustValue = finalOrders
