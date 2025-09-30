@@ -20,6 +20,7 @@ import { format, addYears } from 'date-fns';
 import { sanitizePhoneNumber } from '@/lib/utils';
 import { ShaktiCard, ShaktiCardData } from '@/components/shakti-card';
 import Link from 'next/link';
+import { getAllOrders, getPaymentInfo, getShaktiCardByPhone, updateOrder } from '@/services/firestore';
 
 type PaymentInfo = {
     paymentId: string;
@@ -71,21 +72,12 @@ export default function CustomerDashboardPage() {
         setIsLoading(true);
         try {
             const sanitizedMobile = sanitizePhoneNumber(mobileNumber);
-            const cardDataJSON = localStorage.getItem(`shakti_card_${sanitizedMobile}`);
-            if (cardDataJSON) {
-                setShaktiCard(JSON.parse(cardDataJSON));
+            const cardData = await getShaktiCardByPhone(sanitizedMobile);
+            if (cardData) {
+                setShaktiCard(cardData);
             }
 
-            let allSnazzPayOrders: EditableOrder[] = [];
-            const manualOrdersJSON = localStorage.getItem('manualOrders');
-            if (manualOrdersJSON) {
-                allSnazzPayOrders = [...allSnazzPayOrders, ...JSON.parse(manualOrdersJSON)];
-            }
-            
-            const sellerOrdersJSON = localStorage.getItem('seller_orders');
-            if (sellerOrdersJSON) {
-                allSnazzPayOrders = [...allSnazzPayOrders, ...JSON.parse(sellerOrdersJSON)];
-            }
+            const allSnazzPayOrders = await getAllOrders();
 
             const customerSnazzPayOrders = allSnazzPayOrders.filter(order => {
                 const normalize = (phone: string = '') => (phone || '').replace(/[^0-9]/g, '');
@@ -95,33 +87,16 @@ export default function CustomerDashboardPage() {
                 return orderContact.endsWith(loggedInContact) || loggedInContact.endsWith(orderContact);
             });
 
-            const orderMap = new Map<string, EditableOrder>();
-
-            customerSnazzPayOrders.forEach(order => {
-                const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
-                const finalOrder = { ...order, ...storedOverrides };
-
-                const existing = orderMap.get(finalOrder.orderId);
-                
-                const isDefinitive = (status: string) => ['Paid', 'Authorized', 'Fee Charged'].includes(status);
-                
-                if (!existing || isDefinitive(finalOrder.paymentStatus) || (!isDefinitive(existing.paymentStatus) && finalOrder.paymentStatus !== 'Voided')) {
-                     orderMap.set(finalOrder.orderId, finalOrder);
-                }
-            });
-
-            const unifiedOrders = Array.from(orderMap.values());
             const loadedPaymentInfos = new Map<string, PaymentInfo>();
-
-            unifiedOrders.forEach((order) => {
-                const paymentInfoJSON = localStorage.getItem(`payment_info_${order.orderId}`);
-                if (paymentInfoJSON) {
-                    loadedPaymentInfos.set(order.orderId, JSON.parse(paymentInfoJSON));
+            for (const order of customerSnazzPayOrders) {
+                const paymentInfo = await getPaymentInfo(order.orderId);
+                if (paymentInfo) {
+                    loadedPaymentInfos.set(order.orderId, paymentInfo);
                 }
-            });
+            }
             
-            const finalOrders = unifiedOrders.filter(o => o.paymentStatus !== 'Intent Verified');
-            const customerName = finalOrders.length > 0 ? finalOrders[0].customerName : shaktiCard?.customerName || 'Valued Customer';
+            const finalOrders = customerSnazzPayOrders.filter(o => o.paymentStatus !== 'Intent Verified');
+            const customerName = finalOrders.length > 0 ? finalOrders[0].customerName : cardData?.customerName || 'Valued Customer';
             setUser({ name: customerName, mobile: mobileNumber });
 
             const activeTrustValue = finalOrders
@@ -141,7 +116,7 @@ export default function CustomerDashboardPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [toast, shaktiCard?.customerName]);
+    }, [toast]);
         
     useEffect(() => {
         const loggedInMobile = localStorage.getItem('loggedInUserMobile');
@@ -181,12 +156,10 @@ export default function CustomerDashboardPage() {
             const result = await response.json();
             if (!response.ok) throw new Error(result.error || 'Failed to process cancellation.');
             
-            const updatedOrder = { ...order, paymentStatus: 'Voided', cancellationStatus: 'Processed' };
-            const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
-            const newOverrides = { ...storedOverrides, paymentStatus: 'Voided', cancellationStatus: 'Processed' };
-            localStorage.setItem(`order-override-${order.id}`, JSON.stringify(newOverrides));
+            const updatedOrderData = { paymentStatus: 'Voided', cancellationStatus: 'Processed' as const };
+            await updateOrder(order.id, updatedOrderData);
             
-            setOrders(prev => prev.map(o => o.id === order.id ? updatedOrder : o));
+            setOrders(prev => prev.map(o => o.id === order.id ? {...o, ...updatedOrderData} : o));
             setTrustWalletValue(prev => prev - parseFloat(order.price || '0'));
             toast({ title: "Order Cancelled", description: `Your order ${order.orderId} has been successfully cancelled.` });
         
@@ -482,3 +455,5 @@ export default function CustomerDashboardPage() {
         </div>
     );
 }
+
+    
