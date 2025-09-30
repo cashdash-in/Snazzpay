@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview An AI flow for generating a product listing from an image and text.
@@ -16,7 +17,13 @@ import {
 export async function createProductListing(
   input: ProductListingInput
 ): Promise<ProductListingOutput> {
-  return createProductListingFlow(input);
+  try {
+    return await createProductListingFlow(input);
+  } catch (error: any) {
+    console.error('[createProductListing] Server-side error:', error);
+    // Re-throw a more client-friendly error
+    throw new Error(error.message || 'An unexpected error occurred in the AI flow.');
+  }
 }
 
 const prompt = ai.definePrompt({

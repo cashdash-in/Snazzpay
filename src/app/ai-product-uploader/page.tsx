@@ -90,12 +90,11 @@ export default function AiProductUploaderPage() {
         description: 'Review the AI-generated details below.',
       });
     } catch (error: any) {
+      console.error("AI Generation Error:", error);
       toast({
         variant: 'destructive',
         title: 'Generation Failed',
-        description:
-          error.message ||
-          'An unexpected error occurred while generating the listing.',
+        description: `Server error: ${error.message || 'An unexpected error occurred.'}`,
       });
     } finally {
       setIsLoading(false);
