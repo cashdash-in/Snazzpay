@@ -178,11 +178,16 @@ export default function SettingsPage() {
                         <li>Click <strong>"Develop apps for your store"</strong> (or "Manage private apps").</li>
                         <li>Create a new custom app. Give it a name like "SnazzPay Connector".</li>
                         <li>Under <strong>Admin API integration</strong>, click "Configure".</li>
-                        <li>Grant the following permissions (scopes):
-                            <ul className="list-disc pl-5 mt-1 font-mono text-xs">
-                                <li>`read_orders`, `write_orders`</li>
-                                <li>`read_products`, `write_products`</li>
-                            </ul>
+                        <li>
+                            <p className="font-bold my-1">Grant the following permissions (scopes):</p>
+                            <div className="p-2 bg-muted rounded-md border">
+                                <ul className="list-disc pl-5 font-mono text-xs">
+                                    <li>`read_orders` (To display orders in this app)</li>
+                                    <li>`write_orders`</li>
+                                    <li>`read_products`</li>
+                                    <li>`write_products` (For the AI Uploader)</li>
+                                </ul>
+                            </div>
                         </li>
                         <li>Save and install the app. In the <strong>API credentials</strong> tab, you will find your Admin API access token. It starts with `shpat_`.</li>
                    </ol>
@@ -335,5 +340,3 @@ export default function SettingsPage() {
     </AppShell>
   );
 }
-
-    
