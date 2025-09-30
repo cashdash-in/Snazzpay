@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { getPaymentInfo, updateOrder } from "@/services/firestore";
+import { getPaymentInfo, updateOrder, getAllOrders as getFirestoreOrders, deleteOrder } from "@/services/firestore";
 import { getOrders as getShopifyOrders } from "@/services/shopify";
 import { format } from "date-fns";
 import { useState, useEffect, useCallback } from "react";
@@ -90,14 +90,8 @@ export default function OrdersPage() {
             return [];
         });
 
-        const manualOrdersJSON = localStorage.getItem('manualOrders');
-        const manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
-        allOrders.push(...manualOrders.map(o => ({ ...o, source: o.source || 'Manual' })));
-
-        const sellerOrdersJSON = localStorage.getItem('seller_orders');
-        if (sellerOrdersJSON) {
-            allOrders.push(...JSON.parse(sellerOrdersJSON).map((o: EditableOrder) => ({...o, source: 'Seller'})));
-        }
+        const firestoreOrders = await getFirestoreOrders();
+        allOrders.push(...firestoreOrders);
 
         const shopifyOrders = await shopifyPromise;
         allOrders.push(...shopifyOrders.map(mapShopifyOrderToEditableOrder));
@@ -105,15 +99,11 @@ export default function OrdersPage() {
         const orderMap = new Map<string, EditableOrder>();
 
         allOrders.forEach(order => {
-             const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
-             const finalOrder = { ...order, ...storedOverrides };
-
-             const existing = orderMap.get(finalOrder.orderId);
-             
+             const existing = orderMap.get(order.orderId);
              const isDefinitive = (status: string) => ['Paid', 'Authorized', 'Fee Charged'].includes(status);
              
-             if (!existing || isDefinitive(finalOrder.paymentStatus) || (!isDefinitive(existing?.paymentStatus || '') && finalOrder.paymentStatus !== 'Voided')) {
-                  orderMap.set(finalOrder.orderId, finalOrder);
+             if (!existing || isDefinitive(order.paymentStatus) || (!isDefinitive(existing?.paymentStatus || '') && order.paymentStatus !== 'Voided')) {
+                  orderMap.set(order.orderId, order);
              }
         });
         
@@ -183,24 +173,13 @@ export default function OrdersPage() {
 
   const handleRemoveOrder = async (orderId: string, sourceId: string) => {
     try {
-        if(sourceId.startsWith('shopify-')){
-             localStorage.removeItem(`order-override-${sourceId}`);
-        } else {
-            let manualOrders: EditableOrder[] = JSON.parse(localStorage.getItem('manualOrders') || '[]');
-            manualOrders = manualOrders.filter(o => o.id !== sourceId);
-            localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
-            
-            let sellerOrders: EditableOrder[] = JSON.parse(localStorage.getItem('seller_orders') || '[]');
-            sellerOrders = sellerOrders.filter(o => o.id !== sourceId);
-            localStorage.setItem('seller_orders', JSON.stringify(sellerOrders));
-        }
-
-        setOrders(prev => prev.filter(order => order.id !== sourceId));
-        toast({
-            variant: 'destructive',
-            title: "Order Removed",
-            description: "The order has been removed from local lists.",
-        });
+      await deleteOrder(sourceId);
+      setOrders(prev => prev.filter(order => order.id !== sourceId));
+      toast({
+          variant: 'destructive',
+          title: "Order Removed",
+          description: "The order has been removed from the database.",
+      });
     } catch (error: any) {
         toast({
             variant: 'destructive',
@@ -392,3 +371,5 @@ export default function OrdersPage() {
     </AppShell>
   );
 }
+
+    
