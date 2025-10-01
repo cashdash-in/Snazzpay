@@ -24,11 +24,12 @@ export default function SellerOrdersPage() {
     if (!user) return;
     setLoading(true);
     try {
-      const ordersStorageKey = `seller_orders_${user.uid}`;
-      const allSellerOrdersJSON = localStorage.getItem(ordersStorageKey);
+      const allSellerOrdersJSON = localStorage.getItem('seller_orders');
       const allSellerOrders: EditableOrder[] = allSellerOrdersJSON ? JSON.parse(allSellerOrdersJSON) : [];
       
-      const unifiedOrders = allSellerOrders.map(order => {
+      const userSellerOrders = allSellerOrders.filter(o => o.sellerId === user.uid);
+      
+      const unifiedOrders = userSellerOrders.map(order => {
         const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
         return { ...order, ...storedOverrides };
       });
@@ -52,10 +53,11 @@ export default function SellerOrdersPage() {
 
   const handleRemoveOrder = (orderId: string) => {
     if (!user) return;
-    const ordersStorageKey = `seller_orders_${user.uid}`;
-    const updatedOrders = orders.filter(order => order.id !== orderId);
-    setOrders(updatedOrders);
-    localStorage.setItem(ordersStorageKey, JSON.stringify(updatedOrders));
+    const ordersStorageKey = `seller_orders`;
+    let allOrders = JSON.parse(localStorage.getItem(ordersStorageKey) || '[]');
+    allOrders = allOrders.filter((order: EditableOrder) => order.id !== orderId);
+    localStorage.setItem(ordersStorageKey, JSON.stringify(allOrders));
+    setOrders(prev => prev.filter(o => o.id !== orderId));
     
     toast({
         variant: 'destructive',
@@ -67,7 +69,6 @@ export default function SellerOrdersPage() {
   const handlePushToVendor = (orderToPush: EditableOrder) => {
     if (!user) return;
     
-    // 1. Get seller's vendorId
     const approvedSellersJSON = localStorage.getItem('approved_sellers');
     const approvedSellers = approvedSellersJSON ? JSON.parse(approvedSellersJSON) : [];
     const sellerInfo = approvedSellers.find((s: any) => s.id === user.uid);
@@ -82,24 +83,24 @@ export default function SellerOrdersPage() {
         return;
     }
 
-    // 2. Add order to vendor's queue
-    const vendorOrdersKey = `vendor_orders_${vendorId}`;
+    const vendorOrdersKey = `vendor_orders`;
     const vendorOrdersJSON = localStorage.getItem(vendorOrdersKey);
     let vendorOrders = vendorOrdersJSON ? JSON.parse(vendorOrdersJSON) : [];
     
-    // Avoid duplicates
     if (!vendorOrders.some((o: EditableOrder) => o.id === orderToPush.id)) {
-        vendorOrders.push({ ...orderToPush, sellerId: user.uid });
+        vendorOrders.push({ ...orderToPush, vendorId: vendorId });
         localStorage.setItem(vendorOrdersKey, JSON.stringify(vendorOrders));
     }
 
-    // 3. Update the order status for the seller to "Pushed to Vendor"
     const updatedSellerOrders = orders.map(o => 
         o.id === orderToPush.id ? { ...o, paymentStatus: 'Pushed to Vendor' } : o
     );
     setOrders(updatedSellerOrders);
-    const sellerOrdersKey = `seller_orders_${user.uid}`;
-    localStorage.setItem(sellerOrdersKey, JSON.stringify(updatedSellerOrders));
+    
+    const sellerOrdersKey = `seller_orders`;
+    const allSellerOrders = JSON.parse(localStorage.getItem(sellerOrdersKey) || '[]');
+    const finalSellerOrders = allSellerOrders.map((o: EditableOrder) => o.id === orderToPush.id ? { ...o, paymentStatus: 'Pushed to Vendor' } : o);
+    localStorage.setItem(sellerOrdersKey, JSON.stringify(finalSellerOrders));
     
     toast({
         title: "Order Pushed to Vendor!",
@@ -117,8 +118,19 @@ export default function SellerOrdersPage() {
         return;
     }
     
-    const secureUrl = `${window.location.origin}/secure-cod?amount=${encodeURIComponent(order.price)}&name=${encodeURIComponent(order.productOrdered)}&order_id=${encodeURIComponent(order.orderId)}&seller_id=${user?.uid}`;
-    const message = `Hi ${order.customerName}, your order for "${order.productOrdered}" (₹${order.price}) is ready. Please confirm your order and pay securely using this link: ${secureUrl}`;
+    if (order.paymentMethod === 'Cash on Delivery') {
+        toast({
+            title: 'COD Order',
+            description: 'This is a Cash on Delivery order. No payment link is needed.',
+        });
+        return;
+    }
+    
+    const isPrepaid = order.paymentMethod === 'Prepaid';
+    const baseUrl = `${window.location.origin}/payment`;
+    const finalUrl = `${baseUrl}?amount=${encodeURIComponent(order.price)}&name=${encodeURIComponent(order.productOrdered)}&order_id=${encodeURIComponent(order.orderId)}&seller_id=${user?.uid}&prepaid=${isPrepaid}`;
+    
+    const message = `Hi ${order.customerName}, your order for "${order.productOrdered}" (₹${order.price}) is ready. Please complete your payment securely using this link: ${finalUrl}`;
     const whatsappUrl = `https://wa.me/${sanitizePhoneNumber(order.contactNo)}?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
   };
@@ -156,48 +168,55 @@ export default function SellerOrdersPage() {
                     <TableHead>Customer</TableHead>
                     <TableHead>Product(s)</TableHead>
                     <TableHead>Value</TableHead>
-                    <TableHead>Date</TableHead>
+                    <TableHead>Payment Type</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {orders.length > 0 ? (
-                    orders.map((order) => (
-                      <TableRow key={order.id}>
-                        <TableCell>
-                          <Link href={`/orders/${order.id}`} className="font-medium text-primary hover:underline cursor-pointer">
-                            {order.orderId}
-                          </Link>
-                        </TableCell>
-                        <TableCell>{order.customerName}</TableCell>
-                        <TableCell>{order.productOrdered}</TableCell>
-                        <TableCell>₹{order.price}</TableCell>
-                        <TableCell>{new Date(order.date).toLocaleDateString()}</TableCell>
-                        <TableCell>
-                           <Badge variant={order.paymentStatus === 'Paid' || order.paymentStatus === 'Authorized' ? 'default' : 'secondary'} className={
+                    orders.map((order) => {
+                      const isCOD = order.paymentMethod === 'Cash on Delivery';
+                      const canPush = (order.paymentStatus === 'Paid' || order.paymentStatus === 'Authorized' || isCOD);
+
+                      return (
+                        <TableRow key={order.id}>
+                          <TableCell>
+                            <Link href={`/orders/${order.id}`} className="font-medium text-primary hover:underline cursor-pointer">
+                              {order.orderId}
+                            </Link>
+                          </TableCell>
+                          <TableCell>{order.customerName}</TableCell>
+                          <TableCell>{order.productOrdered}</TableCell>
+                          <TableCell>₹{order.price}</TableCell>
+                           <TableCell>
+                            <Badge variant={isCOD ? "secondary" : "outline"}>{order.paymentMethod}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={canPush || order.paymentStatus === "Pushed to Vendor" ? 'default' : 'secondary'} className={
                                 order.paymentStatus === 'Paid' || order.paymentStatus === 'Authorized' ? 'bg-green-100 text-green-800' :
                                 order.paymentStatus === 'Pushed to Vendor' ? 'bg-blue-100 text-blue-800' :
                                 'bg-gray-100 text-gray-800'
                             }>
                                 {order.paymentStatus}
                             </Badge>
-                        </TableCell>
-                        <TableCell className="text-right space-x-2">
-                            {(order.paymentStatus === 'Paid' || order.paymentStatus === 'Authorized') && (
-                                <Button size="sm" onClick={() => handlePushToVendor(order)}>
-                                    <Send className="mr-2 h-4 w-4" /> Push to Vendor
-                                </Button>
-                            )}
-                          <Button variant="secondary" size="sm" onClick={() => handleShareOnWhatsApp(order)}>
-                            <MessageSquare className="mr-2 h-4 w-4" /> Share
-                          </Button>
-                          <Button variant="destructive" size="icon" onClick={() => handleRemoveOrder(order.id)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))
+                          </TableCell>
+                          <TableCell className="text-right space-x-2">
+                              {canPush && (
+                                  <Button size="sm" onClick={() => handlePushToVendor(order)} disabled={order.paymentStatus === 'Pushed to Vendor'}>
+                                      <Send className="mr-2 h-4 w-4" /> {order.paymentStatus === 'Pushed to Vendor' ? 'Pushed' : 'Push to Vendor'}
+                                  </Button>
+                              )}
+                            <Button variant="secondary" size="sm" onClick={() => handleShareOnWhatsApp(order)} disabled={isCOD}>
+                              <MessageSquare className="mr-2 h-4 w-4" /> Share
+                            </Button>
+                            <Button variant="destructive" size="icon" onClick={() => handleRemoveOrder(order.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })
                   ) : (
                     <TableRow>
                       <TableCell colSpan={7} className="text-center h-24 text-muted-foreground">

@@ -40,11 +40,11 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
     const { user } = useAuth();
     const [selectedImages, setSelectedImages] = useState<string[]>(product.imageDataUris);
     
-    // Use the environment variable for a clean, production-ready URL.
-    const orderLink = `${process.env.NEXT_PUBLIC_APP_URL || ''}/secure-cod?name=${encodeURIComponent(product.title)}&amount=${product.price || product.costPrice || 0}&seller_id=${user?.uid || ''}`;
+    // The link now points to the lead generation form
+    const orderLink = `${process.env.NEXT_PUBLIC_APP_URL || ''}/secure-cod?name=${encodeURIComponent(product.title)}&amount=${product.price || product.costPrice || 0}&seller_id=${user?.uid || ''}&seller_name=${user?.displayName || ''}`;
         
     const [shareText, setShareText] = useState(
-        `Check out this new product!\n\n*${product.title}*\n${product.description}\n\n*Price:* ₹${(product.price || product.costPrice)?.toFixed(2)}\n\nClick here to order with **Secure COD**: ${orderLink}`
+        `Check out this new product!\n\n*${product.title}*\n${product.description}\n\n*Price:* ₹${(product.price || product.costPrice)?.toFixed(2)}\n\nClick here to order with *Secure COD*, *Prepaid*, or *Cash on Delivery*: ${orderLink}`
     );
 
     const handleImageSelection = (imageUri: string) => {

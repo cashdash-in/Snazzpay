@@ -25,10 +25,11 @@ export default function SellerLeadsPage() {
     if (!user) return;
     setLoading(true);
     try {
-        const leadsStorageKey = `seller_leads_${user.uid}`;
-        const leadsJSON = localStorage.getItem(leadsStorageKey);
-        const loadedLeads: Lead[] = leadsJSON ? JSON.parse(leadsJSON) : [];
-        setLeads(loadedLeads);
+        const allLeadsJSON = localStorage.getItem('seller_leads');
+        const allLeads: Lead[] = allLeadsJSON ? JSON.parse(allLeadsJSON) : [];
+        // Filter leads for the current logged-in seller
+        const sellerLeads = allLeads.filter(lead => lead.sellerId === user.uid);
+        setLeads(sellerLeads);
     } catch (error) {
         console.error("Failed to load leads:", error);
         toast({
@@ -46,10 +47,11 @@ export default function SellerLeadsPage() {
   
   const handleRemoveLead = (leadId: string) => {
     if (!user) return;
-    const leadsStorageKey = `seller_leads_${user.uid}`;
-    const updatedLeads = leads.filter(lead => lead.id !== leadId);
-    setLeads(updatedLeads);
+    const leadsStorageKey = `seller_leads`;
+    const allLeads = JSON.parse(localStorage.getItem(leadsStorageKey) || '[]');
+    const updatedLeads = allLeads.filter((lead: Lead) => lead.id !== leadId);
     localStorage.setItem(leadsStorageKey, JSON.stringify(updatedLeads));
+    setLeads(prev => prev.filter(l => l.id !== leadId));
     toast({
         variant: 'destructive',
         title: "Lead Removed",
@@ -66,7 +68,7 @@ export default function SellerLeadsPage() {
             source: 'Seller',
         };
         
-        const ordersStorageKey = `seller_orders_${user.uid}`;
+        const ordersStorageKey = `seller_orders`;
         const existingOrdersJSON = localStorage.getItem(ordersStorageKey);
         let existingOrders: EditableOrder[] = existingOrdersJSON ? JSON.parse(existingOrdersJSON) : [];
         

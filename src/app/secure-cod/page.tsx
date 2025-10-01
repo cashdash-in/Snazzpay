@@ -9,14 +9,12 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Loader2, HelpCircle, User, Phone, Home, MapPin, Mail, Package, CheckCircle, ShoppingBag } from "lucide-react";
+import { Loader2, HelpCircle, ShoppingBag, CheckCircle, Package } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
-import { format } from 'date-fns';
 import type { EditableOrder } from '@/app/orders/page';
-import { CancellationForm } from '@/components/cancellation-form';
 import { usePageRefresh } from '@/hooks/usePageRefresh';
-
+import { CancellationForm } from '@/components/cancellation-form';
 
 type PaymentMethod = 'Secure COD' | 'Prepaid' | 'Cash on Delivery';
 
@@ -25,11 +23,12 @@ function SecureCodOrderForm() {
     const { toast } = useToast();
     const { triggerRefresh } = usePageRefresh();
 
-    const [orderDetails, setOrderDetails] = useState<{productName: string; amount: number; orderId: string, sellerId?: string | null}>({
+    const [orderDetails, setOrderDetails] = useState<{productName: string; amount: number; orderId: string, sellerId?: string | null, sellerName?: string | null}>({
         productName: 'Loading...',
         amount: 0,
         orderId: '',
         sellerId: null,
+        sellerName: null,
     });
     const [customerDetails, setCustomerDetails] = useState({
         name: '',
@@ -50,8 +49,9 @@ function SecureCodOrderForm() {
         const amount = parseFloat(searchParams.get('amount') || '0');
         const orderId = searchParams.get('order_id') || `SNZ-${uuidv4().substring(0, 8)}`;
         const sellerId = searchParams.get('seller_id');
+        const sellerName = searchParams.get('seller_name');
 
-        setOrderDetails({ productName: name, amount, orderId, sellerId });
+        setOrderDetails({ productName: name, amount, orderId, sellerId, sellerName });
         setLoading(false);
     }, [searchParams]);
 
@@ -97,7 +97,7 @@ function SecureCodOrderForm() {
                 paymentMethod: paymentMethod,
             };
 
-            const leadsStorageKey = `seller_leads_${orderDetails.sellerId}`;
+            const leadsStorageKey = `seller_leads`;
             const existingLeads = JSON.parse(localStorage.getItem(leadsStorageKey) || '[]');
             localStorage.setItem(leadsStorageKey, JSON.stringify([newLead, ...existingLeads]));
 
@@ -106,7 +106,7 @@ function SecureCodOrderForm() {
                 description: 'Thank you! The seller will contact you shortly to confirm and process your payment.',
             });
             
-            triggerRefresh(); // Notify other parts of the app that data has changed
+            triggerRefresh();
             setStep('complete');
 
         } catch (error: any) {
