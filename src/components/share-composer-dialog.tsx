@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -42,7 +41,7 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
     const orderLink = `${process.env.NEXT_PUBLIC_APP_URL || ''}/secure-cod?name=${encodeURIComponent(product.title)}&amount=${product.price || product.costPrice || 0}`;
         
     const [shareText, setShareText] = useState(
-        `Check out this new product!\n\n*${product.title}*\n${product.description}\n\n*Price:* ₹${(product.price || product.costPrice)?.toFixed(2)}\n\nClick here to order with Secure COD: ${orderLink}`
+        `Check out this new product!\n\n*${product.title}*\n${product.description}\n\n*Price:* ₹${(product.price || product.costPrice)?.toFixed(2)}\n\nClick here to order with *Secure COD*: ${orderLink}`
     );
 
     const handleImageSelection = (imageUri: string) => {
