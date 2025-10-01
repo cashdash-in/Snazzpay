@@ -16,7 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { sanitizePhoneNumber } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { db } from '@/lib/firebase';
-import { collection, doc, getDocs, query, where, updateDoc, setDoc } from 'firebase/firestore';
+import { collection, doc, getDocs, updateDoc, setDoc } from 'firebase/firestore';
 
 
 export type Vendor = {
@@ -46,29 +46,21 @@ export default function VendorsPage() {
 
             try {
                 const usersCollection = collection(db, 'users');
+                const usersSnapshot = await getDocs(usersCollection);
+                const allUsers = usersSnapshot.docs.map(doc => doc.data());
                 
-                const pendingQuery = query(usersCollection, where('status', '==', 'pending'), where('role', '==', 'vendor'));
-                const pendingSnapshot = await getDocs(pendingQuery);
-                const pending = pendingSnapshot.docs.map(doc => ({
-                    id: doc.id,
-                    name: doc.data().companyName,
-                    contactPerson: doc.data().companyName,
-                    ...doc.data()
-                } as Vendor));
-                setPendingVendors(pending);
-                
-                const approvedQuery = query(usersCollection, where('status', '==', 'approved'), where('role', '==', 'vendor'));
-                const approvedSnapshot = await getDocs(approvedQuery);
-                const approved = approvedSnapshot.docs.map(doc => ({
-                     id: doc.id,
-                     name: doc.data().companyName,
-                     contactPerson: doc.data().companyName,
-                     ...doc.data()
-                } as Vendor));
-                setApprovedVendors(approved);
+                const vendors = allUsers.filter(user => user.role === 'vendor').map(user => ({
+                     id: user.id,
+                     name: user.companyName,
+                     contactPerson: user.companyName,
+                     ...user
+                })) as Vendor[];
 
-            } catch (error) {
-                toast({ variant: 'destructive', title: "Error loading data", description: "Could not load vendors from Firestore. This might be a Firestore rules issue." });
+                setPendingVendors(vendors.filter(v => v.status === 'pending'));
+                setApprovedVendors(vendors.filter(v => v.status === 'approved'));
+
+            } catch (error: any) {
+                toast({ variant: 'destructive', title: "Error loading data", description: `Could not load vendors from Firestore. Error: ${error.message}` });
             } finally {
                 setIsLoading(false);
             }

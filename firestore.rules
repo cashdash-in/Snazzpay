@@ -1,28 +1,22 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // A user can read/write their own document
+    // Default deny all reads and writes
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Allow users to read and write their own user document
     match /users/{userId} {
       allow read, update, delete: if request.auth != null && request.auth.uid == userId;
-      // Anyone can create a user document (for signup)
+      // Allow any authenticated user to create their own user document
       allow create: if request.auth != null;
     }
-    
-    // The admin can list users based on role and status
-    match /users/{userId} {
-        function isAdmin() {
-            return request.auth != null && request.auth.token.email == 'admin@snazzpay.com';
-        }
 
-        // Allow admin to list sellers and vendors by status
-        allow list: if isAdmin()
-                    && (
-                        (resource.data.role == 'seller' && resource.data.status in ['pending', 'approved', 'rejected'])
-                        || (resource.data.role == 'vendor' && resource.data.status in ['pending', 'approved', 'rejected'])
-                    );
-
-        // Allow admin to read any individual user document
-        allow get: if isAdmin();
+    // Allow admin to list all users
+    match /users/{document=**} {
+        allow read: if request.auth != null && request.auth.token.email == 'admin@snazzpay.com';
     }
   }
 }

@@ -9,7 +9,7 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
-import { doc, getDocs, collection, query, where, updateDoc } from 'firebase/firestore';
+import { doc, getDocs, collection, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Check, X, MessageSquare, Factory } from "lucide-react";
 import { sanitizePhoneNumber } from "@/lib/utils";
@@ -34,26 +34,23 @@ export default function SellerAccountsPage() {
      useEffect(() => {
         async function loadData() {
             if (!db) return;
-            // Fetch users from Firestore instead of localStorage
+            // Fetch ALL users and filter on the client
             try {
                 const usersCollection = collection(db, 'users');
-                
-                const pendingQuery = query(usersCollection, where('status', '==', 'pending'), where('role', '==', 'seller'));
-                const pendingSnapshot = await getDocs(pendingQuery);
-                const pending = pendingSnapshot.docs.map(doc => doc.data() as SellerUser);
-                setSellerRequests(pending);
+                const usersSnapshot = await getDocs(usersCollection);
+                const allUsers = usersSnapshot.docs.map(doc => doc.data());
 
-                const approvedQuery = query(usersCollection, where('status', '==', 'approved'), where('role', '==', 'seller'));
-                const approvedSnapshot = await getDocs(approvedQuery);
-                const approved = approvedSnapshot.docs.map(doc => doc.data() as SellerUser);
-                setApprovedSellers(approved);
+                const sellers = allUsers.filter(user => user.role === 'seller') as SellerUser[];
+
+                setSellerRequests(sellers.filter(s => s.status === 'pending'));
+                setApprovedSellers(sellers.filter(s => s.status === 'approved'));
 
             } catch (error: any) {
                 console.error("Failed to load seller accounts from Firestore:", error);
                 toast({
                     variant: 'destructive',
                     title: 'Failed to Load Data',
-                    description: 'Could not retrieve seller accounts from the database. This might be a Firestore rules issue.',
+                    description: `Could not retrieve seller accounts from the database. Error: ${error.message}`,
                 });
             }
         }
