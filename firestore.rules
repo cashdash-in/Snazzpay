@@ -1,27 +1,28 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Allow users to read and write their own data
+    // A user can read/write their own document
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-      
-      // Admins can update any user's status
-      allow update: if request.auth != null && request.auth.token.email == 'admin@snazzpay.com';
+      allow read, update, delete: if request.auth != null && request.auth.uid == userId;
+      // Anyone can create a user document (for signup)
+      allow create: if request.auth != null;
     }
+    
+    // The admin can list users based on role and status
+    match /users/{userId} {
+        function isAdmin() {
+            return request.auth != null && request.auth.token.email == 'admin@snazzpay.com';
+        }
 
-    // Allow admin to list users for the approval dashboards
-    match /users/{document=**} {
-      allow read: if request.auth != null && request.auth.token.email == 'admin@snazzpay.com';
-    }
+        // Allow admin to list sellers and vendors by status
+        allow list: if isAdmin()
+                    && (
+                        (resource.data.role == 'seller' && resource.data.status in ['pending', 'approved', 'rejected'])
+                        || (resource.data.role == 'vendor' && resource.data.status in ['pending', 'approved', 'rejected'])
+                    );
 
-    match /chats/{chatId} {
-      allow read, write: if request.auth != null && request.auth.uid in resource.data.participants;
-
-      match /messages/{messageId} {
-        allow read, create: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
-      }
+        // Allow admin to read any individual user document
+        allow get: if isAdmin();
     }
   }
 }
