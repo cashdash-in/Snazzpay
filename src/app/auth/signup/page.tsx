@@ -107,34 +107,34 @@ export default function SignupPage() {
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             user = userCredential.user;
             await updateProfile(user, { displayName: companyName });
+            
+            const vendorInfo = approvedVendors.find(v => v.id === selectedVendor);
+            
+            const userData = {
+                id: user.uid,
+                companyName,
+                email: user.email || '',
+                phone,
+                status: 'pending',
+                role: userType,
+                vendorId: userType === 'seller' ? vendorInfo?.id : undefined,
+                vendorName: userType === 'seller' ? vendorInfo?.name : undefined
+            };
+
+            // Immediately create the user document in Firestore with 'pending' status
+            await setDoc(doc(db, "users", user.uid), userData);
 
             if (userType === 'seller') {
-                const vendorInfo = approvedVendors.find(v => v.id === selectedVendor);
-                const newSellerRequest: SellerUser = {
-                    id: user.uid,
-                    companyName,
-                    email: user.email || '',
-                    phone,
-                    status: 'pending',
-                    vendorId: vendorInfo?.id,
-                    vendorName: vendorInfo?.name
-                };
+                 // The request is now directly in Firestore, but we'll keep this local one
+                 // for any pages that might still rely on it during transition.
                 const existingRequests: SellerUser[] = JSON.parse(localStorage.getItem('seller_requests') || '[]');
-                localStorage.setItem('seller_requests', JSON.stringify([...existingRequests, newSellerRequest]));
+                localStorage.setItem('seller_requests', JSON.stringify([...existingRequests, userData]));
                 toast({ title: "Registration Submitted!", description: "Your seller account is pending admin approval." });
                 await auth.signOut();
                 router.push('/seller/login');
             } else { // userType === 'vendor'
-                const newVendorRequest = {
-                    id: user.uid,
-                    name: companyName,
-                    contactPerson: companyName,
-                    phone,
-                    email: user.email || '',
-                    status: 'pending'
-                };
                 const existingVendors: Vendor[] = JSON.parse(localStorage.getItem('vendors_db') || '[]');
-                localStorage.setItem('vendors_db', JSON.stringify([...existingVendors, newVendorRequest]));
+                localStorage.setItem('vendors_db', JSON.stringify([...existingVendors, userData]));
                 toast({ title: "Registration Submitted!", description: "Your vendor account is pending admin approval." });
                 await auth.signOut();
                 router.push('/vendor/login');
@@ -248,5 +248,3 @@ export default function SignupPage() {
         </div>
     );
 }
-
-    

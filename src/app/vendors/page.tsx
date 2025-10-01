@@ -15,6 +15,8 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { sanitizePhoneNumber } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { db } from '@/lib/firebase';
+import { collection, doc, getDocs, query, where, updateDoc, setDoc } from 'firebase/firestore';
 
 
 export type Vendor = {
@@ -28,60 +30,105 @@ export type Vendor = {
 
 export default function VendorsPage() {
     const { toast } = useToast();
-    const [allVendors, setAllVendors] = useState<Vendor[]>([]);
+    const [pendingVendors, setPendingVendors] = useState<Vendor[]>([]);
+    const [approvedVendors, setApprovedVendors] = useState<Vendor[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [newVendor, setNewVendor] = useState({ name: '', contactPerson: '', phone: '', email: '' });
 
-    const storageKey = 'vendors_db';
 
     useEffect(() => {
-        try {
-            const storedVendors = localStorage.getItem(storageKey);
-            if (storedVendors) {
-                setAllVendors(JSON.parse(storedVendors));
+        async function loadData() {
+            if (!db) {
+                setIsLoading(false);
+                return;
+            };
+
+            try {
+                const usersCollection = collection(db, 'users');
+                
+                const pendingQuery = query(usersCollection, where('status', '==', 'pending'), where('role', '==', 'vendor'));
+                const pendingSnapshot = await getDocs(pendingQuery);
+                const pending = pendingSnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    name: doc.data().companyName,
+                    contactPerson: doc.data().companyName,
+                    ...doc.data()
+                } as Vendor));
+                setPendingVendors(pending);
+                
+                const approvedQuery = query(usersCollection, where('status', '==', 'approved'), where('role', '==', 'vendor'));
+                const approvedSnapshot = await getDocs(approvedQuery);
+                const approved = approvedSnapshot.docs.map(doc => ({
+                     id: doc.id,
+                     name: doc.data().companyName,
+                     contactPerson: doc.data().companyName,
+                     ...doc.data()
+                } as Vendor));
+                setApprovedVendors(approved);
+
+            } catch (error) {
+                toast({ variant: 'destructive', title: "Error loading data", description: "Could not load vendors from Firestore." });
+            } finally {
+                setIsLoading(false);
             }
-        } catch (error) {
-            toast({ variant: 'destructive', title: "Error loading data", description: "Could not load vendors from local storage." });
-        } finally {
-            setIsLoading(false);
         }
+        loadData();
     }, [toast]);
 
-    const handleAddVendor = () => {
+    const handleAddVendor = async () => {
         if (!newVendor.name || !newVendor.contactPerson || !newVendor.phone) {
             toast({ variant: 'destructive', title: "Missing Information", description: "Please provide a name, contact person, and phone number." });
             return;
         }
+        if (!db) return;
 
+        const vendorId = `VEND-${uuidv4().substring(0, 8).toUpperCase()}`;
         const vendorToAdd: Vendor = {
-            id: `VEND-${uuidv4().substring(0, 8).toUpperCase()}`,
+            id: vendorId,
             ...newVendor,
             status: 'approved' // Admins add vendors as approved by default
         };
-
-        const updatedVendors = [...allVendors, vendorToAdd];
-        setAllVendors(updatedVendors);
-        localStorage.setItem(storageKey, JSON.stringify(updatedVendors));
-        setNewVendor({ name: '', contactPerson: '', phone: '', email: '' });
-        toast({ title: "Vendor Added", description: `${vendorToAdd.name} has been added and approved.` });
-        document.getElementById('close-add-vendor-dialog')?.click();
+        
+        try {
+            await setDoc(doc(db, "users", vendorId), {
+                id: vendorId,
+                companyName: vendorToAdd.name,
+                contactPerson: vendorToAdd.contactPerson,
+                phone: vendorToAdd.phone,
+                email: vendorToAdd.email,
+                status: 'approved',
+                role: 'vendor'
+            });
+            setApprovedVendors(prev => [...prev, vendorToAdd]);
+            setNewVendor({ name: '', contactPerson: '', phone: '', email: '' });
+            toast({ title: "Vendor Added", description: `${vendorToAdd.name} has been added and approved.` });
+            document.getElementById('close-add-vendor-dialog')?.click();
+        } catch (error) {
+             toast({ variant: 'destructive', title: "Error Adding Vendor", description: "Could not save vendor to the database." });
+        }
     };
+    
+    const handleUpdateRequest = async (vendorId: string, newStatus: 'approved' | 'rejected') => {
+        if (!db) return;
+        try {
+            const docRef = doc(db, "users", vendorId);
+            await updateDoc(docRef, { status: newStatus });
+            
+            const updatedPending = pendingVendors.filter(v => v.id !== vendorId);
+            setPendingVendors(updatedPending);
 
-    const handleRemoveVendor = (id: string) => {
-        const updatedVendors = allVendors.filter(v => v.id !== id);
-        setAllVendors(updatedVendors);
-        localStorage.setItem(storageKey, JSON.stringify(updatedVendors));
-        toast({ variant: 'destructive', title: "Vendor Removed" });
-    };
-
-    const handleUpdateRequest = (vendorId: string, newStatus: 'approved' | 'rejected') => {
-        const updatedVendors = allVendors.map(v => v.id === vendorId ? { ...v, status: newStatus } : v);
-        setAllVendors(updatedVendors);
-        localStorage.setItem(storageKey, JSON.stringify(updatedVendors));
-        toast({
-            title: `Vendor Request ${newStatus}`,
-            description: `The vendor has been ${newStatus}.`,
-        });
+            if (newStatus === 'approved') {
+                const vendor = pendingVendors.find(v => v.id === vendorId);
+                if (vendor) setApprovedVendors(prev => [...prev, {...vendor, status: 'approved'}]);
+            }
+            
+            toast({
+                title: `Vendor Request ${newStatus}`,
+                description: `The vendor has been ${newStatus}.`,
+            });
+        } catch (error: any) {
+             toast({ variant: 'destructive', title: "Update Failed", description: error.message });
+        }
     };
     
     const handleWhatsAppChat = (vendor: Vendor) => {
@@ -91,8 +138,6 @@ export default function VendorsPage() {
         window.open(whatsappUrl, '_blank');
     };
 
-    const pendingVendors = allVendors.filter(v => v.status === 'pending');
-    const approvedVendors = allVendors.filter(v => v.status === 'approved');
 
     return (
         <AppShell title="Vendor Management">
@@ -198,8 +243,7 @@ export default function VendorsPage() {
                                                     <MessageSquare className="mr-2 h-4 w-4" />
                                                     WhatsApp Chat
                                                 </Button>
-                                                <Button variant="outline" size="icon"><Edit className="h-4 w-4" /></Button>
-                                                <Button variant="destructive" size="icon" onClick={() => handleRemoveVendor(vendor.id)}><Trash2 className="h-4 w-4" /></Button>
+                                                <Button variant="outline" size="icon" disabled><Edit className="h-4 w-4" /></Button>
                                             </TableCell>
                                         </TableRow>
                                     )) : (
@@ -217,5 +261,3 @@ export default function VendorsPage() {
         </AppShell>
     );
 }
-
-    

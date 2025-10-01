@@ -9,9 +9,8 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, getDocs, collection, query, where, updateDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
-import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { Check, X, MessageSquare, Factory } from "lucide-react";
 import { sanitizePhoneNumber } from "@/lib/utils";
 
@@ -32,47 +31,50 @@ export default function SellerAccountsPage() {
     const [approvedSellers, setApprovedSellers] = useState<SellerUser[]>([]);
 
      useEffect(() => {
-        function loadData() {
-            // This is a prototype implementation using localStorage.
-            // In a production app, you would fetch this from a Firestore collection.
-            const localSellerRequestsJSON = localStorage.getItem('seller_requests');
-            const localSellerRequests: SellerUser[] = localSellerRequestsJSON ? JSON.parse(localSellerRequestsJSON) : [];
-            setSellerRequests(localSellerRequests);
+        async function loadData() {
+            if (!db) return;
+            // Fetch users from Firestore instead of localStorage
+            try {
+                const usersCollection = collection(db, 'users');
+                
+                const pendingQuery = query(usersCollection, where('status', '==', 'pending'), where('role', '==', 'seller'));
+                const pendingSnapshot = await getDocs(pendingQuery);
+                const pending = pendingSnapshot.docs.map(doc => doc.data() as SellerUser);
+                setSellerRequests(pending);
 
-            const approvedSellersJSON = localStorage.getItem('approved_sellers');
-            const approvedSellersList: SellerUser[] = approvedSellersJSON ? JSON.parse(approvedSellersJSON) : [];
-            setApprovedSellers(approvedSellersList);
+                const approvedQuery = query(usersCollection, where('status', '==', 'approved'), where('role', '==', 'seller'));
+                const approvedSnapshot = await getDocs(approvedQuery);
+                const approved = approvedSnapshot.docs.map(doc => doc.data() as SellerUser);
+                setApprovedSellers(approved);
+
+            } catch (error: any) {
+                console.error("Failed to load seller accounts from Firestore:", error);
+                toast({
+                    variant: 'destructive',
+                    title: 'Failed to Load Data',
+                    description: 'Could not retrieve seller accounts from the database.',
+                });
+            }
         }
         loadData();
-    }, []);
+    }, [toast]);
 
     const handleSellerRequest = async (sellerId: string, newStatus: 'approved' | 'rejected') => {
         const seller = sellerRequests.find(s => s.id === sellerId);
-        if (!seller) return;
+        if (!seller || !db) return;
 
         try {
-            if (newStatus === 'approved') {
-                const docRef = doc(db, "users", seller.id);
-                await setDoc(docRef, { 
-                    id: seller.id,
-                    name: seller.companyName, 
-                    email: seller.email, 
-                    role: 'seller' 
-                });
-                
-                // Add to approved sellers in local storage for the prototype's UI to update
-                const approvedSellersJSON = localStorage.getItem('approved_sellers');
-                let currentApprovedSellers: SellerUser[] = approvedSellersJSON ? JSON.parse(approvedSellersJSON) : [];
-                currentApprovedSellers.push({ ...seller, status: 'approved' });
-                localStorage.setItem('approved_sellers', JSON.stringify(currentApprovedSellers));
-                setApprovedSellers(currentApprovedSellers);
-            }
+            const docRef = doc(db, "users", seller.id);
+            await updateDoc(docRef, { status: newStatus });
             
-            // Remove from requests list regardless of approval/rejection
+            // Optimistically update UI
             const updatedRequests = sellerRequests.filter(s => s.id !== sellerId);
             setSellerRequests(updatedRequests);
-            localStorage.setItem('seller_requests', JSON.stringify(updatedRequests));
-
+            
+            if (newStatus === 'approved') {
+                setApprovedSellers(prev => [...prev, { ...seller, status: 'approved' }]);
+            }
+            
             toast({
                 title: `Seller Request ${newStatus}`,
                 description: `The seller account for ${seller.companyName} has been ${newStatus}.`,
@@ -82,7 +84,7 @@ export default function SellerAccountsPage() {
              toast({
                 variant: 'destructive',
                 title: `Approval Failed`,
-                description: `Could not write to Firestore database. Please ensure Firestore is set up correctly. Error: ${error.message}`,
+                description: `Could not update the document in Firestore. Error: ${error.message}`,
             });
         }
     };
@@ -202,5 +204,3 @@ export default function SellerAccountsPage() {
         </AppShell>
     );
 }
-
-    
