@@ -26,6 +26,7 @@ export type Vendor = {
     phone: string;
     email: string;
     status: 'pending' | 'approved' | 'rejected';
+    role: 'vendor';
 };
 
 export default function VendorsPage() {
@@ -67,7 +68,7 @@ export default function VendorsPage() {
                 setApprovedVendors(approved);
 
             } catch (error) {
-                toast({ variant: 'destructive', title: "Error loading data", description: "Could not load vendors from Firestore." });
+                toast({ variant: 'destructive', title: "Error loading data", description: "Could not load vendors from Firestore. This might be a Firestore rules issue." });
             } finally {
                 setIsLoading(false);
             }
@@ -83,17 +84,20 @@ export default function VendorsPage() {
         if (!db) return;
 
         const vendorId = `VEND-${uuidv4().substring(0, 8).toUpperCase()}`;
-        const vendorToAdd: Vendor = {
+        const vendorToAdd: Omit<Vendor, 'id' | 'status' | 'role'> & {id: string, status: 'approved', role: 'vendor'} = {
             id: vendorId,
-            ...newVendor,
-            status: 'approved' // Admins add vendors as approved by default
+            name: newVendor.name,
+            contactPerson: newVendor.contactPerson,
+            phone: newVendor.phone,
+            email: newVendor.email,
+            status: 'approved', // Admins add vendors as approved by default
+            role: 'vendor'
         };
         
         try {
             await setDoc(doc(db, "users", vendorId), {
                 id: vendorId,
                 companyName: vendorToAdd.name,
-                contactPerson: vendorToAdd.contactPerson,
                 phone: vendorToAdd.phone,
                 email: vendorToAdd.email,
                 status: 'approved',

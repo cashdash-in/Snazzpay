@@ -9,8 +9,8 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
-import { doc, getDoc, setDoc, getDocs, collection, query, where, updateDoc } from 'firebase/firestore';
-import { db, auth } from '@/lib/firebase';
+import { doc, getDocs, collection, query, where, updateDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 import { Check, X, MessageSquare, Factory } from "lucide-react";
 import { sanitizePhoneNumber } from "@/lib/utils";
 
@@ -23,6 +23,7 @@ export type SellerUser = {
     status: 'pending' | 'approved' | 'rejected';
     vendorId?: string;
     vendorName?: string;
+    role: 'seller';
 };
 
 export default function SellerAccountsPage() {
@@ -52,7 +53,7 @@ export default function SellerAccountsPage() {
                 toast({
                     variant: 'destructive',
                     title: 'Failed to Load Data',
-                    description: 'Could not retrieve seller accounts from the database.',
+                    description: 'Could not retrieve seller accounts from the database. This might be a Firestore rules issue.',
                 });
             }
         }

@@ -1,17 +1,27 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow users to read and write their own document in the 'users' collection.
+
+    // Allow users to read and write their own data
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
-      // Allow a user to create a user document IF the authenticated user's email is the admin email.
-      // This is more reliable than checking for a role in another document.
-      allow create: if request.auth != null && request.auth.token.email == 'admin@snazzpay.com';
+      
+      // Admins can update any user's status
+      allow update: if request.auth != null && request.auth.token.email == 'admin@snazzpay.com';
     }
 
-    // Default deny all other reads/writes in the database.
-    match /{document=**} {
-      allow read, write: if false;
+    // Allow admin to list users for the approval dashboards
+    match /users/{document=**} {
+      allow read: if request.auth != null && request.auth.token.email == 'admin@snazzpay.com';
+    }
+
+    match /chats/{chatId} {
+      allow read, write: if request.auth != null && request.auth.uid in resource.data.participants;
+
+      match /messages/{messageId} {
+        allow read, create: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+      }
     }
   }
 }
