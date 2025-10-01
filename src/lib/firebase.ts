@@ -1,9 +1,9 @@
 
-import { initializeApp, getApps, getApp, type FirebaseOptions, type FirebaseApp } from 'firebase/app';
-import { getAuth, type Auth } from 'firebase/auth';
-import { getFirestore, type Firestore } from 'firebase/firestore';
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
 
-const firebaseConfig: FirebaseOptions = {
+const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
@@ -12,42 +12,9 @@ const firebaseConfig: FirebaseOptions = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// A function to safely initialize Firebase and export its services
-function initializeFirebase() {
-    const isConfigured =
-        firebaseConfig.apiKey &&
-        firebaseConfig.authDomain &&
-        firebaseConfig.projectId;
-
-    if (!isConfigured) {
-        console.warn(`
-        ********************************************************************************
-        *                                                                              *
-        *           FIREBASE IS NOT CONFIGURED!                                        *
-        *                                                                              *
-        *   Please add your Firebase project configuration to your .env file           *
-        *   (or environment variables in your hosting provider) to enable              *
-        *   authentication and database features.                                      *
-        *                                                                              *
-        *   Missing variables:                                                         *
-        *   - NEXT_PUBLIC_FIREBASE_API_KEY: ${firebaseConfig.apiKey ? 'OK' : 'MISSING'}
-        *   - NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${firebaseConfig.authDomain ? 'OK' : 'MISSING'}
-        *   - NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${firebaseConfig.projectId ? 'OK' : 'MISSING'}
-        *                                                                              *
-        ********************************************************************************
-        `);
-        // Return nulls so the consuming hooks and components can handle the uninitialized state
-        return { app: null, auth: null, db: null };
-    }
-
-    const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-
-    return { app, auth, db };
-}
-
-const { app, auth, db } = initializeFirebase();
+// Initialize Firebase
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+const auth = getAuth(app);
+const db = getFirestore(app);
 
 export { app, auth, db };
-export type { FirebaseApp, Auth, Firestore };

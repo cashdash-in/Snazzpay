@@ -17,7 +17,6 @@ import type { EditableOrder } from '../orders/page';
 import { format } from "date-fns";
 import { v4 as uuidv4 } from 'uuid';
 import { sanitizePhoneNumber } from "@/lib/utils";
-import { usePageRefresh } from "@/hooks/usePageRefresh";
 
 type OrderStatus = 'pending' | 'dispatched' | 'out-for-delivery' | 'delivered' | 'failed';
 
@@ -50,7 +49,6 @@ export default function DeliveryTrackingPage() {
     const [loading, setLoading] = useState(true);
     const [sendingState, setSendingState] = useState<string | null>(null);
     const { toast } = useToast();
-    const { refreshKey } = usePageRefresh();
 
     const fetchAndSetOrders = useCallback(async () => {
         setLoading(true);
@@ -113,7 +111,7 @@ export default function DeliveryTrackingPage() {
 
     useEffect(() => {
         fetchAndSetOrders();
-    }, [fetchAndSetOrders, refreshKey]);
+    }, [fetchAndSetOrders]);
 
     const handleFieldChange = (orderId: string, field: keyof EditableOrder, value: string) => {
         const updatedOrders = orders.map(order =>
@@ -335,3 +333,5 @@ export default function DeliveryTrackingPage() {
     </AppShell>
   );
 }
+
+    

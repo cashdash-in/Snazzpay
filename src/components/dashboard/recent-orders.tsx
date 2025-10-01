@@ -10,7 +10,6 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { getOrders as getShopifyOrders } from "@/services/shopify";
-import { getAllOrders as getFirestoreOrders } from "@/services/firestore";
 import { useState, useEffect } from "react";
 import type { EditableOrder } from "@/app/orders/page";
 import { format } from "date-fns";
@@ -52,9 +51,10 @@ export function RecentOrders() {
                 console.error("Shopify fetch failed for recent orders:", e.message);
                 return []; // Non-blocking
             });
-            const firestoreOrders = await getFirestoreOrders();
-
-            combinedOrders.push(...firestoreOrders);
+            const manualOrdersJSON = localStorage.getItem('manualOrders');
+            const manualOrders = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
+            
+            combinedOrders.push(...manualOrders);
             const shopifyOrders = await shopifyPromise;
             combinedOrders.push(...shopifyOrders.map(mapShopifyToEditable));
 
@@ -139,3 +139,5 @@ export function RecentOrders() {
     </div>
   );
 }
+
+    

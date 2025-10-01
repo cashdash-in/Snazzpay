@@ -9,21 +9,18 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
-import { doc, getDocs, collection, updateDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 import { Check, X, MessageSquare, Factory } from "lucide-react";
 import { sanitizePhoneNumber } from "@/lib/utils";
 
 
 export type SellerUser = {
-    id: string; // This will be the Firebase Auth UID
+    id: string;
     companyName: string;
     email: string;
     phone?: string;
     status: 'pending' | 'approved' | 'rejected';
     vendorId?: string;
     vendorName?: string;
-    role: 'seller';
 };
 
 export default function SellerAccountsPage() {
@@ -31,60 +28,33 @@ export default function SellerAccountsPage() {
     const [sellerRequests, setSellerRequests] = useState<SellerUser[]>([]);
     const [approvedSellers, setApprovedSellers] = useState<SellerUser[]>([]);
 
-     useEffect(() => {
-        async function loadData() {
-            if (!db) return;
-            // Fetch ALL users and filter on the client
-            try {
-                const usersCollection = collection(db, 'users');
-                const usersSnapshot = await getDocs(usersCollection);
-                const allUsers = usersSnapshot.docs.map(doc => doc.data());
+    useEffect(() => {
+        const requests = JSON.parse(localStorage.getItem('seller_requests') || '[]');
+        const approved = JSON.parse(localStorage.getItem('approved_sellers') || '[]');
+        setSellerRequests(requests);
+        setApprovedSellers(approved);
+    }, []);
 
-                const sellers = allUsers.filter(user => user.role === 'seller') as SellerUser[];
-
-                setSellerRequests(sellers.filter(s => s.status === 'pending'));
-                setApprovedSellers(sellers.filter(s => s.status === 'approved'));
-
-            } catch (error: any) {
-                console.error("Failed to load seller accounts from Firestore:", error);
-                toast({
-                    variant: 'destructive',
-                    title: 'Failed to Load Data',
-                    description: `Could not retrieve seller accounts from the database. Error: ${error.message}`,
-                });
-            }
-        }
-        loadData();
-    }, [toast]);
-
-    const handleSellerRequest = async (sellerId: string, newStatus: 'approved' | 'rejected') => {
+    const handleSellerRequest = (sellerId: string, isApproved: boolean) => {
         const seller = sellerRequests.find(s => s.id === sellerId);
-        if (!seller || !db) return;
+        if (!seller) return;
 
-        try {
-            const docRef = doc(db, "users", seller.id);
-            await updateDoc(docRef, { status: newStatus });
-            
-            // Optimistically update UI
-            const updatedRequests = sellerRequests.filter(s => s.id !== sellerId);
-            setSellerRequests(updatedRequests);
-            
-            if (newStatus === 'approved') {
-                setApprovedSellers(prev => [...prev, { ...seller, status: 'approved' }]);
-            }
-            
-            toast({
-                title: `Seller Request ${newStatus}`,
-                description: `The seller account for ${seller.companyName} has been ${newStatus}.`,
-            });
-        } catch (error: any) {
-            console.error("Failed to handle seller request:", error);
-             toast({
-                variant: 'destructive',
-                title: `Approval Failed`,
-                description: `Could not update the document in Firestore. Error: ${error.message}`,
-            });
+        const updatedRequests = sellerRequests.filter(s => s.id !== sellerId);
+        
+        if (isApproved) {
+            const newApprovedSeller = { ...seller, status: 'approved' as const };
+            const updatedApproved = [...approvedSellers, newApprovedSeller];
+            setApprovedSellers(updatedApproved);
+            localStorage.setItem('approved_sellers', JSON.stringify(updatedApproved));
         }
+
+        setSellerRequests(updatedRequests);
+        localStorage.setItem('seller_requests', JSON.stringify(updatedRequests));
+
+        toast({
+            title: `Seller Request ${isApproved ? 'Approved' : 'Rejected'}`,
+            description: `The seller account for ${seller.companyName} has been ${isApproved ? 'approved' : 'rejected'}.`,
+        });
     };
 
     const handleWhatsAppChat = (seller: SellerUser) => {
@@ -142,8 +112,8 @@ export default function SellerAccountsPage() {
                                                 </div>
                                             </TableCell>
                                             <TableCell className="text-right space-x-2">
-                                                <Button size="sm" variant="outline" className="text-green-600 border-green-600 hover:bg-green-50 hover:text-green-700" onClick={() => handleSellerRequest(req.id, 'approved')}><Check className="mr-2 h-4 w-4" />Approve</Button>
-                                                <Button size="sm" variant="destructive" onClick={() => handleSellerRequest(req.id, 'rejected')}><X className="mr-2 h-4 w-4" />Reject</Button>
+                                                <Button size="sm" variant="outline" className="text-green-600 border-green-600 hover:bg-green-50 hover:text-green-700" onClick={() => handleSellerRequest(req.id, true)}><Check className="mr-2 h-4 w-4" />Approve</Button>
+                                                <Button size="sm" variant="destructive" onClick={() => handleSellerRequest(req.id, false)}><X className="mr-2 h-4 w-4" />Reject</Button>
                                             </TableCell>
                                         </TableRow>
                                    )) : (
@@ -202,3 +172,5 @@ export default function SellerAccountsPage() {
         </AppShell>
     );
 }
+
+    

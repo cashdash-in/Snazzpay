@@ -16,7 +16,6 @@ import type { EditableOrder } from '../orders/page';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { v4 as uuidv4 } from 'uuid';
-import { usePageRefresh } from "@/hooks/usePageRefresh";
 
 
 type RefundStatus = 'Pending' | 'Processed' | 'Failed';
@@ -48,7 +47,6 @@ export default function RefundsPage() {
   const [loading, setLoading] = useState(true);
   const [processingRefundId, setProcessingRefundId] = useState<string | null>(null);
   const { toast } = useToast();
-  const { refreshKey } = usePageRefresh();
 
   const fetchAndSetOrders = useCallback(async () => {
     setLoading(true);
@@ -116,7 +114,7 @@ export default function RefundsPage() {
 
   useEffect(() => {
     fetchAndSetOrders();
-  }, [fetchAndSetOrders, refreshKey]);
+  }, [fetchAndSetOrders]);
 
   const handleFieldChange = (orderId: string, field: keyof EditableOrder, value: string) => {
     setOrders(prevOrders => prevOrders.map(order =>
@@ -319,3 +317,5 @@ export default function RefundsPage() {
     </AppShell>
   );
 }
+
+    

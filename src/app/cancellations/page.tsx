@@ -15,7 +15,6 @@ import { useToast } from "@/hooks/use-toast";
 import type { EditableOrder } from '../orders/page';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { v4 as uuidv4 } from 'uuid';
-import { usePageRefresh } from "@/hooks/usePageRefresh";
 
 type CancellationStatus = 'Pending' | 'Processed' | 'Failed';
 
@@ -46,7 +45,6 @@ export default function CancellationsPage() {
   const [orders, setOrders] = useState<EditableOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-  const { refreshKey } = usePageRefresh();
 
   const fetchAndSetOrders = useCallback(async () => {
     setLoading(true);
@@ -112,7 +110,7 @@ export default function CancellationsPage() {
 
   useEffect(() => {
     fetchAndSetOrders();
-  }, [fetchAndSetOrders, refreshKey]);
+  }, [fetchAndSetOrders]);
 
   const handleFieldChange = (orderId: string, field: keyof EditableOrder, value: string) => {
     setOrders(prevOrders => prevOrders.map(order =>
@@ -245,3 +243,5 @@ export default function CancellationsPage() {
     </AppShell>
   );
 }
+
+    

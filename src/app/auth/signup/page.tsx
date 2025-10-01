@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,11 +10,10 @@ import { ShieldCheck, Mail, Lock, Loader2, User, Phone, Factory, Store } from "l
 import Link from "next/link";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { createUserWithEmailAndPassword, updateProfile, deleteUser } from 'firebase/auth';
-import { auth, db } from '@/lib/firebase';
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 import { FirebaseError } from 'firebase/app';
 import type { SellerUser } from '@/app/seller-accounts/page';
-import { doc, setDoc } from 'firebase/firestore';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import type { Vendor } from '@/app/vendors/page';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -31,39 +30,21 @@ export default function SignupPage() {
     const [phone, setPhone] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [approvedVendors, setApprovedVendors] = useState<Vendor[]>([]);
-    const [selectedVendor, setSelectedVendor] = useState<string>('');
+    const [selectedVendor, setSelectedVendor] = useState('');
     const [userType, setUserType] = useState<'seller' | 'vendor'>('seller');
     
-    useEffect(() => {
-        async function loadVendors() {
-            if (!db) return;
-             try {
-                const usersSnapshot = await getDocs(collection(db, 'users'));
-                const allUsers = usersSnapshot.docs.map(doc => doc.data());
-                const vendors = allUsers.filter(user => user.role === 'vendor' && user.status === 'approved').map(user => ({
-                     id: user.id,
-                     name: user.companyName,
-                     contactPerson: user.companyName, // Assuming companyName is used as contactPerson
-                     ...user
-                })) as Vendor[];
-                setApprovedVendors(vendors);
-            } catch (error) {
-                console.error("Failed to load vendors for signup form:", error);
-            }
+    useState(() => {
+        const storedVendors = localStorage.getItem('vendors_db');
+        if (storedVendors) {
+            const vendors: Vendor[] = JSON.parse(storedVendors);
+            setApprovedVendors(vendors.filter(v => v.status === 'approved'));
         }
-       loadVendors();
-    }, []);
+    });
 
     const handleSignup = async () => {
         setIsLoading(true);
         if (!email || !password) {
             toast({ variant: 'destructive', title: "Missing Fields", description: "Please fill out email and password." });
-            setIsLoading(false);
-            return;
-        }
-
-        if (!auth || !db) {
-            toast({ variant: 'destructive', title: "Service Not Available", description: "Firebase is not configured correctly. Please contact support." });
             setIsLoading(false);
             return;
         }
@@ -73,16 +54,8 @@ export default function SignupPage() {
             try {
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                 await updateProfile(userCredential.user, {
-                    displayName: "Super Admin",
+                    displayName: "SnazzPay Admin",
                 });
-                
-                await setDoc(doc(db, "users", userCredential.user.uid), { 
-                    id: userCredential.user.uid, 
-                    name: "Super Admin", 
-                    role: 'admin', 
-                    email 
-                });
-
                 toast({
                     title: "Admin Account Created!",
                     description: "You can now log in using these credentials on the Admin Login page.",
@@ -94,7 +67,6 @@ export default function SignupPage() {
                 if (error instanceof FirebaseError) {
                     if (error.code === 'auth/email-already-in-use') description = 'The admin account already exists. Please proceed to login.';
                     else if (error.code === 'auth/weak-password') description = 'The password is too weak. It must be at least 6 characters long.';
-                    else description = `An error occurred: ${error.message}`;
                 }
                 toast({ variant: 'destructive', title: "Admin Creation Failed", description });
             } finally {
@@ -115,55 +87,37 @@ export default function SignupPage() {
             setIsLoading(false);
             return;
         }
-
-        let user;
-        try {
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            user = userCredential.user;
-            await updateProfile(user, { displayName: companyName });
-            
-            const vendorInfo = approvedVendors.find(v => v.id === selectedVendor);
-            
-            const userData = {
-                id: user.uid,
-                companyName,
-                email: user.email || '',
-                phone,
+        
+        if (userType === 'seller') {
+            const newRequest: SellerUser = {
+                id: `seller-${Date.now()}`,
+                companyName: companyName,
+                email: email,
+                phone: phone,
                 status: 'pending',
-                role: userType,
-                vendorId: userType === 'seller' ? vendorInfo?.id : undefined,
-                vendorName: userType === 'seller' ? vendorInfo?.name : undefined
+                vendorId: selectedVendor,
+                vendorName: approvedVendors.find(v => v.id === selectedVendor)?.name,
             };
-
-            // Immediately create the user document in Firestore with 'pending' status
-            await setDoc(doc(db, "users", user.uid), userData);
-
-            if (userType === 'seller') {
-                toast({ title: "Registration Submitted!", description: "Your seller account is pending admin approval." });
-                await auth.signOut();
-                router.push('/seller/login');
-            } else { // userType === 'vendor'
-                toast({ title: "Registration Submitted!", description: "Your vendor account is pending admin approval." });
-                await auth.signOut();
-                router.push('/vendor/login');
-            }
-
-        } catch (error: any) {
-            if (user) await deleteUser(user); // Cleanup orphaned auth user
-            let description = 'An unexpected error occurred.';
-            if (error instanceof FirebaseError) {
-                switch (error.code) {
-                    case 'auth/email-already-in-use': description = 'This email address is already in use.'; break;
-                    case 'auth/weak-password': description = 'Password must be at least 6 characters.'; break;
-                    case 'auth/invalid-email': description = 'The email address is not valid.'; break;
-                    case 'auth/network-request-failed': description = 'Network error. Please check your internet connection and ensure Firebase configuration is correct.'; break;
-                    default: description = `An error occurred: ${error.message}`;
-                }
-            }
-            toast({ variant: 'destructive', title: "Signup Failed", description });
-        } finally {
-            setIsLoading(false);
+            const existingRequests = JSON.parse(localStorage.getItem('seller_requests') || '[]');
+            localStorage.setItem('seller_requests', JSON.stringify([...existingRequests, newRequest]));
+            toast({ title: "Registration Submitted!", description: "Your seller account is pending admin approval." });
+            router.push('/seller/login');
+        } else { // userType === 'vendor'
+            const newRequest = {
+                id: `vendor-${Date.now()}`,
+                name: companyName,
+                contactPerson: companyName, // Assuming company name for now
+                phone,
+                email,
+                status: 'pending'
+            };
+             const existingRequests = JSON.parse(localStorage.getItem('vendor_requests') || '[]');
+            localStorage.setItem('vendor_requests', JSON.stringify([...existingRequests, newRequest]));
+            toast({ title: "Registration Submitted!", description: "Your vendor account is pending admin approval." });
+            router.push('/vendor/login');
         }
+        
+        setIsLoading(false);
     };
 
     const isNonAdminSignup = email.toLowerCase() !== ADMIN_EMAIL;
@@ -257,3 +211,5 @@ export default function SignupPage() {
         </div>
     );
 }
+
+    

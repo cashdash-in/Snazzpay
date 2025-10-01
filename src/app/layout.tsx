@@ -4,7 +4,6 @@ import './globals.css';
 import { Inter } from 'next/font/google';
 import { Toaster } from "@/components/ui/toaster"
 import { PageRefreshProvider } from '@/hooks/usePageRefresh';
-import { AuthProvider } from '@/hooks/use-auth';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
@@ -28,14 +27,14 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased h-full">
         <PageRefreshProvider>
-            <AuthProvider>
-                {children}
-                <Toaster />
-            </AuthProvider>
+            {children}
+            <Toaster />
         </PageRefreshProvider>
       </body>
     </html>
   );
 }
+
+    
 
     

@@ -3,7 +3,6 @@
 
 import { useState, useEffect } from "react";
 import { getOrders as getShopifyOrders } from "@/services/shopify";
-import { getAllOrders as getFirestoreOrders } from "@/services/firestore";
 import type { EditableOrder } from "@/app/orders/page";
 import { useToast } from "@/hooks/use-toast";
 import { format, subDays } from "date-fns";
@@ -50,25 +49,44 @@ export function MainDashboard() {
         async function loadDashboardData() {
             setLoading(true);
             try {
-                const firestoreOrders = await getFirestoreOrders();
-
-                const shopifyPromise = getShopifyOrders().catch(e => {
-                    console.error("Shopify fetch failed for dashboard:", e.message);
-                    // Silently fail on dashboard, don't show toast
-                    return [];
-                });
-                const shopifyOrders = await shopifyPromise;
+                let combinedOrders: EditableOrder[] = [];
                 
-                const allOrders = [...firestoreOrders, ...shopifyOrders.map(mapShopifyOrderToEditableOrder)];
+                try {
+                    const shopifyOrders = await getShopifyOrders();
+                    combinedOrders.push(...shopifyOrders.map(mapShopifyOrderToEditableOrder));
+                } catch (error) {
+                    console.error("Failed to fetch Shopify orders:", error);
+                    // Do not show a toast here to avoid cluttering the UI on the main page
+                }
 
+                const manualOrdersJSON = localStorage.getItem('manualOrders');
+                if (manualOrdersJSON) {
+                    combinedOrders.push(...JSON.parse(manualOrdersJSON));
+                }
+                
+                const sellerOrdersJSON = localStorage.getItem('seller_orders');
+                 if (sellerOrdersJSON) {
+                    combinedOrders.push(...JSON.parse(sellerOrdersJSON));
+                }
+
+                const leadsJSON = localStorage.getItem('leads');
+                const leads: EditableOrder[] = leadsJSON ? JSON.parse(leadsJSON) : [];
+                
                 const orderMap = new Map<string, EditableOrder>();
-                 allOrders.forEach(order => {
-                     const existing = orderMap.get(order.orderId);
+
+                combinedOrders.forEach(order => {
+                     const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
+                     const finalOrder = { ...order, ...storedOverrides };
+
+                     const existing = orderMap.get(finalOrder.orderId);
+                     
                      const isDefinitive = (status: string) => ['Paid', 'Authorized', 'Fee Charged'].includes(status);
-                     if (!existing || isDefinitive(order.paymentStatus) || (!isDefinitive(existing?.paymentStatus || '') && order.paymentStatus !== 'Voided')) {
-                          orderMap.set(order.orderId, order);
+                     
+                     if (!existing || isDefinitive(finalOrder.paymentStatus) || (!isDefinitive(existing?.paymentStatus || '') && finalOrder.paymentStatus !== 'Voided')) {
+                          orderMap.set(finalOrder.orderId, finalOrder);
                      }
                 });
+
                 const unifiedOrders = Array.from(orderMap.values());
 
                 // Calculate Stats
@@ -83,8 +101,6 @@ export function MainDashboard() {
                 const totalRefunds = unifiedOrders
                     .filter(o => ['Refunded', 'Voided'].includes(o.paymentStatus))
                     .reduce((sum, o) => sum + parseFloat(o.price || '0'), 0);
-                
-                const leads = unifiedOrders.filter(o => o.paymentStatus === 'Intent Verified');
 
                 setStats({
                     totalSecuredValue,
@@ -243,3 +259,5 @@ export function MainDashboard() {
         </div>
     );
 }
+
+    
