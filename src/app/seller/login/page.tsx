@@ -11,8 +11,7 @@ import Link from "next/link";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth, db } from '@/lib/firebase';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { auth } from '@/lib/firebase';
 import { FirebaseError } from 'firebase/app';
 import type { SellerUser } from '@/app/seller-accounts/page';
 
@@ -53,8 +52,6 @@ export default function SellerLoginPage() {
             const userCredential = await signInWithEmailAndPassword(auth, userEmail, password);
             const loggedInUser = userCredential.user;
             
-            // If the user logged in via phone, we already checked approval.
-            // If via email, we need to check now.
             if (!isApproved) {
                 const approvedSellersJSON = localStorage.getItem('approved_sellers');
                 const approvedSellers: SellerUser[] = approvedSellersJSON ? JSON.parse(approvedSellersJSON) : [];
@@ -85,10 +82,11 @@ export default function SellerLoginPage() {
              let description = error.message || 'An unexpected error occurred during login.';
              if (error instanceof FirebaseError) {
                 if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found') {
-                    description = 'Invalid credentials. Please check and try again.';
+                    description = 'Invalid credentials. Please check your email/mobile and password and try again.';
                 }
              }
             toast({ variant: 'destructive', title: "Login Error", description: description });
+        } finally {
             setIsLoading(false);
         }
     };
