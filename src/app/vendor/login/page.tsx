@@ -11,8 +11,7 @@ import Link from "next/link";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth, db } from '@/lib/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { auth } from '@/lib/firebase';
 import type { Vendor } from '@/app/vendors/page';
 import { FirebaseError } from 'firebase/app';
 
@@ -36,15 +35,16 @@ export default function VendorLoginPage() {
         let userEmail = loginId;
 
         try {
+            // Check if loginId is a phone number
             if (/^\d+$/.test(loginId)) {
-                const vendorsCollection = collection(db, "vendors_db");
-                const q = query(vendorsCollection, where("phone", "==", loginId), where("status", "==", "approved"));
-                const querySnapshot = await getDocs(q);
+                const vendorsJSON = localStorage.getItem('vendors_db');
+                const vendors: Vendor[] = vendorsJSON ? JSON.parse(vendorsJSON) : [];
+                const vendor = vendors.find(v => v.phone === loginId && v.status === 'approved');
 
-                if (querySnapshot.empty) {
+                if (!vendor) {
                     throw new Error("No approved vendor account found with this mobile number.");
                 }
-                userEmail = querySnapshot.docs[0].data().email;
+                userEmail = vendor.email;
             }
 
 
