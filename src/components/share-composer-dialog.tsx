@@ -38,10 +38,8 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
     const { toast } = useToast();
     const [selectedImages, setSelectedImages] = useState<string[]>(product.imageDataUris);
     
-    // Construct the order link. This will need to be adjusted if the URL structure changes.
-    const orderLink = typeof window !== 'undefined' 
-        ? `${window.location.origin}/secure-cod?name=${encodeURIComponent(product.title)}&amount=${product.price || product.costPrice || 0}`
-        : '';
+    // Use the environment variable for a clean, production-ready URL.
+    const orderLink = `${process.env.NEXT_PUBLIC_APP_URL || ''}/secure-cod?name=${encodeURIComponent(product.title)}&amount=${product.price || product.costPrice || 0}`;
         
     const [shareText, setShareText] = useState(
         `Check out this new product!\n\n*${product.title}*\n${product.description}\n\n*Price:* ₹${(product.price || product.costPrice)?.toFixed(2)}\n\nClick here to order with Secure COD: ${orderLink}`

@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Terminal, Mail, MessageSquareWarning, Rocket, Download } from "lucide-react";
+import { Terminal, Mail, MessageSquareWarning, Rocket, Download, ExternalLink } from "lucide-react";
 import Link from "next/link";
 
 export default function SettingsPage() {
@@ -19,6 +19,7 @@ export default function SettingsPage() {
   const [shopifySettings, setShopifySettings] = useState({ storeUrl: '', apiKey: '' });
   const [notificationSettings, setNotificationSettings] = useState({ gmailEmail: '', gmailPassword: '' });
   const [logisticsSettings, setLogisticsSettings] = useState({ apiUser: '', apiPassword: '' });
+  const [appUrl, setAppUrl] = useState('');
 
   useEffect(() => {
     // Load saved settings from localStorage for display purposes
@@ -51,6 +52,8 @@ export default function SettingsPage() {
     if (savedLogisticsPassword) {
       setLogisticsSettings(prev => ({ ...prev, apiPassword: savedLogisticsPassword }));
     }
+    // Set the application URL from the environment variable for display
+    setAppUrl(process.env.NEXT_PUBLIC_APP_URL || window.location.origin);
   }, []);
 
   const handleRazorpayChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -101,14 +104,46 @@ export default function SettingsPage() {
 
   return (
     <AppShell title="Settings">
-      <Tabs defaultValue="razorpay" className="w-full">
+      <Tabs defaultValue="project" className="w-full">
         <TabsList className="grid w-full grid-cols-5 max-w-3xl mx-auto">
+          <TabsTrigger value="project">Project</TabsTrigger>
           <TabsTrigger value="razorpay">Razorpay</TabsTrigger>
           <TabsTrigger value="shopify">Shopify</TabsTrigger>
           <TabsTrigger value="logistics">Logistics</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          <TabsTrigger value="project">Project</TabsTrigger>
         </TabsList>
+         <TabsContent value="project">
+           <Card>
+            <CardHeader>
+              <CardTitle>Project Settings</CardTitle>
+              <CardDescription>
+                Core settings for your application's identity and functionality.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                 <Alert>
+                    <Terminal className="h-4 w-4" />
+                    <AlertTitle>Important: Set Your Public App URL</AlertTitle>
+                    <AlertDescription>
+                        <p>For features like shareable links to work correctly on your live site, you must set your application's public URL as an environment variable.</p>
+                        <p className="mt-2">In your hosting provider's settings (e.g., Vercel, Netlify), add a variable named <span className="font-mono bg-muted p-1 rounded-md">NEXT_PUBLIC_APP_URL</span>.</p>
+                        <p className="mt-1">The value should be your full live URL, like <strong className="font-mono">https://www.your-store.com</strong></p>
+                        <p className="text-xs text-muted-foreground mt-2">Current URL detected: <a href={appUrl} target="_blank" className="underline inline-flex items-center gap-1">{appUrl} <ExternalLink className="h-3 w-3"/></a></p>
+                    </AlertDescription>
+                </Alert>
+                <div className="space-y-2">
+                    <Label>Download Project</Label>
+                    <p className="text-sm text-muted-foreground">Download a .zip file of all your project code. This is useful for backups or for deploying to another service.</p>
+                </div>
+            </CardContent>
+            <CardFooter>
+              <Button onClick={handleDownload}>
+                <Download className="mr-2 h-4 w-4" />
+                Download Project Code
+              </Button>
+            </CardFooter>
+          </Card>
+        </TabsContent>
         <TabsContent value="razorpay">
           <Card>
             <CardHeader>
@@ -314,28 +349,7 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
         </TabsContent>
-        <TabsContent value="project">
-           <Card>
-            <CardHeader>
-              <CardTitle>Project Actions</CardTitle>
-              <CardDescription>
-                Actions related to the entire project.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="space-y-2">
-                    <Label>Download Project</Label>
-                    <p className="text-sm text-muted-foreground">Download a .zip file of all your project code. This is useful for backups or for deploying to another service.</p>
-                </div>
-            </CardContent>
-            <CardFooter>
-              <Button onClick={handleDownload}>
-                <Download className="mr-2 h-4 w-4" />
-                Download Project Code
-              </Button>
-            </CardFooter>
-          </Card>
-        </TabsContent>
+       
       </Tabs>
     </AppShell>
   );
