@@ -154,12 +154,8 @@ export type Chat = {
 
 
 // Chat specific functions
-export const createChat = async (participants: string[], participantNames: { [key: string]: string }): Promise<string> => {
+export const createChat = async (chatId: string, participants: string[], participantNames: { [key: string]: string }): Promise<string> => {
     if (!db) throw new Error("Firestore is not initialized.");
-    
-    // Ensure consistent chat ID by sorting participant UIDs
-    const sortedParticipants = participants.sort();
-    const chatId = sortedParticipants.join('_');
     
     const chatRef = doc(db, 'chats', chatId);
     const docSnap = await getDoc(chatRef);
@@ -167,7 +163,7 @@ export const createChat = async (participants: string[], participantNames: { [ke
     if (!docSnap.exists()) {
         await setDoc(chatRef, { 
             id: chatId,
-            participants: sortedParticipants,
+            participants,
             participantNames,
             createdAt: new Date(),
         });

@@ -1,16 +1,11 @@
+
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /users/{userId} {
-      allow read, update: if request.auth != null && request.auth.uid == userId;
-      allow create: if request.auth != null;
-      allow list: if request.auth != null && request.auth.token.email == 'admin@snazzpay.com';
-    }
-    match /vendors_db/{vendorId} {
-      // Allow anyone to read the vendor list (e.g., for dropdowns on signup)
-      allow read: if true;
-      // Allow anyone to query for vendors by phone and status (for login)
-      allow list: if request.query.keys.hasAll(['phone', 'status']);
+    // Default deny all reads and writes
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
