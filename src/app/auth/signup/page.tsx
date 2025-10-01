@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,13 +33,13 @@ export default function SignupPage() {
     const [selectedVendor, setSelectedVendor] = useState('');
     const [userType, setUserType] = useState<'seller' | 'vendor'>('seller');
     
-    useState(() => {
+    useEffect(() => {
         const storedVendors = localStorage.getItem('vendors_db');
         if (storedVendors) {
             const vendors: Vendor[] = JSON.parse(storedVendors);
             setApprovedVendors(vendors.filter(v => v.status === 'approved'));
         }
-    });
+    }, []);
 
     const handleSignup = async () => {
         setIsLoading(true);
