@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -8,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import Image from 'next/image';
+import { useAuth } from '@/hooks/use-auth';
 
 // Can be a ProductDrop or a SellerProduct
 type ShareableProduct = {
@@ -35,13 +37,14 @@ async function dataUriToFile(dataUri: string, fileName: string): Promise<File> {
 
 export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
     const { toast } = useToast();
+    const { user } = useAuth();
     const [selectedImages, setSelectedImages] = useState<string[]>(product.imageDataUris);
     
     // Use the environment variable for a clean, production-ready URL.
-    const orderLink = `${process.env.NEXT_PUBLIC_APP_URL || ''}/secure-cod?name=${encodeURIComponent(product.title)}&amount=${product.price || product.costPrice || 0}`;
+    const orderLink = `${process.env.NEXT_PUBLIC_APP_URL || ''}/secure-cod?name=${encodeURIComponent(product.title)}&amount=${product.price || product.costPrice || 0}&seller_id=${user?.uid || ''}`;
         
     const [shareText, setShareText] = useState(
-        `Check out this new product!\n\n*${product.title}*\n${product.description}\n\n*Price:* ₹${(product.price || product.costPrice)?.toFixed(2)}\n\nClick here to order with *Secure COD*: ${orderLink}`
+        `Check out this new product!\n\n*${product.title}*\n${product.description}\n\n*Price:* ₹${(product.price || product.costPrice)?.toFixed(2)}\n\nClick here to order with **Secure COD**: ${orderLink}`
     );
 
     const handleImageSelection = (imageUri: string) => {
@@ -130,3 +133,5 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
         </DialogContent>
     );
 }
+
+    

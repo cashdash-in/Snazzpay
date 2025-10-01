@@ -95,6 +95,7 @@ const adminConfigMenuItems = [
 
 const sellerMenuItems = [
     { href: '/seller/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/seller/leads', label: 'Leads', icon: Users },
     { href: '/seller/product-drops', label: 'Product Drops', icon: Send },
     { href: '/seller/products', label: 'My Products', icon: Package },
     { href: '/seller/ai-product-uploader', label: 'AI Product Uploader', icon: Sparkles },
@@ -287,3 +288,5 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
     </SidebarProvider>
   );
 };
+
+    

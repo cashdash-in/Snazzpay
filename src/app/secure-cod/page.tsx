@@ -25,10 +25,11 @@ function SecureCodOrderForm() {
     const { toast } = useToast();
     const { triggerRefresh } = usePageRefresh();
 
-    const [orderDetails, setOrderDetails] = useState<{productName: string; amount: number; orderId: string}>({
+    const [orderDetails, setOrderDetails] = useState<{productName: string; amount: number; orderId: string, sellerId?: string | null}>({
         productName: 'Loading...',
         amount: 0,
-        orderId: ''
+        orderId: '',
+        sellerId: null,
     });
     const [customerDetails, setCustomerDetails] = useState({
         name: '',
@@ -48,8 +49,9 @@ function SecureCodOrderForm() {
         const name = searchParams.get('name') || 'Your Product';
         const amount = parseFloat(searchParams.get('amount') || '0');
         const orderId = searchParams.get('order_id') || `SNZ-${uuidv4().substring(0, 8)}`;
+        const sellerId = searchParams.get('seller_id');
 
-        setOrderDetails({ productName: name, amount, orderId });
+        setOrderDetails({ productName: name, amount, orderId, sellerId });
         setLoading(false);
     }, [searchParams]);
 
@@ -66,10 +68,18 @@ function SecureCodOrderForm() {
             });
             return;
         }
+        if (!orderDetails.sellerId) {
+             toast({
+                variant: 'destructive',
+                title: 'Invalid Link',
+                description: 'This order link is missing seller information. Please contact the person who shared it.'
+            });
+            return;
+        }
 
         setIsSubmitting(true);
         try {
-            const newLead: EditableOrder = {
+            const newLead: EditableOrder & { sellerId: string; paymentMethod: PaymentMethod } = {
                 id: uuidv4(),
                 orderId: orderDetails.orderId,
                 customerName: customerDetails.name,
@@ -80,17 +90,19 @@ function SecureCodOrderForm() {
                 productOrdered: orderDetails.productName,
                 quantity: 1,
                 price: orderDetails.amount.toFixed(2),
-                paymentStatus: 'Pending', // All orders start as pending
-                date: format(new Date(), 'yyyy-MM-dd'),
-                source: 'Manual' // Or some other source identifier
+                paymentStatus: 'Lead', // New status for leads
+                date: new Date().toISOString(),
+                source: 'Seller',
+                sellerId: orderDetails.sellerId,
+                paymentMethod: paymentMethod,
             };
 
-            // In a real app, this would be an API call. For the prototype, we use localStorage.
-            const existingLeads = JSON.parse(localStorage.getItem('leads') || '[]');
-            localStorage.setItem('leads', JSON.stringify([newLead, ...existingLeads]));
+            const leadsStorageKey = `seller_leads_${orderDetails.sellerId}`;
+            const existingLeads = JSON.parse(localStorage.getItem(leadsStorageKey) || '[]');
+            localStorage.setItem(leadsStorageKey, JSON.stringify([newLead, ...existingLeads]));
 
             toast({
-                title: 'Order Placed!',
+                title: 'Order Request Sent!',
                 description: 'Thank you! The seller will contact you shortly to confirm and process your payment.',
             });
             
@@ -165,7 +177,7 @@ function SecureCodOrderForm() {
                      <div className="space-y-3">
                         <Label>Select Payment Method</Label>
                         <RadioGroup defaultValue="Secure COD" value={paymentMethod} onValueChange={(value: PaymentMethod) => setPaymentMethod(value)} className="grid grid-cols-3 gap-4">
-                            <div><Card className={`p-4 cursor-pointer text-center ${paymentMethod === 'Secure COD' ? 'border-primary ring-2 ring-primary' : ''}`} onClick={() => setPaymentMethod('Secure COD')}><RadioGroupItem value="Secure COD" id="r1" className="sr-only" /><Label htmlFor="r1" className="font-semibold cursor-pointer">Secure COD</Label><p className="text-xs text-muted-foreground">Pay now, funds held in trust</p></Card></div>
+                            <div><Card className={`p-4 cursor-pointer text-center ${paymentMethod === 'Secure COD' ? 'border-primary ring-2 ring-primary' : ''}`} onClick={() => setPaymentMethod('Secure COD')}><RadioGroupItem value="Secure COD" id="r1" className="sr-only" /><Label htmlFor="r1" className="font-semibold cursor-pointer">**Secure COD**</Label><p className="text-xs text-muted-foreground">Pay now, funds held in trust</p></Card></div>
                             <div><Card className={`p-4 cursor-pointer text-center ${paymentMethod === 'Prepaid' ? 'border-primary ring-2 ring-primary' : ''}`} onClick={() => setPaymentMethod('Prepaid')}><RadioGroupItem value="Prepaid" id="r2" className="sr-only" /><Label htmlFor="r2" className="font-semibold cursor-pointer">Prepaid</Label><p className="text-xs text-muted-foreground">Standard online payment</p></Card></div>
                             <div><Card className={`p-4 cursor-pointer text-center ${paymentMethod === 'Cash on Delivery' ? 'border-primary ring-2 ring-primary' : ''}`} onClick={() => setPaymentMethod('Cash on Delivery')}><RadioGroupItem value="Cash on Delivery" id="r3" className="sr-only" /><Label htmlFor="r3" className="font-semibold cursor-pointer">Cash on Delivery</Label><p className="text-xs text-muted-foreground">Pay cash at your door</p></Card></div>
                         </RadioGroup>
@@ -174,7 +186,7 @@ function SecureCodOrderForm() {
                 <CardFooter className="flex-col gap-4">
                     <Button className="w-full" onClick={handleSubmitOrder} disabled={isSubmitting}>
                         {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Package className="mr-2 h-4 w-4" />}
-                        Place Order
+                        Place Order Request
                     </Button>
                     <div className="flex items-center justify-center space-x-4 text-sm">
                         <Link href="/customer/login" passHref><span className="text-primary hover:underline cursor-pointer inline-flex items-center gap-1">Customer Login</span></Link>
@@ -200,3 +212,5 @@ function Page() {
 }
 
 export default Page;
+
+    
