@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Upload, Send, PackagePlus } from 'lucide-react';
+import { Loader2, Send, PackagePlus } from 'lucide-react';
 import Image from 'next/image';
 import { useAuth } from '@/hooks/use-auth';
 import { v4 as uuidv4 } from 'uuid';
@@ -147,7 +147,7 @@ export default function VendorProductDropsPage() {
                 </CardContent>
                 <CardFooter>
                     <Button onClick={handleSendDrop} disabled={isLoading} className="w-full">
-                        {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Send className="mr-2 h-4 w-4"/>}
+                        {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <PackagePlus className="mr-2 h-4 w-4"/>}
                         Send Product Drop to My Sellers
                     </Button>
                 </CardFooter>
@@ -155,5 +155,3 @@ export default function VendorProductDropsPage() {
         </AppShell>
     );
 }
-
-    

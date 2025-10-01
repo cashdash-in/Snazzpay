@@ -58,6 +58,7 @@ import {
   Wand2,
   Factory,
   Send,
+  PackagePlus,
 } from 'lucide-react';
 import { usePageRefresh } from '@/hooks/usePageRefresh';
 import { useAuth } from '@/hooks/use-auth';
@@ -105,10 +106,13 @@ const sellerMenuItems = [
 
 const vendorMenuItems = [
     { href: '/vendor/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { href: '/vendor/product-drops', label: 'Product Drops', icon: Send },
+    { href: '/vendor/product-drops', label: 'Product Drops', icon: PackagePlus },
     { href: '/vendor/products', label: 'My Products', icon: Package },
+    { href: '/vendor/ai-product-uploader', label: 'AI Product Uploader', icon: Sparkles },
     { href: '/vendor/orders', label: 'Orders from Sellers', icon: ShoppingCart },
     { href: '/vendor/sellers', label: 'My Sellers', icon: Users },
+    { href: '/vendor/earnings', label: 'Earnings', icon: DollarSign },
+    { href: '/vendor/reports', label: 'Reports', icon: FileSpreadsheet },
     { href: '/vendor/settings', label: 'Settings', icon: Settings },
 ];
 
@@ -282,5 +286,3 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
     </SidebarProvider>
   );
 };
-
-    
