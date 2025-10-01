@@ -13,20 +13,10 @@ import { Loader2, PackagePlus } from 'lucide-react';
 import Image from 'next/image';
 import { useAuth } from '@/hooks/use-auth';
 import { v4 as uuidv4 } from 'uuid';
+import type { ProductDrop } from '@/app/vendor/product-drops/page';
 
-export interface ProductDrop {
-    id: string;
-    vendorId: string;
-    vendorName: string;
-    title: string;
-    description: string;
-    costPrice: number;
-    category?: string;
-    imageDataUris: string[];
-    createdAt: string;
-}
 
-export default function VendorProductDropsPage() {
+export default function AdminProductDropsPage() {
     const { user } = useAuth();
     const { toast } = useToast();
     const [isLoading, setIsLoading] = useState(false);
@@ -76,8 +66,8 @@ export default function VendorProductDropsPage() {
 
         const newDrop: ProductDrop = {
             id: uuidv4(),
-            vendorId: user.uid,
-            vendorName: user.displayName || 'Unknown Vendor',
+            vendorId: 'admin_snazzify', // Special ID for admin drops
+            vendorName: 'Snazzify Official',
             title,
             description,
             costPrice: parseFloat(costPrice),
@@ -91,7 +81,7 @@ export default function VendorProductDropsPage() {
             
             toast({
                 title: 'Product Drop Sent!',
-                description: 'Your new product has been made available to all sellers in your network.',
+                description: 'Your new product has been made available to all sellers in the network.',
             });
 
             // Reset form
@@ -113,26 +103,26 @@ export default function VendorProductDropsPage() {
     };
 
     return (
-        <AppShell title="Create Product Drop">
+        <AppShell title="Create Admin Product Drop">
             <Card className="max-w-3xl mx-auto">
                 <CardHeader>
-                    <CardTitle>New Product Drop</CardTitle>
+                    <CardTitle>New Admin Product Drop</CardTitle>
                     <CardDescription>
-                        Share a new product with your network of sellers. They will be able to see this information and start selling.
+                        Share a new product with the entire seller network. This is useful for general promotions or products sourced directly by Snazzify.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <div className="space-y-2">
                         <Label htmlFor="title">Product Title</Label>
-                        <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g., Premium Cotton Summer T-Shirt"/>
+                        <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g., Special Edition Snazzify T-Shirt"/>
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="description">Product Description</Label>
-                        <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Include details like material, available sizes, colors, and key features." rows={5}/>
+                        <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Include all product details for sellers." rows={5}/>
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="costPrice">Your Cost Price (INR)</Label>
-                        <Input id="costPrice" type="number" value={costPrice} onChange={(e) => setCostPrice(e.target.value)} placeholder="e.g., 250"/>
+                        <Label htmlFor="costPrice">Cost Price for Sellers (INR)</Label>
+                        <Input id="costPrice" type="number" value={costPrice} onChange={(e) => setCostPrice(e.target.value)} placeholder="e.g., 199"/>
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="product-images">Product Images</Label>
@@ -149,7 +139,7 @@ export default function VendorProductDropsPage() {
                 <CardFooter>
                     <Button onClick={handleSendDrop} disabled={isLoading} className="w-full">
                         {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <PackagePlus className="mr-2 h-4 w-4"/>}
-                        Send Product Drop to My Sellers
+                        Send Product Drop to All Sellers
                     </Button>
                 </CardFooter>
             </Card>

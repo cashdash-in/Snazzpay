@@ -6,7 +6,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Loader2, Trash2, Package } from "lucide-react";
+import { Loader2, Trash2, Package, MessageSquare } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/hooks/use-auth';
 import type { ProductDrop } from '@/app/vendor/product-drops/page';
@@ -22,7 +22,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import { ShareComposerDialog } from '@/components/share-composer-dialog';
 
 export default function VendorProductsPage() {
     const { user } = useAuth();
@@ -116,7 +118,16 @@ export default function VendorProductsPage() {
                                 <TableCell>₹{product.costPrice.toFixed(2)}</TableCell>
                                 <TableCell className="max-w-xs truncate text-sm text-muted-foreground">{product.description}</TableCell>
                                 <TableCell>{formatDistanceToNow(new Date(product.createdAt), { addSuffix: true })}</TableCell>
-                                <TableCell className="text-right">
+                                <TableCell className="text-right space-x-1">
+                                    <Dialog>
+                                        <DialogTrigger asChild>
+                                             <Button className="w-full" variant="secondary" size="sm">
+                                                <MessageSquare className="mr-2 h-4 w-4" />
+                                                Share
+                                            </Button>
+                                        </DialogTrigger>
+                                        <ShareComposerDialog product={product} />
+                                    </Dialog>
                                     <AlertDialog>
                                         <AlertDialogTrigger asChild>
                                             <Button variant="destructive" size="icon">

@@ -10,25 +10,11 @@ import Image from 'next/image';
 import { Loader2, Package, Sparkles, ShoppingCart, Info, MessageSquare } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useRouter } from 'next/navigation';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { useAuth } from '@/hooks/use-auth';
 import type { SellerUser } from '@/app/seller-accounts/page';
-
-
-// This interface must match the one in the vendor's page
-export interface ProductDrop {
-    id: string;
-    vendorId: string;
-    vendorName: string;
-    title: string;
-    description: string;
-    costPrice: number;
-    imageDataUris: string[];
-    createdAt: string;
-}
+import { ShareComposerDialog } from '@/components/share-composer-dialog';
+import type { ProductDrop } from '@/app/vendor/product-drops/page';
 
 // Helper function to convert data URI to File object
 async function dataUriToFile(dataUri: string, fileName: string): Promise<File> {
@@ -36,100 +22,6 @@ async function dataUriToFile(dataUri: string, fileName: string): Promise<File> {
     const blob = await res.blob();
     return new File([blob], fileName, { type: blob.type });
 }
-
-function ShareComposerDialog({ drop }: { drop: ProductDrop }) {
-    const { toast } = useToast();
-    const [selectedImages, setSelectedImages] = useState<string[]>(drop.imageDataUris);
-    const [shareText, setShareText] = useState(
-        `Check out this new product drop from ${drop.vendorName}!\n\n*${drop.title}*\n*Cost Price:* ₹${drop.costPrice.toFixed(2)}\n\n${drop.description}`
-    );
-
-    const handleImageSelection = (imageUri: string) => {
-        setSelectedImages(prev => 
-            prev.includes(imageUri) ? prev.filter(uri => uri !== imageUri) : [...prev, imageUri]
-        );
-    };
-
-    const handleShareMobile = async () => {
-        try {
-            const files = await Promise.all(
-                selectedImages.map((uri, index) => dataUriToFile(uri, `product_${drop.id}_${index}.png`))
-            );
-
-            if (navigator.share && navigator.canShare({ files })) {
-                 await navigator.share({
-                    title: drop.title,
-                    text: shareText,
-                    files: files,
-                });
-            } else {
-                 throw new Error("Web Share API for files not supported on this browser.");
-            }
-        } catch (error) {
-            toast({
-                variant: 'destructive',
-                title: "Sharing Failed",
-                description: "This feature works best on mobile browsers. Try sharing to WhatsApp Web instead.",
-            });
-        }
-    };
-    
-    const handleShareWeb = () => {
-        const whatsappUrl = `https://web.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
-        window.open(whatsappUrl, '_blank');
-        toast({
-            title: "Opening WhatsApp Web...",
-            description: `Your text has been copied. Please add your ${selectedImages.length} selected images to the chat.`,
-            duration: 8000,
-        });
-    };
-
-
-    return (
-         <DialogContent className="max-w-2xl">
-            <DialogHeader>
-                <DialogTitle>Create Your Share Post</DialogTitle>
-                <DialogDescription>Select images and edit the text to share with your customers.</DialogDescription>
-            </DialogHeader>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
-                <div className="space-y-4">
-                    <Label>1. Select Images to Share</Label>
-                    <div className="grid grid-cols-3 gap-2">
-                        {drop.imageDataUris.map((uri, index) => (
-                            <div key={index} className="relative cursor-pointer" onClick={() => handleImageSelection(uri)}>
-                                <Image src={uri} alt={`product ${index+1}`} width={100} height={100} className="rounded-md object-cover aspect-square"/>
-                                <div className={`absolute inset-0 rounded-md bg-black/50 transition-opacity ${selectedImages.includes(uri) ? 'opacity-100' : 'opacity-0'}`}>
-                                    <div className="absolute top-2 right-2 bg-primary text-primary-foreground rounded-full h-5 w-5 flex items-center justify-center">
-                                        <Checkbox checked={selectedImages.includes(uri)} className="border-white" />
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-                 <div className="space-y-4">
-                    <Label htmlFor="share-text">2. Edit Your Message</Label>
-                    <Textarea 
-                        id="share-text"
-                        value={shareText}
-                        onChange={(e) => setShareText(e.target.value)}
-                        rows={10}
-                    />
-                </div>
-            </div>
-            <DialogFooter className="sm:justify-between gap-2">
-                <DialogClose asChild>
-                    <Button variant="outline">Cancel</Button>
-                </DialogClose>
-                <div className='flex gap-2'>
-                    <Button onClick={handleShareMobile}>Share on Mobile</Button>
-                    <Button onClick={handleShareWeb}>Share on WhatsApp Web</Button>
-                </div>
-            </DialogFooter>
-        </DialogContent>
-    );
-}
-
 
 export default function SellerProductDropsPage() {
     const { toast } = useToast();
@@ -241,7 +133,7 @@ export default function SellerProductDropsPage() {
                                                 Share on WhatsApp
                                             </Button>
                                         </DialogTrigger>
-                                        <ShareComposerDialog drop={drop} />
+                                        <ShareComposerDialog product={drop} />
                                     </Dialog>
                                 </CardFooter>
                             </Card>
@@ -252,5 +144,3 @@ export default function SellerProductDropsPage() {
         </AppShell>
     );
 }
-
-    

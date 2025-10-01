@@ -77,6 +77,7 @@ const adminCoreMenuItems = [
 
 const adminGrowthMenuItems = [
     { href: '/ai-product-uploader', label: 'AI Product Uploader', icon: Wand2 },
+    { href: '/product-drops', label: 'Product Drops', icon: Send },
     { href: '/seller-accounts', label: 'Seller Accounts', icon: UserCheckIcon },
     { href: '/vendors', label: 'Vendors', icon: Factory },
     { href: '/partner-pay', label: 'Partner Pay', icon: Handshake },
@@ -271,7 +272,7 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
                   </DropdownMenuItem>
                 </Link>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => signOut(isSeller || isVendor)}>
+                <DropdownMenuItem onClick={() => signOut()}>
                   <LogOut className="mr-2 h-4 w-4"/>
                   Logout
                 </DropdownMenuItem>
