@@ -6,12 +6,13 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Factory, Lock, Loader2, User } from "lucide-react";
+import { Factory, Lock, Loader2, User, Mail } from "lucide-react";
 import Link from "next/link";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import type { Vendor } from '@/app/vendors/page';
 import { FirebaseError } from 'firebase/app';
 
@@ -19,27 +20,41 @@ import { FirebaseError } from 'firebase/app';
 export default function VendorLoginPage() {
     const { toast } = useToast();
     const router = useRouter();
-    const [email, setEmail] = useState('');
+    const [loginId, setLoginId] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
     const handleLogin = async () => {
         setIsLoading(true);
         
-        if (!email || !password) {
-            toast({ variant: 'destructive', title: "Invalid Input", description: "Please enter a valid email and password." });
+        if (!loginId || !password) {
+            toast({ variant: 'destructive', title: "Invalid Input", description: "Please enter your login credential and password." });
             setIsLoading(false);
             return;
         }
 
+        let userEmail = loginId;
+
         try {
-            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            if (/^\d+$/.test(loginId)) {
+                const vendorsCollection = collection(db, "vendors_db");
+                const q = query(vendorsCollection, where("phone", "==", loginId), where("status", "==", "approved"));
+                const querySnapshot = await getDocs(q);
+
+                if (querySnapshot.empty) {
+                    throw new Error("No approved vendor account found with this mobile number.");
+                }
+                userEmail = querySnapshot.docs[0].data().email;
+            }
+
+
+            const userCredential = await signInWithEmailAndPassword(auth, userEmail, password);
             const loggedInUser = userCredential.user;
             
             // For prototype purposes, we check against the vendor list in localStorage.
             const vendorsJSON = localStorage.getItem('vendors_db');
             const vendors: Vendor[] = vendorsJSON ? JSON.parse(vendorsJSON) : [];
-            const isApprovedVendor = vendors.some(v => v.id === loggedInUser.uid && v.status === 'approved');
+            const isApprovedVendor = vendors.some(v => v.email === userEmail && v.status === 'approved');
 
             if (!isApprovedVendor) {
                  await auth.signOut();
@@ -63,10 +78,10 @@ export default function VendorLoginPage() {
 
         } catch (error: any) {
             console.error("Vendor Login failed:", error);
-             let description = 'An unexpected error occurred during login.';
+             let description = error.message || 'An unexpected error occurred during login.';
              if (error instanceof FirebaseError) {
                 if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found') {
-                    description = 'Invalid email or password. Please create an account via the main Signup page if you are new.';
+                    description = 'Invalid credentials. Please create an account via the main Signup page if you are new.';
                 }
              }
             toast({ variant: 'destructive', title: "Login Error", description: description });
@@ -84,15 +99,15 @@ export default function VendorLoginPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="email">Vendor Email</Label>
+                        <Label htmlFor="loginId">Email or Mobile Number</Label>
                         <div className="relative">
-                            <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input 
-                                id="email" 
-                                type="email" 
-                                placeholder="Your registered email" 
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
+                                id="loginId" 
+                                type="text" 
+                                placeholder="Your registered email or mobile" 
+                                value={loginId}
+                                onChange={(e) => setLoginId(e.target.value)}
                                 className="pl-9" 
                             />
                         </div>
@@ -132,5 +147,3 @@ export default function VendorLoginPage() {
         </div>
     );
 }
-
-    

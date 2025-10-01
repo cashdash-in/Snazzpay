@@ -6,34 +6,48 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Store, Mail, Lock, Loader2 } from "lucide-react";
+import { Store, Mail, Lock, Loader2, Phone } from "lucide-react";
 import Link from "next/link";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { FirebaseError } from 'firebase/app';
 
 
 export default function SellerLoginPage() {
     const { toast } = useToast();
     const router = useRouter();
-    const [email, setEmail] = useState('');
+    const [loginId, setLoginId] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
     const handleLogin = async () => {
         setIsLoading(true);
         
-        if (!email || !password) {
-            toast({ variant: 'destructive', title: "Invalid Input", description: "Please enter a valid email and password." });
+        if (!loginId || !password) {
+            toast({ variant: 'destructive', title: "Invalid Input", description: "Please enter your login credential and password." });
             setIsLoading(false);
             return;
         }
 
+        let userEmail = loginId;
+
         try {
-            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            // Check if loginId is a phone number
+            if (/^\d+$/.test(loginId)) {
+                const usersRef = collection(db, "users");
+                const q = query(usersRef, where("phone", "==", loginId), where("role", "==", "seller"));
+                const querySnapshot = await getDocs(q);
+                
+                if (querySnapshot.empty) {
+                    throw new Error("No seller account found with this mobile number.");
+                }
+                userEmail = querySnapshot.docs[0].data().email;
+            }
+
+            const userCredential = await signInWithEmailAndPassword(auth, userEmail, password);
             const loggedInUser = userCredential.user;
             
             const userDoc = await getDoc(doc(db, "users", loggedInUser.uid));
@@ -46,7 +60,6 @@ export default function SellerLoginPage() {
 
             const idToken = await loggedInUser.getIdToken();
             
-            // Explicitly set role to 'seller' in the session cookie
             await fetch('/api/auth/session', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -59,10 +72,10 @@ export default function SellerLoginPage() {
 
         } catch (error: any) {
             console.error("Seller Login failed:", error);
-             let description = 'An unexpected error occurred during login.';
+             let description = error.message || 'An unexpected error occurred during login.';
              if (error instanceof FirebaseError) {
                 if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found') {
-                    description = 'Invalid email or password. Please check your credentials and try again.';
+                    description = 'Invalid credentials. Please check and try again.';
                 }
              }
             toast({ variant: 'destructive', title: "Login Error", description: description });
@@ -80,15 +93,15 @@ export default function SellerLoginPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="email">Email Address</Label>
+                        <Label htmlFor="loginId">Email or Mobile Number</Label>
                         <div className="relative">
                             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input 
-                                id="email" 
-                                type="email" 
-                                placeholder="you@example.com" 
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
+                                id="loginId" 
+                                type="text" 
+                                placeholder="you@example.com or 9876543210" 
+                                value={loginId}
+                                onChange={(e) => setLoginId(e.target.value)}
                                 className="pl-9" 
                             />
                         </div>

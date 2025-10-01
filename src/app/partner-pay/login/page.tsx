@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Handshake, Lock } from "lucide-react";
+import { Handshake, Lock, Mail } from "lucide-react";
 import Link from "next/link";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -17,7 +17,7 @@ import type { PartnerData } from '../page';
 export default function PartnerPayLoginPage() {
     const { toast } = useToast();
     const router = useRouter();
-    const [partnerId, setPartnerId] = useState('');
+    const [loginId, setLoginId] = useState('');
     const [password, setPassword] = useState('');
     const [agreed, setAgreed] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -25,8 +25,8 @@ export default function PartnerPayLoginPage() {
     const handleLogin = () => {
         setIsLoading(true);
         
-        if (!partnerId || !password) {
-            toast({ variant: 'destructive', title: "Login Failed", description: "Please enter your Partner ID and password." });
+        if (!loginId || !password) {
+            toast({ variant: 'destructive', title: "Login Failed", description: "Please enter your credentials and password." });
             setIsLoading(false);
             return;
         }
@@ -39,11 +39,14 @@ export default function PartnerPayLoginPage() {
 
         const approvedPartnersJSON = localStorage.getItem('payPartners');
         const approvedPartners: PartnerData[] = approvedPartnersJSON ? JSON.parse(approvedPartnersJSON) : [];
-        const partner = approvedPartners.find(p => p.id === partnerId && p.status === 'approved');
+        const partner = approvedPartners.find(p => (p.id === loginId || p.phone === loginId) && p.status === 'approved');
 
         setTimeout(() => {
-            if (partner || (partnerId === 'partner-admin' && password === 'password')) { // Add a backdoor for easy access
-                 localStorage.setItem('loggedInPartnerId', partnerId);
+            const isAdmin = loginId === 'partner-admin' && password === 'password';
+
+            if (partner || isAdmin) {
+                 const loggedInPartnerId = isAdmin ? 'partner-admin' : partner!.id;
+                 localStorage.setItem('loggedInPartnerId', loggedInPartnerId);
                  toast({
                     title: "Login Successful",
                     description: "Redirecting you to your partner dashboard.",
@@ -53,7 +56,7 @@ export default function PartnerPayLoginPage() {
                  toast({
                     variant: 'destructive',
                     title: "Login Failed",
-                    description: "Invalid Partner ID, password, or your account is not approved.",
+                    description: "Invalid credentials or your account is not approved.",
                 });
                 setIsLoading(false);
             }
@@ -70,14 +73,14 @@ export default function PartnerPayLoginPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="partner-id">Partner ID / Registered Mobile</Label>
+                        <Label htmlFor="loginId">Partner ID / Email / Mobile</Label>
                         <div className="relative">
-                            <Handshake className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input 
-                                id="partner-id" 
-                                placeholder="Your unique Partner ID" 
-                                value={partnerId}
-                                onChange={(e) => setPartnerId(e.target.value)}
+                                id="loginId" 
+                                placeholder="Your ID, email or mobile" 
+                                value={loginId}
+                                onChange={(e) => setLoginId(e.target.value)}
                                 className="pl-9" 
                             />
                         </div>

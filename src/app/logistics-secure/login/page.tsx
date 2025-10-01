@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Truck, Lock, Loader2 } from "lucide-react";
+import { Truck, Lock, Loader2, Mail } from "lucide-react";
 import Link from "next/link";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -17,7 +17,7 @@ import type { LogisticsPartnerData } from '../dashboard/page';
 export default function LogisticsLoginPage() {
     const { toast } = useToast();
     const router = useRouter();
-    const [partnerId, setPartnerId] = useState('');
+    const [loginId, setLoginId] = useState('');
     const [password, setPassword] = useState('');
     const [agreed, setAgreed] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -25,8 +25,8 @@ export default function LogisticsLoginPage() {
     const handleLogin = () => {
         setIsLoading(true);
 
-        if (!partnerId || !password) {
-            toast({ variant: 'destructive', title: "Login Failed", description: "Please enter your Logistics Partner ID and password." });
+        if (!loginId || !password) {
+            toast({ variant: 'destructive', title: "Login Failed", description: "Please enter your credentials and password." });
             setIsLoading(false);
             return;
         }
@@ -39,10 +39,10 @@ export default function LogisticsLoginPage() {
         
         const allPartnersJSON = localStorage.getItem('logisticsPartners');
         const allPartners: LogisticsPartnerData[] = allPartnersJSON ? JSON.parse(allPartnersJSON) : [];
-        const partner = allPartners.find(p => p.id === partnerId);
+        const partner = allPartners.find(p => (p.id === loginId || p.phone === loginId) && p.status === 'approved');
         
-        const isAdmin = partnerId === 'partner-admin' && password === 'password';
-        const isValidPartner = partner && partner.status === 'approved' && password === 'password';
+        const isAdmin = loginId === 'partner-admin' && password === 'password';
+        const isValidPartner = partner && password === 'password'; // Simplified password check
 
         setTimeout(() => {
             if (isAdmin || isValidPartner) {
@@ -61,7 +61,7 @@ export default function LogisticsLoginPage() {
                  toast({
                     variant: 'destructive',
                     title: "Login Failed",
-                    description: "Invalid Partner ID, password, or your account is not approved.",
+                    description: "Invalid credentials or your account is not approved.",
                 });
                  setIsLoading(false);
             }
@@ -78,14 +78,14 @@ export default function LogisticsLoginPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="partner-id">Logistics Partner ID</Label>
+                        <Label htmlFor="loginId">Partner ID / Email / Mobile</Label>
                         <div className="relative">
-                            <Truck className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input 
-                                id="partner-id" 
-                                placeholder="Your unique Partner ID" 
-                                value={partnerId}
-                                onChange={(e) => setPartnerId(e.target.value)}
+                                id="loginId" 
+                                placeholder="Your ID, email, or mobile" 
+                                value={loginId}
+                                onChange={(e) => setLoginId(e.target.value)}
                                 className="pl-9" 
                             />
                         </div>
