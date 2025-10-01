@@ -14,6 +14,7 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { FirebaseError } from 'firebase/app';
+import type { SellerUser } from '@/app/seller-accounts/page';
 
 
 export default function SellerLoginPage() {
@@ -33,25 +34,34 @@ export default function SellerLoginPage() {
         }
 
         let userEmail = loginId;
+        let isApproved = false;
 
         try {
-            // Check if loginId is a phone number
+            // Check if loginId is a phone number and look in localStorage
             if (/^\d+$/.test(loginId)) {
-                const usersRef = collection(db, "users");
-                const q = query(usersRef, where("phone", "==", loginId), where("role", "==", "seller"));
-                const querySnapshot = await getDocs(q);
-                
-                if (querySnapshot.empty) {
-                    throw new Error("No seller account found with this mobile number.");
+                const approvedSellersJSON = localStorage.getItem('approved_sellers');
+                const approvedSellers: SellerUser[] = approvedSellersJSON ? JSON.parse(approvedSellersJSON) : [];
+                const seller = approvedSellers.find(s => s.phone === loginId && s.status === 'approved');
+
+                if (!seller) {
+                    throw new Error("No approved seller account found with this mobile number.");
                 }
-                userEmail = querySnapshot.docs[0].data().email;
+                userEmail = seller.email;
+                isApproved = true;
             }
 
             const userCredential = await signInWithEmailAndPassword(auth, userEmail, password);
             const loggedInUser = userCredential.user;
             
-            const userDoc = await getDoc(doc(db, "users", loggedInUser.uid));
-            if (!userDoc.exists() || userDoc.data().role !== 'seller') {
+            // If the user logged in via phone, we already checked approval.
+            // If via email, we need to check now.
+            if (!isApproved) {
+                const approvedSellersJSON = localStorage.getItem('approved_sellers');
+                const approvedSellers: SellerUser[] = approvedSellersJSON ? JSON.parse(approvedSellersJSON) : [];
+                isApproved = approvedSellers.some(s => s.email === userEmail && s.status === 'approved');
+            }
+
+            if (!isApproved) {
                  await auth.signOut();
                  toast({ variant: 'destructive', title: "Access Denied", description: `Your account is not approved as a seller. Please contact support.` });
                  setIsLoading(false);
