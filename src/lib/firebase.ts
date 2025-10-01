@@ -26,7 +26,13 @@ function initializeFirebase() {
         *           FIREBASE IS NOT CONFIGURED!                                        *
         *                                                                              *
         *   Please add your Firebase project configuration to your .env file           *
-        *   to enable authentication and database features.                            *
+        *   (or environment variables in your hosting provider) to enable              *
+        *   authentication and database features.                                      *
+        *                                                                              *
+        *   Missing variables:                                                         *
+        *   - NEXT_PUBLIC_FIREBASE_API_KEY: ${firebaseConfig.apiKey ? 'OK' : 'MISSING'}
+        *   - NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${firebaseConfig.authDomain ? 'OK' : 'MISSING'}
+        *   - NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${firebaseConfig.projectId ? 'OK' : 'MISSING'}
         *                                                                              *
         ********************************************************************************
         `);

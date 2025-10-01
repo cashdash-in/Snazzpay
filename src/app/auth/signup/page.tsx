@@ -35,21 +35,35 @@ export default function SignupPage() {
     const [userType, setUserType] = useState<'seller' | 'vendor'>('seller');
     
     useEffect(() => {
-        try {
-            const vendorsJSON = localStorage.getItem('vendors_db');
-            if (vendorsJSON) {
-                const allVendors: Vendor[] = JSON.parse(vendorsJSON);
-                setApprovedVendors(allVendors.filter(v => v.status === 'approved'));
+        async function loadVendors() {
+            if (!db) return;
+             try {
+                const usersSnapshot = await getDocs(collection(db, 'users'));
+                const allUsers = usersSnapshot.docs.map(doc => doc.data());
+                const vendors = allUsers.filter(user => user.role === 'vendor' && user.status === 'approved').map(user => ({
+                     id: user.id,
+                     name: user.companyName,
+                     contactPerson: user.companyName, // Assuming companyName is used as contactPerson
+                     ...user
+                })) as Vendor[];
+                setApprovedVendors(vendors);
+            } catch (error) {
+                console.error("Failed to load vendors for signup form:", error);
             }
-        } catch (error) {
-            console.error("Failed to load vendors for signup form:", error);
         }
+       loadVendors();
     }, []);
 
     const handleSignup = async () => {
         setIsLoading(true);
         if (!email || !password) {
             toast({ variant: 'destructive', title: "Missing Fields", description: "Please fill out email and password." });
+            setIsLoading(false);
+            return;
+        }
+
+        if (!auth || !db) {
+            toast({ variant: 'destructive', title: "Service Not Available", description: "Firebase is not configured correctly. Please contact support." });
             setIsLoading(false);
             return;
         }
@@ -125,16 +139,10 @@ export default function SignupPage() {
             await setDoc(doc(db, "users", user.uid), userData);
 
             if (userType === 'seller') {
-                 // The request is now directly in Firestore, but we'll keep this local one
-                 // for any pages that might still rely on it during transition.
-                const existingRequests: SellerUser[] = JSON.parse(localStorage.getItem('seller_requests') || '[]');
-                localStorage.setItem('seller_requests', JSON.stringify([...existingRequests, userData]));
                 toast({ title: "Registration Submitted!", description: "Your seller account is pending admin approval." });
                 await auth.signOut();
                 router.push('/seller/login');
             } else { // userType === 'vendor'
-                const existingVendors: Vendor[] = JSON.parse(localStorage.getItem('vendors_db') || '[]');
-                localStorage.setItem('vendors_db', JSON.stringify([...existingVendors, userData]));
                 toast({ title: "Registration Submitted!", description: "Your vendor account is pending admin approval." });
                 await auth.signOut();
                 router.push('/vendor/login');
@@ -148,6 +156,7 @@ export default function SignupPage() {
                     case 'auth/email-already-in-use': description = 'This email address is already in use.'; break;
                     case 'auth/weak-password': description = 'Password must be at least 6 characters.'; break;
                     case 'auth/invalid-email': description = 'The email address is not valid.'; break;
+                    case 'auth/network-request-failed': description = 'Network error. Please check your internet connection and ensure Firebase configuration is correct.'; break;
                     default: description = `An error occurred: ${error.message}`;
                 }
             }
