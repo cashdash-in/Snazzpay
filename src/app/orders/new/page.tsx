@@ -21,7 +21,7 @@ export default function NewOrderPage() {
     const router = useRouter();
     const { toast } = useToast();
     const [order, setOrder] = useState({
-        orderId: '',
+        orderId: `MANUAL-${uuidv4().substring(0, 4).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`,
         customerName: '',
         customerEmail: '',
         customerAddress: '',

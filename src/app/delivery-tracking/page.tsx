@@ -56,6 +56,8 @@ export default function DeliveryTrackingPage() {
         if (!orderToSave) return;
         
         try {
+            // Since this page can edit any order, we just update it directly.
+            // No need for a separate override system here.
             await saveDocument('orders', orderToSave, orderToSave.id);
             toast({
                 title: "Delivery Info Saved",
@@ -67,14 +69,21 @@ export default function DeliveryTrackingPage() {
     };
     
     const handleRemoveOrder = async (orderId: string) => {
-        // This likely just removes it from the view, not deletes.
-        // A 'deleted' flag in Firestore would be better.
-        setOrders(prev => prev.filter(order => order.id !== orderId));
-        toast({
-            variant: 'destructive',
-            title: "Order Removed",
-            description: "The order has been removed from delivery tracking.",
-        });
+        try {
+            await deleteDocument('orders', orderId);
+            setOrders(prev => prev.filter(order => order.id !== orderId));
+            toast({
+                variant: 'destructive',
+                title: "Order Removed",
+                description: "The order has been removed from delivery tracking.",
+            });
+        } catch (error) {
+            toast({
+                variant: 'destructive',
+                title: 'Error Removing Order',
+                description: 'Could not remove order from the database.',
+            });
+        }
     };
 
     const sendAuthLink = async (order: EditableOrder, method: 'email') => {

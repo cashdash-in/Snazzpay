@@ -12,6 +12,7 @@ import { getOrders, type Order as ShopifyOrder } from '@/services/shopify';
 import { format } from 'date-fns';
 import { Loader2, Printer, ArrowLeft, ShieldCheck } from 'lucide-react';
 import { useReactToPrint } from 'react-to-print';
+import { getCollection, getDocument } from '@/services/firestore';
 
 function mapShopifyOrderToEditableOrder(shopifyOrder: ShopifyOrder): EditableOrder {
     const customer = shopifyOrder.customer;
@@ -19,8 +20,8 @@ function mapShopifyOrderToEditableOrder(shopifyOrder: ShopifyOrder): EditableOrd
     const products = shopifyOrder.line_items.map(item => item.title).join(', ');
 
     return {
-        id: shopifyOrder.id.toString(),
-        orderId: shopifyOrder.name,
+        id: shopifyOrder.id.toString(), // Internal unique ID
+        orderId: shopifyOrder.name,     // Human-readable Order ID like #1001
         customerName,
         customerEmail: customer?.email || undefined,
         customerAddress: shopifyOrder.shipping_address ? `${shopifyOrder.shipping_address.address1}, ${shopifyOrder.shipping_address.city}, ${shopifyOrder.shipping_address.zip}` : 'N/A',
@@ -31,6 +32,7 @@ function mapShopifyOrderToEditableOrder(shopifyOrder: ShopifyOrder): EditableOrd
         price: shopifyOrder.total_price,
         paymentStatus: shopifyOrder.financial_status || 'Pending',
         date: format(new Date(shopifyOrder.created_at), "yyyy-MM-dd"),
+        source: 'Shopify',
     };
 }
 
@@ -63,33 +65,10 @@ export default function InvoicePage() {
     
     useEffect(() => {
         if (!orderIdParam) return;
-        setLoading(true);
         
         async function loadOrder() {
-            let foundOrder: EditableOrder | null = null;
-            let allOrders: EditableOrder[] = [];
-             try {
-                const shopifyOrders = await getOrders();
-                allOrders = allOrders.concat(shopifyOrders.map(mapShopifyOrderToEditableOrder));
-            } catch (e) {
-                console.error("Could not fetch Shopify orders", e);
-            }
-            const manualOrdersJSON = localStorage.getItem('manualOrders');
-            if (manualOrdersJSON) {
-                allOrders = allOrders.concat(JSON.parse(manualOrdersJSON));
-            }
-            const sellerOrdersJSON = localStorage.getItem('seller_orders');
-             if (sellerOrdersJSON) {
-                allOrders = allOrders.concat(JSON.parse(sellerOrdersJSON));
-            }
-            
-            foundOrder = allOrders.find(o => o.id === orderIdParam) || null;
-
-            if (foundOrder) {
-                 const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${foundOrder.id}`) || '{}');
-                 foundOrder = {...foundOrder, ...storedOverrides};
-            }
-            
+            setLoading(true);
+            const foundOrder = await getDocument<EditableOrder>('orders', orderIdParam);
             setOrder(foundOrder);
             setLoading(false);
         }
