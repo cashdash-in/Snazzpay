@@ -10,8 +10,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import Image from 'next/image';
 import { useAuth } from '@/hooks/use-auth';
-import { Loader2, Wand2 } from 'lucide-react';
+import { Loader2, Wand2, AlertTriangle } from 'lucide-react';
 import { createProductDescription } from '@/ai/flows/create-product-description';
+import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
 // Can be a ProductDrop or a SellerProduct
 type ShareableProduct = {
@@ -45,19 +46,22 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
     const [appUrl, setAppUrl] = useState('');
     const [shareText, setShareText] = useState('');
 
+    const productPrice = product.price || product.costPrice || 0;
+    const isPriceValid = productPrice > 0;
+
     useEffect(() => {
         // This ensures the URL is read on the client-side
         const currentUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
         setAppUrl(currentUrl);
         
-        const orderLink = `${currentUrl}/secure-cod?name=${encodeURIComponent(product.title)}&amount=${product.price || product.costPrice || 0}&seller_id=${user?.uid || ''}&seller_name=${user?.displayName || ''}`;
+        const orderLink = `${currentUrl}/secure-cod?name=${encodeURIComponent(product.title)}&amount=${productPrice}&seller_id=${user?.uid || ''}&seller_name=${user?.displayName || ''}`;
         
         setShareText(
-            `Check out this new product!\n\n*${product.title}*\n${product.description}\n\n*Price:* ₹${(product.price || product.costPrice)?.toFixed(2)}\n\nClick here to order with **Secure COD**, **Prepaid**, or **Cash on Delivery**: ${orderLink}`
+            `Check out this new product!\n\n*${product.title}*\n${product.description}\n\n*Price:* ₹${(productPrice).toFixed(2)}\n\nClick here to order with **Secure COD**, **Prepaid**, or **Cash on Delivery**: ${orderLink}`
         );
-    }, [product, user]);
+    }, [product, user, productPrice]);
     
-    const orderLink = `${appUrl}/secure-cod?name=${encodeURIComponent(product.title)}&amount=${product.price || product.costPrice || 0}&seller_id=${user?.uid || ''}&seller_name=${user?.displayName || ''}`;
+    const orderLink = `${appUrl}/secure-cod?name=${encodeURIComponent(product.title)}&amount=${productPrice}&seller_id=${user?.uid || ''}&seller_name=${user?.displayName || ''}`;
         
     const handleImageSelection = (imageUri: string) => {
         setSelectedImages(prev => 
@@ -74,7 +78,7 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
             });
             // Update the share text with the new AI-generated description
             setShareText(
-                `Check out this new product!\n\n*${product.title}*\n${newDescription}\n\n*Price:* ₹${(product.price || product.costPrice)?.toFixed(2)}\n\nClick here to order with **Secure COD**, **Prepaid**, or **Cash on Delivery**: ${orderLink}`
+                `Check out this new product!\n\n*${product.title}*\n${newDescription}\n\n*Price:* ₹${(productPrice).toFixed(2)}\n\nClick here to order with **Secure COD**, **Prepaid**, or **Cash on Delivery**: ${orderLink}`
             );
             toast({
                 title: "Description Generated!",
@@ -165,13 +169,22 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
                     />
                 </div>
             </div>
+             {!isPriceValid && (
+                <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Price Not Set</AlertTitle>
+                    <AlertDescription>
+                        Cannot share this product because the price is ₹0. Please go back and set a valid selling price in the AI Product Uploader.
+                    </AlertDescription>
+                </Alert>
+            )}
             <DialogFooter className="sm:justify-between gap-2">
                 <DialogClose asChild>
                     <Button variant="outline">Cancel</Button>
                 </DialogClose>
                 <div className='flex gap-2'>
-                    <Button onClick={handleShareMobile} className="hidden sm:inline-flex">Share on Mobile</Button>
-                    <Button onClick={handleShareWeb}>Share on WhatsApp Web</Button>
+                    <Button onClick={handleShareMobile} className="hidden sm:inline-flex" disabled={!isPriceValid}>Share on Mobile</Button>
+                    <Button onClick={handleShareWeb} disabled={!isPriceValid}>Share on WhatsApp Web</Button>
                 </div>
             </DialogFooter>
         </DialogContent>
