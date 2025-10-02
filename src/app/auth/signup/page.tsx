@@ -107,8 +107,7 @@ export default function SignupPage() {
             await updateProfile(user, { displayName: companyName });
 
             if (userType === 'seller') {
-                const newRequest: SellerUser = {
-                    id: user.uid,
+                const newRequest: Omit<SellerUser, 'id'> = {
                     companyName: companyName,
                     email: email,
                     phone: phone,
@@ -116,20 +115,19 @@ export default function SignupPage() {
                     vendorId: selectedVendor,
                     vendorName: approvedVendors.find(v => v.id === selectedVendor)?.name,
                 };
-                await saveDocument('seller_users', newRequest);
+                await saveDocument('seller_users', newRequest, user.uid);
                 toast({ title: "Registration Submitted!", description: "Your seller account is pending admin approval." });
                 await auth.signOut();
                 router.push('/seller/login');
             } else { // userType === 'vendor'
-                const newRequest: Vendor = {
-                    id: user.uid,
+                const newRequest: Omit<Vendor, 'id'> = {
                     name: companyName,
                     contactPerson: companyName,
                     phone,
                     email,
                     status: 'pending'
                 };
-                await saveDocument('vendors', newRequest);
+                await saveDocument('vendors', newRequest, user.uid);
                 toast({ title: "Registration Submitted!", description: "Your vendor account is pending admin approval." });
                 await auth.signOut();
                 router.push('/vendor/login');
