@@ -10,8 +10,8 @@ import { Loader2, Trash2, Send, Loader2 as ButtonLoader, ArrowRight } from "luci
 import { useToast } from "@/hooks/use-toast";
 import type { EditableOrder } from '../orders/page';
 import { format } from "date-fns";
-import { usePageRefresh } from "@/hooks/usePageRefresh";
-import { v4 as uuidv4 } from "uuid";
+import { getAllOrders, saveOrder, deleteOrder as deleteFirestoreOrder, addDocument, getCollection, deleteDocument, saveDocument } from "@/services/firestore";
+import { useRouter } from "next/navigation";
 
 
 export default function LeadsPage() {
@@ -19,20 +19,20 @@ export default function LeadsPage() {
   const [loading, setLoading] = useState(true);
   const [sendingLinkId, setSendingLinkId] = useState<string | null>(null);
   const { toast } = useToast();
-  const { refreshKey, triggerRefresh } = usePageRefresh();
+  const router = useRouter();
 
-  const fetchAndSetLeads = useCallback(() => {
+
+  const fetchAndSetLeads = useCallback(async () => {
     setLoading(true);
     try {
-        const leadsJSON = localStorage.getItem('leads');
-        const loadedLeads: EditableOrder[] = leadsJSON ? JSON.parse(leadsJSON) : [];
+        const loadedLeads = await getCollection<EditableOrder>('leads');
         setLeads(loadedLeads);
     } catch (error) {
         console.error("Failed to load leads:", error);
         toast({
             variant: 'destructive',
             title: "Error loading leads",
-            description: "Could not load leads from local storage.",
+            description: "Could not load leads from Firestore.",
         });
     }
     setLoading(false);
@@ -40,17 +40,24 @@ export default function LeadsPage() {
 
   useEffect(() => {
     fetchAndSetLeads();
-  }, [fetchAndSetLeads, refreshKey]);
+  }, [fetchAndSetLeads]);
   
-  const handleRemoveLead = (leadId: string) => {
-    const updatedLeads = leads.filter(lead => lead.id !== leadId);
-    setLeads(updatedLeads);
-    localStorage.setItem('leads', JSON.stringify(updatedLeads));
-    toast({
-        variant: 'destructive',
-        title: "Lead Removed",
-        description: "The lead has been removed successfully.",
-    });
+  const handleRemoveLead = async (leadId: string) => {
+    try {
+        await deleteDocument('leads', leadId);
+        setLeads(prev => prev.filter(lead => lead.id !== leadId));
+        toast({
+            variant: 'destructive',
+            title: "Lead Removed",
+            description: "The lead has been removed successfully.",
+        });
+    } catch (error) {
+         toast({
+            variant: 'destructive',
+            title: "Error Removing Lead",
+            description: "Could not remove the lead from the database.",
+        });
+    }
   };
 
   const handleSendLink = async (lead: EditableOrder) => {
@@ -91,35 +98,25 @@ export default function LeadsPage() {
     }
   };
 
-  const handleConvertToOrder = (lead: EditableOrder) => {
+  const handleConvertToOrder = async (lead: EditableOrder) => {
     try {
         const newOrder = {
             ...lead,
-            id: lead.id, // Keep the same ID to allow for overrides
             paymentStatus: 'Pending', // Set as a pending manual order
             source: 'Manual' as const,
         };
         
-        // Add to manualOrders in localStorage
-        const manualOrdersJSON = localStorage.getItem('manualOrders');
-        let manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
+        await saveDocument('orders', newOrder, newOrder.id);
+        await deleteDocument('leads', lead.id);
         
-        // Avoid adding duplicates
-        if (!manualOrders.some(o => o.id === newOrder.id)) {
-            manualOrders.push(newOrder);
-            localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
-        }
-
-        // Remove from leads after converting
-        handleRemoveLead(lead.id);
+        setLeads(prev => prev.filter(l => l.id !== lead.id));
 
         toast({
             title: "Converted to Order",
             description: `Lead for ${lead.customerName} has been moved to the main orders list.`,
         });
         
-        // Refresh all pages that depend on this data
-        triggerRefresh();
+        router.refresh();
 
     } catch (error: any) {
         toast({
@@ -136,7 +133,7 @@ export default function LeadsPage() {
         <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle>Intent Verified Leads</CardTitle>
-              <CardDescription>Customers who completed ₹1 verification but did not complete the final authorization. Follow up to convert them!</CardDescription>
+              <CardDescription>Customers who completed verification but did not complete the final authorization. Follow up to convert them!</CardDescription>
             </div>
         </CardHeader>
         <CardContent>
@@ -163,7 +160,7 @@ export default function LeadsPage() {
               <TableBody>
                 {leads.map((lead) => (
                   <TableRow key={lead.id}>
-                    <TableCell>{lead.date}</TableCell>
+                    <TableCell>{lead.date ? format(new Date(lead.date), 'PP') : 'N/A'}</TableCell>
                     <TableCell className="font-medium">{lead.orderId}</TableCell>
                     <TableCell>{lead.customerName}</TableCell>
                     <TableCell>{lead.customerEmail}</TableCell>
@@ -203,5 +200,3 @@ export default function LeadsPage() {
     </AppShell>
   );
 }
-
-    

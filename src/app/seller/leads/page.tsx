@@ -9,8 +9,10 @@ import { useState, useEffect, useCallback } from "react";
 import { Loader2, Trash2, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { EditableOrder } from '@/app/orders/page';
-import { usePageRefresh } from "@/hooks/usePageRefresh";
 import { useAuth } from "@/hooks/use-auth";
+import { getCollection, saveDocument, deleteDocument } from "@/services/firestore";
+import { useRouter } from "next/navigation";
+
 
 type Lead = EditableOrder & { sellerId: string; paymentMethod: string; };
 
@@ -19,15 +21,14 @@ export default function SellerLeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-  const { refreshKey, triggerRefresh } = usePageRefresh();
+  const router = useRouter();
 
-  const fetchAndSetLeads = useCallback(() => {
+
+  const fetchAndSetLeads = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     try {
-        const allLeadsJSON = localStorage.getItem('seller_leads');
-        const allLeads: Lead[] = allLeadsJSON ? JSON.parse(allLeadsJSON) : [];
-        // Filter leads for the current logged-in seller
+        const allLeads = await getCollection<Lead>('leads');
         const sellerLeads = allLeads.filter(lead => lead.sellerId === user.uid);
         setLeads(sellerLeads);
     } catch (error) {
@@ -35,7 +36,7 @@ export default function SellerLeadsPage() {
         toast({
             variant: 'destructive',
             title: "Error loading leads",
-            description: "Could not load leads from local storage.",
+            description: "Could not load leads from Firestore.",
         });
     }
     setLoading(false);
@@ -43,23 +44,24 @@ export default function SellerLeadsPage() {
 
   useEffect(() => {
     fetchAndSetLeads();
-  }, [fetchAndSetLeads, refreshKey]);
+  }, [fetchAndSetLeads]);
   
-  const handleRemoveLead = (leadId: string) => {
+  const handleRemoveLead = async (leadId: string) => {
     if (!user) return;
-    const leadsStorageKey = `seller_leads`;
-    const allLeads = JSON.parse(localStorage.getItem(leadsStorageKey) || '[]');
-    const updatedLeads = allLeads.filter((lead: Lead) => lead.id !== leadId);
-    localStorage.setItem(leadsStorageKey, JSON.stringify(updatedLeads));
-    setLeads(prev => prev.filter(l => l.id !== leadId));
-    toast({
-        variant: 'destructive',
-        title: "Lead Removed",
-        description: "The lead has been removed successfully.",
-    });
+    try {
+        await deleteDocument('leads', leadId);
+        setLeads(prev => prev.filter(l => l.id !== leadId));
+        toast({
+            variant: 'destructive',
+            title: "Lead Removed",
+            description: "The lead has been removed successfully.",
+        });
+    } catch (e) {
+        toast({ variant: 'destructive', title: "Error removing lead" });
+    }
   };
 
-  const handleConvertToOrder = (lead: Lead) => {
+  const handleConvertToOrder = async (lead: Lead) => {
     if (!user) return;
     try {
         const newOrder: EditableOrder = {
@@ -68,23 +70,17 @@ export default function SellerLeadsPage() {
             source: 'Seller',
         };
         
-        const ordersStorageKey = `seller_orders`;
-        const existingOrdersJSON = localStorage.getItem(ordersStorageKey);
-        let existingOrders: EditableOrder[] = existingOrdersJSON ? JSON.parse(existingOrdersJSON) : [];
-        
-        if (!existingOrders.some(o => o.id === newOrder.id)) {
-            existingOrders.push(newOrder);
-            localStorage.setItem(ordersStorageKey, JSON.stringify(existingOrders));
-        }
+        await saveDocument('orders', newOrder, newOrder.id);
+        await deleteDocument('leads', lead.id);
 
-        handleRemoveLead(lead.id);
+        setLeads(prev => prev.filter(l => l.id !== lead.id));
 
         toast({
             title: "Converted to Order",
             description: `Lead for ${lead.customerName} has been moved to your 'My Orders' list.`,
         });
         
-        triggerRefresh();
+        router.refresh();
 
     } catch (error: any) {
         toast({
@@ -161,5 +157,3 @@ export default function SellerLeadsPage() {
     </AppShell>
   );
 }
-
-    

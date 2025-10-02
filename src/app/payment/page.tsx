@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useState, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, ShieldCheck, CheckCircle } from "lucide-react";
@@ -11,9 +11,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { format, addYears } from 'date-fns';
 import type { EditableOrder } from '@/app/orders/page';
 import { getRazorpayKeyId } from '@/app/actions';
-import { usePageRefresh } from '@/hooks/usePageRefresh';
+import { saveOrder, savePaymentInfo, addDocument } from '@/services/firestore';
 import type { ShaktiCardData } from '@/components/shakti-card';
 import { sanitizePhoneNumber } from '@/lib/utils';
+import { CancellationForm } from '@/components/cancellation-form';
 
 type PaymentInfo = {
     paymentId: string;
@@ -26,8 +27,8 @@ type PaymentInfo = {
 
 function PaymentPageContent() {
     const searchParams = useSearchParams();
+    const router = useRouter();
     const { toast } = useToast();
-    const { triggerRefresh } = usePageRefresh();
 
     const [orderDetails, setOrderDetails] = useState<{productName: string; amount: number; orderId: string; sellerId: string; prepaid: boolean;}>({
         productName: 'Loading...',
@@ -61,12 +62,14 @@ function PaymentPageContent() {
 
     }, [searchParams, toast]);
     
-    const createNewShaktiCard = (order: EditableOrder) => {
+    const createNewShaktiCard = async (order: EditableOrder) => {
         if (!order.contactNo || !order.customerEmail) return;
 
         const sanitizedMobile = sanitizePhoneNumber(order.contactNo);
+        // This would be a Firestore call in a real app to check for existence
+        // For now, we assume it's a new card if not in local storage for demo purposes
         const cardStorageKey = `shakti_card_${sanitizedMobile}`;
-        if (localStorage.getItem(cardStorageKey)) return; // Card already exists
+        if (localStorage.getItem(cardStorageKey)) return; 
 
         const newCard: ShaktiCardData = {
             cardNumber: `SHAKTI-${uuidv4().substring(0, 4).toUpperCase()}-${uuidv4().substring(0, 4).toUpperCase()}`,
@@ -82,14 +85,16 @@ function PaymentPageContent() {
             sellerName: 'Snazzify',
         };
 
-        localStorage.setItem(cardStorageKey, JSON.stringify(newCard));
-        const allCards = JSON.parse(localStorage.getItem('shakti_cards_db') || '[]');
-        localStorage.setItem('shakti_cards_db', JSON.stringify([...allCards, newCard]));
-        
-        toast({
-            title: "Shakti Card Issued!",
-            description: "You've earned a Shakti Card for future benefits!",
-        });
+        try {
+            await addDocument('shakti_cards', newCard);
+            localStorage.setItem(cardStorageKey, JSON.stringify(newCard));
+            toast({
+                title: "Shakti Card Issued!",
+                description: "You've earned a Shakti Card for future benefits!",
+            });
+        } catch(e) {
+            console.error("Failed to save Shakti Card", e);
+        }
     };
 
     const processPayment = async (isAuthorization: boolean) => {
@@ -101,6 +106,7 @@ function PaymentPageContent() {
         }
 
         try {
+            // Find order in seller_orders to get customer details
             const sellerOrders = JSON.parse(localStorage.getItem('seller_orders') || '[]');
             const order: EditableOrder | undefined = sellerOrders.find((o: EditableOrder) => o.orderId === orderDetails.orderId);
 
@@ -136,13 +142,9 @@ function PaymentPageContent() {
                 handler: async (response: any) => {
                     const paymentStatus = isAuthorization ? 'Authorized' : 'Paid';
 
-                    // Update seller's order
-                    const updatedSellerOrders = sellerOrders.map((o: EditableOrder) => 
-                        o.orderId === orderDetails.orderId ? { ...o, paymentStatus } : o
-                    );
-                    localStorage.setItem('seller_orders', JSON.stringify(updatedSellerOrders));
+                    const orderToUpdate: EditableOrder = { ...order, paymentStatus };
+                    await saveOrder(orderToUpdate, orderToUpdate.id);
 
-                    // Create Shakti Card on first successful transaction
                     createNewShaktiCard(order);
 
                     toast({
@@ -150,7 +152,7 @@ function PaymentPageContent() {
                       description: `Your payment is ${paymentStatus}.`,
                     });
                     
-                    triggerRefresh();
+                    router.refresh();
                     setStep('complete');
                 },
                 prefill: {
@@ -227,5 +229,3 @@ export default function PaymentPage() {
         </Suspense>
     );
 }
-
-    
