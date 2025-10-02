@@ -108,7 +108,7 @@ function SecureCodPaymentForm() {
     useEffect(() => {
         const name = searchParams.get('name') || 'Your Product';
         const amount = parseFloat(searchParams.get('amount') || '0');
-        const orderId = searchParams.get('order_id') || `SNZ-${uuidv4().substring(0, 4)}-${uuidv4().substring(0, 4)}`.toUpperCase();
+        const orderId = searchParams.get('order_id') || `LEGACY-${uuidv4().substring(0, 4)}`.toUpperCase();
         const sellerId = searchParams.get('seller_id') || '';
         const sellerName = searchParams.get('seller_name') || '';
 
@@ -188,7 +188,7 @@ function SecureCodPaymentForm() {
                 body: JSON.stringify({ 
                     amount: 1, 
                     productName: `Intent Verification for ${orderDetails.productName}`,
-                    isAuthorization: false, // This is an intent payment, not auth
+                    isAuthorization: false,
                     name, email, contact, address, pincode
                 })
             }).then(res => res.json());
@@ -214,28 +214,29 @@ function SecureCodPaymentForm() {
                     }).then(res => res.json());
 
                     if (authResult.error) throw new Error(authResult.error);
+                    
+                    const uniqueInternalOrderId = authResult.internal_order_id;
 
                     const optionsAuth = {
                         key: razorpayKeyId,
                         amount: orderDetails.amount * 100,
                         order_id: authResult.order_id,
                         name: "Authorize Secure COD Payment",
-                        description: `Authorize ₹${orderDetails.amount} for Order #${orderDetails.orderId}`,
+                        description: `Authorize ₹${orderDetails.amount} for Order #${uniqueInternalOrderId}`,
                         handler: async (authResponse: any) => {
-                            // STEP 3: Full Auth Successful, save all data
                             const finalOrder: EditableOrder = { 
-                                id: orderDetails.orderId,
-                                orderId: orderDetails.orderId,
+                                id: uniqueInternalOrderId,
+                                orderId: uniqueInternalOrderId,
                                 customerName: name, customerEmail: email, customerAddress: address, pincode: pincode, contactNo: contact,
                                 productOrdered: orderDetails.productName, quantity: 1, price: orderDetails.amount.toFixed(2),
                                 paymentStatus: 'Authorized', source: 'Shopify', date: new Date().toISOString(),
                             };
                             await saveDocument('orders', finalOrder, finalOrder.id);
                              const paymentInfo: PaymentInfo = {
-                                paymentId: authResponse.razorpay_payment_id, orderId: orderDetails.orderId, razorpayOrderId: authResponse.razorpay_order_id,
+                                paymentId: authResponse.razorpay_payment_id, orderId: uniqueInternalOrderId, razorpayOrderId: authResponse.razorpay_order_id,
                                 signature: authResponse.razorpay_signature, status: 'authorized', authorizedAt: new Date().toISOString()
                             };
-                            await saveDocument('payment_info', paymentInfo, finalOrder.orderId);
+                            await saveDocument('payment_info', paymentInfo, finalOrder.id);
                             const card = await createNewShaktiCard(finalOrder);
                             if (card) {
                                 setNewlyCreatedCard(card);

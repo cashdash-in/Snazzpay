@@ -23,6 +23,9 @@ export async function POST(request: Request) {
     try {
         const { amount, productName, name, email, contact, address, pincode, isAuthorization } = await request.json();
         
+        // Generate a new, unique order ID on the server for every request.
+        const uniqueOrderId = `SNZ-${Math.floor(1000 + Math.random() * 9000)}-${uuidv4().substring(0, 4).toUpperCase()}`;
+
         let customerId;
 
         // Step 1: Find or Create Customer
@@ -40,15 +43,14 @@ export async function POST(request: Request) {
 
         } catch (customerError: any) {
             console.warn(`Could not create new Razorpay customer (they might already exist): ${customerError.error?.description || customerError.message}`);
-            // Attempt to find existing customer by email or contact could go here if needed
         }
        
         // Step 2: Create Order
         const orderOptions: any = {
             amount: Math.round(amount * 100), // Amount in paise
             currency: 'INR',
-            receipt: `rcpt_${isAuthorization ? 'auth' : 'intent'}_${Date.now()}`.slice(0, 40),
-            payment_capture: isAuthorization ? 0 : 1, // Capture intent payment, but only authorize the main one
+            receipt: uniqueOrderId, // Use the unique ID as the receipt
+            payment_capture: isAuthorization ? 0 : 1,
             notes: {
                 product: productName,
                 type: isAuthorization ? "secure_cod_card_authorization" : "secure_cod_intent_verification",
@@ -56,6 +58,7 @@ export async function POST(request: Request) {
                 customerContact: contact,
                 customerAddress: address,
                 customerPincode: pincode,
+                internalOrderId: uniqueOrderId, // Store our unique ID in notes
             }
         };
 
@@ -66,8 +69,9 @@ export async function POST(request: Request) {
         console.log("Creating Razorpay order with options:", JSON.stringify(orderOptions, null, 2));
         const order = await razorpay.orders.create(orderOptions);
         console.log("Successfully created Razorpay order:", order);
-
-        return NextResponse.json({ order_id: order.id });
+        
+        // Return BOTH the Razorpay order ID and our new unique internal order ID
+        return NextResponse.json({ order_id: order.id, internal_order_id: uniqueOrderId });
 
     } catch (error: any) {
         console.error("--- Razorpay API Error ---");

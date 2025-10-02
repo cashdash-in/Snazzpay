@@ -115,29 +115,27 @@ function PaymentPageContent() {
 
         try {
             const allLeads = await getCollection<EditableOrder>('leads');
-            const lead = allLeads.find((l: EditableOrder) => l.orderId === orderDetails.orderId);
+            const lead = allLeads.find((l: EditableOrder) => l.id === orderDetails.orderId);
 
             if (!lead) {
                 throw new Error("Could not find the original order request. Please contact the seller.");
             }
             
-            const response = await fetch('/api/create-payment-link', {
+            const response = await fetch('/api/create-mandate-order', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    amount: orderDetails.amount,
-                    customerName: lead.customerName,
-                    customerEmail: lead.customerEmail,
-                    customerContact: lead.contactNo,
-                    orderId: orderDetails.orderId,
-                    productName: orderDetails.productName,
-                    userId: orderDetails.sellerId,
-                    userRole: 'seller',
+                body: JSON.stringify({ 
+                    amount: orderDetails.amount, 
+                    productName: `Prepaid for ${orderDetails.productName}`,
+                    isAuthorization: false, // This is a prepaid payment, so capture immediately
+                    name: lead.customerName, email: lead.customerEmail, contact: lead.contactNo, address: lead.customerAddress, pincode: lead.pincode
                 })
             });
 
             const result = await response.json();
-            if (!response.ok) throw new Error(result.error);
+            if (result.error) throw new Error(result.error);
+            const uniqueInternalOrderId = result.internal_order_id;
+
 
             const options = {
                 key: razorpayKeyId,
@@ -149,12 +147,14 @@ function PaymentPageContent() {
                 handler: async (response: any) => {
                     const newOrder: EditableOrder = {
                       ...lead,
+                      id: uniqueInternalOrderId, // Use the new unique ID
+                      orderId: uniqueInternalOrderId,
                       paymentStatus: 'Paid',
                       source: 'Seller'
                     };
                     
                     await saveDocument('orders', newOrder, newOrder.id);
-                    await deleteDocument('leads', lead.id);
+                    await deleteDocument('leads', lead.id); // Remove the old lead
 
                     const card = await createNewShaktiCard(newOrder);
                     if (card) {
@@ -229,7 +229,7 @@ function PaymentPageContent() {
                 <CardHeader className="text-center">
                     <ShieldCheck className="mx-auto h-12 w-12 text-primary" />
                     <CardTitle>Complete Your Secure Payment</CardTitle>
-                    <CardDescription>Finalizing payment for order {orderDetails.orderId}</CardDescription>
+                    <CardDescription>Finalizing payment for order reference {orderDetails.orderId}</CardDescription>
                 </CardHeader>
                  <CardContent className="space-y-4">
                     <div className="border rounded-lg p-4 space-y-2 text-sm">

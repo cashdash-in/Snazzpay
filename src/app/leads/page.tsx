@@ -27,7 +27,7 @@ export default function LeadsPage() {
     try {
         const loadedLeads = await getCollection<EditableOrder>('leads');
         // Filter out any leads that have been converted
-        setLeads(loadedLeads.filter(lead => lead.paymentStatus !== 'Converted'));
+        setLeads(loadedLeads.filter(lead => lead.paymentStatus !== 'Converted' && lead.paymentStatus !== 'Authorized' && lead.paymentStatus !== 'Paid'));
     } catch (error) {
         console.error("Failed to load leads from Firestore:", error);
         toast({
@@ -203,4 +203,3 @@ export default function LeadsPage() {
     </AppShell>
   );
 }
-
