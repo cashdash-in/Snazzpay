@@ -12,21 +12,21 @@ import type { ShaktiCardData } from '@/components/shakti-card';
 
 
 // Generic CRUD operations
-const getCollection = async <T>(collectionName: string): Promise<T[]> => {
+export const getCollection = async <T>(collectionName: string): Promise<T[]> => {
     if (!db) return [];
     const q = query(collection(db, collectionName));
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as unknown as T));
 };
 
-const getDocument = async <T>(collectionName: string, id: string): Promise<T | null> => {
+export const getDocument = async <T>(collectionName: string, id: string): Promise<T | null> => {
     if (!db) return null;
     const docRef = doc(db, collectionName, id);
     const docSnap = await getDoc(docRef);
     return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } as T : null;
 };
 
-const saveDocument = async (collectionName: string, data: any, id?: string) => {
+export const saveDocument = async (collectionName: string, data: any, id?: string) => {
     if (!db) throw new Error("Firestore is not initialized.");
     const docRef = id ? doc(db, collectionName, id) : doc(collection(db, collectionName));
     await setDoc(docRef, { ...data, id: docRef.id }, { merge: true });
@@ -39,7 +39,7 @@ const updateDocument = async (collectionName: string, id: string, data: any) => 
     await updateDoc(docRef, data);
 };
 
-const deleteDocument = async (collectionName: string, id: string) => {
+export const deleteDocument = async (collectionName: string, id: string) => {
     if (!db) throw new Error("Firestore is not initialized.");
     await deleteDoc(doc(db, collectionName, id));
 };
