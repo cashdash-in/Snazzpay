@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from "react";
-import { getOrders as getShopifyOrders } from "@/services/shopify";
+import { getCollection } from "@/services/firestore";
 import type { EditableOrder } from "@/app/orders/page";
 import { useToast } from "@/hooks/use-toast";
 import { format, subDays } from "date-fns";
@@ -10,29 +10,6 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/com
 import { DollarSign, WalletCards, CheckCircle2, AlertTriangle, Users, CircleDollarSign } from "lucide-react";
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts"
 import { RecentOrders } from "./recent-orders";
-
-function mapShopifyOrderToEditableOrder(shopifyOrder: any): EditableOrder {
-    const customer = shopifyOrder.customer;
-    const customerName = customer ? `${customer.first_name || ''} ${customer.last_name || ''}`.trim() : 'N/A';
-    const products = shopifyOrder.line_items.map((item: any) => item.title).join(', ');
-
-    return {
-        id: `shopify-${shopifyOrder.id.toString()}`,
-        orderId: shopifyOrder.name,
-        customerName,
-        customerEmail: customer?.email || undefined,
-        customerAddress: shopifyOrder.shipping_address ? `${shopifyOrder.shipping_address.address1}, ${shopifyOrder.shipping_address.city}, ${shopifyOrder.shipping_address.zip}` : 'N/A',
-        pincode: shopifyOrder.shipping_address?.zip || 'N/A',
-        contactNo: shopifyOrder.customer?.phone || 'N/A',
-        productOrdered: products,
-        quantity: shopifyOrder.line_items.reduce((sum: number, item: any) => sum + item.quantity, 0),
-        price: shopifyOrder.total_price,
-        paymentStatus: shopifyOrder.financial_status || 'Pending',
-        date: format(new Date(shopifyOrder.created_at), "yyyy-MM-dd"),
-        source: 'Shopify'
-    };
-}
-
 
 export function MainDashboard() {
     const [stats, setStats] = useState({
@@ -49,56 +26,23 @@ export function MainDashboard() {
         async function loadDashboardData() {
             setLoading(true);
             try {
-                let combinedOrders: EditableOrder[] = [];
+                const [orders, leads] = await Promise.all([
+                    getCollection<EditableOrder>('orders'),
+                    getCollection<EditableOrder>('leads')
+                ]);
                 
-                try {
-                    const shopifyOrders = await getShopifyOrders();
-                    combinedOrders.push(...shopifyOrders.map(mapShopifyOrderToEditableOrder));
-                } catch (error) {
-                    console.error("Failed to fetch Shopify orders:", error);
-                    // Do not show a toast here to avoid cluttering the UI on the main page
-                }
-
-                const manualOrdersJSON = localStorage.getItem('manualOrders');
-                if (manualOrdersJSON) {
-                    combinedOrders.push(...JSON.parse(manualOrdersJSON));
-                }
-                
-                const sellerOrdersJSON = localStorage.getItem('seller_orders');
-                 if (sellerOrdersJSON) {
-                    combinedOrders.push(...JSON.parse(sellerOrdersJSON));
-                }
-
-                const leadsJSON = localStorage.getItem('leads');
-                const leads: EditableOrder[] = leadsJSON ? JSON.parse(leadsJSON) : [];
-                
-                const orderMap = new Map<string, EditableOrder>();
-
-                combinedOrders.forEach(order => {
-                     const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
-                     const finalOrder = { ...order, ...storedOverrides };
-
-                     const existing = orderMap.get(finalOrder.orderId);
-                     
-                     const isDefinitive = (status: string) => ['Paid', 'Authorized', 'Fee Charged'].includes(status);
-                     
-                     if (!existing || isDefinitive(finalOrder.paymentStatus) || (!isDefinitive(existing?.paymentStatus || '') && finalOrder.paymentStatus !== 'Voided')) {
-                          orderMap.set(finalOrder.orderId, finalOrder);
-                     }
-                });
-
-                const unifiedOrders = Array.from(orderMap.values());
+                const allOrders = orders; // Firestore contains all orders now
 
                 // Calculate Stats
-                const totalSecuredValue = unifiedOrders
+                const totalSecuredValue = allOrders
                     .filter(o => o.paymentStatus === 'Authorized')
                     .reduce((sum, o) => sum + parseFloat(o.price || '0'), 0);
 
-                const successfulCharges = unifiedOrders
+                const successfulCharges = allOrders
                     .filter(o => o.paymentStatus === 'Paid' || o.paymentStatus === 'Fee Charged')
                     .reduce((sum, o) => sum + parseFloat(o.price || '0'), 0);
 
-                const totalRefunds = unifiedOrders
+                const totalRefunds = allOrders
                     .filter(o => ['Refunded', 'Voided'].includes(o.paymentStatus))
                     .reduce((sum, o) => sum + parseFloat(o.price || '0'), 0);
 
@@ -117,7 +61,7 @@ export function MainDashboard() {
                     salesByDay[formattedDate] = 0;
                 }
 
-                unifiedOrders
+                allOrders
                     .filter(o => o.paymentStatus === 'Paid' || o.paymentStatus === 'Fee Charged')
                     .forEach(o => {
                         try {
@@ -136,7 +80,7 @@ export function MainDashboard() {
 
 
             } catch (error: any) {
-                toast({ variant: 'destructive', title: "Dashboard Error", description: "Could not retrieve order data from the database." });
+                toast({ variant: 'destructive', title: "Dashboard Error", description: "Could not retrieve order data from Firestore." });
             } finally {
                 setLoading(false);
             }
@@ -248,7 +192,7 @@ export function MainDashboard() {
                  <Card className="lg:col-span-3">
                     <CardHeader>
                         <CardTitle>Recent Orders</CardTitle>
-                        <CardDescription>Your 5 most recent orders.</CardDescription>
+                        <CardDescription>Your 5 most recent orders from all sources.</CardDescription>
                     </CardHeader>
                     <CardContent>
                        <RecentOrders />

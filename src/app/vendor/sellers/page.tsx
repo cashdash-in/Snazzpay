@@ -6,12 +6,14 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Loader2, MessageSquare } from "lucide-react";
+import { Loader2, MessageSquare, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/hooks/use-auth';
 import type { SellerUser } from '@/app/seller-accounts/page';
 import { Badge } from '@/components/ui/badge';
 import { sanitizePhoneNumber } from '@/lib/utils';
+import { getCollection } from '@/services/firestore';
+import type { SellerProduct } from '@/app/seller/ai-product-uploader/page';
 
 export default function MySellersPage() {
     const { user } = useAuth();
@@ -24,17 +26,33 @@ export default function MySellersPage() {
             setIsLoading(false);
             return;
         }
-        try {
-            const approvedSellersJSON = localStorage.getItem('approved_sellers');
-            const approvedSellers: SellerUser[] = approvedSellersJSON ? JSON.parse(approvedSellersJSON) : [];
-            // Filter sellers that belong to the current logged-in vendor
-            const sellersForThisVendor = approvedSellers.filter(seller => seller.vendorId === user.uid);
-            setMySellers(sellersForThisVendor);
-        } catch (error) {
-            toast({ variant: 'destructive', title: "Error loading data", description: "Could not load your sellers from local storage." });
-        } finally {
-            setIsLoading(false);
+        async function loadData() {
+            try {
+                const [allSellers, allProducts] = await Promise.all([
+                    getCollection<SellerUser>('seller_users'),
+                    getCollection<SellerProduct>('seller_products')
+                ]);
+                
+                const usageMap = allProducts.reduce((acc, product) => {
+                    acc[product.sellerId] = (acc[product.sellerId] || 0) + 1;
+                    return acc;
+                }, {} as Record<string, number>);
+
+                const sellersForThisVendor = allSellers
+                    .filter(seller => seller.vendorId === user.uid && seller.status === 'approved')
+                    .map(seller => ({
+                        ...seller,
+                        aiUploads: usageMap[seller.id] || 0
+                    }));
+                
+                setMySellers(sellersForThisVendor);
+            } catch (error) {
+                toast({ variant: 'destructive', title: "Error loading data", description: "Could not load your sellers from Firestore." });
+            } finally {
+                setIsLoading(false);
+            }
         }
+        loadData();
     }, [user, toast]);
 
     const handleWhatsAppChat = (seller: SellerUser) => {
@@ -70,6 +88,7 @@ export default function MySellersPage() {
                                 <TableRow>
                                     <TableHead>Company</TableHead>
                                     <TableHead>Email / Phone</TableHead>
+                                    <TableHead>AI Uploads</TableHead>
                                     <TableHead>Status</TableHead>
                                     <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
@@ -82,6 +101,11 @@ export default function MySellersPage() {
                                             <div>{seller.email}</div>
                                             <div className="text-xs text-muted-foreground">{seller.phone || 'No phone'}</div>
                                         </TableCell>
+                                        <TableCell>
+                                            <div className="flex items-center gap-1 text-sm">
+                                                <Sparkles className="h-4 w-4 text-muted-foreground"/> {seller.aiUploads || 0}
+                                            </div>
+                                        </TableCell>
                                         <TableCell><Badge className="bg-green-100 text-green-800">{seller.status}</Badge></TableCell>
                                         <TableCell className="text-right">
                                             <Button size="sm" variant="secondary" onClick={() => handleWhatsAppChat(seller)} disabled={!seller.phone}>
@@ -92,7 +116,7 @@ export default function MySellersPage() {
                                     </TableRow>
                                 )) : (
                                     <TableRow>
-                                        <TableCell colSpan={4} className="text-center h-24">No sellers have been approved for your network yet.</TableCell>
+                                        <TableCell colSpan={5} className="text-center h-24">No sellers have been approved for your network yet.</TableCell>
                                     </TableRow>
                                 )}
                             </TableBody>
@@ -103,5 +127,3 @@ export default function MySellersPage() {
         </AppShell>
     );
 }
-
-    

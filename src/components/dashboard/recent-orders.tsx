@@ -9,32 +9,13 @@ import {
   TableBody,
   TableCell,
 } from "@/components/ui/table";
-import { getOrders as getShopifyOrders } from "@/services/shopify";
+import { getCollection } from "@/services/firestore";
 import { useState, useEffect } from "react";
 import type { EditableOrder } from "@/app/orders/page";
-import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import Link from 'next/link';
 import { Loader2 } from "lucide-react";
 import { Badge } from "../ui/badge";
-
-
-function mapShopifyToEditable(order: any): EditableOrder {
-    return {
-        id: `shopify-${order.id.toString()}`,
-        orderId: order.name,
-        customerName: `${order.customer?.first_name || ''} ${order.customer?.last_name || ''}`.trim(),
-        customerAddress: 'N/A', // Not needed for this compact view
-        pincode: 'N/A',
-        contactNo: 'N/A',
-        productOrdered: order.line_items.map((item:any) => item.title).join(', '),
-        quantity: order.line_items.reduce((sum:number, item:any) => sum + item.quantity, 0),
-        price: order.total_price,
-        paymentStatus: order.financial_status || 'Pending',
-        date: format(new Date(order.created_at), "yyyy-MM-dd"),
-        source: 'Shopify',
-    };
-}
 
 
 export function RecentOrders() {
@@ -45,18 +26,15 @@ export function RecentOrders() {
   useEffect(() => {
     async function fetchAndSetOrders() {
         setLoading(true);
-        let combinedOrders: EditableOrder[] = [];
         try {
-            const shopifyPromise = getShopifyOrders().catch(e => {
-                console.error("Shopify fetch failed for recent orders:", e.message);
-                return []; // Non-blocking
+            const allOrders = await getCollection<EditableOrder>('orders');
+            const sortedOrders = allOrders.sort((a, b) => {
+                try {
+                    return new Date(b.date).getTime() - new Date(a.date).getTime();
+                } catch(e) { return 0; }
             });
-            const manualOrdersJSON = localStorage.getItem('manualOrders');
-            const manualOrders = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
-            
-            combinedOrders.push(...manualOrders);
-            const shopifyOrders = await shopifyPromise;
-            combinedOrders.push(...shopifyOrders.map(mapShopifyToEditable));
+            const recentOrders = sortedOrders.slice(0, 5);
+            setOrders(recentOrders);
 
         } catch (error) {
             console.error("Failed to load orders:", error);
@@ -65,26 +43,6 @@ export function RecentOrders() {
                 title: "Error loading recent orders",
             });
         }
-
-        const orderMap = new Map<string, EditableOrder>();
-
-        combinedOrders.forEach(order => {
-            const existing = orderMap.get(order.orderId);
-            const isDefinitive = (status: string) => ['Paid', 'Authorized', 'Fee Charged'].includes(status);
-            if (!existing || isDefinitive(order.paymentStatus) || (!isDefinitive(existing.paymentStatus) && order.source !== 'Shopify')) {
-                orderMap.set(order.orderId, order);
-            }
-        });
-        
-        const unifiedOrders = Array.from(orderMap.values());
-
-        const sortedOrders = unifiedOrders.sort((a, b) => {
-            try {
-                return new Date(b.date).getTime() - new Date(a.date).getTime();
-            } catch(e) { return 0; }
-        });
-        const recentOrders = sortedOrders.slice(0, 5);
-        setOrders(recentOrders);
         setLoading(false);
     }
     fetchAndSetOrders();
@@ -139,5 +97,3 @@ export function RecentOrders() {
     </div>
   );
 }
-
-    
