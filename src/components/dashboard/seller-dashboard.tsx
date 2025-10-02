@@ -3,25 +3,40 @@
 
 import { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
-import { DollarSign, ShoppingCart, Activity, Star, Factory, Sparkles, PackagePlus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { DollarSign, ShoppingCart, Activity, Star, Factory, Sparkles, PackagePlus, Coins, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import { getDocument, getCollection } from "@/services/firestore";
+import { getDocument, getCollection, saveDocument } from "@/services/firestore";
 import type { SellerUser } from "@/app/seller-accounts/page";
 import type { SellerProduct } from "@/app/seller/ai-product-uploader/page";
 import { getCookie } from "cookies-next";
+import { useToast } from "@/hooks/use-toast";
+import { v4 as uuidv4 } from 'uuid';
+import { getRazorpayKeyId } from "@/app/actions";
 
 const AI_UPLOADER_LIMIT = 50;
 const PRODUCT_DROP_LIMIT = 50;
 
+const limitIncreaseOptions = [
+    { type: 'ai' as const, label: '+50 AI Uploads', increaseAmount: 50, cost: 250 },
+    { type: 'ai' as const, label: '+200 AI Uploads', increaseAmount: 200, cost: 800 },
+];
+
 export function SellerDashboard() {
     const { user } = useAuth();
+    const { toast } = useToast();
     const [sellerInfo, setSellerInfo] = useState<SellerUser | null>(null);
     const [usage, setUsage] = useState({ drops: 0, aiUploads: 0 });
     const [limits, setLimits] = useState({ aiUploadLimit: AI_UPLOADER_LIMIT, productDropLimit: PRODUCT_DROP_LIMIT });
+    const [razorpayKeyId, setRazorpayKeyId] = useState<string | null>(null);
+    const [isToppingUp, setIsToppingUp] = useState(false);
 
     useEffect(() => {
         async function loadSellerInfo() {
             if (user) {
+                getRazorpayKeyId().then(setRazorpayKeyId);
+
                 const [info, products, permissions] = await Promise.all([
                     getDocument<SellerUser>('seller_users', user.uid),
                     getCollection<SellerProduct>('seller_products'),
@@ -45,6 +60,59 @@ export function SellerDashboard() {
         }
         loadSellerInfo();
     }, [user]);
+
+    const handleRequestLimitIncrease = async (option: typeof limitIncreaseOptions[0]) => {
+         if (!user || !razorpayKeyId) {
+            toast({ variant: 'destructive', title: 'Error', description: 'User details or Razorpay key not available.' });
+            return;
+        }
+        setIsToppingUp(true);
+
+        try {
+            const response = await fetch('/api/create-payment-link', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ amount: option.cost, customerName: user.displayName, isLimitIncrease: true })
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error);
+            
+            const rzpOptions = {
+                key: razorpayKeyId,
+                order_id: result.order_id,
+                amount: option.cost * 100,
+                name: "Snazzify Limit Increase",
+                description: `Purchase ${option.label}`,
+                handler: async (response: any) => {
+                    const newRequest = {
+                        id: uuidv4(),
+                        userId: user.uid,
+                        userName: user.displayName || 'Unknown Seller',
+                        featureType: option.type,
+                        increaseAmount: option.increaseAmount,
+                        cost: option.cost,
+                        paymentId: response.razorpay_payment_id,
+                        status: 'Pending Approval',
+                        requestDate: new Date().toISOString(),
+                    };
+                    await saveDocument('limitIncreaseRequests', newRequest, newRequest.id);
+                    toast({ title: "Payment Successful!", description: `Your request for ${option.label} has been sent for admin approval.` });
+                    setIsToppingUp(false);
+                    document.getElementById('close-limit-dialog')?.click();
+                },
+                prefill: { name: user.displayName, email: user.email },
+                theme: { color: "#5a31f4" },
+                modal: { ondismiss: () => setIsToppingUp(false) }
+            };
+            const rzp = new (window as any).Razorpay(rzpOptions);
+            rzp.open();
+
+        } catch (e: any) {
+            toast({ variant: 'destructive', title: 'Error', description: e.message });
+            setIsToppingUp(false);
+        }
+    };
+
 
     return (
         <div className="grid gap-8">
@@ -77,7 +145,30 @@ export function SellerDashboard() {
                         </div>
                     </CardHeader>
                     <CardFooter>
-                        <p className="text-sm text-muted-foreground">Contact the administrator to upgrade your plan for a higher limit.</p>
+                         <Dialog>
+                            <DialogTrigger asChild>
+                                <Button variant="secondary" className="w-full">Request Limit Increase</Button>
+                            </DialogTrigger>
+                             <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>Increase AI Uploader Limit</DialogTitle>
+                                    <DialogDescription>Purchase more AI generation credits. Your new limit will be active after admin approval.</DialogDescription>
+                                </DialogHeader>
+                                <div className="py-4 space-y-4">
+                                    {limitIncreaseOptions.map(opt => (
+                                        <Card key={opt.label}>
+                                            <CardContent className="p-4 flex justify-between items-center">
+                                                <p className="font-bold text-lg">{opt.label}</p>
+                                                <Button onClick={() => handleRequestLimitIncrease(opt)} disabled={isToppingUp}>
+                                                    {isToppingUp ? <Loader2 className="h-4 w-4 animate-spin"/> : `Pay ₹${opt.cost}`}
+                                                </Button>
+                                            </CardContent>
+                                        </Card>
+                                    ))}
+                                </div>
+                                <DialogFooter><DialogClose asChild><Button id="close-limit-dialog" variant="outline">Close</Button></DialogClose></DialogFooter>
+                            </DialogContent>
+                        </Dialog>
                     </CardFooter>
                 </Card>
                 <Card>

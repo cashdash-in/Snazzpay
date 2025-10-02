@@ -54,27 +54,28 @@ export async function POST(request: Request) {
             orderId, 
             productName, 
             isPartnerSettlement,
+            isLimitIncrease,
             userId,
             userRole
         } = await request.json();
         
         const razorpay = await getRazorpayInstance(userId, userRole);
 
-        if (isPartnerSettlement) {
+        if (isPartnerSettlement || isLimitIncrease) {
              if (!amount) {
                 return new NextResponse(
-                    JSON.stringify({ error: "Amount is required for partner settlement." }),
+                    JSON.stringify({ error: "Amount is required for this transaction." }),
                     { status: 400, headers: { 'Content-Type': 'application/json' } }
                 );
             }
-             // For Partner Pay settlement, we create a simple order for payment collection
+             // For Partner Pay settlement or limit increases, we create a simple order for payment collection
             const orderOptions = {
                 amount: Math.round(amount * 100), // Amount in paise
                 currency: 'INR',
-                receipt: `rcpt_partner_settle_${Date.now()}`.slice(0, 40),
+                receipt: `rcpt_${isPartnerSettlement ? 'partner_settle' : 'limit_inc'}_${Date.now()}`.slice(0, 40),
                 notes: {
-                    type: "partner_settlement",
-                    partnerName: customerName, // In this context, customerName is the partner's name
+                    type: isPartnerSettlement ? "partner_settlement" : "limit_increase",
+                    userName: customerName, // In this context, customerName is the partner/user's name
                 }
             };
             const order = await razorpay.orders.create(orderOptions);
