@@ -1,58 +1,65 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Default deny all reads and writes
-    // match /{document=**} {
-    //   allow read, write: if false;
-    // }
+    // Default deny all access to documents, unless explicitly allowed by other rules.
+    match /{document=**} {
+      allow read, write: if false;
+    }
 
     // Allow authenticated users to read from any collection.
-    // This is necessary for the dashboards and various pages to display data.
-    match /{path=**}/_ {
-      allow read: if request.auth != null;
+    // This is required for dashboards, lists, and general app functionality.
+    match /{path=**} {
+      allow get, list: if request.auth != null;
     }
 
-    // Allow users to create their own user profile document upon signup
-    match /seller_users/{userId} {
-      allow read, create, update: if request.auth != null && request.auth.uid == userId;
+    // Allow users to create and manage documents where the document ID
+    // is their own user ID. This is critical for creating user profiles
+    // or user-specific settings upon signup.
+    // This rule applies to collections like 'seller_users', 'vendors',
+    // 'user_permissions', 'seller_payment_settings', etc.
+    match /{collection}/{userId} {
+      allow create, update: if request.auth != null && request.auth.uid == userId;
     }
-    
-    match /vendors/{userId} {
-       allow read, create, update: if request.auth != null && request.auth.uid == userId;
-    }
-    
-    // Allow general read for authenticated users on most collections
+
+    // Allow any authenticated user to create new documents in these specific
+    // collections, as the document IDs are randomly generated and not tied to the user's UID.
+    // This is necessary for creating new orders, leads, products, etc.
     match /orders/{orderId} {
-      allow read: if request.auth != null;
+      allow create, update: if request.auth != null;
     }
     match /leads/{leadId} {
-      allow read: if request.auth != null;
-    }
-    match /user_permissions/{userId} {
-      allow read: if request.auth != null;
-    }
-    match /seller_payment_settings/{userId} {
-      allow read: if request.auth != null;
-    }
-     match /vendor_payment_settings/{userId} {
-      allow read: if request.auth != null;
-    }
-    match /product_drops/{dropId} {
-        allow read: if request.auth != null;
+      allow create, update: if request.auth != null;
     }
      match /seller_products/{productId} {
-        allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null;
+    }
+    match /product_drops/{dropId} {
+      allow create, update, delete: if request.auth != null;
+    }
+    match /chats/{chatId} {
+      allow create, update: if request.auth != null;
+    }
+    match /chats/{chatId}/messages/{messageId} {
+       allow create, update: if request.auth != null;
     }
     match /shakti_cards/{cardId} {
-        allow read: if request.auth != null;
+       allow create, update: if request.auth != null;
     }
-
-    // For now, allow any authenticated user to write to any document.
-    // This is NOT secure for production, but it will unblock all current issues.
-    // We will tighten these rules in subsequent steps.
-    match /{document=**} {
-      allow write: if request.auth != null;
+    match /payment_info/{paymentId} {
+       allow create, update: if request.auth != null;
+    }
+    match /partner_transactions/{txId} {
+       allow create, update: if request.auth != null;
+    }
+    match /partnerCancellations/{cancellationId} {
+      allow create, update: if request.auth != null;
+    }
+    match /cash_codes/{codeId} {
+      allow create, update: if request.auth != null;
+    }
+     match /topUpRequests/{requestId} {
+      allow create, update: if request.auth != null;
     }
   }
 }
