@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { getDocument, saveDocument } from "@/services/firestore";
+import { getDocument, saveDocument, getCollection } from "@/services/firestore";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Terminal, PackagePlus, Sparkles } from "lucide-react";
 import type { SellerProduct } from '@/app/seller/ai-product-uploader/page';
@@ -18,6 +18,8 @@ type PaymentSettings = {
     razorpay_key_id: string;
     razorpay_key_secret: string;
 };
+
+const AI_UPLOADER_LIMIT = 50;
 
 export default function SellerSettingsPage() {
     const { user } = useAuth();
@@ -33,10 +35,10 @@ export default function SellerSettingsPage() {
                 }
             });
 
-            const storedAiProducts = localStorage.getItem(`seller_products_${user.uid}`);
-            const aiProducts: SellerProduct[] = storedAiProducts ? JSON.parse(storedAiProducts) : [];
-            // In the future, product drops usage could be tracked here too
-            setUsage({ drops: 0, aiUploads: aiProducts.length });
+            getCollection<SellerProduct>('seller_products').then(allProducts => {
+                const sellerProducts = allProducts.filter(p => p.sellerId === user.uid);
+                setUsage({ drops: 0, aiUploads: sellerProducts.length });
+            });
         }
     }, [user]);
 
@@ -138,7 +140,7 @@ export default function SellerSettingsPage() {
                                         <CardDescription>Generate product listings using AI.</CardDescription>
                                     </div>
                                     <div className="text-right">
-                                        <p className="text-2xl font-bold">{usage.aiUploads} / 50</p>
+                                        <p className="text-2xl font-bold">{usage.aiUploads} / {AI_UPLOADER_LIMIT}</p>
                                         <p className="text-xs text-muted-foreground">Free Generations Used</p>
                                     </div>
                                 </CardHeader>
@@ -153,5 +155,3 @@ export default function SellerSettingsPage() {
         </AppShell>
     );
 }
-
-    

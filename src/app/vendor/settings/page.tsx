@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { getDocument, saveDocument } from "@/services/firestore";
+import { getDocument, saveDocument, getCollection } from "@/services/firestore";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Terminal, PackagePlus } from "lucide-react";
 import type { ProductDrop } from '@/app/vendor/product-drops/page';
@@ -18,6 +18,8 @@ type PaymentSettings = {
     razorpay_key_id: string;
     razorpay_key_secret: string;
 };
+
+const PRODUCT_DROP_LIMIT = 50;
 
 export default function VendorSettingsPage() {
     const { user } = useAuth();
@@ -33,10 +35,10 @@ export default function VendorSettingsPage() {
                 }
             });
 
-            const storedDrops = localStorage.getItem('product_drops');
-            const drops: ProductDrop[] = storedDrops ? JSON.parse(storedDrops) : [];
-            const vendorDrops = drops.filter(d => d.vendorId === user.uid);
-            setUsage({ drops: vendorDrops.length });
+            getCollection<ProductDrop>('product_drops').then(allDrops => {
+                const vendorDrops = allDrops.filter(d => d.vendorId === user.uid);
+                setUsage({ drops: vendorDrops.length });
+            });
         }
     }, [user]);
 
@@ -56,7 +58,6 @@ export default function VendorSettingsPage() {
             toast({ variant: 'destructive', title: 'Error Saving Settings', description: error.message });
         }
     };
-
 
   return (
     <AppShell title="My Settings">
@@ -138,7 +139,7 @@ export default function VendorSettingsPage() {
                                     <CardDescription>Share new products with your seller network.</CardDescription>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-2xl font-bold">{usage.drops} / 50</p>
+                                    <p className="text-2xl font-bold">{usage.drops} / {PRODUCT_DROP_LIMIT}</p>
                                     <p className="text-xs text-muted-foreground">Free Drops Used</p>
                                 </div>
                             </CardHeader>
@@ -153,5 +154,3 @@ export default function VendorSettingsPage() {
     </AppShell>
   );
 }
-
-    

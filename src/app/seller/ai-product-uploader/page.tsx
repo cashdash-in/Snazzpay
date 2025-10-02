@@ -31,6 +31,8 @@ import Image from 'next/image';
 import { useAuth } from '@/hooks/use-auth';
 import { v4 as uuidv4 } from 'uuid';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { getCollection, saveDocument } from '@/services/firestore';
+import { getCookie } from 'cookies-next';
 
 export interface SellerProduct extends ProductListingOutput {
     id: string;
@@ -55,15 +57,25 @@ export default function AiProductUploaderPage() {
     useState<ProductListingOutput | null>(null);
     
   const [usageCount, setUsageCount] = useState(0);
-  const isLimitReached = usageCount >= AI_UPLOADER_LIMIT;
+  const [isLimitReached, setIsLimitReached] = useState(false);
 
-    useEffect(() => {
+  useEffect(() => {
+    async function checkUsage() {
         if (user) {
-            const storedProducts = localStorage.getItem(`seller_products_${user.uid}`);
-            const products: SellerProduct[] = storedProducts ? JSON.parse(storedProducts) : [];
-            setUsageCount(products.length);
+            const role = getCookie('userRole');
+            if (role === 'admin') {
+                setIsLimitReached(false);
+                return;
+            }
+            const products = await getCollection<SellerProduct>('seller_products');
+            const sellerProducts = products.filter(p => p.sellerId === user.uid);
+            const count = sellerProducts.length;
+            setUsageCount(count);
+            setIsLimitReached(count >= AI_UPLOADER_LIMIT);
         }
-    }, [user]);
+    }
+    checkUsage();
+  }, [user]);
 
     useEffect(() => {
         const prefillDataJSON = localStorage.getItem('ai_uploader_prefill');
@@ -119,7 +131,7 @@ export default function AiProductUploaderPage() {
     }
   };
   
-  const saveGeneratedProduct = (listing: ProductListingOutput) => {
+  const saveGeneratedProduct = async (listing: ProductListingOutput) => {
     if (!user) return;
     try {
         const newSellerProduct: SellerProduct = {
@@ -130,13 +142,8 @@ export default function AiProductUploaderPage() {
             createdAt: new Date().toISOString(),
         };
 
-        const storageKey = `seller_products_${user.uid}`;
-        const existingProductsJSON = localStorage.getItem(storageKey);
-        const existingProducts: SellerProduct[] = existingProductsJSON ? JSON.parse(existingProductsJSON) : [];
-        const updatedProducts = [newSellerProduct, ...existingProducts];
-        
-        localStorage.setItem(storageKey, JSON.stringify(updatedProducts));
-        setUsageCount(updatedProducts.length);
+        await saveDocument('seller_products', newSellerProduct, newSellerProduct.id);
+        setUsageCount(prev => prev + 1);
     } catch(e) {
         console.error("Failed to save product to seller's catalog", e);
         toast({
@@ -176,7 +183,7 @@ export default function AiProductUploaderPage() {
         margin: parseFloat(margin),
       });
       setGeneratedListing(result);
-      saveGeneratedProduct(result);
+      await saveGeneratedProduct(result);
       toast({
         title: 'Listing Generated!',
         description: "Review the details below. This has also been saved to your 'My Products' page.",
@@ -461,5 +468,3 @@ export default function AiProductUploaderPage() {
     </AppShell>
   );
 }
-
-    

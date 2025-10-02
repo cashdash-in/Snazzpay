@@ -16,6 +16,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { Dialog, DialogTrigger } from '@/components/ui/dialog';
 import { ShareComposerDialog } from '@/components/share-composer-dialog';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { getCollection, saveDocument } from '@/services/firestore';
+import { getCookie } from 'cookies-next';
 
 export interface ProductDrop {
     id: string;
@@ -41,15 +43,24 @@ export default function VendorProductDropsPage() {
     const [imagePreviews, setImagePreviews] = useState<string[]>([]);
     const [imageDataUris, setImageDataUris] = useState<string[]>([]);
     const [usageCount, setUsageCount] = useState(0);
-    const isLimitReached = usageCount >= PRODUCT_DROP_LIMIT;
+    const [isLimitReached, setIsLimitReached] = useState(false);
     
     useEffect(() => {
-        if (user) {
-            const storedDrops = localStorage.getItem('product_drops');
-            const drops: ProductDrop[] = storedDrops ? JSON.parse(storedDrops) : [];
-            const vendorDrops = drops.filter(d => d.vendorId === user.uid);
-            setUsageCount(vendorDrops.length);
+        async function checkUsage() {
+            if (user) {
+                const role = getCookie('userRole');
+                if (role === 'admin') {
+                    setIsLimitReached(false);
+                    return;
+                }
+                const drops = await getCollection<ProductDrop>('product_drops');
+                const vendorDrops = drops.filter(d => d.vendorId === user.uid);
+                const count = vendorDrops.length;
+                setUsageCount(count);
+                setIsLimitReached(count >= PRODUCT_DROP_LIMIT);
+            }
         }
+        checkUsage();
     }, [user]);
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -74,7 +85,7 @@ export default function VendorProductDropsPage() {
         }
     };
     
-    const handleSendDrop = () => {
+    const handleSendDrop = async () => {
         if (!title || !description || !costPrice || imageDataUris.length === 0) {
             toast({
                 variant: 'destructive',
@@ -111,10 +122,8 @@ export default function VendorProductDropsPage() {
         };
 
         try {
-            const existingDrops = JSON.parse(localStorage.getItem('product_drops') || '[]');
-            const updatedDrops = [newDrop, ...existingDrops];
-            localStorage.setItem('product_drops', JSON.stringify(updatedDrops));
-            setUsageCount(updatedDrops.filter(d => d.vendorId === user.uid).length);
+            await saveDocument('product_drops', newDrop, newDrop.id);
+            setUsageCount(prev => prev + 1);
             
             toast({
                 title: 'Product Drop Sent!',
@@ -203,5 +212,3 @@ export default function VendorProductDropsPage() {
         </AppShell>
     );
 }
-
-    
