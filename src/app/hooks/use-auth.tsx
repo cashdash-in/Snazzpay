@@ -7,6 +7,7 @@ import {
   useState,
   useEffect,
   ReactNode,
+  useCallback,
 } from 'react';
 import {
   onAuthStateChanged,
@@ -21,7 +22,7 @@ import { getCookie } from 'cookies-next';
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  signOut: (isMultiRole?: boolean) => void;
+  signOut: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -40,26 +41,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => unsubscribe();
   }, []);
 
-  const signOut = async (isMultiRole: boolean = false) => {
+  const signOut = useCallback(async () => {
     try {
-        await firebaseSignOut(auth);
-        // Call the API route to clear the httpOnly cookie
-        await fetch('/api/auth/session', { method: 'DELETE' });
-    } catch (error) {
-        console.error("Error signing out:", error);
-    } finally {
         const role = getCookie('userRole');
-        let loginPath = '/auth/login'; // Default to admin
+        
+        await firebaseSignOut(auth);
+        await fetch('/api/auth/session', { method: 'DELETE' });
+        
+        let loginPath = '/auth/login'; // Default
+        
         if (role === 'seller') {
             loginPath = '/seller/login';
         } else if (role === 'vendor') {
             loginPath = '/vendor/login';
+        } else if (role === 'partner-pay') {
+            loginPath = '/partner-pay/login';
+        } else if (role === 'logistics') {
+            loginPath = '/logistics-secure/login';
         }
-        
+
         router.push(loginPath);
-        router.refresh(); // This helps ensure the new state is reflected everywhere
+        
+    } catch (error) {
+        console.error("Error signing out:", error);
     }
-  };
+  }, [router]);
 
   return (
     <AuthContext.Provider value={{ user, loading, signOut }}>
@@ -75,5 +81,3 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
-
-    

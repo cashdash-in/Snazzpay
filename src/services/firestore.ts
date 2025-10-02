@@ -1,42 +1,45 @@
 
-
-'use server';
-
 import { db } from '@/lib/firebase';
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, DocumentData, writeBatch } from 'firebase/firestore';
 
 export const getCollection = async <T>(collectionName: string): Promise<T[]> => {
-    if (!db) return [];
+    if (!db) {
+        console.error("Firestore is not initialized.");
+        return [];
+    }
     try {
         const q = query(collection(db, collectionName));
         const querySnapshot = await getDocs(q);
         return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as unknown as T));
     } catch (error) {
         console.error(`Error getting collection ${collectionName}:`, error);
-        return [];
+        throw new Error(`Could not load ${collectionName} from Firestore.`);
     }
 };
 
 export const getDocument = async <T>(collectionName: string, id: string): Promise<T | null> => {
-    if (!db) return null;
+    if (!db) {
+        console.error("Firestore is not initialized.");
+        return null;
+    }
     try {
         const docRef = doc(db, collectionName, id);
         const docSnap = await getDoc(docRef);
         return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } as T : null;
     } catch (error) {
         console.error(`Error getting document ${id} from ${collectionName}:`, error);
-        return null;
+        throw new Error(`Could not load document ${id} from ${collectionName}.`);
     }
 };
 
-export const saveDocument = async (collectionName: string, data: DocumentData) => {
+export const saveDocument = async (collectionName: string, data: DocumentData, id?: string) => {
     if (!db) throw new Error("Firestore is not initialized.");
-    const { id, ...rest } = data;
-    if (!id) throw new Error("Document data must include an 'id' field.");
+    const docId = id || data.id;
+    if (!docId) throw new Error("Document data must include an 'id' field or an id must be provided.");
     
-    const docRef = doc(db, collectionName, id);
+    const docRef = doc(db, collectionName, docId);
     await setDoc(docRef, data, { merge: true });
-    return id;
+    return docId;
 };
 
 
@@ -58,6 +61,37 @@ export const deleteDocument = async (collectionName: string, id: string) => {
     if (!db) throw new Error("Firestore is not initialized.");
     await deleteDoc(doc(db, collectionName, id));
 };
+
+export interface ChatUser {
+    id: string;
+    name: string;
+    role: 'admin' | 'seller' | 'vendor';
+    email: string;
+}
+
+export interface Chat {
+    id: string;
+    participants: string[];
+    participantNames: { [key: string]: string };
+    lastMessage?: {
+        type: 'text' | 'image';
+        content: string;
+    };
+    lastMessageTimestamp?: Date;
+    createdAt: Date;
+}
+
+export interface Message {
+    id: string;
+    chatId: string;
+    senderId: string;
+    content: {
+        type: 'text' | 'image';
+        content: string;
+    };
+    timestamp: Date;
+}
+
 
 export const createChat = async (chatId: string, participants: string[], participantNames: { [key: string]: string }): Promise<string> => {
     if (!db) throw new Error("Firestore is not initialized.");
@@ -98,5 +132,3 @@ export const sendMessage = async (chatId: string, senderId: string, content: any
     
     return newDoc.id;
 };
-
-    
