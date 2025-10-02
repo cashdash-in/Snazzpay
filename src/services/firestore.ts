@@ -28,10 +28,10 @@ export const getDocument = async <T>(collectionName: string, id: string): Promis
     }
 };
 
-export const saveDocument = async (collectionName: string, data: { id: string } & DocumentData, id?: string) => {
+export const saveDocument = async (collectionName: string, data: { id: string } & DocumentData) => {
     if (!db) throw new Error("Firestore is not initialized.");
-    const docId = id || data.id;
-    if (!docId) throw new Error("Document ID is missing.");
+    const docId = data.id;
+    if (!docId) throw new Error("Document ID is missing from the data object.");
     const docRef = doc(db, collectionName, docId);
     await setDoc(docRef, data, { merge: true });
     return docRef.id;
