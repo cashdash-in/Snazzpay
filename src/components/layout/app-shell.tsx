@@ -1,3 +1,4 @@
+
 'use client';
 import type {FC, PropsWithChildren} from 'react';
 import {
@@ -111,6 +112,7 @@ const vendorMenuItems = [
     { href: '/vendor/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/vendor/product-drops', label: 'Product Drops', icon: PackagePlus },
     { href: '/vendor/products', label: 'My Products', icon: Package },
+    { href: '/vendor/ai-product-uploader', label: 'AI Product Uploader', icon: Sparkles },
     { href: '/vendor/orders', label: 'Orders from Sellers', icon: ShoppingCart },
     { href: '/vendor/sellers', label: 'My Sellers', icon: Users },
     { href: '/vendor/earnings', label: 'Earnings', icon: DollarSign },
