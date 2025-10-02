@@ -11,7 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
 import type { EditableOrder } from '@/app/orders/page';
 import { getRazorpayKeyId } from '@/app/actions';
-import { addDocument, saveDocument } from '@/services/firestore';
+import { addDocument, saveDocument, getDocument } from '@/services/firestore';
 import { format, addYears } from 'date-fns';
 import type { ShaktiCardData } from '@/components/shakti-card';
 import { sanitizePhoneNumber } from '@/lib/utils';
@@ -74,15 +74,15 @@ function SecureCodPaymentForm() {
 
     }, [searchParams, toast]);
     
-    const createNewShaktiCard = (order: EditableOrder) => {
+    const createNewShaktiCard = async (order: EditableOrder) => {
         if (!order.contactNo || !order.customerEmail) return;
 
         const sanitizedMobile = sanitizePhoneNumber(order.contactNo);
         const cardStorageKey = `shakti_card_${sanitizedMobile}`;
         
-        const existingCardsJSON = localStorage.getItem('shakti_cards_db') || '[]';
-        const existingCards = JSON.parse(existingCardsJSON);
-        if(existingCards.some((c: ShaktiCardData) => c.customerPhone === order.contactNo)) return;
+        // This would be a Firestore query in a real app to check for existence
+        const existingCard = await getDocument<ShaktiCardData>('shakti_cards', cardStorageKey);
+        if (existingCard) return;
 
         const newCard: ShaktiCardData = {
             cardNumber: `SHAKTI-${uuidv4().substring(0, 4).toUpperCase()}-${uuidv4().substring(0, 4).toUpperCase()}`,
@@ -98,9 +98,7 @@ function SecureCodPaymentForm() {
             sellerName: 'Snazzify',
         };
         
-        addDocument('shakti_cards', newCard);
-        existingCards.push(newCard);
-        localStorage.setItem('shakti_cards_db', JSON.stringify(existingCards));
+        await saveDocument('shakti_cards', newCard, newCard.cardNumber);
         
         toast({
             title: "Shakti Card Issued!",
@@ -183,14 +181,15 @@ function SecureCodPaymentForm() {
                         };
 
                         await saveDocument('orders', finalOrder, finalOrder.id);
-                        localStorage.setItem(`payment_info_${finalOrder.orderId}`, JSON.stringify(paymentInfo));
+                        await saveDocument('payment_info', paymentInfo, finalOrder.orderId);
+                        
                         // Update lead status to converted
                         const leadDoc = await getDocument('leads', newLead.id);
                         if(leadDoc) {
                            await saveDocument('leads', { ...newLead, paymentStatus: 'Converted' }, newLead.id);
                         }
                         
-                        createNewShaktiCard(finalOrder);
+                        await createNewShaktiCard(finalOrder);
                         
                         toast({ title: "Payment Successful!", description: `Your payment is Authorized. Order ${finalOrder.orderId} confirmed.` });
                         setStep('complete');
@@ -334,5 +333,7 @@ function Page() {
 export default Page;
 
 
+
+    
 
     

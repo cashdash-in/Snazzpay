@@ -20,6 +20,7 @@ import { format, addYears } from 'date-fns';
 import { sanitizePhoneNumber } from '@/lib/utils';
 import { ShaktiCard, ShaktiCardData } from '@/components/shakti-card';
 import Link from 'next/link';
+import { getCollection, getDocument, saveDocument } from '@/services/firestore';
 
 type PaymentInfo = {
     paymentId: string;
@@ -63,22 +64,21 @@ export default function CustomerDashboardPage() {
     const [paymentInfos, setPaymentInfos] = useState<Map<string, PaymentInfo>>(new Map());
     const [shaktiCard, setShaktiCard] = useState<ShaktiCardData | null>(null);
 
-     const loadCustomerData = useCallback((mobileNumber: string) => {
+     const loadCustomerData = useCallback(async (mobileNumber: string) => {
         setIsLoading(true);
         try {
             const sanitizedMobile = sanitizePhoneNumber(mobileNumber);
-
-            const allOrdersJSON = localStorage.getItem('manualOrders');
-            const allOrders: EditableOrder[] = allOrdersJSON ? JSON.parse(allOrdersJSON) : [];
+            
+            const allOrders = await getCollection<EditableOrder>('orders');
             const customerOrders = allOrders.filter(order => order.contactNo && sanitizePhoneNumber(order.contactNo) === sanitizedMobile);
             
             const loadedPaymentInfos = new Map<string, PaymentInfo>();
-            customerOrders.forEach(order => {
-                const paymentInfoJSON = localStorage.getItem(`payment_info_${order.orderId}`);
-                if (paymentInfoJSON) {
-                    loadedPaymentInfos.set(order.orderId, JSON.parse(paymentInfoJSON));
-                }
-            });
+            for (const order of customerOrders) {
+                 const paymentInfo = await getDocument<PaymentInfo>('payment_info', order.orderId);
+                 if (paymentInfo) {
+                    loadedPaymentInfos.set(order.orderId, paymentInfo);
+                 }
+            }
 
             const finalOrders = customerOrders.filter(o => o.paymentStatus !== 'Intent Verified');
 
@@ -92,14 +92,15 @@ export default function CustomerDashboardPage() {
             setTrustWalletValue(activeTrustValue);
             setOrders(finalOrders);
             setPaymentInfos(loadedPaymentInfos);
-
-            const shaktiCardJSON = localStorage.getItem(`shakti_card_${sanitizedMobile}`);
-            if (shaktiCardJSON) {
-                setShaktiCard(JSON.parse(shaktiCardJSON));
+            
+            const allCards = await getCollection<ShaktiCardData>('shakti_cards');
+            const customerCard = allCards.find(card => card.customerPhone === sanitizedMobile);
+            if (customerCard) {
+                setShaktiCard(customerCard);
             }
 
         } catch (error) {
-            console.error("Error loading customer data from localStorage:", error);
+            console.error("Error loading customer data from Firestore:", error);
             toast({ variant: 'destructive', title: "Error", description: "Could not load your account details." });
         } finally {
             setIsLoading(false);
@@ -141,18 +142,11 @@ export default function CustomerDashboardPage() {
             const result = await response.json();
             if (!response.ok) throw new Error(result.error || 'Failed to process cancellation.');
             
-            // Update local storage
-            const allOrdersJSON = localStorage.getItem('manualOrders');
-            if (allOrdersJSON) {
-                let allOrders: EditableOrder[] = JSON.parse(allOrdersJSON);
-                allOrders = allOrders.map(o => o.id === order.id ? {...o, paymentStatus: 'Voided', cancellationStatus: 'Processed'} : o);
-                localStorage.setItem('manualOrders', JSON.stringify(allOrders));
-            }
-             const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
-             const newOverrides = { ...storedOverrides, paymentStatus: 'Voided', cancellationStatus: 'Processed' };
-             localStorage.setItem(`order-override-${order.id}`, JSON.stringify(newOverrides));
+            // Update Firestore
+            const updatedOrderData = { paymentStatus: 'Voided', cancellationStatus: 'Processed' };
+            await saveDocument('orders', { ...order, ...updatedOrderData }, order.id);
 
-            setOrders(prev => prev.map(o => o.id === order.id ? {...o, paymentStatus: 'Voided', cancellationStatus: 'Processed'} : o));
+            setOrders(prev => prev.map(o => o.id === order.id ? {...o, ...updatedOrderData} : o));
             setTrustWalletValue(prev => prev - parseFloat(order.price || '0'));
             toast({ title: "Order Cancelled", description: `Your order ${order.orderId} has been successfully cancelled.` });
         
@@ -387,5 +381,7 @@ export default function CustomerDashboardPage() {
         </div>
     );
 }
+
+    
 
     

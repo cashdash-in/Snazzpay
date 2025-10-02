@@ -25,6 +25,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import type { DateRange } from "react-day-picker";
 import * as XLSX from 'xlsx';
+import { getCollection, saveDocument, getDocument } from '@/services/firestore';
 
 
 type TransactionStatus = 'In Process' | 'Completed' | 'Refunded' | 'Refund Requested';
@@ -42,6 +43,7 @@ type Transaction = {
     commission: number; // Profit from this transaction
     shaktiCardNumber?: string;
     discountApplied?: number;
+    partnerId: string;
 };
 
 type CashCode = {
@@ -67,8 +69,6 @@ type VerifiedCardInfo = ShaktiCardData & {
     discount: number 
 };
 
-
-const initialTransactions: Transaction[] = [];
 
 const initialParcels = [
     { id: '#SNZ-9876', customer: 'Priya S.', customerPhone: '9988776655', customerAddress: 'A-101, Rose Apartments, Mumbai', productName: 'Designer Watch', status: 'Waiting for Pickup', awb: 'DLV123456', courier: 'Delhivery', dispatchDate: '2024-05-23', estArrival: '2024-05-25' },
@@ -217,40 +217,29 @@ export default function PartnerPayDashboardPage() {
 
 
     useEffect(() => {
-        const loggedInPartnerId = localStorage.getItem('loggedInPartnerId');
-        if (!loggedInPartnerId) {
-            router.push('/partner-pay/login');
-            return;
+        async function loadPartnerData() {
+            const loggedInPartnerId = localStorage.getItem('loggedInPartnerId');
+            if (!loggedInPartnerId) {
+                router.push('/partner-pay/login');
+                return;
+            }
+
+            const currentPartner = await getDocument<PartnerData>('payPartners', loggedInPartnerId);
+            if (!currentPartner) {
+                toast({ variant: 'destructive', title: "Authentication Error", description: "Could not find your partner details." });
+                router.push('/partner-pay/login');
+                return;
+            }
+            setPartner(currentPartner);
+
+            getRazorpayKeyId().then(key => setRazorpayKeyId(key));
+            
+            const allTransactions = await getCollection<Transaction>('partner_transactions');
+            setTransactions(allTransactions.filter(tx => tx.partnerId === loggedInPartnerId));
         }
 
-        const allPartnersJSON = localStorage.getItem('payPartners');
-        const allPartners: PartnerData[] = allPartnersJSON ? JSON.parse(allPartnersJSON) : [];
-        const currentPartner = allPartners.find(p => p.id === loggedInPartnerId);
-
-        if (!currentPartner) {
-            toast({ variant: 'destructive', title: "Authentication Error", description: "Could not find your partner details." });
-            router.push('/partner-pay/login');
-            return;
-        }
-
-        setPartner(currentPartner);
-
-        getRazorpayKeyId().then(key => setRazorpayKeyId(key));
-        
-        const storedTransactions = localStorage.getItem(`partnerTransactions_${loggedInPartnerId}`);
-        setTransactions(storedTransactions ? JSON.parse(storedTransactions) : initialTransactions);
-
+        loadPartnerData();
     }, [router, toast]);
-
-    useEffect(() => {
-        if (partner) {
-            localStorage.setItem(`partnerTransactions_${partner.id}`, JSON.stringify(transactions));
-            const allPartnersJSON = localStorage.getItem('payPartners');
-            let allPartners: PartnerData[] = allPartnersJSON ? JSON.parse(allPartnersJSON) : [];
-            allPartners = allPartners.map(p => p.id === partner.id ? partner : p);
-            localStorage.setItem('payPartners', JSON.stringify(allPartners));
-        }
-    }, [transactions, partner]);
 
     const profitData = useMemo(() => {
         const monthlyProfit: { [key: string]: number } = {};
@@ -279,14 +268,13 @@ export default function PartnerPayDashboardPage() {
         router.push('/partner-pay/login');
     };
 
-    const handleVerifyShaktiCard = () => {
+    const handleVerifyShaktiCard = async () => {
         if (!shaktiCardNumber && !shaktiSearchPhone) return;
         setIsVerifyingCard(true);
         setVerifiedCardInfo(null);
     
-        // Simulate API call to fetch card benefits
-        setTimeout(() => {
-            const allCards: ShaktiCardData[] = JSON.parse(localStorage.getItem('shakti_cards_db') || '[]');
+        try {
+            const allCards = await getCollection<ShaktiCardData>('shakti_cards');
             let foundCard: ShaktiCardData | undefined;
 
             if (shaktiCardNumber) {
@@ -305,9 +293,12 @@ export default function PartnerPayDashboardPage() {
                 setVerifiedCardInfo(null);
                 toast({ variant: 'destructive', title: "Invalid Card", description: "No Shakti Card was found for the provided details." });
             }
+        } catch(e) {
+            toast({ variant: 'destructive', title: "Verification Failed", description: "Could not connect to the database to verify the card."});
+        } finally {
             setIsVerifyingCard(false);
             setShaktiSearchPhone('');
-        }, 500);
+        }
     };
     
     const handleSettleWithSeller = async () => {
@@ -348,7 +339,7 @@ export default function PartnerPayDashboardPage() {
                 order_id: result.order_id,
                 name: "Settle with Snazzify Seller",
                 description: `Settlement of ₹${finalAmount.toFixed(2)}`,
-                handler: (response: any) => {
+                handler: async (response: any) => {
                     const newTransaction: Transaction = {
                         id: uuidv4().substring(0, 8).toUpperCase(),
                         customerName: customerInfo.name,
@@ -361,15 +352,19 @@ export default function PartnerPayDashboardPage() {
                         commission: parseFloat(transactionValue) * 0.02,
                         shaktiCardNumber: shaktiCardNumber || undefined,
                         discountApplied: discountToApply,
+                        partnerId: partner.id,
                     };
+                    await saveDocument('partner_transactions', newTransaction, newTransaction.id);
                     setTransactions(prev => [newTransaction, ...prev]);
-                    setPartner(prev => prev ? ({ ...prev, balance: prev.balance - finalAmount }) : null);
+                    
+                    const newPartnerBalance = partner.balance - finalAmount;
+                    await saveDocument('payPartners', { balance: newPartnerBalance }, partner.id);
+                    setPartner(prev => prev ? ({ ...prev, balance: newPartnerBalance }) : null);
 
                     // Update Shakti Card points
                     if (verifiedCardInfo && shaktiCardNumber) {
-                        const allCards: ShaktiCardData[] = JSON.parse(localStorage.getItem('shakti_cards_db') || '[]');
-                        const updatedCards = allCards.map(c => c.cardNumber === shaktiCardNumber ? {...c, points: c.points - (discountToApply * 10)} : c);
-                        localStorage.setItem('shakti_cards_db', JSON.stringify(updatedCards));
+                        const newPoints = verifiedCardInfo.points - (discountToApply * 10);
+                        await saveDocument('shakti_cards', { points: newPoints }, verifiedCardInfo.cardNumber);
                     }
 
                     toast({ title: "Settlement Successful!", description: `Transaction code ${response.razorpay_payment_id} is now in your transaction list.` });
@@ -392,53 +387,41 @@ export default function PartnerPayDashboardPage() {
         }
     };
 
-    const handleGenerateCustomerCode = () => {
+    const handleGenerateCustomerCode = async () => {
         if (!sellerCodeToProcess) {
             toast({ variant: 'destructive', title: "Verification Required", description: "Please enter the Seller Transaction Code." });
             return;
         }
         
-        let txFound = false;
-        let pointsEarned = 0;
-        let cardToUpdate = '';
-        let sellerIdForRules = 'default';
-
-        setTransactions(prev => prev.map(tx => {
-            if (tx.sellerTransactionCode === sellerCodeToProcess && tx.status === 'In Process') {
-                txFound = true;
-                const customerCode = `CUST-${uuidv4().substring(0, 8).toUpperCase()}`;
-                
-                // Add points to Shakti Card
-                if (tx.shaktiCardNumber) {
-                    const allRules: Record<string, { pointsPerRupee: number }> = JSON.parse(localStorage.getItem('shakti_card_rules_db') || '{}');
-                    const allCards: ShaktiCardData[] = JSON.parse(localStorage.getItem('shakti_cards_db') || '[]');
-                    const cardDetails = allCards.find(c => c.cardNumber === tx.shaktiCardNumber);
-                    sellerIdForRules = cardDetails?.sellerId || 'default';
-                    const rules = allRules[sellerIdForRules] || { pointsPerRupee: 0.01 };
-                    pointsEarned = Math.floor(tx.value * rules.pointsPerRupee);
-                    cardToUpdate = tx.shaktiCardNumber;
-                }
-
-                toast({ title: "Customer Code Generated!", description: `Share this code with the customer: ${customerCode}` });
-                return { ...tx, status: 'Completed', customerCode: customerCode };
-            }
-            return tx;
-        }));
-
-        if (txFound && cardToUpdate) {
-            const allCards: ShaktiCardData[] = JSON.parse(localStorage.getItem('shakti_cards_db') || '[]');
-            const updatedCards = allCards.map(c => c.cardNumber === cardToUpdate ? {...c, points: c.points + pointsEarned} : c);
-            localStorage.setItem('shakti_cards_db', JSON.stringify(updatedCards));
+        const txToUpdate = transactions.find(tx => tx.sellerTransactionCode === sellerCodeToProcess && tx.status === 'In Process');
+        
+        if (!txToUpdate) {
+            toast({ variant: 'destructive', title: 'Transaction Not Found', description: 'Could not find an "In Process" transaction with that Seller Code.'});
+            return;
         }
 
-        if (!txFound) {
-            toast({ variant: 'destructive', title: 'Transaction Not Found', description: 'Could not find an "In Process" transaction with that Seller Code.'})
+        const customerCode = `CUST-${uuidv4().substring(0, 8).toUpperCase()}`;
+        const updatedTx = { ...txToUpdate, status: 'Completed' as TransactionStatus, customerCode: customerCode };
+        await saveDocument('partner_transactions', updatedTx, updatedTx.id);
+
+        let pointsEarned = 0;
+        if (updatedTx.shaktiCardNumber) {
+            const rules = await getDocument<any>('shakti_card_rules_db', 'default');
+            const pointsRule = rules?.pointsPerRupee || 0.01;
+            pointsEarned = Math.floor(updatedTx.value * pointsRule);
+            
+            const card = await getDocument<ShaktiCardData>('shakti_cards', updatedTx.shaktiCardNumber);
+            if (card) {
+                await saveDocument('shakti_cards', { points: card.points + pointsEarned }, card.cardNumber);
+            }
         }
         
+        setTransactions(prev => prev.map(tx => tx.id === updatedTx.id ? updatedTx : tx));
+        toast({ title: "Customer Code Generated!", description: `Share this code with the customer: ${customerCode}` });
         setSellerCodeToProcess('');
     };
     
-    const handleGenerateCashCode = () => {
+    const handleGenerateCashCode = async () => {
         const amount = parseFloat(cashAmount);
         if (!cashAmount || amount <= 0 || !partner) {
             toast({ variant: 'destructive', title: "Invalid Amount", description: "Please enter a valid cash amount." });
@@ -453,8 +436,7 @@ export default function PartnerPayDashboardPage() {
             status: 'Pending',
         };
 
-        const existingCodes = JSON.parse(localStorage.getItem('cashCodes') || '[]');
-        localStorage.setItem('cashCodes', JSON.stringify([...existingCodes, newCode]));
+        await saveDocument('cash_codes', newCode, newCode.code);
 
         toast({
             title: "Cash Collection Code Generated!",
@@ -482,22 +464,34 @@ export default function PartnerPayDashboardPage() {
             });
             const result = await response.json();
             if (!response.ok) throw new Error(result.error);
-            setTransactions(prev => prev.map(t => t.id === tx.id ? {...t, status: 'Refunded'} : t));
-            setPartner(prev => prev ? ({ ...prev, balance: prev.balance + tx.value }) : null); // Refund coins
+            
+            const updatedTx = { ...tx, status: 'Refunded' as TransactionStatus };
+            await saveDocument('partner_transactions', updatedTx, updatedTx.id);
+            setTransactions(prev => prev.map(t => t.id === tx.id ? updatedTx : t));
+            
+            if (partner) {
+                 const newBalance = partner.balance + tx.value;
+                 await saveDocument('payPartners', { balance: newBalance }, partner.id);
+                 setPartner({ ...partner, balance: newBalance });
+            }
+            
             toast({ title: "Refund Processed", description: `Refund for ₹${tx.value} has been successfully initiated.`});
         } catch (e: any) {
             toast({ variant: 'destructive', title: "Refund Failed", description: e.message });
         }
     };
     
-    const handleRequestRefund = (tx: Transaction) => {
-        let partnerCancellations = JSON.parse(localStorage.getItem('partnerCancellations') || '[]');
-        partnerCancellations.push({
+    const handleRequestRefund = async (tx: Transaction) => {
+        const cancellationRequest = {
             ...tx,
             requestDate: new Date().toISOString(),
-        });
-        localStorage.setItem('partnerCancellations', JSON.stringify(partnerCancellations));
-        setTransactions(prev => prev.map(t => t.id === tx.id ? {...t, status: 'Refund Requested'} : t));
+        };
+        await saveDocument('partnerCancellations', cancellationRequest, tx.id);
+        
+        const updatedTx = { ...tx, status: 'Refund Requested' as TransactionStatus };
+        await saveDocument('partner_transactions', updatedTx, updatedTx.id);
+        setTransactions(prev => prev.map(t => t.id === tx.id ? updatedTx : t));
+        
         toast({ title: "Refund Requested", description: `Your request for order ${tx.id} has been sent to the seller.`});
     };
 
@@ -530,7 +524,7 @@ export default function PartnerPayDashboardPage() {
                 amount: price * 100,
                 name: "Snazzify Coin Top-up",
                 description: `Purchase ${coins.toLocaleString()} Snazzify Coins`,
-                handler: (response: any) => {
+                handler: async (response: any) => {
                     const newTopUpRequest: TopUpRequest = {
                         id: uuidv4(),
                         partnerId: partner.id,
@@ -542,9 +536,8 @@ export default function PartnerPayDashboardPage() {
                         requestDate: new Date().toISOString(),
                     };
 
-                    const existingRequests = JSON.parse(localStorage.getItem('topUpRequests') || '[]');
-                    localStorage.setItem('topUpRequests', JSON.stringify([...existingRequests, newTopUpRequest]));
-
+                    await saveDocument('topUpRequests', newTopUpRequest, newTopUpRequest.id);
+                    
                     toast({ title: "Payment Successful!", description: `Your request for ${coins.toLocaleString()} coins has been sent for approval.` });
                     setIsToppingUp(false);
                     document.getElementById('close-topup-dialog')?.click();
@@ -884,3 +877,5 @@ export default function PartnerPayDashboardPage() {
         </div>
     );
 }
+
+    

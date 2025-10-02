@@ -11,6 +11,7 @@ import { Loader2 } from 'lucide-react';
 import { sanitizePhoneNumber } from '@/lib/utils';
 import { ShaktiCard, ShaktiCardData } from '@/components/shakti-card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { getCollection } from '@/services/firestore';
 
 
 export default function ShaktiCardDetailsPage() {
@@ -26,14 +27,27 @@ export default function ShaktiCardDetailsPage() {
             return;
         }
 
-        const cardDataJSON = localStorage.getItem(`shakti_card_${sanitizePhoneNumber(loggedInMobile)}`);
-        if (cardDataJSON) {
-            setShaktiCard(JSON.parse(cardDataJSON));
-        } else {
-            toast({ variant: 'destructive', title: "No Card Found", description: "We couldn't find a Shakti Card associated with your account."});
-            router.push('/customer/dashboard');
+        async function fetchCard() {
+            try {
+                const sanitizedMobile = sanitizePhoneNumber(loggedInMobile);
+                const allCards = await getCollection<ShaktiCardData>('shakti_cards');
+                const customerCard = allCards.find(card => card.customerPhone === sanitizedMobile);
+                
+                if (customerCard) {
+                    setShaktiCard(customerCard);
+                } else {
+                    toast({ variant: 'destructive', title: "No Card Found", description: "We couldn't find a Shakti Card associated with your account."});
+                    router.push('/customer/dashboard');
+                }
+            } catch (e) {
+                toast({ variant: 'destructive', title: "Error", description: "Could not fetch your card details."});
+            } finally {
+                setIsLoading(false);
+            }
         }
-        setIsLoading(false);
+        
+        fetchCard();
+        
     }, [router, toast]);
 
 
@@ -116,3 +130,5 @@ export default function ShaktiCardDetailsPage() {
         </div>
     );
 }
+
+    
