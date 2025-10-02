@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, PackagePlus, Lock } from 'lucide-react';
+import { Loader2, PackagePlus, Lock, Wand2 } from 'lucide-react';
 import Image from 'next/image';
 import { useAuth } from '@/hooks/use-auth';
 import { v4 as uuidv4 } from 'uuid';
@@ -19,6 +19,7 @@ import { ShareComposerDialog } from '@/components/share-composer-dialog';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { getCollection, saveDocument, getDocument } from '@/services/firestore';
 import { getCookie } from 'cookies-next';
+import { createProductFromText } from '@/ai/flows/create-product-from-text';
 
 export interface ProductDrop {
     id: string;
@@ -38,6 +39,7 @@ export default function VendorProductDropsPage() {
     const { user } = useAuth();
     const { toast } = useToast();
     const [isLoading, setIsLoading] = useState(false);
+    const [isPasting, setIsPasting] = useState(false);
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [costPrice, setCostPrice] = useState('');
@@ -156,6 +158,31 @@ export default function VendorProductDropsPage() {
         }
     };
 
+    const handleMagicPaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+        const pastedText = e.clipboardData.getData('text');
+        if (pastedText.trim().length < 10) return;
+
+        setIsPasting(true);
+        try {
+            const result = await createProductFromText({ text: pastedText });
+            setTitle(result.title);
+            setDescription(result.description);
+            toast({
+                title: "AI Parsing Complete!",
+                description: "Product title and description have been filled in.",
+            });
+        } catch (error: any) {
+             toast({
+                variant: 'destructive',
+                title: 'AI Parsing Failed',
+                description: error.message || 'Could not process the pasted text.',
+            });
+        } finally {
+            setIsPasting(false);
+        }
+    };
+
+
     return (
         <AppShell title="Create Product Drop">
              {isLimitReached && (
@@ -175,6 +202,16 @@ export default function VendorProductDropsPage() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
+                    <div className="relative space-y-2">
+                        <Label htmlFor="magic-paste">Magic Paste Box (AI-Powered)</Label>
+                        {isPasting && <Loader2 className="absolute top-8 right-2 h-4 w-4 animate-spin text-primary" />}
+                        <Textarea 
+                            id="magic-paste"
+                            placeholder="Paste a WhatsApp chat or raw product text here and watch the AI fill the fields below..."
+                            onPaste={handleMagicPaste}
+                            className="bg-purple-50/50 border-purple-200 focus-visible:ring-purple-400"
+                        />
+                    </div>
                     <div className="space-y-2">
                         <Label htmlFor="title">Product Title</Label>
                         <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g., Premium Cotton Summer T-Shirt"/>

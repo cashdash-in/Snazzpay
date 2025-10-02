@@ -6,5 +6,6 @@
 import '@/ai/flows/create-explainer-video';
 import '@/ai/flows/create-product-listing';
 import '@/ai/flows/create-product-description';
+import '@/ai/flows/create-product-from-text';
 
     

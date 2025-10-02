@@ -36,6 +36,7 @@ import { getCookie } from 'cookies-next';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Dialog, DialogTrigger } from '@/components/ui/dialog';
 import { ShareComposerDialog } from '@/components/share-composer-dialog';
+import { createProductFromText } from '@/ai/flows/create-product-from-text';
 
 export interface SellerProduct extends ProductListingOutput {
     id: string;
@@ -50,6 +51,7 @@ export default function AiProductUploaderPage() {
   const { toast } = useToast();
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [isPasting, setIsPasting] = useState(false);
   const [isPushing, setIsPushing] = useState(false);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [imageDataUris, setImageDataUris] = useState<string[]>([]);
@@ -208,6 +210,30 @@ export default function AiProductUploaderPage() {
     }
   };
 
+   const handleMagicPaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+        const pastedText = e.clipboardData.getData('text');
+        if (pastedText.trim().length < 10) return;
+
+        setIsPasting(true);
+        try {
+            const result = await createProductFromText({ text: pastedText });
+            // For sellers, we only want to fill the description. They should provide their own title.
+            setVendorDescription(result.description);
+            toast({
+                title: "AI Parsing Complete!",
+                description: "Product description has been filled in from your pasted text.",
+            });
+        } catch (error: any) {
+             toast({
+                variant: 'destructive',
+                title: 'AI Parsing Failed',
+                description: error.message || 'Could not process the pasted text.',
+            });
+        } finally {
+            setIsPasting(false);
+        }
+    };
+
 
   return (
     <AppShell title="AI Product Uploader">
@@ -229,6 +255,16 @@ export default function AiProductUploaderPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+             <div className="relative space-y-2">
+                <Label htmlFor="magic-paste">Magic Paste Box (AI-Powered)</Label>
+                {isPasting && <Loader2 className="absolute top-8 right-2 h-4 w-4 animate-spin text-primary" />}
+                <Textarea 
+                    id="magic-paste"
+                    placeholder="Paste a WhatsApp chat or raw product text here to auto-fill the description below..."
+                    onPaste={handleMagicPaste}
+                    className="bg-purple-50/50 border-purple-200 focus-visible:ring-purple-400"
+                />
+            </div>
             <div className="space-y-2">
               <Label htmlFor="product-image">Product Images</Label>
               <Input
