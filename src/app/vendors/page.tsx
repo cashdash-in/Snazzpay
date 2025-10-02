@@ -81,13 +81,16 @@ export default function VendorsPage() {
             return;
         }
 
-        const vendorToAdd: Omit<Vendor, 'id'> = {
+        const vendorToAdd: Omit<Vendor, 'id' | 'status'> = {
             ...newVendor,
-            status: 'approved' // Admins add vendors as approved by default
+            name: newVendor.name,
+            contactPerson: newVendor.contactPerson,
+            phone: newVendor.phone,
+            email: newVendor.email
         };
         
         try {
-            const newId = await saveDocument('vendors', vendorToAdd);
+            await saveDocument('vendors', { ...vendorToAdd, status: 'approved' }); // Admins add vendors as approved by default
             await loadVendors(); // Reload all vendors to get updated list
             setNewVendor({ name: '', contactPerson: '', phone: '', email: '' });
             toast({ title: "Vendor Added", description: `${newVendor.name} has been added and approved.` });
