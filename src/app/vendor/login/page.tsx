@@ -34,32 +34,26 @@ export default function VendorLoginPage() {
         }
 
         let userEmail = loginId;
-        let isApproved = false;
-
+        
         try {
             const allVendors = await getCollection<Vendor>('vendors');
 
             if (/^\d+$/.test(loginId)) { // It's a phone number
-                const vendor = allVendors.find(v => v.phone === loginId && v.status === 'approved');
-
+                const vendor = allVendors.find(v => v.phone === loginId);
                 if (!vendor) {
-                    throw new Error("No approved vendor account found with this mobile number.");
+                    throw new Error("No vendor account found with this mobile number.");
+                }
+                if (vendor.status !== 'approved') {
+                    throw new Error("Your account is not yet approved. Please contact support.");
                 }
                 userEmail = vendor.email;
-                isApproved = true;
             }
 
             const userCredential = await signInWithEmailAndPassword(auth, userEmail, password);
             const loggedInUser = userCredential.user;
             
-            if (!isApproved) {
-                const vendor = allVendors.find(v => v.email === userEmail && v.status === 'approved');
-                if(vendor) {
-                    isApproved = true;
-                }
-            }
-
-            if (!isApproved) {
+            const vendorDetails = allVendors.find(v => v.id === loggedInUser.uid);
+            if (!vendorDetails || vendorDetails.status !== 'approved') {
                  await auth.signOut();
                  toast({ variant: 'destructive', title: "Access Denied", description: `Your vendor account is not approved. Please contact the admin.` });
                  setIsLoading(false);
@@ -68,7 +62,6 @@ export default function VendorLoginPage() {
 
             const idToken = await loggedInUser.getIdToken();
             
-            // Set session cookie with the 'vendor' role
             await fetch('/api/auth/session', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

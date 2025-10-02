@@ -34,34 +34,30 @@ export default function SellerLoginPage() {
         }
 
         let userEmail = loginId;
-        let isApproved = false;
         
         try {
             const allSellers = await getCollection<SellerUser>('seller_users');
 
-            if (/^\d+$/.test(loginId)) { // It's a phone number
-                const seller = allSellers.find(s => s.phone === loginId && s.status === 'approved');
-
+            // If loginId is a phone number, find the corresponding email first
+            if (/^\d+$/.test(loginId)) {
+                const seller = allSellers.find(s => s.phone === loginId);
                 if (!seller) {
-                    throw new Error("No approved seller account found with this mobile number.");
+                    throw new Error("No seller account found with this mobile number.");
+                }
+                if (seller.status !== 'approved') {
+                    throw new Error("Your account is not yet approved. Please contact support.");
                 }
                 userEmail = seller.email;
-                isApproved = true;
             }
 
+            // Attempt to sign in with the determined email
             const userCredential = await signInWithEmailAndPassword(auth, userEmail, password);
             const loggedInUser = userCredential.user;
             
-            // If logging in with email, we still need to check for approval
-            if (!isApproved) {
-                const seller = allSellers.find(s => s.email === userEmail && s.status === 'approved');
-                if (seller) {
-                    isApproved = true;
-                }
-            }
-
-            if (!isApproved) {
-                 await auth.signOut();
+            // After successful sign-in, verify the user's approval status from our DB
+            const sellerDetails = allSellers.find(s => s.id === loggedInUser.uid);
+            if (!sellerDetails || sellerDetails.status !== 'approved') {
+                 await auth.signOut(); // Log out the user if they are not approved
                  toast({ variant: 'destructive', title: "Access Denied", description: `Your account is not approved as a seller. Please contact support.` });
                  setIsLoading(false);
                  return;
