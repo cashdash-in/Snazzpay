@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, DragEvent, ClipboardEvent } from 'react';
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, PackagePlus, Wand2 } from 'lucide-react';
+import { Loader2, PackagePlus, Wand2, ImagePlus } from 'lucide-react';
 import Image from 'next/image';
 import { useAuth } from '@/hooks/use-auth';
 import { v4 as uuidv4 } from 'uuid';
@@ -30,25 +30,59 @@ export default function AdminProductDropsPage() {
     const [imagePreviews, setImagePreviews] = useState<string[]>([]);
     const [imageDataUris, setImageDataUris] = useState<string[]>([]);
     
+    const handleFiles = (files: FileList | File[]) => {
+        const newPreviews: string[] = [];
+        const newDataUris: string[] = [];
+        Array.from(files).forEach((file) => {
+            if (!file.type.startsWith('image/')) return;
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const result = reader.result as string;
+                newPreviews.push(result);
+                newDataUris.push(result);
+
+                if (newPreviews.length === Array.from(files).filter(f => f.type.startsWith('image/')).length) {
+                    setImagePreviews(prev => [...prev, ...newPreviews]);
+                    setImageDataUris(prev => [...prev, ...newDataUris]);
+                }
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
         if (files) {
-            const newPreviews: string[] = [];
-            const newDataUris: string[] = [];
-            Array.from(files).forEach((file) => {
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                    const result = reader.result as string;
-                    newPreviews.push(result);
-                    newDataUris.push(result);
+            handleFiles(files);
+        }
+    };
 
-                    if (newPreviews.length === files.length) {
-                        setImagePreviews(prev => [...prev, ...newPreviews]);
-                        setImageDataUris(prev => [...prev, ...newDataUris]);
-                    }
-                };
-                reader.readAsDataURL(file);
-            });
+    const handlePaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
+        const items = event.clipboardData?.items;
+        if (!items) return;
+        
+        const files = [];
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf('image') !== -1) {
+            const file = items[i].getAsFile();
+            if (file) {
+                files.push(file);
+            }
+            }
+        }
+        if(files.length > 0) {
+            event.preventDefault();
+            handleFiles(files);
+            toast({ title: 'Image(s) Pasted!', description: 'The image has been added to your product.' });
+        }
+    };
+    
+    const handleDrop = (event: DragEvent<HTMLDivElement>) => {
+        event.preventDefault();
+        const files = event.dataTransfer.files;
+        if (files) {
+            handleFiles(files);
+            toast({ title: 'Image(s) Dropped!', description: 'The image has been added to your product.' });
         }
     };
     
@@ -110,6 +144,10 @@ export default function AdminProductDropsPage() {
         const pastedText = e.clipboardData.getData('text');
         if (pastedText.trim().length < 10) return;
 
+        // Prevent the image paste handler from also firing
+        e.preventDefault();
+        e.stopPropagation();
+
         setIsPasting(true);
         try {
             const result = await createProductFromText({ text: pastedText });
@@ -162,11 +200,37 @@ export default function AdminProductDropsPage() {
                         <Label htmlFor="costPrice">Cost Price for Sellers (INR)</Label>
                         <Input id="costPrice" type="number" value={costPrice} onChange={(e) => setCostPrice(e.target.value)} placeholder="e.g., 199"/>
                     </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="product-images">Product Images</Label>
-                        <Input id="product-images" type="file" accept="image/*" onChange={handleImageChange} multiple className="cursor-pointer"/>
+                     <div className="space-y-2">
+                        <Label>Product Images</Label>
+                          <div 
+                            className="relative flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-muted/50"
+                            onDrop={handleDrop}
+                            onDragOver={(e) => e.preventDefault()}
+                            onClick={() => document.getElementById('product-image-input')?.click()}
+                          >
+                              <div className="text-center">
+                                <ImagePlus className="mx-auto h-8 w-8 text-muted-foreground" />
+                                <p className="mt-2 text-sm text-muted-foreground">
+                                  <span className="font-semibold">Click to upload</span> or drag and drop
+                                </p>
+                              </div>
+                          </div>
+                           <Textarea 
+                            placeholder="Or paste images here." 
+                            onPaste={handlePaste} 
+                            className="text-center placeholder:text-muted-foreground"
+                            rows={2}
+                          />
+                          <Input
+                            id="product-image-input"
+                            type="file"
+                            accept="image/*"
+                            onChange={handleImageChange}
+                            className="hidden"
+                            multiple
+                          />
                         {imagePreviews.length > 0 && (
-                            <div className="mt-4 grid grid-cols-3 md:grid-cols-5 gap-4 p-4 border-dashed border-2 rounded-lg">
+                            <div className="mt-4 grid grid-cols-3 md:grid-cols-5 gap-4 p-4 border rounded-lg">
                                 {imagePreviews.map((src, index) => (
                                     <Image key={index} src={src} alt={`Preview ${index + 1}`} width={150} height={150} className="object-contain rounded-md aspect-square"/>
                                 ))}
@@ -177,7 +241,7 @@ export default function AdminProductDropsPage() {
                 <CardFooter>
                     <Dialog>
                         <DialogTrigger asChild>
-                            <Button className="w-full" disabled={isLoading || !title || !description || imageDataUris.length === 0}>
+                            <Button className="w-full" onClick={handleSendDrop} disabled={isLoading || !title || !description || imageDataUris.length === 0}>
                                 {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <PackagePlus className="mr-2 h-4 w-4"/>}
                                 Create & Share Product Drop
                             </Button>
