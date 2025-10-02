@@ -32,6 +32,15 @@ type CustomerDetails = {
 
 type PaymentMethod = 'Prepaid' | 'Cash on Delivery';
 
+type PaymentInfo = {
+    paymentId: string;
+    orderId: string; 
+    razorpayOrderId: string;
+    signature: string;
+    status: string;
+    authorizedAt: string;
+};
+
 function SecureCodPaymentForm() {
     const searchParams = useSearchParams();
     const router = useRouter();
@@ -55,6 +64,39 @@ function SecureCodPaymentForm() {
     });
     const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Prepaid');
 
+    const createNewShaktiCard = async (order: EditableOrder) => {
+        if (!order.contactNo || !order.customerEmail) return;
+
+        const sanitizedMobile = sanitizePhoneNumber(order.contactNo);
+        
+        const existingCards = await getCollection<ShaktiCardData>('shakti_cards');
+        const cardExists = existingCards.some(card => card.customerPhone === sanitizedMobile);
+        if (cardExists) return;
+
+        const newCard: ShaktiCardData = {
+            cardNumber: `SHAKTI-${uuidv4().substring(0, 4).toUpperCase()}-${uuidv4().substring(0, 4).toUpperCase()}`,
+            customerName: order.customerName,
+            customerPhone: order.contactNo,
+            customerEmail: order.customerEmail,
+            customerAddress: order.customerAddress,
+            validFrom: format(new Date(), 'MM/yy'),
+            validThru: format(addYears(new Date(), 2), 'MM/yy'),
+            points: 100, // Welcome bonus
+            cashback: 0,
+            sellerId: order.sellerId || 'snazzify',
+            sellerName: 'Snazzify',
+        };
+
+        try {
+            await saveDocument('shakti_cards', newCard, newCard.cardNumber);
+            toast({
+                title: "Shakti Card Issued!",
+                description: "You've earned a Shakti Card for future benefits!",
+            });
+        } catch(e) {
+            console.error("Failed to save Shakti Card", e);
+        }
+    };
 
     useEffect(() => {
         const name = searchParams.get('name') || 'Your Product';
@@ -100,7 +142,7 @@ function SecureCodPaymentForm() {
                 paymentMethod: paymentMethod,
             };
             
-            await addDocument('leads', newLead);
+            await saveDocument('leads', newLead, newLead.id);
             
             toast({
                 title: "Order Request Sent!",
@@ -166,8 +208,10 @@ function SecureCodPaymentForm() {
                             paymentId: response.razorpay_payment_id, orderId: orderDetails.orderId, razorpayOrderId: response.razorpay_order_id,
                             signature: response.razorpay_signature, status: 'authorized', authorizedAt: new Date().toISOString()
                         };
+                        
                         await saveDocument('orders', finalOrder, finalOrder.id);
                         await saveDocument('payment_info', paymentInfo, finalOrder.orderId);
+                        await createNewShaktiCard(finalOrder); // Create card AFTER order is saved
                         
                         const leadDoc = await getDocument('leads', newLead.id);
                         if(leadDoc) await saveDocument('leads', { ...newLead, paymentStatus: 'Converted' }, newLead.id);

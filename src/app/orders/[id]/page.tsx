@@ -24,10 +24,10 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { getOrders, type Order as ShopifyOrder } from '@/services/shopify';
 import Link from 'next/link';
 import { v4 as uuidv4 } from 'uuid';
 import { sanitizePhoneNumber } from '@/lib/utils';
+import { getCollection, getDocument, saveDocument } from '@/services/firestore';
 
 type PaymentInfo = {
     paymentId: string;
@@ -37,30 +37,6 @@ type PaymentInfo = {
     status: string;
     authorizedAt: string;
 }
-
-function mapShopifyOrderToEditableOrder(shopifyOrder: ShopifyOrder): EditableOrder {
-    const customer = shopifyOrder.customer;
-    const customerName = customer ? `${customer.first_name || ''} ${customer.last_name || ''}`.trim() : 'N/A';
-    
-    const products = shopifyOrder.line_items.map(item => item.title).join(', ');
-
-    return {
-        id: shopifyOrder.id.toString(),
-        orderId: shopifyOrder.name,
-        customerName,
-        customerEmail: customer?.email || undefined,
-        customerAddress: shopifyOrder.shipping_address ? `${shopifyOrder.shipping_address.address1}, ${shopifyOrder.shipping_address.city}` : 'N/A',
-        pincode: shopifyOrder.shipping_address?.zip || 'N/A',
-        contactNo: shopifyOrder.customer?.phone || 'N/A',
-        productOrdered: products,
-        quantity: shopifyOrder.line_items.reduce((sum, item) => sum + item.quantity, 0),
-        price: shopifyOrder.total_price,
-        paymentStatus: shopifyOrder.financial_status || 'Pending',
-        date: format(new Date(shopifyOrder.created_at), "yyyy-MM-dd"),
-        source: 'Shopify'
-    };
-}
-
 
 function OrderDetailContent() {
     const router = useRouter();
@@ -86,49 +62,15 @@ function OrderDetailContent() {
         
         let foundOrder: EditableOrder | null = null;
         
-        let allOrders: EditableOrder[] = [];
-         try {
-            const shopifyOrders = await getOrders();
-            allOrders = allOrders.concat(shopifyOrders.map(mapShopifyOrderToEditableOrder));
-        } catch (e) {
-            console.error("Could not fetch Shopify orders", e);
-        }
-        const manualOrdersJSON = localStorage.getItem('manualOrders');
-        const manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
-        if (manualOrders) {
-            allOrders = allOrders.concat(manualOrders);
-        }
-        
-        const sellerOrdersJSON = localStorage.getItem('seller_orders');
-        if (sellerOrdersJSON) {
-            allOrders = allOrders.concat(JSON.parse(sellerOrdersJSON));
-        }
-        
-        foundOrder = allOrders.find(o => o.id === orderIdParam) || null;
+        // Check Firestore first
+        foundOrder = await getDocument<EditableOrder>('orders', orderIdParam) || await getDocument<EditableOrder>('leads', orderIdParam);
 
         if (foundOrder) {
-             const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${foundOrder.id}`) || '{}');
-             foundOrder = {...foundOrder, ...storedOverrides};
-             if (!foundOrder.cancellationId) {
-                foundOrder.cancellationId = `CNCL-${uuidv4().substring(0, 8).toUpperCase()}`;
-                localStorage.setItem(`order-override-${foundOrder.id}`, JSON.stringify({ ...storedOverrides, cancellationId: foundOrder.cancellationId }));
-             }
-             // Check if the order is already in the main processing flow (in manualOrders)
-             const isAlreadyProcessed = manualOrders.some(mo => mo.id === foundOrder?.id);
-             setIsProcessed(isAlreadyProcessed);
+             const paymentInfoDoc = await getDocument<PaymentInfo>('payment_info', foundOrder.orderId);
+             setPaymentInfo(paymentInfoDoc);
         }
         
         setOrder(foundOrder);
-
-        if (foundOrder) {
-            const paymentInfoJSON = localStorage.getItem(`payment_info_${foundOrder.orderId}`);
-            if (paymentInfoJSON) {
-                setPaymentInfo(JSON.parse(paymentInfoJSON));
-            } else {
-                setPaymentInfo(null);
-            }
-        }
-
         setLoading(false);
     }, [orderIdParam]);
     
@@ -146,60 +88,36 @@ function OrderDetailContent() {
         setOrder(prev => prev ? { ...prev, [field]: value } : null);
     };
 
-    const saveOrderToLocalStorage = () => {
+    const handleSave = async () => {
         if (!order) return;
+        
+        try {
+            await saveDocument('orders', order, order.id);
+             toast({
+                title: "Order Saved",
+                description: `Details for order ${order.orderId} have been updated successfully.`,
+            });
+        } catch(e) {
+            toast({ variant: 'destructive', title: "Error Saving", description: "Could not save order details to Firestore."});
+        }
+    };
 
-        // Determine if it's a Shopify order or an existing manual/seller order
-        if (order.source === 'Shopify') {
-            // For Shopify orders, we save overrides.
-             const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
-             const newOverrides = { ...storedOverrides, ...order };
-             localStorage.setItem(`order-override-${order.id}`, JSON.stringify(newOverrides));
-        } else {
-            // For manual/seller orders, we update them directly in their list.
-            const key = order.source === 'Seller' ? 'seller_orders' : 'manualOrders';
-            const listJson = localStorage.getItem(key);
-            let list: EditableOrder[] = listJson ? JSON.parse(listJson) : [];
-            const orderIndex = list.findIndex(o => o.id === order.id);
-            if (orderIndex > -1) {
-                list[orderIndex] = order;
-                localStorage.setItem(key, JSON.stringify(list));
-            }
+    const handleStartProcessing = async () => {
+        if (!order) return;
+        
+        try {
+            await saveDocument('orders', order, order.id);
+            setIsProcessed(true);
+            toast({
+                title: "Order Processing Started",
+                description: `Order ${order.orderId} is now active and visible across the dashboard.`
+            });
+        } catch(e) {
+            toast({ variant: 'destructive', title: "Error Starting Processing", description: "Could not save the order."});
         }
     };
     
-    const handleSave = () => {
-        if (!order) return;
-        saveOrderToLocalStorage();
-        toast({
-            title: "Order Saved",
-            description: `Details for order ${order.orderId} have been updated successfully.`,
-        });
-    };
-
-    const handleStartProcessing = () => {
-        if (!order) return;
-
-        // Add the order to manualOrders to make it appear everywhere
-        const manualOrdersJSON = localStorage.getItem('manualOrders');
-        let manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
-        
-        // Prevent duplicates
-        if (!manualOrders.some(o => o.id === order.id)) {
-            manualOrders.push(order);
-            localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
-        }
-        
-        saveOrderToLocalStorage(); // Also save any changes made
-        setIsProcessed(true); // Update UI to show Save Changes button
-        
-        toast({
-            title: "Order Processing Started",
-            description: `Order ${order.orderId} is now active and visible in Orders & Delivery Tracking.`
-        });
-    };
-    
-    const saveStatusAndFeeChange = (newStatus: string, fee?: string) => {
+    const saveStatusAndFeeChange = async (newStatus: string, fee?: string) => {
         if (!order) return;
         const updatedOrderData: Partial<EditableOrder> = { paymentStatus: newStatus };
         if (fee !== undefined) {
@@ -208,10 +126,12 @@ function OrderDetailContent() {
 
         const updatedOrder = { ...order, ...updatedOrderData };
         setOrder(updatedOrder);
-
-        const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
-        const newOverrides = { ...storedOverrides, ...updatedOrderData };
-        localStorage.setItem(`order-override-${order.id}`, JSON.stringify(newOverrides));
+        
+        try {
+            await saveDocument('orders', updatedOrderData, order.id);
+        } catch (e) {
+             toast({ variant: 'destructive', title: "Error updating order status." });
+        }
     };
 
     const handleChargePayment = async () => {
@@ -233,7 +153,7 @@ function OrderDetailContent() {
                 throw new Error(result.error || 'Failed to charge payment.');
             }
             
-            saveStatusAndFeeChange('Paid');
+            await saveStatusAndFeeChange('Paid');
 
             toast({
                 title: "Charge Successful!",
@@ -349,7 +269,7 @@ function OrderDetailContent() {
             if (!response.ok) {
                 throw new Error(result.error);
             }
-            saveStatusAndFeeChange('Fee Charged', cancellationFee);
+            await saveStatusAndFeeChange('Fee Charged', cancellationFee);
             toast({ title: "Success", description: result.message });
         } catch (error: any) {
             toast({ variant: 'destructive', title: "Fee Processing Failed", description: error.message });
@@ -410,7 +330,7 @@ function OrderDetailContent() {
                             Print Invoice
                           </Button>
                         </Link>
-                         {isProcessed ? (
+                         {isProcessed || order.source !== 'Shopify' ? (
                             <Button onClick={handleSave}>
                                 <Save className="mr-2 h-4 w-4" />
                                 Save Changes
