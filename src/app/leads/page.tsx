@@ -10,7 +10,7 @@ import { Loader2, Trash2, Send, Loader2 as ButtonLoader, ArrowRight } from "luci
 import { useToast } from "@/hooks/use-toast";
 import type { EditableOrder } from '../orders/page';
 import { format } from "date-fns";
-import { getAllOrders, saveOrder, deleteOrder as deleteFirestoreOrder, addDocument, getCollection, deleteDocument, saveDocument } from "@/services/firestore";
+import { getCollection, deleteDocument, saveDocument } from "@/services/firestore";
 import { useRouter } from "next/navigation";
 
 
@@ -26,13 +26,14 @@ export default function LeadsPage() {
     setLoading(true);
     try {
         const loadedLeads = await getCollection<EditableOrder>('leads');
-        setLeads(loadedLeads);
+        // Filter out any leads that have been converted
+        setLeads(loadedLeads.filter(lead => lead.paymentStatus !== 'Converted'));
     } catch (error) {
-        console.error("Failed to load leads:", error);
+        console.error("Failed to load leads from Firestore:", error);
         toast({
             variant: 'destructive',
             title: "Error loading leads",
-            description: "Could not load leads from Firestore.",
+            description: "Could not load leads from Firestore. Please check console for details.",
         });
     }
     setLoading(false);
@@ -107,7 +108,9 @@ export default function LeadsPage() {
         };
         
         await saveDocument('orders', newOrder, newOrder.id);
-        await deleteDocument('leads', lead.id);
+        
+        // Instead of deleting, we update the lead's status so it doesn't show up again
+        await saveDocument('leads', { ...lead, paymentStatus: 'Converted' }, lead.id);
         
         setLeads(prev => prev.filter(l => l.id !== lead.id));
 
