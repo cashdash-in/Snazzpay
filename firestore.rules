@@ -1,47 +1,58 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow registered users to read and write their own data
-    match /users/{userId} {
-      allow read, update, delete: if request.auth.uid == userId;
-      allow create: if request.auth.uid != null;
+    
+    // Default deny all reads and writes
+    // match /{document=**} {
+    //   allow read, write: if false;
+    // }
+
+    // Allow authenticated users to read from any collection.
+    // This is necessary for the dashboards and various pages to display data.
+    match /{path=**}/_ {
+      allow read: if request.auth != null;
     }
 
-    // Public collections that can be read by any authenticated user
-    match /orders/{orderId} {
-      allow read, list: if request.auth.uid != null;
-      allow write: if request.auth.uid != null; // More specific rules might be needed
-    }
-    
-    match /leads/{leadId} {
-        allow read, list, write, delete: if request.auth.uid != null;
-    }
-    
+    // Allow users to create their own user profile document upon signup
     match /seller_users/{userId} {
-        allow read, list: if request.auth.uid != null;
-        allow create: if request.auth.uid == userId;
-        allow update: if request.auth.uid != null; // Admin can update
+      allow read, create, update: if request.auth != null && request.auth.uid == userId;
     }
     
-    match /vendors/{vendorId} {
-         allow read, list: if request.auth.uid != null;
-         allow create: if request.auth.uid != null;
-         allow update: if request.auth.uid != null; // Admin can update
+    match /vendors/{userId} {
+       allow read, create, update: if request.auth != null && request.auth.uid == userId;
     }
     
-    match /chats/{chatId} {
-      allow read, write: if request.auth.uid in resource.data.participants;
-      match /messages/{messageId} {
-        allow read, create: if request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
-      }
+    // Allow general read for authenticated users on most collections
+    match /orders/{orderId} {
+      allow read: if request.auth != null;
+    }
+    match /leads/{leadId} {
+      allow read: if request.auth != null;
+    }
+    match /user_permissions/{userId} {
+      allow read: if request.auth != null;
+    }
+    match /seller_payment_settings/{userId} {
+      allow read: if request.auth != null;
+    }
+     match /vendor_payment_settings/{userId} {
+      allow read: if request.auth != null;
+    }
+    match /product_drops/{dropId} {
+        allow read: if request.auth != null;
+    }
+     match /seller_products/{productId} {
+        allow read: if request.auth != null;
+    }
+    match /shakti_cards/{cardId} {
+        allow read: if request.auth != null;
     }
 
-    // Allow any authenticated user to read from any collection.
-    // This is a broad rule for development and should be refined for production.
+    // For now, allow any authenticated user to write to any document.
+    // This is NOT secure for production, but it will unblock all current issues.
+    // We will tighten these rules in subsequent steps.
     match /{document=**} {
-      allow get, list: if request.auth.uid != null;
-      allow write: if request.auth.uid != null; // Placeholder for more specific rules
+      allow write: if request.auth != null;
     }
   }
 }
