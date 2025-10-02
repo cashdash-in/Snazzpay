@@ -2,8 +2,11 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    // This is an open rule for development.
+    // It allows any client to read and write to the entire database.
+    // We will secure this later.
     match /{document=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if true;
     }
   }
 }
