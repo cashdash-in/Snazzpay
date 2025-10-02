@@ -1,5 +1,4 @@
 
-
 'use client';
 import { useState, useEffect } from "react";
 import { AppShell } from "@/components/layout/app-shell";
@@ -10,24 +9,19 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { getDocument, saveDocument, getCollection } from "@/services/firestore";
+import { getDocument, saveDocument } from "@/services/firestore";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { Terminal, PackagePlus, Sparkles } from "lucide-react";
-import type { SellerProduct } from '@/app/seller/ai-product-uploader/page';
+import { Terminal } from "lucide-react";
 
 type PaymentSettings = {
     razorpay_key_id: string;
     razorpay_key_secret: string;
 };
 
-const AI_UPLOADER_LIMIT = 50;
-
 export default function SellerSettingsPage() {
     const { user } = useAuth();
     const { toast } = useToast();
     const [paymentSettings, setPaymentSettings] = useState<PaymentSettings>({ razorpay_key_id: '', razorpay_key_secret: '' });
-    const [usage, setUsage] = useState({ drops: 0, aiUploads: 0 });
-    const [limit, setLimit] = useState(AI_UPLOADER_LIMIT);
 
     useEffect(() => {
         if (user) {
@@ -36,20 +30,6 @@ export default function SellerSettingsPage() {
                     setPaymentSettings(settings);
                 }
             });
-
-            async function fetchUsageAndLimits() {
-                const [allProducts, permissions] = await Promise.all([
-                    getCollection<SellerProduct>('seller_products'),
-                    getDocument<{aiUploadLimit?: number}>('user_permissions', user!.uid)
-                ]);
-
-                const sellerProducts = allProducts.filter(p => p.sellerId === user.uid);
-                setUsage({ drops: 0, aiUploads: sellerProducts.length });
-                if (permissions?.aiUploadLimit) {
-                    setLimit(permissions.aiUploadLimit);
-                }
-            }
-            fetchUsageAndLimits();
         }
     }, [user]);
 
@@ -73,10 +53,9 @@ export default function SellerSettingsPage() {
     return (
         <AppShell title="My Settings">
             <Tabs defaultValue="profile">
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="profile">My Profile</TabsTrigger>
                     <TabsTrigger value="payments">Payment Gateway</TabsTrigger>
-                    <TabsTrigger value="usage">Usage & Billing</TabsTrigger>
                 </TabsList>
                 <TabsContent value="profile">
                     <Card>
@@ -133,33 +112,6 @@ export default function SellerSettingsPage() {
                         <CardFooter>
                             <Button onClick={handleSavePaymentSettings}>Save Payment Settings</Button>
                         </CardFooter>
-                    </Card>
-                </TabsContent>
-                <TabsContent value="usage">
-                     <Card>
-                        <CardHeader>
-                            <CardTitle>Usage and Billing</CardTitle>
-                            <CardDescription>
-                                Track your usage of premium features and manage your subscription.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                             <Card>
-                                <CardHeader className="flex flex-row items-center justify-between">
-                                    <div className="space-y-1">
-                                        <CardTitle className="text-lg flex items-center gap-2"><Sparkles /> AI Product Uploader</CardTitle>
-                                        <CardDescription>Generate product listings using AI.</CardDescription>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-2xl font-bold">{usage.aiUploads} / {limit}</p>
-                                        <p className="text-xs text-muted-foreground">Generations Used</p>
-                                    </div>
-                                </CardHeader>
-                                <CardFooter>
-                                    <p className="text-sm text-muted-foreground">Contact the administrator to upgrade your plan for a higher limit.</p>
-                                </CardFooter>
-                            </Card>
-                        </CardContent>
                     </Card>
                 </TabsContent>
             </Tabs>

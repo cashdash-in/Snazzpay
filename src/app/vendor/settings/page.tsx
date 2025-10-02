@@ -1,5 +1,4 @@
 
-
 'use client';
 import { useState, useEffect } from "react";
 import { AppShell } from "@/components/layout/app-shell";
@@ -10,24 +9,19 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { getDocument, saveDocument, getCollection } from "@/services/firestore";
+import { getDocument, saveDocument } from "@/services/firestore";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { Terminal, PackagePlus } from "lucide-react";
-import type { ProductDrop } from '@/app/vendor/product-drops/page';
+import { Terminal } from "lucide-react";
 
 type PaymentSettings = {
     razorpay_key_id: string;
     razorpay_key_secret: string;
 };
 
-const PRODUCT_DROP_LIMIT = 50;
-
 export default function VendorSettingsPage() {
     const { user } = useAuth();
     const { toast } = useToast();
     const [paymentSettings, setPaymentSettings] = useState<PaymentSettings>({ razorpay_key_id: '', razorpay_key_secret: '' });
-    const [usage, setUsage] = useState({ drops: 0 });
-    const [limit, setLimit] = useState(PRODUCT_DROP_LIMIT);
 
      useEffect(() => {
         if (user) {
@@ -36,20 +30,6 @@ export default function VendorSettingsPage() {
                     setPaymentSettings(settings);
                 }
             });
-
-            async function fetchUsageAndLimits() {
-                 const [allDrops, permissions] = await Promise.all([
-                    getCollection<ProductDrop>('product_drops'),
-                    getDocument<{productDropLimit?: number}>('user_permissions', user!.uid)
-                ]);
-                
-                const vendorDrops = allDrops.filter(d => d.vendorId === user.uid);
-                setUsage({ drops: vendorDrops.length });
-                if (permissions?.productDropLimit) {
-                    setLimit(permissions.productDropLimit);
-                }
-            }
-            fetchUsageAndLimits();
         }
     }, [user]);
 
@@ -73,10 +53,9 @@ export default function VendorSettingsPage() {
   return (
     <AppShell title="My Settings">
        <Tabs defaultValue="profile" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="profile">My Profile</TabsTrigger>
                 <TabsTrigger value="payments">Payment Gateway</TabsTrigger>
-                <TabsTrigger value="usage">Usage & Billing</TabsTrigger>
             </TabsList>
             <TabsContent value="profile">
                 <Card>
@@ -132,33 +111,6 @@ export default function VendorSettingsPage() {
                     <CardFooter>
                         <Button onClick={handleSavePaymentSettings}>Save Payment Settings</Button>
                     </CardFooter>
-                </Card>
-            </TabsContent>
-            <TabsContent value="usage">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Usage and Billing</CardTitle>
-                        <CardDescription>
-                            Track your usage of premium features and manage your subscription.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                         <Card>
-                            <CardHeader className="flex flex-row items-center justify-between">
-                                <div className="space-y-1">
-                                    <CardTitle className="text-lg flex items-center gap-2"><PackagePlus /> Product Drops</CardTitle>
-                                    <CardDescription>Share new products with your seller network.</CardDescription>
-                                </div>
-                                <div className="text-right">
-                                    <p className="text-2xl font-bold">{usage.drops} / {limit}</p>
-                                    <p className="text-xs text-muted-foreground">Free Drops Used</p>
-                                </div>
-                            </CardHeader>
-                            <CardFooter>
-                                <p className="text-sm text-muted-foreground">Contact the administrator to upgrade your plan for a higher limit.</p>
-                            </CardFooter>
-                        </Card>
-                    </CardContent>
                 </Card>
             </TabsContent>
         </Tabs>

@@ -59,6 +59,7 @@ import {
   Factory,
   Send,
   PackagePlus,
+  Receipt,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { getCookie } from 'cookies-next';
@@ -87,6 +88,7 @@ const adminGrowthMenuItems = [
 ];
 
 const adminConfigMenuItems = [
+  { href: '/billing', label: 'Billing & Usage', icon: Receipt },
   { href: '/explainer-video', label: 'Explainer Video', icon: Video },
   { href: '/cod-instructions', label: 'Embedding', icon: FileCode },
   { href: '/terms-and-conditions', label: 'Contracts', icon: FileText },
@@ -290,5 +292,3 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
     </SidebarProvider>
   );
 };
-
-    
