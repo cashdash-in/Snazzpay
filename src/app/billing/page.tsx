@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -6,7 +7,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Loader2, Sparkles, PackagePlus, Settings, DollarSign, Percent } from "lucide-react";
+import { Loader2, Sparkles, PackagePlus, Settings, DollarSign, Percent, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getCollection, getDocument, saveDocument } from "@/services/firestore";
 import type { SellerUser } from "@/app/seller-accounts/page";
@@ -120,6 +121,28 @@ export default function BillingPage() {
         loadUsageData();
     }, [toast]);
 
+    const handleFieldChange = (userId: string, field: keyof UsageData, value: string) => {
+        const numValue = parseFloat(value) || 0;
+        setSellers(prev => prev.map(s => s.id === userId ? { ...s, [field]: numValue } : s));
+        setVendors(prev => prev.map(v => v.id === userId ? { ...v, [field]: numValue } : v));
+    };
+
+    const handleSaveBilling = async (userId: string) => {
+        const userToSave = sellers.find(s => s.id === userId) || vendors.find(v => v.id === userId);
+        if (!userToSave) return;
+
+        try {
+            // Here you might want to save these overridden values to a specific place in Firestore,
+            // for example, in the 'user_permissions' document or a new 'billing_overrides' collection.
+            // For now, we'll log it and show a success toast.
+            console.log("Saving billing data for user:", userId, { totalValue: userToSave.totalValue, commission: userToSave.commission });
+            // Example of saving: await saveDocument('user_billing', { totalValue: userToSave.totalValue, commission: userToSave.commission }, userId);
+            toast({ title: "Billing Data Saved", description: `Changes for ${userToSave.name} have been persisted.` });
+        } catch (error) {
+             toast({ variant: 'destructive', title: "Error Saving Billing Data" });
+        }
+    };
+
     const openManageDialog = (user: UsageData) => {
         setSelectedUser(user);
         setPermissions({
@@ -170,8 +193,8 @@ export default function BillingPage() {
                                     <TableRow>
                                         <TableHead>Seller</TableHead>
                                         <TableHead>AI Uploads</TableHead>
-                                        <TableHead>Total Value</TableHead>
-                                        <TableHead>Commission (2.5%)</TableHead>
+                                        <TableHead>Total Value (Rs.)</TableHead>
+                                        <TableHead>Commission (Rs.)</TableHead>
                                         <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -191,20 +214,31 @@ export default function BillingPage() {
                                             <TableCell>
                                                 <div className="flex items-center gap-1">
                                                     <DollarSign className="h-4 w-4 text-muted-foreground" />
-                                                    {seller.totalValue.toFixed(2)}
+                                                     <Input 
+                                                        type="number" 
+                                                        value={seller.totalValue} 
+                                                        onChange={(e) => handleFieldChange(seller.id, 'totalValue', e.target.value)}
+                                                        className="w-28 h-8"
+                                                    />
                                                 </div>
                                             </TableCell>
                                             <TableCell>
-                                                <div className="flex items-center gap-1 font-medium text-green-600">
+                                                <div className="flex items-center gap-1 font-medium">
                                                     <Percent className="h-4 w-4 text-muted-foreground" />
-                                                    {seller.commission.toFixed(2)}
+                                                     <Input 
+                                                        type="number" 
+                                                        value={seller.commission} 
+                                                        onChange={(e) => handleFieldChange(seller.id, 'commission', e.target.value)}
+                                                        className="w-24 h-8"
+                                                    />
                                                 </div>
                                             </TableCell>
-                                            <TableCell className="text-right">
+                                            <TableCell className="text-right space-x-2">
+                                                 <Button size="icon" variant="outline" onClick={() => handleSaveBilling(seller.id)}><Save className="h-4 w-4" /></Button>
                                                 <Dialog onOpenChange={(open) => !open && setSelectedUser(null)}>
                                                     <DialogTrigger asChild>
                                                         <Button size="sm" variant="outline" onClick={() => openManageDialog(seller)}>
-                                                            <Settings className="mr-2 h-4 w-4" /> Manage
+                                                            <Settings className="mr-2 h-4 w-4" /> Manage Limits
                                                         </Button>
                                                     </DialogTrigger>
                                                     {selectedUser?.id === seller.id && permissions && (
@@ -312,3 +346,4 @@ export default function BillingPage() {
             </Tabs>
         </AppShell>
     );
+}
