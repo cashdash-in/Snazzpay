@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, DragEvent, ClipboardEvent } from 'react';
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, PackagePlus, Lock, Wand2 } from 'lucide-react';
+import { Loader2, PackagePlus, Lock, Wand2, ImagePlus } from 'lucide-react';
 import Image from 'next/image';
 import { useAuth } from '@/hooks/use-auth';
 import { v4 as uuidv4 } from 'uuid';
@@ -49,28 +49,61 @@ export default function VendorProductDropsPage() {
     const [limit, setLimit] = useState(PRODUCT_DROP_LIMIT);
     const [isLimitReached, setIsLimitReached] = useState(false);
     
-    useEffect(() => {
-        const handlePaste = (event: ClipboardEvent) => {
-            const items = event.clipboardData?.items;
-            if (!items) return;
+    const handleFiles = (files: FileList | File[]) => {
+        const newPreviews: string[] = [];
+        const newDataUris: string[] = [];
+        Array.from(files).forEach((file) => {
+            if (!file.type.startsWith('image/')) return;
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const result = reader.result as string;
+                newPreviews.push(result);
+                newDataUris.push(result);
 
-            for (let i = 0; i < items.length; i++) {
-                if (items[i].type.indexOf('image') !== -1) {
-                const file = items[i].getAsFile();
-                if (file) {
-                    handleFiles([file]);
-                    event.preventDefault(); // Prevent pasting as text
-                    toast({ title: 'Image Pasted!', description: 'The image has been added to your product.' });
+                if (newPreviews.length === Array.from(files).filter(f => f.type.startsWith('image/')).length) {
+                    setImagePreviews(prev => [...prev, ...newPreviews]);
+                    setImageDataUris(prev => [...prev, ...newDataUris]);
                 }
-                }
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (files) {
+           handleFiles(files);
+        }
+    };
+    
+    const handlePaste = (event: ClipboardEvent<HTMLDivElement>) => {
+        const items = event.clipboardData?.items;
+        if (!items) return;
+        
+        const files = [];
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf('image') !== -1) {
+            const file = items[i].getAsFile();
+            if (file) {
+                files.push(file);
             }
-        };
-
-        window.addEventListener('paste', handlePaste);
-        return () => {
-            window.removeEventListener('paste', handlePaste);
-        };
-    }, []);
+            }
+        }
+        if(files.length > 0) {
+            event.preventDefault();
+            handleFiles(files);
+            toast({ title: 'Image(s) Pasted!', description: 'The image has been added to your product.' });
+        }
+    };
+    
+    const handleDrop = (event: DragEvent<HTMLDivElement>) => {
+        event.preventDefault();
+        const files = event.dataTransfer.files;
+        if (files) {
+            handleFiles(files);
+            toast({ title: 'Image(s) Dropped!', description: 'The image has been added to your product.' });
+        }
+    };
     
     useEffect(() => {
         async function checkUsage() {
@@ -95,32 +128,6 @@ export default function VendorProductDropsPage() {
         }
         checkUsage();
     }, [user]);
-
-    const handleFiles = (files: FileList | File[]) => {
-        const newPreviews: string[] = [];
-        const newDataUris: string[] = [];
-        Array.from(files).forEach((file) => {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                const result = reader.result as string;
-                newPreviews.push(result);
-                newDataUris.push(result);
-
-                if (newPreviews.length === files.length) {
-                    setImagePreviews(prev => [...prev, ...newPreviews]);
-                    setImageDataUris(prev => [...prev, ...newDataUris]);
-                }
-            };
-            reader.readAsDataURL(file);
-        });
-    }
-
-    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = e.target.files;
-        if (files) {
-           handleFiles(files);
-        }
-    };
     
     const handleSendDrop = async () => {
         if (!title || !description || !costPrice || imageDataUris.length === 0) {
@@ -238,7 +245,7 @@ export default function VendorProductDropsPage() {
                         {isPasting && <Loader2 className="absolute top-8 right-2 h-4 w-4 animate-spin text-primary" />}
                         <Textarea 
                             id="magic-paste"
-                            placeholder="Paste a WhatsApp chat here to auto-fill the form, or paste an image anywhere on the page to upload it."
+                            placeholder="Paste a WhatsApp chat here to auto-fill the form."
                             onPaste={handleMagicPaste}
                             className="bg-purple-50/50 border-purple-200 focus-visible:ring-purple-400"
                         />
@@ -256,10 +263,31 @@ export default function VendorProductDropsPage() {
                         <Input id="costPrice" type="number" value={costPrice} onChange={(e) => setCostPrice(e.target.value)} placeholder="e.g., 250"/>
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="product-images">Product Images</Label>
-                        <Input id="product-images" type="file" accept="image/*" onChange={handleImageChange} multiple className="cursor-pointer"/>
+                        <Label>Product Images</Label>
+                          <div 
+                            className="relative flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-muted/50"
+                            onPaste={handlePaste}
+                            onDrop={handleDrop}
+                            onDragOver={(e) => e.preventDefault()}
+                            onClick={() => document.getElementById('product-image-input')?.click()}
+                          >
+                              <div className="text-center">
+                                <ImagePlus className="mx-auto h-8 w-8 text-muted-foreground" />
+                                <p className="mt-2 text-sm text-muted-foreground">
+                                  <span className="font-semibold">Click to upload</span> or drag, drop, or paste images
+                                </p>
+                              </div>
+                          </div>
+                          <Input
+                            id="product-image-input"
+                            type="file"
+                            accept="image/*"
+                            onChange={handleImageChange}
+                            className="hidden"
+                            multiple
+                          />
                         {imagePreviews.length > 0 && (
-                            <div className="mt-4 grid grid-cols-3 md:grid-cols-5 gap-4 p-4 border-dashed border-2 rounded-lg">
+                            <div className="mt-4 grid grid-cols-3 md:grid-cols-5 gap-4 p-4 border rounded-lg">
                                 {imagePreviews.map((src, index) => (
                                     <Image key={index} src={src} alt={`Preview ${index + 1}`} width={150} height={150} className="object-contain rounded-md aspect-square"/>
                                 ))}
@@ -270,7 +298,7 @@ export default function VendorProductDropsPage() {
                 <CardFooter>
                      <Dialog>
                         <DialogTrigger asChild>
-                            <Button className="w-full" disabled={isLoading || isLimitReached || !title || !description || imageDataUris.length === 0}>
+                            <Button className="w-full" onClick={handleSendDrop} disabled={isLoading || isLimitReached || !title || !description || imageDataUris.length === 0}>
                                 {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : isLimitReached ? <Lock className="mr-2 h-4 w-4"/> : <PackagePlus className="mr-2 h-4 w-4"/>}
                                 {isLimitReached ? 'Limit Reached' : 'Create & Share Product Drop'}
                             </Button>

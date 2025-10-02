@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, DragEvent, ClipboardEvent } from 'react';
 import { AppShell } from '@/components/layout/app-shell';
 import {
   Card,
@@ -25,6 +25,7 @@ import {
   Rocket,
   Wand2,
   CheckCircle,
+  ImagePlus,
 } from 'lucide-react';
 import Image from 'next/image';
 import { createProductFromText } from '@/ai/flows/create-product-from-text';
@@ -43,41 +44,20 @@ export default function AiProductUploaderPage() {
   const [generatedListing, setGeneratedListing] =
     useState<ProductListingOutput | null>(null);
 
-  useEffect(() => {
-    const handlePaste = (event: ClipboardEvent) => {
-      const items = event.clipboardData?.items;
-      if (!items) return;
-
-      for (let i = 0; i < items.length; i++) {
-        if (items[i].type.indexOf('image') !== -1) {
-          const file = items[i].getAsFile();
-          if (file) {
-            handleFiles([file]);
-            event.preventDefault(); // Prevent pasting as text
-            toast({ title: 'Image Pasted!', description: 'The image has been added to your product.' });
-          }
-        }
-      }
-    };
-
-    window.addEventListener('paste', handlePaste);
-    return () => {
-      window.removeEventListener('paste', handlePaste);
-    };
-  }, []);
-
   const handleFiles = (files: FileList | File[]) => {
       const newPreviews: string[] = [];
       const newDataUris: string[] = [];
       
       Array.from(files).forEach((file) => {
+        if (!file.type.startsWith('image/')) return;
         const reader = new FileReader();
         reader.onloadend = () => {
           const result = reader.result as string;
           newPreviews.push(result);
           newDataUris.push(result);
 
-          if (newPreviews.length === files.length) {
+          // This logic ensures we update state only after all files are read
+          if (newPreviews.length === Array.from(files).filter(f => f.type.startsWith('image/')).length) {
             setImagePreviews(prev => [...prev, ...newPreviews]);
             setImageDataUris(prev => [...prev, ...newDataUris]);
           }
@@ -92,6 +72,36 @@ export default function AiProductUploaderPage() {
       handleFiles(files);
     }
   };
+  
+  const handlePaste = (event: ClipboardEvent<HTMLDivElement>) => {
+      const items = event.clipboardData?.items;
+      if (!items) return;
+      
+      const files = [];
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+          const file = items[i].getAsFile();
+          if (file) {
+            files.push(file);
+          }
+        }
+      }
+      if(files.length > 0) {
+        event.preventDefault();
+        handleFiles(files);
+        toast({ title: 'Image(s) Pasted!', description: 'The image has been added to your product.' });
+      }
+  };
+  
+  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const files = event.dataTransfer.files;
+    if (files) {
+      handleFiles(files);
+      toast({ title: 'Image(s) Dropped!', description: 'The image has been added to your product.' });
+    }
+  };
+
 
   const handleGenerateListing = async () => {
     if (imageDataUris.length === 0 || !vendorDescription || !cost || !margin) {
@@ -212,7 +222,7 @@ export default function AiProductUploaderPage() {
           <CardHeader>
             <CardTitle>1. Provide Product Details</CardTitle>
             <CardDescription>
-              Upload or paste images and fill in the product details.
+              Upload images and fill in the product details.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -221,23 +231,37 @@ export default function AiProductUploaderPage() {
                 {isPasting && <Loader2 className="absolute top-8 right-2 h-4 w-4 animate-spin text-primary" />}
                 <Textarea
                     id="magic-paste"
-                    placeholder="Paste a WhatsApp chat here to auto-fill title & description, or paste an image anywhere on the page to upload it."
+                    placeholder="Paste a WhatsApp chat here to auto-fill title & description."
                     onPaste={handleMagicPaste}
                     className="bg-purple-50/50 border-purple-200 focus-visible:ring-purple-400"
                 />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="product-image">Product Images</Label>
+              <Label>Product Images</Label>
+              <div 
+                className="relative flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-muted/50"
+                onPaste={handlePaste}
+                onDrop={handleDrop}
+                onDragOver={(e) => e.preventDefault()}
+                onClick={() => document.getElementById('product-image-input')?.click()}
+              >
+                  <div className="text-center">
+                    <ImagePlus className="mx-auto h-8 w-8 text-muted-foreground" />
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      <span className="font-semibold">Click to upload</span> or drag, drop, or paste images
+                    </p>
+                  </div>
+              </div>
               <Input
-                id="product-image"
+                id="product-image-input"
                 type="file"
                 accept="image/*"
                 onChange={handleImageChange}
-                className="cursor-pointer"
+                className="hidden"
                 multiple
               />
               {imagePreviews.length > 0 && (
-                <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-4 rounded-lg border-dashed border-2 p-4">
+                <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-4 rounded-lg border p-4">
                   {imagePreviews.map((src, index) => (
                      <Image
                         key={index}
