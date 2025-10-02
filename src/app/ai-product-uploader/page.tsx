@@ -73,7 +73,7 @@ export default function AiProductUploaderPage() {
     }
   };
   
-  const handlePaste = (event: ClipboardEvent<HTMLDivElement>) => {
+  const handlePaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
       const items = event.clipboardData?.items;
       if (!items) return;
       
@@ -240,7 +240,6 @@ export default function AiProductUploaderPage() {
               <Label>Product Images</Label>
               <div 
                 className="relative flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-muted/50"
-                onPaste={handlePaste}
                 onDrop={handleDrop}
                 onDragOver={(e) => e.preventDefault()}
                 onClick={() => document.getElementById('product-image-input')?.click()}
@@ -248,10 +247,16 @@ export default function AiProductUploaderPage() {
                   <div className="text-center">
                     <ImagePlus className="mx-auto h-8 w-8 text-muted-foreground" />
                     <p className="mt-2 text-sm text-muted-foreground">
-                      <span className="font-semibold">Click to upload</span> or drag, drop, or paste images
+                      <span className="font-semibold">Click to upload</span> or drag and drop
                     </p>
                   </div>
               </div>
+              <Textarea 
+                placeholder="Or paste images here." 
+                onPaste={handlePaste} 
+                className="text-center placeholder:text-muted-foreground"
+                rows={2}
+              />
               <Input
                 id="product-image-input"
                 type="file"
