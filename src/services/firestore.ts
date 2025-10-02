@@ -1,4 +1,5 @@
 
+'use server';
 import { db } from '@/lib/firebase';
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, DocumentData, writeBatch } from 'firebase/firestore';
 
@@ -37,7 +38,7 @@ export const saveDocument = async (collectionName: string, data: DocumentData, i
     if (!id) throw new Error("Document ID must be provided.");
     
     const docRef = doc(db, collectionName, id);
-    // Ensure the id is also saved within the document if it's not already there
+    // Ensure the data object contains the id, then save the whole object.
     const dataToSave = { ...data, id };
     await setDoc(docRef, dataToSave, { merge: true });
     return id;
@@ -46,6 +47,7 @@ export const saveDocument = async (collectionName: string, data: DocumentData, i
 export const addDocument = async (collectionName: string, data: DocumentData) => {
     if (!db) throw new Error("Firestore is not initialized.");
     const newDocRef = doc(collection(db, collectionName));
+    // Save the data along with the newly generated ID.
     await setDoc(newDocRef, { ...data, id: newDocRef.id });
     return newDocRef.id;
 };
