@@ -14,7 +14,7 @@ import { Loader2, PackagePlus, Lock, Wand2 } from 'lucide-react';
 import Image from 'next/image';
 import { useAuth } from '@/hooks/use-auth';
 import { v4 as uuidv4 } from 'uuid';
-import { Dialog, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { ShareComposerDialog } from '@/components/share-composer-dialog';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { getCollection, saveDocument, getDocument } from '@/services/firestore';
@@ -50,6 +50,29 @@ export default function VendorProductDropsPage() {
     const [isLimitReached, setIsLimitReached] = useState(false);
     
     useEffect(() => {
+        const handlePaste = (event: ClipboardEvent) => {
+            const items = event.clipboardData?.items;
+            if (!items) return;
+
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf('image') !== -1) {
+                const file = items[i].getAsFile();
+                if (file) {
+                    handleFiles([file]);
+                    event.preventDefault(); // Prevent pasting as text
+                    toast({ title: 'Image Pasted!', description: 'The image has been added to your product.' });
+                }
+                }
+            }
+        };
+
+        window.addEventListener('paste', handlePaste);
+        return () => {
+            window.removeEventListener('paste', handlePaste);
+        };
+    }, []);
+    
+    useEffect(() => {
         async function checkUsage() {
             if (user) {
                 const role = getCookie('userRole');
@@ -73,25 +96,29 @@ export default function VendorProductDropsPage() {
         checkUsage();
     }, [user]);
 
+    const handleFiles = (files: FileList | File[]) => {
+        const newPreviews: string[] = [];
+        const newDataUris: string[] = [];
+        Array.from(files).forEach((file) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const result = reader.result as string;
+                newPreviews.push(result);
+                newDataUris.push(result);
+
+                if (newPreviews.length === files.length) {
+                    setImagePreviews(prev => [...prev, ...newPreviews]);
+                    setImageDataUris(prev => [...prev, ...newDataUris]);
+                }
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
         if (files) {
-            const newPreviews: string[] = [];
-            const newDataUris: string[] = [];
-            Array.from(files).forEach((file) => {
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                    const result = reader.result as string;
-                    newPreviews.push(result);
-                    newDataUris.push(result);
-
-                    if (newPreviews.length === files.length) {
-                        setImagePreviews(prev => [...prev, ...newPreviews]);
-                        setImageDataUris(prev => [...prev, ...newDataUris]);
-                    }
-                };
-                reader.readAsDataURL(file);
-            });
+           handleFiles(files);
         }
     };
     
@@ -162,6 +189,10 @@ export default function VendorProductDropsPage() {
         const pastedText = e.clipboardData.getData('text');
         if (pastedText.trim().length < 10) return;
 
+        // Prevent the image paste handler from also firing
+        e.preventDefault();
+        e.stopPropagation();
+
         setIsPasting(true);
         try {
             const result = await createProductFromText({ text: pastedText });
@@ -207,7 +238,7 @@ export default function VendorProductDropsPage() {
                         {isPasting && <Loader2 className="absolute top-8 right-2 h-4 w-4 animate-spin text-primary" />}
                         <Textarea 
                             id="magic-paste"
-                            placeholder="Paste a WhatsApp chat or raw product text here and watch the AI fill the fields below..."
+                            placeholder="Paste a WhatsApp chat here to auto-fill the form, or paste an image anywhere on the page to upload it."
                             onPaste={handleMagicPaste}
                             className="bg-purple-50/50 border-purple-200 focus-visible:ring-purple-400"
                         />

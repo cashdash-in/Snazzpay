@@ -66,6 +66,29 @@ export default function AiProductUploaderPage() {
   const [isLimitReached, setIsLimitReached] = useState(false);
 
   useEffect(() => {
+    const handlePaste = (event: ClipboardEvent) => {
+      const items = event.clipboardData?.items;
+      if (!items) return;
+
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+          const file = items[i].getAsFile();
+          if (file) {
+            handleFiles([file]);
+            event.preventDefault(); // Prevent pasting as text
+            toast({ title: 'Image Pasted!', description: 'The image has been added to your product.' });
+          }
+        }
+      }
+    };
+
+    window.addEventListener('paste', handlePaste);
+    return () => {
+      window.removeEventListener('paste', handlePaste);
+    };
+  }, []);
+
+  useEffect(() => {
     async function checkUsage() {
         if (user) {
             const role = getCookie('userRole');
@@ -117,12 +140,11 @@ export default function AiProductUploaderPage() {
             }
         }
     }, [toast]);
-
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files) {
+  
+  const handleFiles = (files: FileList | File[]) => {
       const newPreviews: string[] = [];
       const newDataUris: string[] = [];
+      
       Array.from(files).forEach((file) => {
         const reader = new FileReader();
         reader.onloadend = () => {
@@ -131,12 +153,18 @@ export default function AiProductUploaderPage() {
           newDataUris.push(result);
 
           if (newPreviews.length === files.length) {
-            setImagePreviews(newPreviews);
-            setImageDataUris(newDataUris);
+            setImagePreviews(prev => [...prev, ...newPreviews]);
+            setImageDataUris(prev => [...prev, ...newDataUris]);
           }
         };
         reader.readAsDataURL(file);
       });
+  }
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files) {
+      handleFiles(files);
     }
   };
   
@@ -214,6 +242,10 @@ export default function AiProductUploaderPage() {
         const pastedText = e.clipboardData.getData('text');
         if (pastedText.trim().length < 10) return;
 
+        // Prevent the image paste handler from also firing
+        e.preventDefault();
+        e.stopPropagation();
+
         setIsPasting(true);
         try {
             const result = await createProductFromText({ text: pastedText });
@@ -251,7 +283,7 @@ export default function AiProductUploaderPage() {
           <CardHeader>
             <CardTitle>1. Provide Product Details</CardTitle>
             <CardDescription>
-              Upload images and paste the raw description from your vendor.
+              Upload or paste images and paste the raw description from your vendor.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -260,7 +292,7 @@ export default function AiProductUploaderPage() {
                 {isPasting && <Loader2 className="absolute top-8 right-2 h-4 w-4 animate-spin text-primary" />}
                 <Textarea 
                     id="magic-paste"
-                    placeholder="Paste a WhatsApp chat or raw product text here to auto-fill the description below..."
+                    placeholder="Paste a WhatsApp chat here to auto-fill description, or paste an image anywhere on the page to upload it."
                     onPaste={handleMagicPaste}
                     className="bg-purple-50/50 border-purple-200 focus-visible:ring-purple-400"
                 />

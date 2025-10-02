@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AppShell } from '@/components/layout/app-shell';
 import {
   Card,
@@ -27,10 +27,13 @@ import {
   CheckCircle,
 } from 'lucide-react';
 import Image from 'next/image';
+import { createProductFromText } from '@/ai/flows/create-product-from-text';
+
 
 export default function AiProductUploaderPage() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [isPasting, setIsPasting] = useState(false);
   const [isPushing, setIsPushing] = useState(false);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [imageDataUris, setImageDataUris] = useState<string[]>([]);
@@ -40,28 +43,53 @@ export default function AiProductUploaderPage() {
   const [generatedListing, setGeneratedListing] =
     useState<ProductListingOutput | null>(null);
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files) {
+  useEffect(() => {
+    const handlePaste = (event: ClipboardEvent) => {
+      const items = event.clipboardData?.items;
+      if (!items) return;
+
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+          const file = items[i].getAsFile();
+          if (file) {
+            handleFiles([file]);
+            event.preventDefault(); // Prevent pasting as text
+            toast({ title: 'Image Pasted!', description: 'The image has been added to your product.' });
+          }
+        }
+      }
+    };
+
+    window.addEventListener('paste', handlePaste);
+    return () => {
+      window.removeEventListener('paste', handlePaste);
+    };
+  }, []);
+
+  const handleFiles = (files: FileList | File[]) => {
       const newPreviews: string[] = [];
       const newDataUris: string[] = [];
-      const fileReaders: FileReader[] = [];
-
+      
       Array.from(files).forEach((file) => {
         const reader = new FileReader();
-        fileReaders.push(reader);
         reader.onloadend = () => {
           const result = reader.result as string;
           newPreviews.push(result);
           newDataUris.push(result);
 
           if (newPreviews.length === files.length) {
-            setImagePreviews(newPreviews);
-            setImageDataUris(newDataUris);
+            setImagePreviews(prev => [...prev, ...newPreviews]);
+            setImageDataUris(prev => [...prev, ...newDataUris]);
           }
         };
         reader.readAsDataURL(file);
       });
+  }
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files) {
+      handleFiles(files);
     }
   };
 
@@ -146,6 +174,37 @@ export default function AiProductUploaderPage() {
     }
   };
 
+  const handleMagicPaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+        const pastedText = e.clipboardData.getData('text');
+        if (pastedText.trim().length < 10) return;
+
+        // Prevent the image paste handler from also firing
+        e.preventDefault();
+        e.stopPropagation();
+
+        setIsPasting(true);
+        try {
+            const result = await createProductFromText({ text: pastedText });
+            setGeneratedListing(prev => ({
+                ...(prev as ProductListingOutput),
+                title: result.title,
+                description: result.description
+            }));
+            toast({
+                title: "AI Parsing Complete!",
+                description: "Product title and description have been filled in.",
+            });
+        } catch (error: any) {
+             toast({
+                variant: 'destructive',
+                title: 'AI Parsing Failed',
+                description: error.message || 'Could not process the pasted text.',
+            });
+        } finally {
+            setIsPasting(false);
+        }
+  };
+
   return (
     <AppShell title="AI Product Uploader">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -153,10 +212,20 @@ export default function AiProductUploaderPage() {
           <CardHeader>
             <CardTitle>1. Provide Product Details</CardTitle>
             <CardDescription>
-              Upload images and paste the raw description from your vendor.
+              Upload or paste images and fill in the product details.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+             <div className="relative space-y-2">
+                <Label htmlFor="magic-paste">Magic Paste Box (AI-Powered)</Label>
+                {isPasting && <Loader2 className="absolute top-8 right-2 h-4 w-4 animate-spin text-primary" />}
+                <Textarea
+                    id="magic-paste"
+                    placeholder="Paste a WhatsApp chat here to auto-fill title & description, or paste an image anywhere on the page to upload it."
+                    onPaste={handleMagicPaste}
+                    className="bg-purple-50/50 border-purple-200 focus-visible:ring-purple-400"
+                />
+            </div>
             <div className="space-y-2">
               <Label htmlFor="product-image">Product Images</Label>
               <Input
