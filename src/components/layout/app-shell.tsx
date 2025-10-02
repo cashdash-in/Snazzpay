@@ -62,6 +62,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { getCookie } from 'cookies-next';
+import { useEffect, useState } from 'react';
 
 const adminCoreMenuItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -109,7 +110,6 @@ const vendorMenuItems = [
     { href: '/vendor/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/vendor/product-drops', label: 'Product Drops', icon: PackagePlus },
     { href: '/vendor/products', label: 'My Products', icon: Package },
-    { href: '/vendor/ai-product-uploader', label: 'AI Product Uploader', icon: Sparkles },
     { href: '/vendor/orders', label: 'Orders from Sellers', icon: ShoppingCart },
     { href: '/vendor/sellers', label: 'My Sellers', icon: Users },
     { href: '/vendor/earnings', label: 'Earnings', icon: DollarSign },
@@ -123,7 +123,13 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
   const router = useRouter();
   const { user, signOut } = useAuth();
   
-  const role = getCookie('userRole');
+  const [role, setRole] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    // This code runs only on the client, after the component mounts.
+    setRole(getCookie('userRole'));
+  }, [pathname]); // Rerun on path change if needed
+
   const isSeller = role === 'seller';
   const isVendor = role === 'vendor';
 

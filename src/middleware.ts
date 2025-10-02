@@ -1,3 +1,4 @@
+
 'use server';
 
 import { NextResponse } from 'next/server'
@@ -5,7 +6,6 @@ import type { NextRequest } from 'next/server'
 
 export function middleware(request: NextRequest) {
   const token = request.cookies.get('firebaseAuthToken');
-  const role = request.cookies.get('userRole')?.value;
   const { pathname } = request.nextUrl;
 
   const publicPaths = [
@@ -39,34 +39,15 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // If there's no auth token, redirect to the appropriate login page
+  // If there's no auth token, redirect to the default login page
   if (!token) {
-    // Default to admin login if no specific context is known
     const loginUrl = new URL('/auth/login', request.url);
     loginUrl.searchParams.set('redirectedFrom', pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  // If a token exists, enforce role-based access for non-public pages
-  const isSellerPath = pathname.startsWith('/seller/');
-  const isVendorPath = pathname.startsWith('/vendor/');
-  const isAdminPath = !isSellerPath && !isVendorPath;
-
-  if (role === 'seller' && (isAdminPath || isVendorPath) && pathname !== '/') {
-     console.log(`Redirecting seller from non-seller path: ${pathname}`);
-     return NextResponse.redirect(new URL('/seller/dashboard', request.url));
-  }
-
-  if (role === 'admin' && (isSellerPath || isVendorPath)) {
-     console.log(`Redirecting admin from non-admin path: ${pathname}`);
-     return NextResponse.redirect(new URL('/', request.url));
-  }
-
-  if (role === 'vendor' && (isAdminPath || isSellerPath) && pathname !== '/') {
-      console.log(`Redirecting vendor from non-vendor path: ${pathname}`);
-      return NextResponse.redirect(new URL('/vendor/dashboard', request.url));
-  }
-
+  // If a token exists, let the request through.
+  // Role-based redirection will be handled on the client-side in the AppShell.
   return NextResponse.next();
 }
 

@@ -7,6 +7,7 @@ import {
   useState,
   useEffect,
   ReactNode,
+  useCallback,
 } from 'react';
 import {
   onAuthStateChanged,
@@ -40,31 +41,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => unsubscribe();
   }, []);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     try {
         await firebaseSignOut(auth);
-        // Call the API route to clear the httpOnly cookie
         await fetch('/api/auth/session', { method: 'DELETE' });
+        
+        // This is safe because signOut is a user-initiated client-side action.
+        const role = getCookie('userRole');
+        let loginPath = '/auth/login'; // Default
+        
+        if (role === 'seller') loginPath = '/seller/login';
+        else if (role === 'vendor') loginPath = '/vendor/login';
+        else if (role === 'partner-pay') loginPath = '/partner-pay/login';
+        else if (role === 'logistics') loginPath = '/logistics-secure/login';
+
+        router.push(loginPath);
+        router.refresh();
+        
     } catch (error) {
         console.error("Error signing out:", error);
-    } finally {
-        const role = getCookie('userRole'); // This is safe now because signOut is a client-side interaction
-        let loginPath = '/auth/login'; // Default to admin
-        
-        if (role === 'seller') {
-            loginPath = '/seller/login';
-        } else if (role === 'vendor') {
-            loginPath = '/vendor/login';
-        } else if (role === 'partner') {
-            loginPath = '/partner-pay/login';
-        } else if (role === 'logistics') {
-             loginPath = '/logistics-secure/login';
-        }
-        
-        router.push(loginPath);
-        router.refresh(); 
     }
-  };
+  }, [router]);
 
   return (
     <AuthContext.Provider value={{ user, loading, signOut }}>
@@ -80,3 +77,4 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
+
