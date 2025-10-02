@@ -21,19 +21,19 @@ export async function POST(request: Request) {
     });
 
     try {
-        const { amount, productName, customerName, customerEmail, customerContact, customerAddress, customerPincode, isAuthorization } = await request.json();
+        const { amount, productName, name, email, contact, address, pincode, isAuthorization } = await request.json();
         
         let customerId;
 
         // Step 1: Find or Create Customer
         try {
             const newCustomer = await razorpay.customers.create({
-                name: customerName,
-                contact: customerContact,
-                email: customerEmail || `customer.${customerContact || uuidv4().substring(0,8)}@example.com`,
+                name: name,
+                contact: contact,
+                email: email || `customer.${contact || uuidv4().substring(0,8)}@example.com`,
                 notes: {
-                    address: customerAddress,
-                    pincode: customerPincode,
+                    address: address,
+                    pincode: pincode,
                 }
             });
             customerId = newCustomer.id;
@@ -47,14 +47,14 @@ export async function POST(request: Request) {
             amount: Math.round(amount * 100), // Amount in paise
             currency: 'INR',
             receipt: `rcpt_${isAuthorization ? 'auth' : 'intent'}_${Date.now()}`.slice(0, 40),
-            payment_capture: 0, // Always set to 0 for authorization
+            payment_capture: isAuthorization ? 0 : 1, // Capture intent payment, but only authorize the main one
             notes: {
                 product: productName,
                 type: isAuthorization ? "secure_cod_card_authorization" : "secure_cod_intent_verification",
-                customerName,
-                customerContact,
-                customerAddress,
-                customerPincode
+                customerName: name,
+                customerContact: contact,
+                customerAddress: address,
+                customerPincode: pincode,
             }
         };
 
@@ -82,3 +82,5 @@ export async function POST(request: Request) {
         );
     }
 }
+
+    

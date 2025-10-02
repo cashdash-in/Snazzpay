@@ -94,8 +94,8 @@ function SecureCodPaymentForm() {
             validThru: format(addYears(new Date(), 2), 'MM/yy'),
             points: 100, // Welcome bonus
             cashback: 0,
-            sellerId: order.sellerId || 'snazzify',
-            sellerName: order.sellerName || 'Snazzify',
+            sellerId: 'snazzify', // Main site cards are from snazzify
+            sellerName: 'Snazzify',
         };
         
         addDocument('shakti_cards', newCard);
@@ -140,7 +140,7 @@ function SecureCodPaymentForm() {
             price: orderDetails.amount.toFixed(2),
             paymentStatus: 'Intent Verified',
             date: new Date().toISOString(),
-            source: 'Shopify', // Assume main site orders are like Shopify orders
+            source: 'Shopify', // Main site orders are treated as primary channel, like Shopify
         };
 
         try {
@@ -161,22 +161,35 @@ function SecureCodPaymentForm() {
             if (intentResult.error || authResult.error) {
                 throw new Error(intentResult.error || authResult.error || 'Failed to create Razorpay orders.');
             }
-
+            
             // This handler is now defined outside and will be called after successful ₹1 payment.
             const triggerFullAuthorization = () => {
                 const authOptions = {
-                    key: razorpayKeyId, amount: orderDetails.amount * 100, currency: "INR", name: "Authorize Full Amount",
-                    description: `Authorize ₹${orderDetails.amount} for Order #${orderDetails.orderId}`, order_id: authResult.order_id,
+                    key: razorpayKeyId, 
+                    amount: orderDetails.amount * 100, 
+                    currency: "INR", 
+                    name: "Authorize Full Amount",
+                    description: `Authorize ₹${orderDetails.amount} for Order #${orderDetails.orderId}`, 
+                    order_id: authResult.order_id,
                     handler: async (response: any) => {
-                        const finalOrder: EditableOrder = { ...newLead, paymentStatus: 'Authorized', source: 'Shopify' }; // Ensure source is set for admin
+                        const finalOrder: EditableOrder = { ...newLead, paymentStatus: 'Authorized', source: 'Shopify' };
                         const paymentInfo: PaymentInfo = {
-                            paymentId: response.razorpay_payment_id, orderId: orderDetails.orderId, razorpayOrderId: response.razorpay_order_id,
-                            signature: response.razorpay_signature, status: 'authorized', authorizedAt: new Date().toISOString()
+                            paymentId: response.razorpay_payment_id, 
+                            orderId: orderDetails.orderId, 
+                            razorpayOrderId: response.razorpay_order_id,
+                            signature: response.razorpay_signature, 
+                            status: 'authorized', 
+                            authorizedAt: new Date().toISOString()
                         };
 
                         await saveDocument('orders', finalOrder, finalOrder.id);
                         localStorage.setItem(`payment_info_${finalOrder.orderId}`, JSON.stringify(paymentInfo));
-                        await saveDocument('leads', { ...newLead, paymentStatus: 'Converted' }, newLead.id);
+                        // Update lead status to converted
+                        const leadDoc = await getDocument('leads', newLead.id);
+                        if(leadDoc) {
+                           await saveDocument('leads', { ...newLead, paymentStatus: 'Converted' }, newLead.id);
+                        }
+                        
                         createNewShaktiCard(finalOrder);
                         
                         toast({ title: "Payment Successful!", description: `Your payment is Authorized. Order ${finalOrder.orderId} confirmed.` });
@@ -196,11 +209,15 @@ function SecureCodPaymentForm() {
 
             // Step 2: Open Razorpay for ₹1 intent payment
             const intentOptions = {
-                key: razorpayKeyId, amount: 100, currency: "INR", name: "Verify Order Intent",
-                description: `₹1 verification for Order #${orderDetails.orderId}`, order_id: intentResult.order_id,
+                key: razorpayKeyId, 
+                amount: 100, 
+                currency: "INR", 
+                name: "Verify Order Intent",
+                description: `₹1 verification for Order #${orderDetails.orderId}`, 
+                order_id: intentResult.order_id,
                 handler: async () => {
                     // Step 3: Intent verified, save as lead immediately
-                    await addDocument('leads', newLead);
+                    await saveDocument('leads', newLead, newLead.id);
                     // Step 4: Trigger the full authorization payment flow
                     triggerFullAuthorization();
                 },
@@ -315,6 +332,7 @@ function Page() {
 }
 
 export default Page;
+
 
 
     
