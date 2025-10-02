@@ -2,7 +2,7 @@
 'use server';
 
 import { db } from '@/lib/firebase';
-import { collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, query, where, DocumentData, writeBatch } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, DocumentData, writeBatch, addDoc } from 'firebase/firestore';
 import type { EditableOrder } from '@/app/orders/page';
 import type { PartnerData } from '@/app/partner-pay/page';
 import type { LogisticsPartnerData } from '@/app/logistics-secure/dashboard/page';
@@ -33,7 +33,7 @@ export const saveDocument = async (collectionName: string, data: any, id?: strin
     return docRef.id;
 };
 
-const updateDocument = async (collectionName: string, id: string, data: any) => {
+export const updateDocument = async (collectionName: string, id: string, data: any) => {
     if (!db) throw new Error("Firestore is not initialized.");
     const docRef = doc(db, collectionName, id);
     await updateDoc(docRef, data);
