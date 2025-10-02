@@ -48,8 +48,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
         console.error("Error signing out:", error);
     } finally {
-        const role = getCookie('userRole');
+        const role = getCookie('userRole'); // This is safe now because signOut is a client-side interaction
         let loginPath = '/auth/login'; // Default to admin
+        
         if (role === 'seller') {
             loginPath = '/seller/login';
         } else if (role === 'vendor') {
@@ -61,7 +62,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
         
         router.push(loginPath);
-        router.refresh(); // This helps ensure the new state is reflected everywhere
+        router.refresh(); 
     }
   };
 
