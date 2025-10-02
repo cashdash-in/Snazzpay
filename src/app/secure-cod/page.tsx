@@ -188,12 +188,23 @@ function SecureCodPaymentForm() {
                 body: JSON.stringify({ 
                     amount: 1, 
                     productName: `Intent Verification for ${orderDetails.productName}`,
-                    isAuthorization: false,
+                    isAuthorization: false, // This is a capture, not an authorization
                     name, email, contact, address, pincode
                 })
             }).then(res => res.json());
             
             if (intentResult.error) throw new Error(intentResult.error);
+
+            // Create a temporary lead entry in Firestore
+            const tempLeadId = intentResult.internal_order_id || uuidv4();
+            const tempLead: EditableOrder = {
+                id: tempLeadId,
+                orderId: tempLeadId,
+                customerName: name, customerEmail: email, customerAddress: address, pincode, contactNo: contact,
+                productOrdered: orderDetails.productName, quantity: 1, price: orderDetails.amount.toString(),
+                date: new Date().toISOString(), paymentStatus: 'Intent Verified', source: 'Shopify'
+            };
+            await saveDocument('leads', tempLead, tempLeadId);
 
             const optionsIntent = {
                 key: razorpayKeyId,
@@ -208,7 +219,9 @@ function SecureCodPaymentForm() {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ 
-                            amount: orderDetails.amount, productName: orderDetails.productName, isAuthorization: true,
+                            amount: orderDetails.amount, 
+                            productName: orderDetails.productName, 
+                            isAuthorization: true, // This is an authorization
                             name, email, contact, address, pincode
                         })
                     }).then(res => res.json());
@@ -224,33 +237,45 @@ function SecureCodPaymentForm() {
                         name: "Authorize Secure COD Payment",
                         description: `Authorize ₹${orderDetails.amount} for Order #${uniqueInternalOrderId}`,
                         handler: async (authResponse: any) => {
+                            // Update lead to a full order
                             const finalOrder: EditableOrder = { 
+                                ...tempLead,
                                 id: uniqueInternalOrderId,
                                 orderId: uniqueInternalOrderId,
-                                customerName: name, customerEmail: email, customerAddress: address, pincode: pincode, contactNo: contact,
-                                productOrdered: orderDetails.productName, quantity: 1, price: orderDetails.amount.toFixed(2),
-                                paymentStatus: 'Authorized', source: 'Shopify', date: new Date().toISOString(),
+                                paymentStatus: 'Authorized',
                             };
                             await saveDocument('orders', finalOrder, finalOrder.id);
-                             const paymentInfo: PaymentInfo = {
-                                paymentId: authResponse.razorpay_payment_id, orderId: uniqueInternalOrderId, razorpayOrderId: authResponse.razorpay_order_id,
-                                signature: authResponse.razorpay_signature, status: 'authorized', authorizedAt: new Date().toISOString()
+                            
+                            // Delete the temporary lead
+                            await deleteDocument('leads', tempLeadId);
+
+                            const paymentInfo: PaymentInfo = {
+                                paymentId: authResponse.razorpay_payment_id, 
+                                orderId: uniqueInternalOrderId, 
+                                razorpayOrderId: authResponse.razorpay_order_id,
+                                signature: authResponse.razorpay_signature, 
+                                status: 'authorized', 
+                                authorizedAt: new Date().toISOString()
                             };
                             await saveDocument('payment_info', paymentInfo, finalOrder.id);
+                            
                             const card = await createNewShaktiCard(finalOrder);
                             if (card) {
                                 setNewlyCreatedCard(card);
                             }
+                            
                             toast({ title: "Payment Authorized!", description: `Order ${finalOrder.orderId} is confirmed.` });
                             setStep('complete');
                         },
                         prefill: { name, email, contact },
+                        theme: { color: "#663399" },
                         modal: { ondismiss: () => setIsSubmitting(false) }
                     };
                     const rzpAuth = new (window as any).Razorpay(optionsAuth);
                     rzpAuth.open();
                 },
                 prefill: { name, email, contact },
+                theme: { color: "#663399" },
                 modal: { ondismiss: () => setIsSubmitting(false) }
             };
             const rzpIntent = new (window as any).Razorpay(optionsIntent);
