@@ -28,9 +28,11 @@ export const getDocument = async <T>(collectionName: string, id: string): Promis
     }
 };
 
-export const saveDocument = async (collectionName: string, data: { id: string } & DocumentData) => {
+export const saveDocument = async (collectionName: string, data: { id: string } & DocumentData, id?: string) => {
     if (!db) throw new Error("Firestore is not initialized.");
-    const docRef = doc(db, collectionName, data.id);
+    const docId = id || data.id;
+    if (!docId) throw new Error("Document ID is missing.");
+    const docRef = doc(db, collectionName, docId);
     await setDoc(docRef, data, { merge: true });
     return docRef.id;
 };
@@ -92,3 +94,5 @@ export const sendMessage = async (chatId: string, senderId: string, content: any
     
     return newDoc.id;
 };
+
+    
