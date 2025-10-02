@@ -13,6 +13,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { Loader2, Wand2, AlertTriangle } from 'lucide-react';
 import { createProductDescription } from '@/ai/flows/create-product-description';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import { v4 as uuidv4 } from 'uuid';
 
 // Can be a ProductDrop or a SellerProduct
 type ShareableProduct = {
@@ -54,14 +55,14 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
         const currentUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
         setAppUrl(currentUrl);
         
-        const orderLink = `${currentUrl}/secure-cod?name=${encodeURIComponent(product.title)}&amount=${productPrice}&seller_id=${user?.uid || ''}&seller_name=${user?.displayName || ''}`;
+        // Generate a unique order ID for every share dialog open
+        const uniqueOrderId = `SNZ-${uuidv4().substring(0, 4).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
+        const orderLink = `${currentUrl}/secure-cod?name=${encodeURIComponent(product.title)}&amount=${productPrice}&order_id=${uniqueOrderId}&seller_id=${user?.uid || ''}&seller_name=${user?.displayName || ''}`;
         
         setShareText(
-            `Check out this new product!\n\n*${product.title}*\n${product.description}\n\n*Price:* ₹${(productPrice).toFixed(2)}\n\nClick here to order with **Secure COD**, **Prepaid**, or **Cash on Delivery**: ${orderLink}`
+            `Check out this new product!\n\n*${product.title}*\n${product.description}\n\n*Price:* ₹${(productPrice).toFixed(2)}\n\nClick here to order with **Secure COD**, **Prepaid**, or **Secure Charge on Dispatch**: ${orderLink}`
         );
     }, [product, user, productPrice]);
-    
-    const orderLink = `${appUrl}/secure-cod?name=${encodeURIComponent(product.title)}&amount=${productPrice}&seller_id=${user?.uid || ''}&seller_name=${user?.displayName || ''}`;
         
     const handleImageSelection = (imageUri: string) => {
         setSelectedImages(prev => 
@@ -76,9 +77,14 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
                 title: product.title,
                 imagesDataUri: product.imageDataUris,
             });
+
+            // Regenerate the link with a new unique ID
+            const uniqueOrderId = `SNZ-${uuidv4().substring(0, 4).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
+            const orderLink = `${appUrl}/secure-cod?name=${encodeURIComponent(product.title)}&amount=${productPrice}&order_id=${uniqueOrderId}&seller_id=${user?.uid || ''}&seller_name=${user?.displayName || ''}`;
+
             // Update the share text with the new AI-generated description
             setShareText(
-                `Check out this new product!\n\n*${product.title}*\n${newDescription}\n\n*Price:* ₹${(productPrice).toFixed(2)}\n\nClick here to order with **Secure COD**, **Prepaid**, or **Cash on Delivery**: ${orderLink}`
+                `Check out this new product!\n\n*${product.title}*\n${newDescription}\n\n*Price:* ₹${(productPrice).toFixed(2)}\n\nClick here to order with **Secure COD**, **Prepaid**, or **Secure Charge on Dispatch**: ${orderLink}`
             );
             toast({
                 title: "Description Generated!",
@@ -174,7 +180,7 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
                     <AlertTriangle className="h-4 w-4" />
                     <AlertTitle>Price Not Set</AlertTitle>
                     <AlertDescription>
-                        Cannot share this product because the price is ₹0. Please go back and set a valid selling price in the AI Product Uploader.
+                        Cannot share this product because the price is ₹0. Please go back and set a valid selling price.
                     </AlertDescription>
                 </Alert>
             )}

@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, Suspense, FormEvent } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
@@ -46,6 +46,46 @@ function PaymentPageContent() {
     const [newlyCreatedCard, setNewlyCreatedCard] = useState<ShaktiCardData | null>(null);
 
 
+    const createNewShaktiCard = async (order: EditableOrder): Promise<ShaktiCardData | null> => {
+        if (!order.contactNo || !order.customerEmail) return null;
+
+        const sanitizedMobile = sanitizePhoneNumber(order.contactNo);
+        
+        try {
+            const existingCards = await getCollection<ShaktiCardData>('shakti_cards');
+            const cardExists = existingCards.find(card => card.customerPhone === sanitizedMobile);
+            if (cardExists) {
+                console.log("Shakti Card already exists for this customer.");
+                return cardExists; // Return existing card
+            }
+
+            const newCard: ShaktiCardData = {
+                cardNumber: `SHAKTI-${uuidv4().substring(0, 4).toUpperCase()}-${uuidv4().substring(0, 4).toUpperCase()}`,
+                customerName: order.customerName,
+                customerPhone: order.contactNo,
+                customerEmail: order.customerEmail,
+                customerAddress: order.customerAddress,
+                validFrom: format(new Date(), 'MM/yy'),
+                validThru: format(addYears(new Date(), 2), 'MM/yy'),
+                points: 100, // Welcome bonus
+                cashback: 0,
+                sellerId: order.sellerId || 'snazzify',
+                sellerName: 'Snazzify',
+            };
+            
+            await saveDocument('shakti_cards', newCard, newCard.cardNumber);
+            toast({
+                title: "Shakti Card Issued!",
+                description: "You've earned a Shakti Card for future benefits!",
+            });
+            return newCard;
+        } catch(e) {
+            console.error("Failed to save or find Shakti Card", e);
+            return null;
+        }
+    };
+
+
     useEffect(() => {
         const name = searchParams.get('name') || 'Your Product';
         const amount = parseFloat(searchParams.get('amount') || '0');
@@ -64,44 +104,6 @@ function PaymentPageContent() {
         });
 
     }, [searchParams, toast]);
-    
-    const createNewShaktiCard = async (order: EditableOrder): Promise<ShaktiCardData | null> => {
-        if (!order.contactNo || !order.customerEmail) return null;
-
-        const sanitizedMobile = sanitizePhoneNumber(order.contactNo);
-        
-        const existingCards = await getCollection<ShaktiCardData>('shakti_cards');
-        const cardExists = existingCards.find(card => card.customerPhone === sanitizedMobile);
-        if (cardExists) {
-             return cardExists;
-        }
-
-        const newCard: ShaktiCardData = {
-            cardNumber: `SHAKTI-${uuidv4().substring(0, 4).toUpperCase()}-${uuidv4().substring(0, 4).toUpperCase()}`,
-            customerName: order.customerName,
-            customerPhone: order.contactNo,
-            customerEmail: order.customerEmail,
-            customerAddress: order.customerAddress,
-            validFrom: format(new Date(), 'MM/yy'),
-            validThru: format(addYears(new Date(), 2), 'MM/yy'),
-            points: 100, // Welcome bonus
-            cashback: 0,
-            sellerId: order.sellerId || 'snazzify',
-            sellerName: 'Snazzify',
-        };
-
-        try {
-            await saveDocument('shakti_cards', newCard, newCard.cardNumber);
-            toast({
-                title: "Shakti Card Issued!",
-                description: "You've earned a Shakti Card for future benefits!",
-            });
-            return newCard;
-        } catch(e) {
-            console.error("Failed to save Shakti Card", e);
-            return null;
-        }
-    };
 
     const processPayment = async () => {
         setIsSubmitting(true);
@@ -212,6 +214,9 @@ function PaymentPageContent() {
                         <Link href="/customer/login" className="w-full">
                             <Button className="w-full">Go to Customer Portal</Button>
                         </Link>
+                         <a href="https://www.snazzify.co.in" className="w-full">
+                            <Button className="w-full" variant="outline">Continue Shopping</Button>
+                        </a>
                     </CardFooter>
                  </Card>
             </div>
