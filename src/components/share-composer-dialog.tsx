@@ -43,19 +43,22 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
     const [isGenerating, setIsGenerating] = useState(false);
     const [selectedImages, setSelectedImages] = useState<string[]>(product.imageDataUris);
     const [appUrl, setAppUrl] = useState('');
+    const [shareText, setShareText] = useState('');
 
     useEffect(() => {
         // This ensures the URL is read on the client-side
-        setAppUrl(process.env.NEXT_PUBLIC_APP_URL || window.location.origin);
-    }, []);
+        const currentUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+        setAppUrl(currentUrl);
+        
+        const orderLink = `${currentUrl}/secure-cod?name=${encodeURIComponent(product.title)}&amount=${product.price || product.costPrice || 0}&seller_id=${user?.uid || ''}&seller_name=${user?.displayName || ''}`;
+        
+        setShareText(
+            `Check out this new product!\n\n*${product.title}*\n${product.description}\n\n*Price:* ₹${(product.price || product.costPrice)?.toFixed(2)}\n\nClick here to order with **Secure COD**, **Prepaid**, or **Cash on Delivery**: ${orderLink}`
+        );
+    }, [product, user]);
     
-    // The link now points to the lead generation form
     const orderLink = `${appUrl}/secure-cod?name=${encodeURIComponent(product.title)}&amount=${product.price || product.costPrice || 0}&seller_id=${user?.uid || ''}&seller_name=${user?.displayName || ''}`;
         
-    const [shareText, setShareText] = useState(
-        `Check out this new product!\n\n*${product.title}*\n${product.description}\n\n*Price:* ₹${(product.price || product.costPrice)?.toFixed(2)}\n\nClick here to order with **Secure COD**, **Prepaid**, or **Cash on Delivery**: ${orderLink}`
-    );
-
     const handleImageSelection = (imageUri: string) => {
         setSelectedImages(prev => 
             prev.includes(imageUri) ? prev.filter(uri => uri !== imageUri) : [...prev, imageUri]
@@ -174,6 +177,3 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
         </DialogContent>
     );
 }
-
-
-    
