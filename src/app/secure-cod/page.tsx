@@ -11,7 +11,6 @@ import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
 import type { EditableOrder } from '@/app/orders/page';
 import { getRazorpayKeyId } from '@/app/actions';
-import { usePageRefresh } from '@/hooks/usePageRefresh';
 import { saveOrder, savePaymentInfo } from '@/services/firestore';
 import { format, addYears } from 'date-fns';
 import type { ShaktiCardData } from '@/components/shakti-card';
@@ -32,7 +31,6 @@ function SecureCodPaymentForm() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const { toast } = useToast();
-    const { triggerRefresh } = usePageRefresh();
 
     const [orderDetails, setOrderDetails] = useState<{productName: string; amount: number; orderId: string, sellerId?: string | null, sellerName?: string | null}>({
         productName: 'Loading...',
@@ -140,7 +138,7 @@ function SecureCodPaymentForm() {
               description: `Your payment is ${paymentStatus}. Order ${newOrder.orderId} has been confirmed.`,
             });
             
-            triggerRefresh(); // Notify other components of data change
+            router.refresh();
             setStep('complete');
 
         } catch (dbError: any) {
