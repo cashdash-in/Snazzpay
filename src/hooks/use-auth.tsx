@@ -50,10 +50,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const role = getCookie('userRole');
         let loginPath = '/auth/login'; // Default
         
-        if (role === 'seller') loginPath = '/seller/login';
-        else if (role === 'vendor') loginPath = '/vendor/login';
-        else if (role === 'partner-pay') loginPath = '/partner-pay/login';
-        else if (role === 'logistics') loginPath = '/logistics-secure/login';
+        if (role === 'seller') {
+            loginPath = '/seller/login';
+        } else if (role === 'vendor') {
+            loginPath = '/vendor/login';
+        } else if (role === 'partner-pay') {
+            loginPath = '/partner-pay/login';
+        } else if (role === 'logistics') {
+            loginPath = '/logistics-secure/login';
+        }
 
         router.push(loginPath);
         router.refresh();
@@ -77,4 +82,3 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
-
