@@ -139,7 +139,7 @@ function SecureCodPaymentForm() {
                 date: new Date().toISOString(),
                 sellerId: orderDetails.sellerId,
                 paymentStatus: 'Lead',
-                paymentMethod: paymentMethod, // Add payment method
+                paymentMethod: paymentMethod,
                 source: 'Seller'
             };
             
@@ -173,8 +173,7 @@ function SecureCodPaymentForm() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                     amount: orderDetails.amount, 
-                    productName: orderDetails.productName, 
-                    // Customer details can be passed if known, or webhook can update later
+                    productName: orderDetails.productName,
                     isAuthorization: true 
                 })
             }).then(res => res.json());
@@ -192,7 +191,7 @@ function SecureCodPaymentForm() {
                     const finalOrder: EditableOrder = { 
                         id: orderDetails.orderId,
                         orderId: orderDetails.orderId,
-                        customerName: 'N/A', // These will be filled by webhook or manual entry later
+                        customerName: 'N/A',
                         customerAddress: 'N/A',
                         pincode: 'N/A',
                         contactNo: 'N/A',
@@ -210,10 +209,6 @@ function SecureCodPaymentForm() {
                         signature: response.razorpay_signature, status: 'authorized', authorizedAt: new Date().toISOString()
                     };
                     await saveDocument('payment_info', paymentInfo, finalOrder.orderId);
-                    
-                    // The customer details are unknown here. Shakti card would need to be created
-                    // after customer info is updated in the admin panel.
-                    // For prototype, we can pass some dummy data if needed.
                     
                     toast({ title: "Payment Successful!", description: `Your payment is Authorized. Order ${finalOrder.orderId} confirmed.` });
                     setStep('complete');

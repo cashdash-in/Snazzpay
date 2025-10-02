@@ -47,7 +47,6 @@ function OrderDetailContent() {
     const [order, setOrder] = useState<EditableOrder | null>(null);
     const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null);
     const [loading, setLoading] = useState(true);
-    const [isProcessed, setIsProcessed] = useState(false);
     const [isCharging, setIsCharging] = useState(false);
     const [isSendingLink, setIsSendingLink] = useState(false);
     const [cancellationFee, setCancellationFee] = useState('');
@@ -60,7 +59,6 @@ function OrderDetailContent() {
         
         let foundOrder: EditableOrder | null = null;
         
-        // Check orders and leads collections in Firestore
         foundOrder = await getDocument<EditableOrder>('orders', orderIdParam);
         if (!foundOrder) {
             foundOrder = await getDocument<EditableOrder>('leads', orderIdParam);
@@ -455,7 +453,7 @@ function OrderDetailContent() {
                         </div>
                          <div className="space-y-2">
                             <Label htmlFor="date">Date</Label>
-                            <Input id="date" type="date" value={order.date} onChange={(e) => handleInputChange('date', e.target.value)} />
+                            <Input id="date" type="date" value={order.date ? format(new Date(order.date), 'yyyy-MM-dd') : ''} onChange={(e) => handleInputChange('date', e.target.value)} />
                         </div>
                          <div className="space-y-2">
                             <Label htmlFor="paymentStatus">Payment Status</Label>

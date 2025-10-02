@@ -71,10 +71,9 @@ function PaymentPageContent() {
         const sanitizedMobile = sanitizePhoneNumber(order.contactNo);
         
         const existingCards = await getCollection<ShaktiCardData>('shakti_cards');
-        const cardExists = existingCards.some(card => card.customerPhone === sanitizedMobile);
+        const cardExists = existingCards.find(card => card.customerPhone === sanitizedMobile);
         if (cardExists) {
-            // If card already exists, just return that data
-             return existingCards.find(card => card.customerPhone === sanitizedMobile) || null;
+             return cardExists;
         }
 
         const newCard: ShaktiCardData = {
@@ -114,7 +113,7 @@ function PaymentPageContent() {
 
         try {
             const allLeads = await getCollection<EditableOrder>('leads');
-            const lead = allLeads.find((l: EditableOrder) => l.orderId === orderDetails.orderId && l.sellerId === orderDetails.sellerId);
+            const lead = allLeads.find((l: EditableOrder) => l.orderId === orderDetails.orderId);
 
             if (!lead) {
                 throw new Error("Could not find the original order request. Please contact the seller.");
