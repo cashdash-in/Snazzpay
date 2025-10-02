@@ -3,6 +3,7 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, ShieldCheck, CheckCircle } from "lucide-react";
@@ -12,7 +13,7 @@ import { format, addYears } from 'date-fns';
 import type { EditableOrder } from '@/app/orders/page';
 import { getRazorpayKeyId } from '@/app/actions';
 import { getCollection, saveDocument, getDocument, deleteDocument } from '@/services/firestore';
-import type { ShaktiCardData } from '@/components/shakti-card';
+import { ShaktiCard, type ShaktiCardData } from '@/components/shakti-card';
 import { sanitizePhoneNumber } from '@/lib/utils';
 import { CancellationForm } from '@/components/cancellation-form';
 
@@ -42,6 +43,8 @@ function PaymentPageContent() {
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [step, setStep] = useState<'details' | 'complete'>('details');
+    const [newlyCreatedCard, setNewlyCreatedCard] = useState<ShaktiCardData | null>(null);
+
 
     useEffect(() => {
         const name = searchParams.get('name') || 'Your Product';
@@ -62,14 +65,17 @@ function PaymentPageContent() {
 
     }, [searchParams, toast]);
     
-    const createNewShaktiCard = async (order: EditableOrder) => {
-        if (!order.contactNo || !order.customerEmail) return;
+    const createNewShaktiCard = async (order: EditableOrder): Promise<ShaktiCardData | null> => {
+        if (!order.contactNo || !order.customerEmail) return null;
 
         const sanitizedMobile = sanitizePhoneNumber(order.contactNo);
         
         const existingCards = await getCollection<ShaktiCardData>('shakti_cards');
         const cardExists = existingCards.some(card => card.customerPhone === sanitizedMobile);
-        if (cardExists) return;
+        if (cardExists) {
+            // If card already exists, just return that data
+             return existingCards.find(card => card.customerPhone === sanitizedMobile) || null;
+        }
 
         const newCard: ShaktiCardData = {
             cardNumber: `SHAKTI-${uuidv4().substring(0, 4).toUpperCase()}-${uuidv4().substring(0, 4).toUpperCase()}`,
@@ -91,8 +97,10 @@ function PaymentPageContent() {
                 title: "Shakti Card Issued!",
                 description: "You've earned a Shakti Card for future benefits!",
             });
+            return newCard;
         } catch(e) {
             console.error("Failed to save Shakti Card", e);
+            return null;
         }
     };
 
@@ -105,7 +113,6 @@ function PaymentPageContent() {
         }
 
         try {
-            // Find the original lead from the 'leads' collection
             const allLeads = await getCollection<EditableOrder>('leads');
             const lead = allLeads.find((l: EditableOrder) => l.orderId === orderDetails.orderId && l.sellerId === orderDetails.sellerId);
 
@@ -139,7 +146,6 @@ function PaymentPageContent() {
                 description: `Payment for ${orderDetails.productName}`,
                 order_id: result.order_id,
                 handler: async (response: any) => {
-                    // Move lead to orders collection with 'Paid' status
                     const newOrder: EditableOrder = {
                       ...lead,
                       paymentStatus: 'Paid',
@@ -149,7 +155,10 @@ function PaymentPageContent() {
                     await saveDocument('orders', newOrder, newOrder.id);
                     await deleteDocument('leads', lead.id);
 
-                    createNewShaktiCard(newOrder);
+                    const card = await createNewShaktiCard(newOrder);
+                    if (card) {
+                        setNewlyCreatedCard(card);
+                    }
 
                     toast({
                       title: "Payment Successful!",
@@ -189,9 +198,22 @@ function PaymentPageContent() {
                         <CardTitle>Payment Successful!</CardTitle>
                         <CardDescription>Thank you for your order! Your payment has been confirmed.</CardDescription>
                     </CardHeader>
-                    <CardContent>
-                        <p className="text-muted-foreground">The seller has been notified and will begin processing your order for dispatch. You will receive tracking details soon.</p>
+                    <CardContent className="space-y-4">
+                        <p className="text-muted-foreground">The seller has been notified and will process your order.</p>
+                        {newlyCreatedCard && (
+                            <div className="pt-4 border-t">
+                                <h4 className="font-semibold mb-2">Your Shakti COD Card is Ready!</h4>
+                                <div className="flex justify-center">
+                                    <ShaktiCard card={newlyCreatedCard} />
+                                </div>
+                            </div>
+                        )}
                     </CardContent>
+                    <CardFooter className="flex-col gap-2">
+                        <Link href="/customer/login" className="w-full">
+                            <Button className="w-full">Go to Customer Portal</Button>
+                        </Link>
+                    </CardFooter>
                  </Card>
             </div>
         )
