@@ -95,7 +95,8 @@ export default function BillingPage() {
                         commission: totalValue * COMMISSION_RATE,
                     };
                 });
-
+                
+                // For now, vendor value is not automatically tracked.
                 const vendorData = allVendors.map(v => ({
                     id: v.id,
                     name: v.name,
@@ -104,8 +105,8 @@ export default function BillingPage() {
                     aiUploadLimit: 0,
                     productDrops: vendorUsageMap[v.id] || 0,
                     productDropLimit: permissionsMap.get(v.id)?.productDropLimit || DEFAULT_DROP_LIMIT,
-                    totalValue: 0, // Placeholder for vendor-specific value logic
-                    commission: 0, // Placeholder
+                    totalValue: 0, 
+                    commission: 0, 
                 }));
 
                 setSellers(sellerData);
@@ -276,8 +277,8 @@ export default function BillingPage() {
                 <TabsContent value="vendors" className="mt-4">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Vendor Feature Usage</CardTitle>
-                            <CardDescription>Track and manage premium feature usage for all approved vendors.</CardDescription>
+                            <CardTitle>Vendor Feature Usage & Financials</CardTitle>
+                            <CardDescription>Track and manage premium feature usage and financials for all approved vendors.</CardDescription>
                         </CardHeader>
                         <CardContent>
                              {isLoading ? (
@@ -288,6 +289,8 @@ export default function BillingPage() {
                                     <TableRow>
                                         <TableHead>Vendor</TableHead>
                                         <TableHead>Product Drops</TableHead>
+                                        <TableHead>Total Value (Rs.)</TableHead>
+                                        <TableHead>Commission (Rs.)</TableHead>
                                         <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -304,7 +307,32 @@ export default function BillingPage() {
                                                     {vendor.productDrops} / {vendor.productDropLimit}
                                                 </div>
                                             </TableCell>
-                                            <TableCell className="text-right">
+                                            <TableCell>
+                                                <div className="flex items-center gap-1">
+                                                    <DollarSign className="h-4 w-4 text-muted-foreground" />
+                                                    <Input
+                                                        type="number"
+                                                        value={vendor.totalValue}
+                                                        onChange={(e) => handleFieldChange(vendor.id, 'totalValue', e.target.value)}
+                                                        className="w-28 h-8"
+                                                    />
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center gap-1 font-medium">
+                                                    <Percent className="h-4 w-4 text-muted-foreground" />
+                                                    <Input
+                                                        type="number"
+                                                        value={vendor.commission}
+                                                        onChange={(e) => handleFieldChange(vendor.id, 'commission', e.target.value)}
+                                                        className="w-24 h-8"
+                                                    />
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="text-right space-x-2">
+                                                <Button size="icon" variant="outline" onClick={() => handleSaveBilling(vendor.id)} title="Save financial data">
+                                                    <Save className="h-4 w-4" />
+                                                </Button>
                                                 <Dialog onOpenChange={(open) => !open && setSelectedUser(null)}>
                                                     <DialogTrigger asChild>
                                                         <Button size="sm" variant="outline" onClick={() => openManageDialog(vendor)}>
