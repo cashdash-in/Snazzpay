@@ -13,6 +13,7 @@ import { useAuth } from '@/hooks/use-auth';
 import type { EditableOrder } from '@/app/orders/page';
 import { Badge } from "@/components/ui/badge";
 import { sanitizePhoneNumber } from "@/lib/utils";
+import { getCollection, saveDocument, deleteDocument } from "@/services/firestore";
 
 export default function SellerOrdersPage() {
   const [orders, setOrders] = useState<EditableOrder[]>([]);
@@ -20,28 +21,20 @@ export default function SellerOrdersPage() {
   const { toast } = useToast();
   const { user } = useAuth();
 
-  const fetchSellerOrders = useCallback(() => {
+  const fetchSellerOrders = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     try {
-      const allSellerOrdersJSON = localStorage.getItem('seller_orders');
-      const allSellerOrders: EditableOrder[] = allSellerOrdersJSON ? JSON.parse(allSellerOrdersJSON) : [];
-      
-      const userSellerOrders = allSellerOrders.filter(o => o.sellerId === user.uid);
-      
-      const unifiedOrders = userSellerOrders.map(order => {
-        const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
-        return { ...order, ...storedOverrides };
-      });
-      
-      setOrders(unifiedOrders);
+      const allOrders = await getCollection<EditableOrder>('orders');
+      const sellerOrders = allOrders.filter(o => o.sellerId === user.uid);
+      setOrders(sellerOrders);
 
     } catch (error) {
       console.error("Failed to load seller orders:", error);
       toast({
         variant: 'destructive',
         title: "Error loading your orders",
-        description: "Could not load orders from local storage.",
+        description: "Could not load orders from Firestore.",
       });
     }
     setLoading(false);
@@ -51,26 +44,25 @@ export default function SellerOrdersPage() {
     fetchSellerOrders();
   }, [fetchSellerOrders]);
 
-  const handleRemoveOrder = (orderId: string) => {
+  const handleRemoveOrder = async (orderId: string) => {
     if (!user) return;
-    const ordersStorageKey = `seller_orders`;
-    let allOrders = JSON.parse(localStorage.getItem(ordersStorageKey) || '[]');
-    allOrders = allOrders.filter((order: EditableOrder) => order.id !== orderId);
-    localStorage.setItem(ordersStorageKey, JSON.stringify(allOrders));
-    setOrders(prev => prev.filter(o => o.id !== orderId));
-    
-    toast({
-        variant: 'destructive',
-        title: "Order Removed",
-        description: "The order has been removed successfully.",
-    });
+    try {
+        await deleteDocument('orders', orderId);
+        setOrders(prev => prev.filter(o => o.id !== orderId));
+        toast({
+            variant: 'destructive',
+            title: "Order Removed",
+            description: "The order has been removed successfully.",
+        });
+    } catch(e) {
+         toast({ variant: 'destructive', title: "Error Removing Order" });
+    }
   };
   
-  const handlePushToVendor = (orderToPush: EditableOrder) => {
+  const handlePushToVendor = async (orderToPush: EditableOrder) => {
     if (!user) return;
     
-    const approvedSellersJSON = localStorage.getItem('approved_sellers');
-    const approvedSellers = approvedSellersJSON ? JSON.parse(approvedSellersJSON) : [];
+    const approvedSellers = await getCollection<any>('seller_users');
     const sellerInfo = approvedSellers.find((s: any) => s.id === user.uid);
     const vendorId = sellerInfo?.vendorId;
     
@@ -83,29 +75,27 @@ export default function SellerOrdersPage() {
         return;
     }
 
-    const vendorOrdersKey = `vendor_orders`;
-    const vendorOrdersJSON = localStorage.getItem(vendorOrdersKey);
-    let vendorOrders = vendorOrdersJSON ? JSON.parse(vendorOrdersJSON) : [];
-    
-    if (!vendorOrders.some((o: EditableOrder) => o.id === orderToPush.id)) {
-        vendorOrders.push({ ...orderToPush, vendorId: vendorId });
-        localStorage.setItem(vendorOrdersKey, JSON.stringify(vendorOrders));
-    }
+    try {
+        const orderForVendor = { ...orderToPush, vendorId: vendorId };
+        await saveDocument('vendor_orders', orderForVendor, orderToPush.id);
 
-    const updatedSellerOrders = orders.map(o => 
-        o.id === orderToPush.id ? { ...o, paymentStatus: 'Pushed to Vendor' } : o
-    );
-    setOrders(updatedSellerOrders);
-    
-    const sellerOrdersKey = `seller_orders`;
-    const allSellerOrders = JSON.parse(localStorage.getItem(sellerOrdersKey) || '[]');
-    const finalSellerOrders = allSellerOrders.map((o: EditableOrder) => o.id === orderToPush.id ? { ...o, paymentStatus: 'Pushed to Vendor' } : o);
-    localStorage.setItem(sellerOrdersKey, JSON.stringify(finalSellerOrders));
-    
-    toast({
-        title: "Order Pushed to Vendor!",
-        description: `${orderToPush.orderId} has been sent for fulfillment.`,
-    });
+        const updatedOrder = { ...orderToPush, paymentStatus: 'Pushed to Vendor' };
+        await saveDocument('orders', updatedOrder, orderToPush.id);
+        
+        setOrders(prev => prev.map(o => o.id === orderToPush.id ? updatedOrder : o));
+
+        toast({
+            title: "Order Pushed to Vendor!",
+            description: `${orderToPush.orderId} has been sent for fulfillment.`,
+        });
+
+    } catch(e: any) {
+        toast({
+            variant: 'destructive',
+            title: "Failed to Push Order",
+            description: e.message || "Could not push the order to the vendor.",
+        });
+    }
   };
 
   const handleShareOnWhatsApp = (order: EditableOrder) => {
@@ -127,6 +117,7 @@ export default function SellerOrdersPage() {
     }
     
     const isPrepaid = order.paymentMethod === 'Prepaid';
+    // The link now includes the seller's user ID to fetch the correct payment keys on the backend
     const baseUrl = `${window.location.origin}/payment`;
     const finalUrl = `${baseUrl}?amount=${encodeURIComponent(order.price)}&name=${encodeURIComponent(order.productOrdered)}&order_id=${encodeURIComponent(order.orderId)}&seller_id=${user?.uid}&prepaid=${isPrepaid}`;
     
@@ -233,5 +224,3 @@ export default function SellerOrdersPage() {
     </AppShell>
   );
 }
-
-    

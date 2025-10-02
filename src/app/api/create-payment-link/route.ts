@@ -2,28 +2,63 @@
 import { NextResponse } from 'next/server';
 import Razorpay from 'razorpay';
 import nodemailer from 'nodemailer';
+import { getDocument } from '@/services/firestore';
+
+// Define a type for the payment settings
+type PaymentSettings = {
+    razorpay_key_id: string;
+    razorpay_key_secret: string;
+};
+
+async function getRazorpayInstance(userId?: string, userRole?: 'seller' | 'vendor'): Promise<Razorpay> {
+    let keyId: string | undefined;
+    let keySecret: string | undefined;
+
+    if (userId && userRole) {
+        // Fetch credentials for a specific seller or vendor from Firestore
+        const settings = await getDocument<PaymentSettings>(`${userRole}_payment_settings`, userId);
+        if (settings) {
+            keyId = settings.razorpay_key_id;
+            keySecret = settings.razorpay_key_secret;
+        }
+    }
+
+    // Fallback to admin/platform credentials if others are not found
+    if (!keyId || !keySecret) {
+        keyId = process.env.RAZORPAY_KEY_ID;
+        keySecret = process.env.RAZORPAY_KEY_SECRET;
+    }
+
+    if (!keyId || !keySecret) {
+        throw new Error("Server configuration error: Razorpay keys are missing.");
+    }
+    
+    return new Razorpay({
+        key_id: keyId,
+        key_secret: keySecret,
+    });
+}
+
 
 export async function POST(request: Request) {
-    const keyId = process.env.RAZORPAY_KEY_ID;
-    const keySecret = process.env.RAZORPAY_KEY_SECRET;
     const GMAIL_EMAIL = process.env.GMAIL_APP_EMAIL;
     const GMAIL_PASSWORD = process.env.GMAIL_APP_PASSWORD;
     const APP_URL = process.env.NEXT_PUBLIC_APP_URL;
 
-    if (!keyId || !keySecret) {
-        return new NextResponse(
-            JSON.stringify({ error: "Server configuration error: Razorpay keys are missing." }),
-            { status: 500, headers: { 'Content-Type': 'application/json' } }
-        );
-    }
-    
-    const razorpay = new Razorpay({
-        key_id: keyId,
-        key_secret: keySecret,
-    });
-
     try {
-        const { amount, customerName, customerContact, customerEmail, orderId, productName, isPartnerSettlement } = await request.json();
+        const { 
+            amount, 
+            customerName, 
+            customerContact, 
+            customerEmail, 
+            orderId, 
+            productName, 
+            isPartnerSettlement,
+            userId,
+            userRole
+        } = await request.json();
+        
+        const razorpay = await getRazorpayInstance(userId, userRole);
 
         if (isPartnerSettlement) {
              if (!amount) {
