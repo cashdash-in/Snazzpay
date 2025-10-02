@@ -40,6 +40,7 @@ export async function POST(request: Request) {
 
         } catch (customerError: any) {
             console.warn(`Could not create new Razorpay customer (they might already exist): ${customerError.error?.description || customerError.message}`);
+            // Attempt to find existing customer by email or contact could go here if needed
         }
        
         // Step 2: Create Order
@@ -82,5 +83,3 @@ export async function POST(request: Request) {
         );
     }
 }
-
-    
