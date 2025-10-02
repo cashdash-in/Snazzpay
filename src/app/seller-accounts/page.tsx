@@ -264,5 +264,3 @@ export default function SellerAccountsPage() {
         </AppShell>
     );
 }
-
-    
