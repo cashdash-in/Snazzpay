@@ -8,78 +8,57 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Allow authenticated users to read from any collection
+    // Allow any authenticated user to read from any collection.
+    // This is necessary for dashboards and list views to function.
     match /{path=**} {
       allow get, list: if request.auth != null;
     }
 
-    // Allow users to create their own user-related documents
+    // Allow users to create and manage their own specific documents.
+    // This covers signup and individual settings.
     match /seller_users/{userId} {
-      allow create: if request.auth != null && request.auth.uid == userId;
-      allow read, update: if request.auth != null && request.auth.uid == userId;
+      allow create, read, update, delete: if request.auth != null && request.auth.uid == userId;
     }
-    
     match /vendors/{userId} {
-       allow create: if request.auth != null && request.auth.uid == userId;
-       allow read: if request.auth != null;
+      allow create, read, update, delete: if request.auth != null && request.auth.uid == userId;
     }
-    
-    match /user_permissions/{userId} {
-      allow read, write: if request.auth != null; // Admins manage this
+     match /user_permissions/{userId} {
+      allow create, read, update, delete: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Allow authenticated users to manage their own data
-    match /chats/{chatId} {
-      allow read, write: if request.auth != null && request.auth.uid in resource.data.participants;
-    }
-
-    match /chats/{chatId}/messages/{messageId} {
-      allow read, create: if request.auth != null;
-    }
-    
+    // Allow any authenticated user to create documents in these collections.
+    // This is needed for creating orders, leads, drops, etc. from the app.
+    // Read access is already granted by the wildcard rule above.
+    // Update/delete should be handled with more granular rules if needed.
     match /orders/{orderId} {
-      allow read, write: if request.auth != null;
+      allow create, update: if request.auth != null;
     }
-
     match /leads/{leadId} {
-       allow read, write: if request.auth != null;
+      allow create, update, delete: if request.auth != null;
     }
-    
     match /product_drops/{dropId} {
-      allow read, write: if request.auth != null;
+       allow create, update, delete: if request.auth != null;
+    }
+     match /seller_products/{productId} {
+       allow create, update, delete: if request.auth != null;
+    }
+    match /vendor_orders/{orderId} {
+        allow create, update, delete: if request.auth != null;
+    }
+     match /shakti_cards/{cardId} {
+        allow create, update: if request.auth != null;
+    }
+    match /payment_info/{paymentId} {
+        allow create, update: if request.auth != null;
     }
 
-    match /seller_products/{productId} {
-       allow read, write: if request.auth != null;
-    }
-    
-    match /shakti_cards/{cardId} {
-      allow read, write: if request.auth != null;
-    }
-
-    // Allow admin to manage top-up requests
-    match /topUpRequests/{requestId} {
-      allow read, write: if request.auth != null;
-    }
-
-    match /partnerCancellations/{cancellationId} {
-      allow read, write: if request.auth != null;
-    }
-
-    match /partner_transactions/{txId} {
-      allow read, write: if request.auth != null;
-    }
-    
-    match /payPartners/{partnerId} {
-      allow read, write: if request.auth != null;
-    }
-
-    match /cash_codes/{codeId} {
-      allow read, write: if request.auth != null;
-    }
-
-    match /payment_info/{infoId} {
-      allow read, write: if request.auth != null;
+    // Rules for chat functionality
+    match /chats/{chatId} {
+      allow read, create, update: if request.auth != null && request.auth.uid in resource.data.participants;
+      
+      match /messages/{messageId} {
+        allow read, create: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+      }
     }
   }
 }
