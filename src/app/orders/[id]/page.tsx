@@ -54,16 +54,17 @@ function OrderDetailContent() {
     const [isProcessingFee, setIsProcessingFee] = useState(false);
 
 
-    const isManualOrder = order ? !order.id.startsWith('gid://') && !/^\d+$/.test(order.id) : false;
-
     const loadOrderData = useCallback(async () => {
         if (!orderIdParam) return;
         setLoading(true);
         
         let foundOrder: EditableOrder | null = null;
         
-        // Check Firestore first
-        foundOrder = await getDocument<EditableOrder>('orders', orderIdParam) || await getDocument<EditableOrder>('leads', orderIdParam);
+        // Check orders and leads collections in Firestore
+        foundOrder = await getDocument<EditableOrder>('orders', orderIdParam);
+        if (!foundOrder) {
+            foundOrder = await getDocument<EditableOrder>('leads', orderIdParam);
+        }
 
         if (foundOrder) {
              const paymentInfoDoc = await getDocument<PaymentInfo>('payment_info', foundOrder.orderId);
@@ -91,29 +92,15 @@ function OrderDetailContent() {
     const handleSave = async () => {
         if (!order) return;
         
+        const collectionName = order.paymentStatus === 'Lead' ? 'leads' : 'orders';
         try {
-            await saveDocument('orders', order, order.id);
+            await saveDocument(collectionName, order, order.id);
              toast({
                 title: "Order Saved",
                 description: `Details for order ${order.orderId} have been updated successfully.`,
             });
         } catch(e) {
             toast({ variant: 'destructive', title: "Error Saving", description: "Could not save order details to Firestore."});
-        }
-    };
-
-    const handleStartProcessing = async () => {
-        if (!order) return;
-        
-        try {
-            await saveDocument('orders', order, order.id);
-            setIsProcessed(true);
-            toast({
-                title: "Order Processing Started",
-                description: `Order ${order.orderId} is now active and visible across the dashboard.`
-            });
-        } catch(e) {
-            toast({ variant: 'destructive', title: "Error Starting Processing", description: "Could not save the order."});
         }
     };
     
@@ -330,17 +317,10 @@ function OrderDetailContent() {
                             Print Invoice
                           </Button>
                         </Link>
-                         {isProcessed || order.source !== 'Shopify' ? (
-                            <Button onClick={handleSave}>
-                                <Save className="mr-2 h-4 w-4" />
-                                Save Changes
-                            </Button>
-                        ) : (
-                             <Button onClick={handleStartProcessing}>
-                                <Rocket className="mr-2 h-4 w-4" />
-                                Start Processing
-                            </Button>
-                        )}
+                         <Button onClick={handleSave}>
+                            <Save className="mr-2 h-4 w-4" />
+                            Save Changes
+                        </Button>
                     </div>
                 </div>
 
@@ -485,6 +465,7 @@ function OrderDetailContent() {
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="Pending">Pending</SelectItem>
+                                    <SelectItem value="Lead">Lead</SelectItem>
                                     <SelectItem value="Intent Verified">Intent Verified</SelectItem>
                                     <SelectItem value="Authorized">Authorized</SelectItem>
                                     <SelectItem value="Paid">Paid</SelectItem>
