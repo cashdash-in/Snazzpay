@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -15,7 +16,7 @@ import type { SellerProduct } from "@/app/seller/ai-product-uploader/page";
 import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 
 export type SellerUser = {
     id: string;
@@ -31,8 +32,7 @@ export type SellerUser = {
 
 type UserPermissions = {
     id: string; // same as user.id
-    unlimitedAiUploads?: boolean;
-    unlimitedProductDrops?: boolean;
+    aiUploadLimit?: number;
 };
 
 export default function SellerAccountsPage() {
@@ -112,7 +112,7 @@ export default function SellerAccountsPage() {
     const openManageDialog = async (seller: SellerUser) => {
         setSelectedSeller(seller);
         const perms = await getDocument<UserPermissions>('user_permissions', seller.id);
-        setPermissions(perms || { id: seller.id });
+        setPermissions(perms || { id: seller.id, aiUploadLimit: 50 });
     };
 
     const handleSavePermissions = async () => {
@@ -226,16 +226,18 @@ export default function SellerAccountsPage() {
                                                         <DialogContent>
                                                             <DialogHeader>
                                                                 <DialogTitle>Manage Access for {selectedSeller.companyName}</DialogTitle>
-                                                                <DialogDescription>Grant unlimited access to premium features.</DialogDescription>
+                                                                <DialogDescription>Set custom usage limits for premium features.</DialogDescription>
                                                             </DialogHeader>
                                                             <div className="py-4 space-y-4">
-                                                                <div className="flex items-center space-x-2">
-                                                                    <Checkbox 
-                                                                        id="unlimited-ai" 
-                                                                        checked={permissions.unlimitedAiUploads}
-                                                                        onCheckedChange={(checked) => setPermissions(p => p ? {...p, unlimitedAiUploads: !!checked} : null)}
+                                                                <div className="space-y-2">
+                                                                    <Label htmlFor="ai-upload-limit">AI Product Uploader Limit</Label>
+                                                                    <Input
+                                                                        id="ai-upload-limit"
+                                                                        type="number"
+                                                                        value={permissions.aiUploadLimit || 50}
+                                                                        onChange={(e) => setPermissions(p => p ? {...p, aiUploadLimit: parseInt(e.target.value, 10)} : null)}
                                                                     />
-                                                                    <Label htmlFor="unlimited-ai">Grant Unlimited AI Uploader Access</Label>
+                                                                    <p className="text-xs text-muted-foreground">Set the total number of AI product uploads this seller can perform. Default is 50.</p>
                                                                 </div>
                                                             </div>
                                                             <DialogFooter>

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -17,7 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getCollection, saveDocument, createChat, getDocument } from '@/services/firestore';
 import type { ProductDrop } from '@/app/vendor/product-drops/page';
 import { useRouter } from 'next/navigation';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
 
 export type Vendor = {
     id: string;
@@ -31,8 +32,7 @@ export type Vendor = {
 
 type UserPermissions = {
     id: string; // same as user.id
-    unlimitedAiUploads?: boolean;
-    unlimitedProductDrops?: boolean;
+    productDropLimit?: number;
 };
 
 
@@ -135,7 +135,7 @@ export default function VendorsPage() {
     const openManageDialog = async (vendor: Vendor) => {
         setSelectedVendor(vendor);
         const perms = await getDocument<UserPermissions>('user_permissions', vendor.id);
-        setPermissions(perms || { id: vendor.id });
+        setPermissions(perms || { id: vendor.id, productDropLimit: 50 });
     };
 
     const handleSavePermissions = async () => {
@@ -265,16 +265,18 @@ export default function VendorsPage() {
                                                         <DialogContent>
                                                             <DialogHeader>
                                                                 <DialogTitle>Manage Access for {selectedVendor.name}</DialogTitle>
-                                                                <DialogDescription>Grant unlimited access to premium features.</DialogDescription>
+                                                                <DialogDescription>Set custom usage limits for premium features.</DialogDescription>
                                                             </DialogHeader>
                                                             <div className="py-4 space-y-4">
-                                                                <div className="flex items-center space-x-2">
-                                                                    <Checkbox 
-                                                                        id="unlimited-drops" 
-                                                                        checked={permissions.unlimitedProductDrops}
-                                                                        onCheckedChange={(checked) => setPermissions(p => p ? {...p, unlimitedProductDrops: !!checked} : null)}
+                                                                <div className="space-y-2">
+                                                                    <Label htmlFor="product-drop-limit">Product Drop Limit</Label>
+                                                                    <Input
+                                                                        id="product-drop-limit"
+                                                                        type="number"
+                                                                        value={permissions.productDropLimit || 50}
+                                                                        onChange={(e) => setPermissions(p => p ? {...p, productDropLimit: parseInt(e.target.value, 10)} : null)}
                                                                     />
-                                                                    <Label htmlFor="unlimited-drops">Grant Unlimited Product Drop Access</Label>
+                                                                    <p className="text-xs text-muted-foreground">Set the total number of product drops this vendor can create. Default is 50.</p>
                                                                 </div>
                                                             </div>
                                                             <DialogFooter>

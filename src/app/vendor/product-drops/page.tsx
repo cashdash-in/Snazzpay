@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -43,6 +44,7 @@ export default function VendorProductDropsPage() {
     const [imagePreviews, setImagePreviews] = useState<string[]>([]);
     const [imageDataUris, setImageDataUris] = useState<string[]>([]);
     const [usageCount, setUsageCount] = useState(0);
+    const [limit, setLimit] = useState(PRODUCT_DROP_LIMIT);
     const [isLimitReached, setIsLimitReached] = useState(false);
     
     useEffect(() => {
@@ -51,21 +53,19 @@ export default function VendorProductDropsPage() {
                 const role = getCookie('userRole');
                 if (role === 'admin') {
                     setIsLimitReached(false);
+                    setLimit(Infinity); // Admin has infinite limit
                     return;
                 }
 
-                const permissions = await getDocument('user_permissions', user.uid);
-                // @ts-ignore
-                if (permissions?.unlimitedProductDrops) {
-                    setIsLimitReached(false);
-                    return;
-                }
+                const permissions = await getDocument<{productDropLimit?: number}>('user_permissions', user.uid);
+                const currentLimit = permissions?.productDropLimit || PRODUCT_DROP_LIMIT;
+                setLimit(currentLimit);
 
                 const drops = await getCollection<ProductDrop>('product_drops');
                 const vendorDrops = drops.filter(d => d.vendorId === user.uid);
                 const count = vendorDrops.length;
                 setUsageCount(count);
-                setIsLimitReached(count >= PRODUCT_DROP_LIMIT);
+                setIsLimitReached(count >= currentLimit);
             }
         }
         checkUsage();
@@ -111,7 +111,7 @@ export default function VendorProductDropsPage() {
             toast({
                 variant: 'destructive',
                 title: 'Product Drop Limit Reached',
-                description: `You have used your quota of ${PRODUCT_DROP_LIMIT} free product drops. Please contact the admin to upgrade.`,
+                description: `You have used your quota of ${limit} product drops. Please contact the admin to upgrade.`,
             });
             return;
         }
@@ -163,7 +163,7 @@ export default function VendorProductDropsPage() {
                     <Lock className="h-4 w-4" />
                     <AlertTitle>Feature Limit Reached</AlertTitle>
                     <AlertDescription>
-                        You have reached your free limit of {PRODUCT_DROP_LIMIT} product drops. Please contact the administrator to upgrade your plan for unlimited access.
+                        You have reached your limit of {limit} product drops. Please contact the administrator to upgrade your plan for a higher limit.
                     </AlertDescription>
                 </Alert>
             )}
@@ -220,5 +220,3 @@ export default function VendorProductDropsPage() {
         </AppShell>
     );
 }
-
-    

@@ -1,4 +1,5 @@
 
+
 'use client';
 import { useState, useEffect } from "react";
 import { AppShell } from "@/components/layout/app-shell";
@@ -26,6 +27,7 @@ export default function SellerSettingsPage() {
     const { toast } = useToast();
     const [paymentSettings, setPaymentSettings] = useState<PaymentSettings>({ razorpay_key_id: '', razorpay_key_secret: '' });
     const [usage, setUsage] = useState({ drops: 0, aiUploads: 0 });
+    const [limit, setLimit] = useState(AI_UPLOADER_LIMIT);
 
     useEffect(() => {
         if (user) {
@@ -35,10 +37,19 @@ export default function SellerSettingsPage() {
                 }
             });
 
-            getCollection<SellerProduct>('seller_products').then(allProducts => {
+            async function fetchUsageAndLimits() {
+                const [allProducts, permissions] = await Promise.all([
+                    getCollection<SellerProduct>('seller_products'),
+                    getDocument<{aiUploadLimit?: number}>('user_permissions', user!.uid)
+                ]);
+
                 const sellerProducts = allProducts.filter(p => p.sellerId === user.uid);
                 setUsage({ drops: 0, aiUploads: sellerProducts.length });
-            });
+                if (permissions?.aiUploadLimit) {
+                    setLimit(permissions.aiUploadLimit);
+                }
+            }
+            fetchUsageAndLimits();
         }
     }, [user]);
 
@@ -140,12 +151,12 @@ export default function SellerSettingsPage() {
                                         <CardDescription>Generate product listings using AI.</CardDescription>
                                     </div>
                                     <div className="text-right">
-                                        <p className="text-2xl font-bold">{usage.aiUploads} / {AI_UPLOADER_LIMIT}</p>
-                                        <p className="text-xs text-muted-foreground">Free Generations Used</p>
+                                        <p className="text-2xl font-bold">{usage.aiUploads} / {limit}</p>
+                                        <p className="text-xs text-muted-foreground">Generations Used</p>
                                     </div>
                                 </CardHeader>
                                 <CardFooter>
-                                    <p className="text-sm text-muted-foreground">You are currently on the free plan. Contact the administrator to upgrade for unlimited AI product generations.</p>
+                                    <p className="text-sm text-muted-foreground">Contact the administrator to upgrade your plan for a higher limit.</p>
                                 </CardFooter>
                             </Card>
                         </CardContent>

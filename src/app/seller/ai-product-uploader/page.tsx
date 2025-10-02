@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -57,6 +58,7 @@ export default function AiProductUploaderPage() {
     useState<ProductListingOutput | null>(null);
     
   const [usageCount, setUsageCount] = useState(0);
+  const [limit, setLimit] = useState(AI_UPLOADER_LIMIT);
   const [isLimitReached, setIsLimitReached] = useState(false);
 
   useEffect(() => {
@@ -65,21 +67,19 @@ export default function AiProductUploaderPage() {
             const role = getCookie('userRole');
             if (role === 'admin') {
                 setIsLimitReached(false);
+                setLimit(Infinity); // Admin has infinite limit
                 return;
             }
 
-            const permissions = await getDocument('user_permissions', user.uid);
-            // @ts-ignore
-            if (permissions?.unlimitedAiUploads) {
-                 setIsLimitReached(false);
-                 return;
-            }
+            const permissions = await getDocument<{aiUploadLimit?: number}>('user_permissions', user.uid);
+            const currentLimit = permissions?.aiUploadLimit || AI_UPLOADER_LIMIT;
+            setLimit(currentLimit);
 
             const products = await getCollection<SellerProduct>('seller_products');
             const sellerProducts = products.filter(p => p.sellerId === user.uid);
             const count = sellerProducts.length;
             setUsageCount(count);
-            setIsLimitReached(count >= AI_UPLOADER_LIMIT);
+            setIsLimitReached(count >= currentLimit);
         }
     }
     checkUsage();
@@ -175,7 +175,7 @@ export default function AiProductUploaderPage() {
         toast({
             variant: 'destructive',
             title: 'AI Uploader Limit Reached',
-            description: `You have used your quota of ${AI_UPLOADER_LIMIT} free AI generations. Please contact the admin to upgrade.`,
+            description: `You have used your quota of ${limit} AI generations. Please contact the admin to upgrade.`,
         });
         return;
     }
@@ -260,7 +260,7 @@ export default function AiProductUploaderPage() {
             <Lock className="h-4 w-4" />
             <AlertTitle>Feature Limit Reached</AlertTitle>
             <AlertDescription>
-                You have reached your free limit of {AI_UPLOADER_LIMIT} AI-generated products. Please contact the administrator to upgrade your plan for unlimited access.
+                You have reached your limit of {limit} AI-generated products. Please contact the administrator to upgrade your plan for a higher limit.
             </AlertDescription>
           </Alert>
       )}
@@ -476,5 +476,3 @@ export default function AiProductUploaderPage() {
     </AppShell>
   );
 }
-
-    

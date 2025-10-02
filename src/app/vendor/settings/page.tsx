@@ -1,4 +1,5 @@
 
+
 'use client';
 import { useState, useEffect } from "react";
 import { AppShell } from "@/components/layout/app-shell";
@@ -26,6 +27,7 @@ export default function VendorSettingsPage() {
     const { toast } = useToast();
     const [paymentSettings, setPaymentSettings] = useState<PaymentSettings>({ razorpay_key_id: '', razorpay_key_secret: '' });
     const [usage, setUsage] = useState({ drops: 0 });
+    const [limit, setLimit] = useState(PRODUCT_DROP_LIMIT);
 
      useEffect(() => {
         if (user) {
@@ -35,10 +37,19 @@ export default function VendorSettingsPage() {
                 }
             });
 
-            getCollection<ProductDrop>('product_drops').then(allDrops => {
+            async function fetchUsageAndLimits() {
+                 const [allDrops, permissions] = await Promise.all([
+                    getCollection<ProductDrop>('product_drops'),
+                    getDocument<{productDropLimit?: number}>('user_permissions', user!.uid)
+                ]);
+                
                 const vendorDrops = allDrops.filter(d => d.vendorId === user.uid);
                 setUsage({ drops: vendorDrops.length });
-            });
+                if (permissions?.productDropLimit) {
+                    setLimit(permissions.productDropLimit);
+                }
+            }
+            fetchUsageAndLimits();
         }
     }, [user]);
 
@@ -139,12 +150,12 @@ export default function VendorSettingsPage() {
                                     <CardDescription>Share new products with your seller network.</CardDescription>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-2xl font-bold">{usage.drops} / {PRODUCT_DROP_LIMIT}</p>
+                                    <p className="text-2xl font-bold">{usage.drops} / {limit}</p>
                                     <p className="text-xs text-muted-foreground">Free Drops Used</p>
                                 </div>
                             </CardHeader>
                             <CardFooter>
-                                <p className="text-sm text-muted-foreground">You are currently on the free plan. Contact the administrator to upgrade for unlimited product drops.</p>
+                                <p className="text-sm text-muted-foreground">Contact the administrator to upgrade your plan for a higher limit.</p>
                             </CardFooter>
                         </Card>
                     </CardContent>
