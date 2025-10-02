@@ -13,7 +13,7 @@ import type { EditableOrder } from '@/app/orders/page';
 import { getRazorpayKeyId } from '@/app/actions';
 import { addDocument, saveDocument, getCollection, getDocument } from '@/services/firestore';
 import { format, addYears } from 'date-fns';
-import type { ShaktiCardData } from '@/components/shakti-card';
+import { ShaktiCard, type ShaktiCardData } from '@/components/shakti-card';
 import { sanitizePhoneNumber } from '@/lib/utils';
 import { CancellationForm } from '@/components/cancellation-form';
 import { Input } from '@/components/ui/input';
@@ -63,38 +63,45 @@ function SecureCodPaymentForm() {
         name: '', email: '', contact: '', address: '', pincode: ''
     });
     const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Prepaid');
+    const [newlyCreatedCard, setNewlyCreatedCard] = useState<ShaktiCardData | null>(null);
 
-    const createNewShaktiCard = async (order: EditableOrder) => {
-        if (!order.contactNo || !order.customerEmail) return;
+
+    const createNewShaktiCard = async (order: EditableOrder): Promise<ShaktiCardData | null> => {
+        if (!order.contactNo || !order.customerEmail) return null;
 
         const sanitizedMobile = sanitizePhoneNumber(order.contactNo);
         
-        const existingCards = await getCollection<ShaktiCardData>('shakti_cards');
-        const cardExists = existingCards.some(card => card.customerPhone === sanitizedMobile);
-        if (cardExists) return;
-
-        const newCard: ShaktiCardData = {
-            cardNumber: `SHAKTI-${uuidv4().substring(0, 4).toUpperCase()}-${uuidv4().substring(0, 4).toUpperCase()}`,
-            customerName: order.customerName,
-            customerPhone: order.contactNo,
-            customerEmail: order.customerEmail,
-            customerAddress: order.customerAddress,
-            validFrom: format(new Date(), 'MM/yy'),
-            validThru: format(addYears(new Date(), 2), 'MM/yy'),
-            points: 100, // Welcome bonus
-            cashback: 0,
-            sellerId: order.sellerId || 'snazzify',
-            sellerName: 'Snazzify',
-        };
-
         try {
+            const existingCards = await getCollection<ShaktiCardData>('shakti_cards');
+            const cardExists = existingCards.find(card => card.customerPhone === sanitizedMobile);
+            if (cardExists) {
+                console.log("Shakti Card already exists for this customer.");
+                return cardExists; // Return existing card
+            }
+
+            const newCard: ShaktiCardData = {
+                cardNumber: `SHAKTI-${uuidv4().substring(0, 4).toUpperCase()}-${uuidv4().substring(0, 4).toUpperCase()}`,
+                customerName: order.customerName,
+                customerPhone: order.contactNo,
+                customerEmail: order.customerEmail,
+                customerAddress: order.customerAddress,
+                validFrom: format(new Date(), 'MM/yy'),
+                validThru: format(addYears(new Date(), 2), 'MM/yy'),
+                points: 100, // Welcome bonus
+                cashback: 0,
+                sellerId: order.sellerId || 'snazzify',
+                sellerName: 'Snazzify',
+            };
+            
             await saveDocument('shakti_cards', newCard, newCard.cardNumber);
             toast({
                 title: "Shakti Card Issued!",
                 description: "You've earned a Shakti Card for future benefits!",
             });
+            return newCard;
         } catch(e) {
-            console.error("Failed to save Shakti Card", e);
+            console.error("Failed to save or find Shakti Card", e);
+            return null;
         }
     };
 
@@ -160,6 +167,14 @@ function SecureCodPaymentForm() {
     
     const handleAdminFlowSubmit = async () => {
         setIsSubmitting(true);
+        const { name, email, contact, address, pincode } = customerDetails;
+
+        if (isSellerFlow && (!name || !email || !contact || !address || !pincode)) {
+             toast({ variant: 'destructive', title: "Missing Details", description: "Please fill out all required fields." });
+             setIsSubmitting(false);
+             return;
+        }
+        
         if (!razorpayKeyId) {
              toast({ variant: 'destructive', title: "Razorpay Not Configured", description: "The payment gateway is not set up." });
              setIsSubmitting(false);
@@ -174,7 +189,12 @@ function SecureCodPaymentForm() {
                 body: JSON.stringify({ 
                     amount: orderDetails.amount, 
                     productName: orderDetails.productName,
-                    isAuthorization: true 
+                    isAuthorization: true,
+                    name: customerDetails.name,
+                    email: customerDetails.email,
+                    contact: customerDetails.contact,
+                    address: customerDetails.address,
+                    pincode: customerDetails.pincode,
                 })
             }).then(res => res.json());
 
@@ -191,10 +211,11 @@ function SecureCodPaymentForm() {
                     const finalOrder: EditableOrder = { 
                         id: orderDetails.orderId,
                         orderId: orderDetails.orderId,
-                        customerName: 'N/A',
-                        customerAddress: 'N/A',
-                        pincode: 'N/A',
-                        contactNo: 'N/A',
+                        customerName: customerDetails.name,
+                        customerEmail: customerDetails.email,
+                        customerAddress: customerDetails.address,
+                        pincode: customerDetails.pincode,
+                        contactNo: customerDetails.contact,
                         productOrdered: orderDetails.productName,
                         quantity: 1,
                         price: orderDetails.amount.toFixed(2),
@@ -210,8 +231,18 @@ function SecureCodPaymentForm() {
                     };
                     await saveDocument('payment_info', paymentInfo, finalOrder.orderId);
                     
+                    const card = await createNewShaktiCard(finalOrder);
+                    if (card) {
+                        setNewlyCreatedCard(card);
+                    }
+
                     toast({ title: "Payment Successful!", description: `Your payment is Authorized. Order ${finalOrder.orderId} confirmed.` });
                     setStep('complete');
+                },
+                prefill: {
+                    name: customerDetails.name,
+                    email: customerDetails.email,
+                    contact: customerDetails.contact,
                 },
                 modal: { ondismiss: () => {
                     setIsSubmitting(false);
@@ -237,12 +268,23 @@ function SecureCodPaymentForm() {
                         <CardTitle>Thank You!</CardTitle>
                         <CardDescription>{isSellerFlow ? "Your request has been sent to the seller." : "Your order is confirmed."}</CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="space-y-4">
                         <p className="text-muted-foreground">{isSellerFlow ? "The seller will contact you shortly to confirm details and arrange payment." : "Your payment has been securely authorized. You will receive shipping and tracking details soon."}</p>
+                        {newlyCreatedCard && (
+                            <div className="pt-4 border-t">
+                                <h4 className="font-semibold mb-2">Your Shakti COD Card is Ready!</h4>
+                                <div className="flex justify-center">
+                                    <ShaktiCard card={newlyCreatedCard} />
+                                </div>
+                            </div>
+                        )}
                     </CardContent>
-                     <CardFooter>
-                        <a href="https://www.snazzify.co.in" className="w-full">
-                            <Button className="w-full">Continue Shopping</Button>
+                     <CardFooter className="flex-col gap-2">
+                        <Link href="/customer/login" className="w-full">
+                            <Button className="w-full">Go to Customer Portal</Button>
+                        </Link>
+                         <a href="https://www.snazzify.co.in" className="w-full">
+                            <Button className="w-full" variant="outline">Continue Shopping</Button>
                         </a>
                     </CardFooter>
                  </Card>
@@ -278,7 +320,7 @@ function SecureCodPaymentForm() {
     return (
         <div className="flex items-center justify-center min-h-screen bg-transparent p-4">
             <Card className="w-full max-w-md shadow-lg">
-                <form onSubmit={isSellerFlow ? handleSellerFlowSubmit : (e) => { e.preventDefault(); }}>
+                <form onSubmit={isSellerFlow ? handleSellerFlowSubmit : (e) => { e.preventDefault(); handleAdminFlowSubmit(); }}>
                     <CardHeader className="text-center">
                         <ShieldCheck className="mx-auto h-12 w-12 text-primary" />
                         <CardTitle>{isSellerFlow ? "Place Your Order" : "Secure COD Checkout"}</CardTitle>
@@ -290,7 +332,7 @@ function SecureCodPaymentForm() {
                             <div className="flex justify-between font-bold text-lg"><span className="text-muted-foreground">Amount:</span><span>₹{orderDetails.amount.toFixed(2)}</span></div>
                         </div>
 
-                        {isSellerFlow && customerDetailsForm}
+                        {customerDetailsForm}
 
                         {isSellerFlow && (
                              <div className="space-y-3">
@@ -311,7 +353,7 @@ function SecureCodPaymentForm() {
                         
                     </CardContent>
                     <CardFooter className="flex-col gap-2">
-                         <Button type={isSellerFlow ? "submit" : "button"} onClick={!isSellerFlow ? handleAdminFlowSubmit : undefined} className="w-full" disabled={isSubmitting || loading}>
+                         <Button type="submit" className="w-full" disabled={isSubmitting || loading}>
                             {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                             {isSellerFlow ? "Send Order Request" : "Proceed to Secure Payment"}
                         </Button>
@@ -341,3 +383,5 @@ function Page() {
 }
 
 export default Page;
+
+    
