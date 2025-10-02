@@ -14,6 +14,7 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { FirebaseError } from 'firebase/app';
 import type { SellerUser } from '@/app/seller-accounts/page';
+import { getCollection } from '@/services/firestore';
 
 
 export default function SellerLoginPage() {
@@ -34,13 +35,12 @@ export default function SellerLoginPage() {
 
         let userEmail = loginId;
         let isApproved = false;
-
+        
         try {
-            // Check if loginId is a phone number and look in localStorage
-            if (/^\d+$/.test(loginId)) {
-                const approvedSellersJSON = localStorage.getItem('approved_sellers');
-                const approvedSellers: SellerUser[] = approvedSellersJSON ? JSON.parse(approvedSellersJSON) : [];
-                const seller = approvedSellers.find(s => s.phone === loginId && s.status === 'approved');
+            const allSellers = await getCollection<SellerUser>('seller_users');
+
+            if (/^\d+$/.test(loginId)) { // It's a phone number
+                const seller = allSellers.find(s => s.phone === loginId && s.status === 'approved');
 
                 if (!seller) {
                     throw new Error("No approved seller account found with this mobile number.");
@@ -52,10 +52,12 @@ export default function SellerLoginPage() {
             const userCredential = await signInWithEmailAndPassword(auth, userEmail, password);
             const loggedInUser = userCredential.user;
             
+            // If logging in with email, we still need to check for approval
             if (!isApproved) {
-                const approvedSellersJSON = localStorage.getItem('approved_sellers');
-                const approvedSellers: SellerUser[] = approvedSellersJSON ? JSON.parse(approvedSellersJSON) : [];
-                isApproved = approvedSellers.some(s => s.email === userEmail && s.status === 'approved');
+                const seller = allSellers.find(s => s.email === userEmail && s.status === 'approved');
+                if (seller) {
+                    isApproved = true;
+                }
             }
 
             if (!isApproved) {
@@ -81,7 +83,7 @@ export default function SellerLoginPage() {
             console.error("Seller Login failed:", error);
              let description = error.message || 'An unexpected error occurred during login.';
              if (error instanceof FirebaseError) {
-                if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found') {
+                if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-email') {
                     description = 'Invalid credentials. Please check your email/mobile and password and try again.';
                 }
              }

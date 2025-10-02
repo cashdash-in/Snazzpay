@@ -14,6 +14,7 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import type { Vendor } from '@/app/vendors/page';
 import { FirebaseError } from 'firebase/app';
+import { getCollection } from '@/services/firestore';
 
 
 export default function VendorLoginPage() {
@@ -33,30 +34,32 @@ export default function VendorLoginPage() {
         }
 
         let userEmail = loginId;
+        let isApproved = false;
 
         try {
-            // Check if loginId is a phone number
-            if (/^\d+$/.test(loginId)) {
-                const vendorsJSON = localStorage.getItem('vendors_db');
-                const vendors: Vendor[] = vendorsJSON ? JSON.parse(vendorsJSON) : [];
-                const vendor = vendors.find(v => v.phone === loginId && v.status === 'approved');
+            const allVendors = await getCollection<Vendor>('vendors');
+
+            if (/^\d+$/.test(loginId)) { // It's a phone number
+                const vendor = allVendors.find(v => v.phone === loginId && v.status === 'approved');
 
                 if (!vendor) {
                     throw new Error("No approved vendor account found with this mobile number.");
                 }
                 userEmail = vendor.email;
+                isApproved = true;
             }
-
 
             const userCredential = await signInWithEmailAndPassword(auth, userEmail, password);
             const loggedInUser = userCredential.user;
             
-            // For prototype purposes, we check against the vendor list in localStorage.
-            const vendorsJSON = localStorage.getItem('vendors_db');
-            const vendors: Vendor[] = vendorsJSON ? JSON.parse(vendorsJSON) : [];
-            const isApprovedVendor = vendors.some(v => v.email === userEmail && v.status === 'approved');
+            if (!isApproved) {
+                const vendor = allVendors.find(v => v.email === userEmail && v.status === 'approved');
+                if(vendor) {
+                    isApproved = true;
+                }
+            }
 
-            if (!isApprovedVendor) {
+            if (!isApproved) {
                  await auth.signOut();
                  toast({ variant: 'destructive', title: "Access Denied", description: `Your vendor account is not approved. Please contact the admin.` });
                  setIsLoading(false);
@@ -80,11 +83,12 @@ export default function VendorLoginPage() {
             console.error("Vendor Login failed:", error);
              let description = error.message || 'An unexpected error occurred during login.';
              if (error instanceof FirebaseError) {
-                if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found') {
+                if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-email') {
                     description = 'Invalid credentials. Please create an account via the main Signup page if you are new.';
                 }
              }
             toast({ variant: 'destructive', title: "Login Error", description: description });
+        } finally {
             setIsLoading(false);
         }
     };
