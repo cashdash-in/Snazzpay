@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { db } from '@/lib/firebase';
@@ -28,8 +29,11 @@ export const getDocument = async <T>(collectionName: string, id: string): Promis
     }
 };
 
-export const saveDocument = async (collectionName: string, data: DocumentData, id: string) => {
+export const saveDocument = async (collectionName: string, data: DocumentData) => {
     if (!db) throw new Error("Firestore is not initialized.");
+    const { id, ...rest } = data;
+    if (!id) throw new Error("Document data must have an 'id' property.");
+    
     const docRef = doc(db, collectionName, id);
     await setDoc(docRef, data, { merge: true });
     return docRef.id;

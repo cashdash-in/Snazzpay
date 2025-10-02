@@ -81,21 +81,21 @@ export default function VendorsPage() {
             return;
         }
 
-        const vendorToAdd: Omit<Vendor, 'id' | 'status'> = {
+        const newVendorId = uuidv4();
+        const vendorToAdd: Vendor = {
+            id: newVendorId,
             ...newVendor,
-            name: newVendor.name,
-            contactPerson: newVendor.contactPerson,
-            phone: newVendor.phone,
-            email: newVendor.email
+            status: 'approved' // Admins add vendors as approved by default
         };
         
         try {
-            await saveDocument('vendors', { ...vendorToAdd, status: 'approved' }); // Admins add vendors as approved by default
+            await saveDocument('vendors', vendorToAdd);
             await loadVendors(); // Reload all vendors to get updated list
             setNewVendor({ name: '', contactPerson: '', phone: '', email: '' });
             toast({ title: "Vendor Added", description: `${newVendor.name} has been added and approved.` });
             document.getElementById('close-add-vendor-dialog')?.click();
         } catch (error) {
+            console.error("Error adding vendor:", error)
             toast({ variant: 'destructive', title: "Error Adding Vendor" });
         }
     };
@@ -107,7 +107,7 @@ export default function VendorsPage() {
         const newStatus = isApproved ? 'approved' : 'rejected';
 
         try {
-            await saveDocument('vendors', { ...vendor, status: newStatus }, vendor.id);
+            await saveDocument('vendors', { ...vendor, status: newStatus });
             await loadVendors(); // Reload all vendors
             
             toast({
@@ -143,7 +143,7 @@ export default function VendorsPage() {
     const handleSavePermissions = async () => {
         if (!permissions) return;
         try {
-            await saveDocument('user_permissions', permissions, permissions.id);
+            await saveDocument('user_permissions', permissions);
             toast({ title: "Permissions Saved", description: "The user's feature access has been updated." });
         } catch (error) {
             toast({ variant: "destructive", title: "Error saving permissions" });
