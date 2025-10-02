@@ -11,7 +11,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { format, addYears } from 'date-fns';
 import type { EditableOrder } from '@/app/orders/page';
 import { getRazorpayKeyId } from '@/app/actions';
-import { getCollection, saveDocument } from '@/services/firestore';
+import { getCollection, saveDocument, getDocument, deleteDocument } from '@/services/firestore';
 import type { ShaktiCardData } from '@/components/shakti-card';
 import { sanitizePhoneNumber } from '@/lib/utils';
 import { CancellationForm } from '@/components/cancellation-form';
@@ -66,7 +66,6 @@ function PaymentPageContent() {
         if (!order.contactNo || !order.customerEmail) return;
 
         const sanitizedMobile = sanitizePhoneNumber(order.contactNo);
-        const cardStorageKey = `shakti_card_${sanitizedMobile}`;
         
         const existingCards = await getCollection<ShaktiCardData>('shakti_cards');
         const cardExists = existingCards.some(card => card.customerPhone === sanitizedMobile);
@@ -106,11 +105,12 @@ function PaymentPageContent() {
         }
 
         try {
-            const allOrders = await getCollection<EditableOrder>('orders');
-            const order = allOrders.find((o: EditableOrder) => o.id === orderDetails.orderId);
+            // Find the original lead from the 'leads' collection
+            const allLeads = await getCollection<EditableOrder>('leads');
+            const lead = allLeads.find((l: EditableOrder) => l.orderId === orderDetails.orderId && l.sellerId === orderDetails.sellerId);
 
-            if (!order) {
-                throw new Error("Could not find the original order details. Please contact the seller.");
+            if (!lead) {
+                throw new Error("Could not find the original order request. Please contact the seller.");
             }
             
             const response = await fetch('/api/create-payment-link', {
@@ -118,12 +118,12 @@ function PaymentPageContent() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     amount: orderDetails.amount,
-                    customerName: order.customerName,
-                    customerEmail: order.customerEmail,
-                    customerContact: order.contactNo,
+                    customerName: lead.customerName,
+                    customerEmail: lead.customerEmail,
+                    customerContact: lead.contactNo,
                     orderId: orderDetails.orderId,
                     productName: orderDetails.productName,
-                    userId: order.sellerId,
+                    userId: orderDetails.sellerId,
                     userRole: 'seller',
                 })
             });
@@ -139,25 +139,29 @@ function PaymentPageContent() {
                 description: `Payment for ${orderDetails.productName}`,
                 order_id: result.order_id,
                 handler: async (response: any) => {
-                    const paymentStatus = 'Paid';
+                    // Move lead to orders collection with 'Paid' status
+                    const newOrder: EditableOrder = {
+                      ...lead,
+                      paymentStatus: 'Paid',
+                      source: 'Seller'
+                    };
+                    
+                    await saveDocument('orders', newOrder, newOrder.id);
+                    await deleteDocument('leads', lead.id);
 
-                    const orderToUpdate: EditableOrder = { ...order, paymentStatus };
-                    await saveDocument('orders', orderToUpdate, order.id);
-
-                    createNewShaktiCard(order);
+                    createNewShaktiCard(newOrder);
 
                     toast({
                       title: "Payment Successful!",
-                      description: `Your payment is ${paymentStatus}.`,
+                      description: `Your payment is confirmed.`,
                     });
                     
-                    router.refresh();
                     setStep('complete');
                 },
                 prefill: {
-                    name: order.customerName,
-                    email: order.customerEmail,
-                    contact: order.contactNo,
+                    name: lead.customerName,
+                    email: lead.customerEmail,
+                    contact: lead.contactNo,
                 },
                 theme: { color: "#663399" },
                 modal: { ondismiss: () => setIsSubmitting(false) }

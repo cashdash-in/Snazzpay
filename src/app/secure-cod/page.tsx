@@ -30,7 +30,7 @@ type CustomerDetails = {
     landmark?: string;
 };
 
-type PaymentMethod = 'Prepaid' | 'Cash on Delivery';
+type PaymentMethod = 'Prepaid' | 'Secure Charge on Dispatch';
 
 type PaymentInfo = {
     paymentId: string;
@@ -101,7 +101,7 @@ function SecureCodPaymentForm() {
     useEffect(() => {
         const name = searchParams.get('name') || 'Your Product';
         const amount = parseFloat(searchParams.get('amount') || '0');
-        const orderId = searchParams.get('order_id') || `SNZ-${uuidv4().substring(0, 8)}`;
+        const orderId = searchParams.get('order_id') || `SNZ-${uuidv4().substring(0, 4)}-${uuidv4().substring(0, 4)}`.toUpperCase();
         const sellerId = searchParams.get('seller_id') || '';
         const sellerName = searchParams.get('seller_name') || '';
 
@@ -125,7 +125,7 @@ function SecureCodPaymentForm() {
         }
         setIsSubmitting(true);
         try {
-            const newLead = {
+            const newLead: EditableOrder = {
                 id: uuidv4(),
                 orderId: orderDetails.orderId,
                 customerName: name,
@@ -139,7 +139,8 @@ function SecureCodPaymentForm() {
                 date: new Date().toISOString(),
                 sellerId: orderDetails.sellerId,
                 paymentStatus: 'Lead',
-                paymentMethod: paymentMethod,
+                paymentMethod: paymentMethod, // Add payment method
+                source: 'Seller'
             };
             
             await saveDocument('leads', newLead, newLead.id);
@@ -166,17 +167,14 @@ function SecureCodPaymentForm() {
         }
 
         try {
-            // In the admin flow, customer details are not collected upfront on this form.
-            // We'll create a placeholder order and update it if needed.
-            const tempCustomerName = "Valued Customer"; // Placeholder
-            
+            // This is the direct admin/website flow. It proceeds straight to authorization.
             const authResult = await fetch('/api/create-mandate-order', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                     amount: orderDetails.amount, 
                     productName: orderDetails.productName, 
-                    name: tempCustomerName,
+                    // Customer details can be passed if known, or webhook can update later
                     isAuthorization: true 
                 })
             }).then(res => res.json());
@@ -212,6 +210,10 @@ function SecureCodPaymentForm() {
                         signature: response.razorpay_signature, status: 'authorized', authorizedAt: new Date().toISOString()
                     };
                     await saveDocument('payment_info', paymentInfo, finalOrder.orderId);
+                    
+                    // The customer details are unknown here. Shakti card would need to be created
+                    // after customer info is updated in the admin panel.
+                    // For prototype, we can pass some dummy data if needed.
                     
                     toast({ title: "Payment Successful!", description: `Your payment is Authorized. Order ${finalOrder.orderId} confirmed.` });
                     setStep('complete');
@@ -304,11 +306,11 @@ function SecureCodPaymentForm() {
                                         <Label htmlFor="r1">Prepaid</Label>
                                     </div>
                                     <div className="flex items-center space-x-2">
-                                        <RadioGroupItem value="Cash on Delivery" id="r2" />
-                                        <Label htmlFor="r2">Cash on Delivery</Label>
+                                        <RadioGroupItem value="Secure Charge on Dispatch" id="r2" />
+                                        <Label htmlFor="r2">Secure Charge on Dispatch</Label>
                                     </div>
                                 </RadioGroup>
-                                <p className="text-xs text-muted-foreground">The seller will contact you to arrange payment or confirm your COD order.</p>
+                                <p className="text-xs text-muted-foreground">The seller will contact you to arrange payment or confirm your order.</p>
                             </div>
                         )}
                         
@@ -344,4 +346,3 @@ function Page() {
 }
 
 export default Page;
-
