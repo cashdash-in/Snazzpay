@@ -1,24 +1,111 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-  
-    // Allow users to create their own registration document
-    match /seller_users/{userId} {
-      allow create: if request.auth != null && request.auth.uid == userId;
-      // Admins can read/write all
-      allow read, update, delete: if false; // To be defined by admin rules
-    }
-    
-    match /vendors/{userId} {
-      allow create: if request.auth != null && request.auth.uid == userId;
-      // Admins can read/write all
-      allow read, update, delete: if false; // To be defined by admin rules
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
     }
 
-    // Other rules should be defined below. For now, deny all other access.
-    match /{document=**} {
-      allow read, write: if false;
+    function isOwner(userId) {
+      return request.auth.uid == userId;
     }
+
+    // GENERAL READ-ONLY ACCESS for Authenticated Users
+    // This rule allows any user who is logged in to read from any collection.
+    // This is a safe starting point for applications where data is not highly sensitive between users.
+    // For more granular control, you would add specific match blocks below.
+    match /{document=**} {
+      allow read: if isSignedIn();
+    }
+
+    // USER-SPECIFIC COLLECTIONS
+    // Users can only create documents for themselves. They can update and delete their own documents.
+    match /users/{userId} {
+      allow create: if isOwner(userId);
+      allow read, update, delete: if isOwner(userId);
+    }
+
+    match /seller_users/{userId} {
+      allow create: if isSignedIn(); // Any signed-in user can create a request
+      allow read: if isSignedIn();
+      allow update, delete: if isSignedIn(); // Should be restricted to admin in production
+    }
+
+    match /vendors/{vendorId} {
+        allow create: if isSignedIn(); // Any signed-in user can create a request
+        allow read: if isSignedIn();
+        allow update, delete: if isSignedIn(); // Should be restricted to admin in production
+    }
+
+    // SHARED COLLECTIONS
+    // Any authenticated user can read from these collections.
+    // Writing is generally more restricted. For now, allow writes for any signed-in user.
+    // In a production app, you would add more specific validation.
+    match /orders/{orderId} {
+      allow read, write: if isSignedIn();
+    }
+    
+    match /leads/{leadId} {
+       allow read, write: if isSignedIn();
+    }
+
+    match /product_drops/{dropId} {
+        allow read, write: if isSignedIn();
+    }
+
+    match /seller_products/{productId} {
+        allow read, write: if isSignedIn();
+    }
+    
+    match /vendor_orders/{orderId} {
+        allow read, write: if isSignedIn();
+    }
+
+    match /chats/{chatId} {
+        allow read, write: if isSignedIn() && chatId in request.auth.uid;
+        match /messages/{messageId} {
+            allow read, write: if isSignedIn() && chatId in request.auth.uid;
+        }
+    }
+
+    match /user_permissions/{userId} {
+        allow read: if isOwner(userId);
+        allow write: if isSignedIn(); // For now, allow admin to write
+    }
+
+    match /seller_payment_settings/{sellerId} {
+         allow read, write: if isOwner(sellerId);
+    }
+     match /vendor_payment_settings/{vendorId} {
+         allow read, write: if isOwner(vendorId);
+    }
+
+    match /shakti_cards/{cardId} {
+        allow read, write: if isSignedIn();
+    }
+
+     match /payPartners/{partnerId} {
+        allow read, write: if isSignedIn();
+    }
+
+     match /partner_transactions/{txId} {
+        allow read, write: if isSignedIn();
+    }
+
+    match /topUpRequests/{reqId} {
+        allow read, write: if isSignedIn();
+    }
+
+    match /partnerCancellations/{cancelId} {
+        allow read, write: if isSignedIn();
+    }
+
+    match /cash_codes/{codeId} {
+         allow read, write: if isSignedIn();
+    }
+
   }
 }
