@@ -24,17 +24,18 @@ import {
   Rocket,
   Wand2,
   CheckCircle,
+  MessageSquare,
 } from 'lucide-react';
 import Image from 'next/image';
 import { useAuth } from '@/hooks/use-auth';
-import { v4 as uuidv4 } from 'uuid';
-import type { ProductDrop } from '@/app/vendor/product-drops/page';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Dialog, DialogTrigger } from '@/components/ui/dialog';
+import { ShareComposerDialog } from '@/components/share-composer-dialog';
 
 export default function VendorAiProductUploaderPage() {
   const { toast } = useToast();
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [isPushing, setIsPushing] = useState(false);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [imageDataUris, setImageDataUris] = useState<string[]>([]);
   const [vendorDescription, setVendorDescription] = useState('');
@@ -98,50 +99,6 @@ export default function VendorAiProductUploaderPage() {
       });
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handlePushToShopify = async () => {
-    if (!generatedListing) return;
-    setIsPushing(true);
-
-    try {
-        const productData = {
-            title: generatedListing.title,
-            body_html: generatedListing.description,
-            product_type: generatedListing.category,
-            vendor: user?.displayName || 'Snazzify Vendor',
-            variants: [{ price: generatedListing.price }],
-             images: imageDataUris.map(uri => ({
-                attachment: uri.split(',')[1] // Send base64 data only
-            })),
-        };
-        
-        const response = await fetch('/api/shopify/products/create', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(productData),
-        });
-
-        const result = await response.json();
-        
-        if (!response.ok) {
-            throw new Error(result.error || "Failed to create product in Shopify.");
-        }
-        
-        toast({
-            title: 'Product Pushed to Shopify!',
-            description: `Successfully created product "${result.product.title}".`,
-        });
-
-    } catch (error: any) {
-        toast({
-            variant: 'destructive',
-            title: 'Shopify Push Failed',
-            description: error.message,
-        });
-    } finally {
-        setIsPushing(false);
     }
   };
 
@@ -256,7 +213,7 @@ export default function VendorAiProductUploaderPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <CheckCircle className="text-green-500" />
-                  2. Review & Push to Shopify
+                  2. Review & Share
                 </CardTitle>
                 <CardDescription>
                   Your AI-generated listing is ready. Make any changes needed.
@@ -340,15 +297,28 @@ export default function VendorAiProductUploaderPage() {
                     </div>
                 </div>
               </CardContent>
-              <CardFooter>
-                 <Button onClick={handlePushToShopify} className="w-full" disabled={isPushing}>
-                  {isPushing ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Rocket className="mr-2 h-4 w-4" />
-                  )}
-                  Push to Shopify
-                </Button>
+              <CardFooter className="flex-col gap-2">
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button className="w-full" disabled>
+                                <Rocket className="mr-2 h-4 w-4" />
+                                Push to Shopify
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>This feature is available for the Super Admin only.</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+                <Dialog>
+                    <DialogTrigger asChild>
+                        <Button className="w-full" variant="secondary">
+                            <MessageSquare className="mr-2 h-4 w-4" /> Share on WhatsApp
+                        </Button>
+                    </DialogTrigger>
+                    <ShareComposerDialog product={{...generatedListing, costPrice: parseFloat(cost), imageDataUris: imageDataUris, id: 'temp'}} />
+                </Dialog>
               </CardFooter>
             </>
           )}

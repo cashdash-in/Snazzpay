@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -22,11 +21,11 @@ import { useToast } from '@/hooks/use-toast';
 import {
   Loader2,
   Sparkles,
-  Upload,
   Rocket,
   Wand2,
   CheckCircle,
   Lock,
+  MessageSquare,
 } from 'lucide-react';
 import Image from 'next/image';
 import { useAuth } from '@/hooks/use-auth';
@@ -34,6 +33,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { getCollection, saveDocument, getDocument } from '@/services/firestore';
 import { getCookie } from 'cookies-next';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Dialog, DialogTrigger } from '@/components/ui/dialog';
+import { ShareComposerDialog } from '@/components/share-composer-dialog';
 
 export interface SellerProduct extends ProductListingOutput {
     id: string;
@@ -119,11 +121,8 @@ export default function AiProductUploaderPage() {
     if (files) {
       const newPreviews: string[] = [];
       const newDataUris: string[] = [];
-      const fileReaders: FileReader[] = [];
-
       Array.from(files).forEach((file) => {
         const reader = new FileReader();
-        fileReaders.push(reader);
         reader.onloadend = () => {
           const result = reader.result as string;
           newPreviews.push(result);
@@ -209,49 +208,6 @@ export default function AiProductUploaderPage() {
     }
   };
 
-  const handlePushToShopify = async () => {
-    if (!generatedListing) return;
-    setIsPushing(true);
-
-    try {
-        const productData = {
-            title: generatedListing.title,
-            body_html: generatedListing.description,
-            product_type: generatedListing.category,
-            vendor: 'Snazzify AI',
-            variants: [{ price: generatedListing.price }],
-             images: imageDataUris.map(uri => ({
-                attachment: uri.split(',')[1] // Send base64 data only
-            })),
-        };
-        
-        const response = await fetch('/api/shopify/products/create', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(productData),
-        });
-
-        const result = await response.json();
-        
-        if (!response.ok) {
-            throw new Error(result.error || "Failed to create product in Shopify.");
-        }
-        
-        toast({
-            title: 'Product Pushed to Shopify!',
-            description: `Successfully created product "${result.product.title}".`,
-        });
-
-    } catch (error: any) {
-        toast({
-            variant: 'destructive',
-            title: 'Shopify Push Failed',
-            description: error.message,
-        });
-    } finally {
-        setIsPushing(false);
-    }
-  };
 
   return (
     <AppShell title="AI Product Uploader">
@@ -375,7 +331,7 @@ export default function AiProductUploaderPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <CheckCircle className="text-green-500" />
-                  2. Review & Push to Shopify
+                  2. Review & Share
                 </CardTitle>
                 <CardDescription>
                   Your AI-generated listing is ready. Make any changes needed.
@@ -459,15 +415,28 @@ export default function AiProductUploaderPage() {
                     </div>
                 </div>
               </CardContent>
-              <CardFooter>
-                 <Button onClick={handlePushToShopify} className="w-full" disabled={isPushing}>
-                  {isPushing ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Rocket className="mr-2 h-4 w-4" />
-                  )}
-                  Push to Shopify
-                </Button>
+              <CardFooter className="flex-col gap-2">
+                 <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button className="w-full" disabled>
+                                <Rocket className="mr-2 h-4 w-4" />
+                                Push to Shopify
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>This feature is available for the Super Admin only.</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+                <Dialog>
+                    <DialogTrigger asChild>
+                        <Button className="w-full" variant="secondary">
+                            <MessageSquare className="mr-2 h-4 w-4" /> Share on WhatsApp
+                        </Button>
+                    </DialogTrigger>
+                    <ShareComposerDialog product={{...generatedListing, costPrice: parseFloat(cost), imageDataUris: imageDataUris, id: 'temp'}} />
+                </Dialog>
               </CardFooter>
             </>
           )}
