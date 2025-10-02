@@ -47,17 +47,18 @@ document.addEventListener('DOMContentLoaded', function() {
       var productName = '{{ product.title | url_encode }}';
       var productPrice = {{ product.price | money_without_currency | replace: ',', '' }};
       
-      // Generate a unique Order ID for each transaction to avoid duplicates.
-      var uniqueId = 'SNZFY-' + Math.random().toString(36).substr(2, 4).toUpperCase() + '-' + Math.random().toString(36).substr(2, 4).toUpperCase();
-      var orderId = '{{ order.name | default: uniqueId }}';
+      // ** CRITICAL FIX: **
+      // Generate a new, unique Order ID on the client-side for every transaction.
+      var uniqueId = 'SNZ-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5).toUpperCase();
       
-      // Your unique Seller ID and Name provided by SnazzPay
+      // Your unique Seller ID and Name provided by SnazzPay.
+      // YOU MUST REPLACE THESE VALUES.
       var sellerId = 'YOUR_UNIQUE_SELLER_ID'; // <-- REPLACE THIS
       var sellerName = 'YOUR_SELLER_NAME'; // <-- REPLACE THIS
       
       var baseUrl = '${origin}/secure-cod';
 
-      var finalUrl = baseUrl + '?amount=' + encodeURIComponent(productPrice) + '&name=' + productName + '&order_id=' + orderId + '&seller_id=' + encodeURIComponent(sellerId) + '&seller_name=' + encodeURIComponent(sellerName);
+      var finalUrl = baseUrl + '?amount=' + encodeURIComponent(productPrice) + '&name=' + productName + '&order_id=' + uniqueId + '&seller_id=' + encodeURIComponent(sellerId) + '&seller_name=' + encodeURIComponent(sellerName);
       secureCodLink.href = finalUrl;
     } catch (e) {
         console.error("Secure COD Liquid Error: ", e);
