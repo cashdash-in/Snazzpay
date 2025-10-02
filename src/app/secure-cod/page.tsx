@@ -6,7 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, HelpCircle, ShieldCheck, CheckCircle, User, Phone, Mail as MailIcon, Home, MapPin, Package } from "lucide-react";
+import { Loader2, HelpCircle, ShieldCheck, CheckCircle, User, Phone, Mail as MailIcon, Home, MapPin } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
 import type { EditableOrder } from '@/app/orders/page';
@@ -157,7 +157,6 @@ function SecureCodPaymentForm() {
         }
     };
     
-    // This is the original flow for the main website
     const handleAdminFlowSubmit = async () => {
         setIsSubmitting(true);
         if (!razorpayKeyId) {
@@ -166,27 +165,20 @@ function SecureCodPaymentForm() {
              return;
         }
 
-        const newOrderData: EditableOrder = {
-            id: orderDetails.orderId, // Use the order ID as doc ID
-            orderId: orderDetails.orderId,
-            customerName: customerDetails.name,
-            customerEmail: customerDetails.email,
-            customerAddress: `${customerDetails.address}, ${customerDetails.landmark || ''}`,
-            pincode: customerDetails.pincode,
-            contactNo: customerDetails.contact,
-            productOrdered: orderDetails.productName,
-            quantity: 1,
-            price: orderDetails.amount.toFixed(2),
-            paymentStatus: 'Pending',
-            date: new Date().toISOString(),
-            source: 'Shopify',
-        };
-
         try {
+            // In the admin flow, customer details are not collected upfront on this form.
+            // We'll create a placeholder order and update it if needed.
+            const tempCustomerName = "Valued Customer"; // Placeholder
+            
             const authResult = await fetch('/api/create-mandate-order', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...customerDetails, amount: orderDetails.amount, productName: orderDetails.productName, isAuthorization: true })
+                body: JSON.stringify({ 
+                    amount: orderDetails.amount, 
+                    productName: orderDetails.productName, 
+                    name: tempCustomerName,
+                    isAuthorization: true 
+                })
             }).then(res => res.json());
 
             if (authResult.error) throw new Error(authResult.error || 'Failed to create Razorpay order.');
@@ -199,7 +191,20 @@ function SecureCodPaymentForm() {
                 description: `Authorize ₹${orderDetails.amount} for Order #${orderDetails.orderId}`,
                 order_id: authResult.order_id,
                 handler: async (response: any) => {
-                    const finalOrder: EditableOrder = { ...newOrderData, paymentStatus: 'Authorized', source: 'Shopify' };
+                    const finalOrder: EditableOrder = { 
+                        id: orderDetails.orderId,
+                        orderId: orderDetails.orderId,
+                        customerName: 'N/A', // These will be filled by webhook or manual entry later
+                        customerAddress: 'N/A',
+                        pincode: 'N/A',
+                        contactNo: 'N/A',
+                        productOrdered: orderDetails.productName,
+                        quantity: 1,
+                        price: orderDetails.amount.toFixed(2),
+                        paymentStatus: 'Authorized', 
+                        source: 'Shopify',
+                        date: new Date().toISOString(),
+                    };
                     await saveDocument('orders', finalOrder, finalOrder.id);
 
                     const paymentInfo: PaymentInfo = {
@@ -208,17 +213,11 @@ function SecureCodPaymentForm() {
                     };
                     await saveDocument('payment_info', paymentInfo, finalOrder.orderId);
                     
-                    await createNewShaktiCard(finalOrder); // Create card AFTER order is saved
-                    
                     toast({ title: "Payment Successful!", description: `Your payment is Authorized. Order ${finalOrder.orderId} confirmed.` });
                     setStep('complete');
                 },
-                prefill: { name: customerDetails.name, email: customerDetails.email, contact: customerDetails.contact },
-                theme: { color: "#663399" },
                 modal: { ondismiss: () => {
-                    saveDocument('leads', { ...newOrderData, paymentStatus: 'Intent Verified' }, newOrderData.id);
-                    toast({ title: 'Authorization Pending', description: 'Your order is saved as a lead. Please complete the authorization later.'});
-                    setIsSubmitting(false); router.push('/customer/dashboard');
+                    setIsSubmitting(false);
                 }}
             };
             const rzpAuth = new (window as any).Razorpay(options);
@@ -227,7 +226,6 @@ function SecureCodPaymentForm() {
         } catch (error: any) {
             toast({ variant: 'destructive', title: 'Error', description: error.message });
             setIsSubmitting(false);
-            setStep('details');
         }
     };
     
@@ -283,7 +281,7 @@ function SecureCodPaymentForm() {
     return (
         <div className="flex items-center justify-center min-h-screen bg-transparent p-4">
             <Card className="w-full max-w-md shadow-lg">
-                <form onSubmit={isSellerFlow ? handleSellerFlowSubmit : (e) => { e.preventDefault(); handleAdminFlowSubmit(); }}>
+                <form onSubmit={isSellerFlow ? handleSellerFlowSubmit : (e) => { e.preventDefault(); }}>
                     <CardHeader className="text-center">
                         <ShieldCheck className="mx-auto h-12 w-12 text-primary" />
                         <CardTitle>{isSellerFlow ? "Place Your Order" : "Secure COD Checkout"}</CardTitle>
@@ -295,7 +293,7 @@ function SecureCodPaymentForm() {
                             <div className="flex justify-between font-bold text-lg"><span className="text-muted-foreground">Amount:</span><span>₹{orderDetails.amount.toFixed(2)}</span></div>
                         </div>
 
-                        {customerDetailsForm}
+                        {isSellerFlow && customerDetailsForm}
 
                         {isSellerFlow && (
                              <div className="space-y-3">
@@ -316,7 +314,7 @@ function SecureCodPaymentForm() {
                         
                     </CardContent>
                     <CardFooter className="flex-col gap-2">
-                         <Button type="submit" className="w-full" disabled={isSubmitting || loading}>
+                         <Button type={isSellerFlow ? "submit" : "button"} onClick={!isSellerFlow ? handleAdminFlowSubmit : undefined} className="w-full" disabled={isSubmitting || loading}>
                             {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                             {isSellerFlow ? "Send Order Request" : "Proceed to Secure Payment"}
                         </Button>
@@ -346,3 +344,4 @@ function Page() {
 }
 
 export default Page;
+
