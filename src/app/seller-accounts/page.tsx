@@ -9,12 +9,13 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
-import { Check, X, MessageSquare, Factory, Sparkles, Send, Loader2 } from "lucide-react";
-import { sanitizePhoneNumber } from "@/lib/utils";
-import { getCollection, saveDocument, createChat, type ChatUser } from "@/services/firestore";
+import { Check, X, MessageSquare, Factory, Sparkles, Send, Loader2, Settings } from "lucide-react";
+import { getCollection, saveDocument, createChat, getDocument, type ChatUser } from "@/services/firestore";
 import type { SellerProduct } from "@/app/seller/ai-product-uploader/page";
 import { useRouter } from "next/navigation";
-
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export type SellerUser = {
     id: string;
@@ -28,40 +29,49 @@ export type SellerUser = {
     aiUploads?: number;
 };
 
+type UserPermissions = {
+    id: string; // same as user.id
+    unlimitedAiUploads?: boolean;
+    unlimitedProductDrops?: boolean;
+};
+
 export default function SellerAccountsPage() {
     const { toast } = useToast();
     const router = useRouter();
     const [sellerRequests, setSellerRequests] = useState<SellerUser[]>([]);
     const [approvedSellers, setApprovedSellers] = useState<SellerUser[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [selectedSeller, setSelectedSeller] = useState<SellerUser | null>(null);
+    const [permissions, setPermissions] = useState<UserPermissions | null>(null);
+
+    const loadSellers = async () => {
+        setIsLoading(true);
+        try {
+            const allSellers = await getCollection<SellerUser>('seller_users');
+            const aiProducts = await getCollection<SellerProduct>('seller_products');
+
+            const usageMap = aiProducts.reduce((acc, product) => {
+                acc[product.sellerId] = (acc[product.sellerId] || 0) + 1;
+                return acc;
+            }, {} as Record<string, number>);
+
+            const sellersWithUsage = allSellers.map(seller => ({
+                ...seller,
+                aiUploads: usageMap[seller.id] || 0,
+            }));
+            
+            setSellerRequests(sellersWithUsage.filter(s => s.status === 'pending'));
+            setApprovedSellers(sellersWithUsage.filter(s => s.status === 'approved'));
+
+        } catch (error) {
+            console.error("Error loading sellers:", error);
+            toast({ variant: "destructive", title: "Failed to load seller data" });
+        } finally {
+            setIsLoading(false);
+        }
+    }
 
     useEffect(() => {
-        async function loadSellers() {
-            setIsLoading(true);
-            try {
-                const allSellers = await getCollection<SellerUser>('seller_users');
-                const aiProducts = await getCollection<SellerProduct>('seller_products');
-
-                const usageMap = aiProducts.reduce((acc, product) => {
-                    acc[product.sellerId] = (acc[product.sellerId] || 0) + 1;
-                    return acc;
-                }, {} as Record<string, number>);
-
-                const sellersWithUsage = allSellers.map(seller => ({
-                    ...seller,
-                    aiUploads: usageMap[seller.id] || 0,
-                }));
-                
-                setSellerRequests(sellersWithUsage.filter(s => s.status === 'pending'));
-                setApprovedSellers(sellersWithUsage.filter(s => s.status === 'approved'));
-
-            } catch (error) {
-                console.error("Error loading sellers:", error);
-                toast({ variant: "destructive", title: "Failed to load seller data" });
-            } finally {
-                setIsLoading(false);
-            }
-        }
         loadSellers();
     }, [toast]);
 
@@ -73,13 +83,7 @@ export default function SellerAccountsPage() {
         
         try {
             await saveDocument('seller_users', { ...seller, status: newStatus }, seller.id);
-
-            const updatedRequests = sellerRequests.filter(s => s.id !== sellerId);
-            setSellerRequests(updatedRequests);
-
-            if (isApproved) {
-                setApprovedSellers(prev => [...prev, { ...seller, status: 'approved' }]);
-            }
+            await loadSellers(); // Reload all data to reflect changes
             
             toast({
                 title: `Seller Request ${isApproved ? 'Approved' : 'Rejected'}`,
@@ -104,6 +108,23 @@ export default function SellerAccountsPage() {
             toast({ variant: 'destructive', title: 'Failed to start chat.' });
         }
     };
+
+    const openManageDialog = async (seller: SellerUser) => {
+        setSelectedSeller(seller);
+        const perms = await getDocument<UserPermissions>('user_permissions', seller.id);
+        setPermissions(perms || { id: seller.id });
+    };
+
+    const handleSavePermissions = async () => {
+        if (!permissions) return;
+        try {
+            await saveDocument('user_permissions', permissions, permissions.id);
+            toast({ title: "Permissions Saved", description: "The user's feature access has been updated." });
+        } catch (error) {
+            toast({ variant: "destructive", title: "Error saving permissions" });
+        }
+    };
+
 
     return (
         <AppShell title="Seller Accounts">
@@ -194,7 +215,36 @@ export default function SellerAccountsPage() {
                                                 </div>
                                             </TableCell>
                                             <TableCell><Badge className="bg-green-100 text-green-800">{seller.status}</Badge></TableCell>
-                                            <TableCell className="text-right">
+                                            <TableCell className="text-right space-x-1">
+                                                 <Dialog onOpenChange={(open) => !open && setSelectedSeller(null)}>
+                                                    <DialogTrigger asChild>
+                                                        <Button size="sm" variant="outline" onClick={() => openManageDialog(seller)}>
+                                                            <Settings className="mr-2 h-4 w-4" /> Manage
+                                                        </Button>
+                                                    </DialogTrigger>
+                                                    {selectedSeller?.id === seller.id && permissions && (
+                                                        <DialogContent>
+                                                            <DialogHeader>
+                                                                <DialogTitle>Manage Access for {selectedSeller.companyName}</DialogTitle>
+                                                                <DialogDescription>Grant unlimited access to premium features.</DialogDescription>
+                                                            </DialogHeader>
+                                                            <div className="py-4 space-y-4">
+                                                                <div className="flex items-center space-x-2">
+                                                                    <Checkbox 
+                                                                        id="unlimited-ai" 
+                                                                        checked={permissions.unlimitedAiUploads}
+                                                                        onCheckedChange={(checked) => setPermissions(p => p ? {...p, unlimitedAiUploads: !!checked} : null)}
+                                                                    />
+                                                                    <Label htmlFor="unlimited-ai">Grant Unlimited AI Uploader Access</Label>
+                                                                </div>
+                                                            </div>
+                                                            <DialogFooter>
+                                                                <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                                                                <DialogClose asChild><Button onClick={handleSavePermissions}>Save Permissions</Button></DialogClose>
+                                                            </DialogFooter>
+                                                        </DialogContent>
+                                                    )}
+                                                </Dialog>
                                                  <Button size="sm" variant="secondary" onClick={() => handleChat(seller)}>
                                                     <MessageSquare className="mr-2 h-4 w-4" />
                                                     Chat
@@ -214,3 +264,5 @@ export default function SellerAccountsPage() {
         </AppShell>
     );
 }
+
+    

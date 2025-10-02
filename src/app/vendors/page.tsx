@@ -6,7 +6,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Trash2, Edit, Loader2, MessageSquare, Check, X, Send } from "lucide-react";
+import { PlusCircle, Trash2, Edit, Loader2, MessageSquare, Check, X, Send, Settings } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { v4 as uuidv4 } from 'uuid';
@@ -14,9 +14,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getCollection, saveDocument, createChat } from '@/services/firestore';
+import { getCollection, saveDocument, createChat, getDocument } from '@/services/firestore';
 import type { ProductDrop } from '@/app/vendor/product-drops/page';
 import { useRouter } from 'next/navigation';
+import { Checkbox } from '@/components/ui/checkbox';
 
 export type Vendor = {
     id: string;
@@ -28,6 +29,13 @@ export type Vendor = {
     dropCount?: number;
 };
 
+type UserPermissions = {
+    id: string; // same as user.id
+    unlimitedAiUploads?: boolean;
+    unlimitedProductDrops?: boolean;
+};
+
+
 export default function VendorsPage() {
     const { toast } = useToast();
     const router = useRouter();
@@ -35,33 +43,36 @@ export default function VendorsPage() {
     const [approvedVendors, setApprovedVendors] = useState<Vendor[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [newVendor, setNewVendor] = useState({ name: '', contactPerson: '', phone: '', email: '' });
+    const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
+    const [permissions, setPermissions] = useState<UserPermissions | null>(null);
+
+    const loadVendors = async () => {
+        setIsLoading(true);
+        try {
+            const allVendors = await getCollection<Vendor>('vendors');
+            const productDrops = await getCollection<ProductDrop>('product_drops');
+
+            const dropCounts = productDrops.reduce((acc, drop) => {
+                acc[drop.vendorId] = (acc[drop.vendorId] || 0) + 1;
+                return acc;
+            }, {} as Record<string, number>);
+
+            const vendorsWithCounts = allVendors.map(vendor => ({
+                ...vendor,
+                dropCount: dropCounts[vendor.id] || 0
+            }));
+
+            setPendingVendors(vendorsWithCounts.filter(v => v.status === 'pending'));
+            setApprovedVendors(vendorsWithCounts.filter(v => v.status === 'approved'));
+
+        } catch (error) {
+            toast({ variant: 'destructive', title: "Error loading data", description: "Could not load vendors from Firestore." });
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     useEffect(() => {
-        async function loadVendors() {
-            setIsLoading(true);
-            try {
-                const allVendors = await getCollection<Vendor>('vendors');
-                const productDrops = await getCollection<ProductDrop>('product_drops');
-
-                const dropCounts = productDrops.reduce((acc, drop) => {
-                    acc[drop.vendorId] = (acc[drop.vendorId] || 0) + 1;
-                    return acc;
-                }, {} as Record<string, number>);
-
-                const vendorsWithCounts = allVendors.map(vendor => ({
-                    ...vendor,
-                    dropCount: dropCounts[vendor.id] || 0
-                }));
-
-                setPendingVendors(vendorsWithCounts.filter(v => v.status === 'pending'));
-                setApprovedVendors(vendorsWithCounts.filter(v => v.status === 'approved'));
-
-            } catch (error) {
-                toast({ variant: 'destructive', title: "Error loading data", description: "Could not load vendors from Firestore." });
-            } finally {
-                setIsLoading(false);
-            }
-        }
         loadVendors();
     }, [toast]);
 
@@ -78,7 +89,7 @@ export default function VendorsPage() {
         
         try {
             const newId = await saveDocument('vendors', vendorToAdd);
-            setApprovedVendors(prev => [...prev, { ...vendorToAdd, id: newId, status: 'approved' }]);
+            await loadVendors(); // Reload all vendors to get updated list
             setNewVendor({ name: '', contactPerson: '', phone: '', email: '' });
             toast({ title: "Vendor Added", description: `${newVendor.name} has been added and approved.` });
             document.getElementById('close-add-vendor-dialog')?.click();
@@ -95,13 +106,7 @@ export default function VendorsPage() {
 
         try {
             await saveDocument('vendors', { ...vendor, status: newStatus }, vendor.id);
-
-            const updatedRequests = pendingVendors.filter(v => v.id !== vendorId);
-            setPendingVendors(updatedRequests);
-            
-            if (isApproved) {
-                setApprovedVendors(prev => [...prev, { ...vendor, status: 'approved' }]);
-            }
+            await loadVendors(); // Reload all vendors
             
             toast({
                 title: `Vendor Request ${isApproved ? 'Approved' : 'Rejected'}`,
@@ -126,6 +131,23 @@ export default function VendorsPage() {
             toast({ variant: 'destructive', title: 'Failed to start chat.' });
         }
     };
+
+    const openManageDialog = async (vendor: Vendor) => {
+        setSelectedVendor(vendor);
+        const perms = await getDocument<UserPermissions>('user_permissions', vendor.id);
+        setPermissions(perms || { id: vendor.id });
+    };
+
+    const handleSavePermissions = async () => {
+        if (!permissions) return;
+        try {
+            await saveDocument('user_permissions', permissions, permissions.id);
+            toast({ title: "Permissions Saved", description: "The user's feature access has been updated." });
+        } catch (error) {
+            toast({ variant: "destructive", title: "Error saving permissions" });
+        }
+    };
+
 
     return (
         <AppShell title="Vendor Management">
@@ -232,12 +254,40 @@ export default function VendorsPage() {
                                                 </div>
                                             </TableCell>
                                             <TableCell><Badge className="bg-green-100 text-green-800">{vendor.status}</Badge></TableCell>
-                                            <TableCell className="text-right space-x-2">
+                                            <TableCell className="text-right space-x-1">
+                                                 <Dialog onOpenChange={(open) => !open && setSelectedVendor(null)}>
+                                                    <DialogTrigger asChild>
+                                                        <Button size="sm" variant="outline" onClick={() => openManageDialog(vendor)}>
+                                                            <Settings className="mr-2 h-4 w-4" /> Manage
+                                                        </Button>
+                                                    </DialogTrigger>
+                                                    {selectedVendor?.id === vendor.id && permissions && (
+                                                        <DialogContent>
+                                                            <DialogHeader>
+                                                                <DialogTitle>Manage Access for {selectedVendor.name}</DialogTitle>
+                                                                <DialogDescription>Grant unlimited access to premium features.</DialogDescription>
+                                                            </DialogHeader>
+                                                            <div className="py-4 space-y-4">
+                                                                <div className="flex items-center space-x-2">
+                                                                    <Checkbox 
+                                                                        id="unlimited-drops" 
+                                                                        checked={permissions.unlimitedProductDrops}
+                                                                        onCheckedChange={(checked) => setPermissions(p => p ? {...p, unlimitedProductDrops: !!checked} : null)}
+                                                                    />
+                                                                    <Label htmlFor="unlimited-drops">Grant Unlimited Product Drop Access</Label>
+                                                                </div>
+                                                            </div>
+                                                            <DialogFooter>
+                                                                <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                                                                <DialogClose asChild><Button onClick={handleSavePermissions}>Save Permissions</Button></DialogClose>
+                                                            </DialogFooter>
+                                                        </DialogContent>
+                                                    )}
+                                                </Dialog>
                                                 <Button size="sm" variant="secondary" onClick={() => handleChat(vendor)}>
                                                     <MessageSquare className="mr-2 h-4 w-4" />
                                                     Chat
                                                 </Button>
-                                                <Button variant="outline" size="icon" disabled><Edit className="h-4 w-4" /></Button>
                                             </TableCell>
                                         </TableRow>
                                     )) : (
@@ -255,3 +305,5 @@ export default function VendorsPage() {
         </AppShell>
     );
 }
+
+    

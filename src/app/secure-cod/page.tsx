@@ -79,7 +79,10 @@ function SecureCodPaymentForm() {
 
         const sanitizedMobile = sanitizePhoneNumber(order.contactNo);
         const cardStorageKey = `shakti_card_${sanitizedMobile}`;
-        if (localStorage.getItem(cardStorageKey)) return; 
+        
+        const existingCardsJSON = localStorage.getItem('shakti_cards_db') || '[]';
+        const existingCards = JSON.parse(existingCardsJSON);
+        if(existingCards.some((c: ShaktiCardData) => c.customerPhone === order.contactNo)) return;
 
         const newCard: ShaktiCardData = {
             cardNumber: `SHAKTI-${uuidv4().substring(0, 4).toUpperCase()}-${uuidv4().substring(0, 4).toUpperCase()}`,
@@ -96,7 +99,8 @@ function SecureCodPaymentForm() {
         };
         
         addDocument('shakti_cards', newCard);
-        localStorage.setItem(cardStorageKey, JSON.stringify(newCard));
+        existingCards.push(newCard);
+        localStorage.setItem('shakti_cards_db', JSON.stringify(existingCards));
         
         toast({
             title: "Shakti Card Issued!",
@@ -158,6 +162,38 @@ function SecureCodPaymentForm() {
                 throw new Error(intentResult.error || authResult.error || 'Failed to create Razorpay orders.');
             }
 
+            // This handler is now defined outside and will be called after successful ₹1 payment.
+            const triggerFullAuthorization = () => {
+                const authOptions = {
+                    key: razorpayKeyId, amount: orderDetails.amount * 100, currency: "INR", name: "Authorize Full Amount",
+                    description: `Authorize ₹${orderDetails.amount} for Order #${orderDetails.orderId}`, order_id: authResult.order_id,
+                    handler: async (response: any) => {
+                        const finalOrder: EditableOrder = { ...newLead, paymentStatus: 'Authorized', source: 'Shopify' }; // Ensure source is set for admin
+                        const paymentInfo: PaymentInfo = {
+                            paymentId: response.razorpay_payment_id, orderId: orderDetails.orderId, razorpayOrderId: response.razorpay_order_id,
+                            signature: response.razorpay_signature, status: 'authorized', authorizedAt: new Date().toISOString()
+                        };
+
+                        await saveDocument('orders', finalOrder, finalOrder.id);
+                        localStorage.setItem(`payment_info_${finalOrder.orderId}`, JSON.stringify(paymentInfo));
+                        await saveDocument('leads', { ...newLead, paymentStatus: 'Converted' }, newLead.id);
+                        createNewShaktiCard(finalOrder);
+                        
+                        toast({ title: "Payment Successful!", description: `Your payment is Authorized. Order ${finalOrder.orderId} confirmed.` });
+                        setStep('complete');
+                    },
+                    prefill: { name: customerDetails.name, email: customerDetails.email, contact: customerDetails.contact },
+                    theme: { color: "#663399" },
+                    modal: { ondismiss: () => {
+                        toast({ title: 'Authorization Pending', description: 'Your order is saved as a lead. Please complete the authorization later.'});
+                        setIsSubmitting(false);
+                        router.push('/customer/dashboard');
+                    }}
+                };
+                const rzpAuth = new (window as any).Razorpay(authOptions);
+                rzpAuth.open();
+            }
+
             // Step 2: Open Razorpay for ₹1 intent payment
             const intentOptions = {
                 key: razorpayKeyId, amount: 100, currency: "INR", name: "Verify Order Intent",
@@ -165,37 +201,8 @@ function SecureCodPaymentForm() {
                 handler: async () => {
                     // Step 3: Intent verified, save as lead immediately
                     await addDocument('leads', newLead);
-                    
-                    // Step 4: Open Razorpay for full authorization
-                    const authOptions = {
-                        key: razorpayKeyId, amount: orderDetails.amount * 100, currency: "INR", name: "Authorize Full Amount",
-                        description: `Authorize ₹${orderDetails.amount} for Order #${orderDetails.orderId}`, order_id: authResult.order_id,
-                        handler: async (response: any) => {
-                            const finalOrder: EditableOrder = { ...newLead, paymentStatus: 'Authorized', source: 'Shopify' }; // Ensure source is set for admin
-                            const paymentInfo: PaymentInfo = {
-                                paymentId: response.razorpay_payment_id, orderId: orderDetails.orderId, razorpayOrderId: response.razorpay_order_id,
-                                signature: response.razorpay_signature, status: 'authorized', authorizedAt: new Date().toISOString()
-                            };
-
-                            await saveDocument('orders', finalOrder, finalOrder.id);
-                            localStorage.setItem(`payment_info_${finalOrder.orderId}`, JSON.stringify(paymentInfo));
-                            createNewShaktiCard(finalOrder);
-                            
-                            await saveDocument('leads', { ...newLead, paymentStatus: 'Converted' }, newLead.id);
-                            
-                            toast({ title: "Payment Successful!", description: `Your payment is Authorized. Order ${finalOrder.orderId} confirmed.` });
-                            setStep('complete');
-                        },
-                        prefill: { name: customerDetails.name, email: customerDetails.email, contact: customerDetails.contact },
-                        theme: { color: "#663399" },
-                        modal: { ondismiss: () => {
-                            toast({ title: 'Authorization Pending', description: 'Your order is saved as a lead. Please complete the authorization later.'});
-                            setIsSubmitting(false);
-                            router.push('/customer/dashboard');
-                        }}
-                    };
-                    const rzpAuth = new (window as any).Razorpay(authOptions);
-                    rzpAuth.open();
+                    // Step 4: Trigger the full authorization payment flow
+                    triggerFullAuthorization();
                 },
                 prefill: { name: customerDetails.name, email: customerDetails.email, contact: customerDetails.contact },
                 theme: { color: "#663399" },
@@ -308,5 +315,6 @@ function Page() {
 }
 
 export default Page;
+
 
     

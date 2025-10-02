@@ -31,7 +31,7 @@ import Image from 'next/image';
 import { useAuth } from '@/hooks/use-auth';
 import { v4 as uuidv4 } from 'uuid';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { getCollection, saveDocument } from '@/services/firestore';
+import { getCollection, saveDocument, getDocument } from '@/services/firestore';
 import { getCookie } from 'cookies-next';
 
 export interface SellerProduct extends ProductListingOutput {
@@ -67,6 +67,14 @@ export default function AiProductUploaderPage() {
                 setIsLimitReached(false);
                 return;
             }
+
+            const permissions = await getDocument('user_permissions', user.uid);
+            // @ts-ignore
+            if (permissions?.unlimitedAiUploads) {
+                 setIsLimitReached(false);
+                 return;
+            }
+
             const products = await getCollection<SellerProduct>('seller_products');
             const sellerProducts = products.filter(p => p.sellerId === user.uid);
             const count = sellerProducts.length;
@@ -468,3 +476,5 @@ export default function AiProductUploaderPage() {
     </AppShell>
   );
 }
+
+    

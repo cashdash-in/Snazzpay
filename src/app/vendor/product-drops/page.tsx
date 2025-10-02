@@ -16,7 +16,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Dialog, DialogTrigger } from '@/components/ui/dialog';
 import { ShareComposerDialog } from '@/components/share-composer-dialog';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { getCollection, saveDocument } from '@/services/firestore';
+import { getCollection, saveDocument, getDocument } from '@/services/firestore';
 import { getCookie } from 'cookies-next';
 
 export interface ProductDrop {
@@ -53,6 +53,14 @@ export default function VendorProductDropsPage() {
                     setIsLimitReached(false);
                     return;
                 }
+
+                const permissions = await getDocument('user_permissions', user.uid);
+                // @ts-ignore
+                if (permissions?.unlimitedProductDrops) {
+                    setIsLimitReached(false);
+                    return;
+                }
+
                 const drops = await getCollection<ProductDrop>('product_drops');
                 const vendorDrops = drops.filter(d => d.vendorId === user.uid);
                 const count = vendorDrops.length;
@@ -212,3 +220,5 @@ export default function VendorProductDropsPage() {
         </AppShell>
     );
 }
+
+    
