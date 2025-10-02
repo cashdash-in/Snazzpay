@@ -46,7 +46,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         await firebaseSignOut(auth);
         await fetch('/api/auth/session', { method: 'DELETE' });
         
-        // This is safe because signOut is a user-initiated client-side action.
         const role = getCookie('userRole');
         let loginPath = '/auth/login'; // Default
         
@@ -60,8 +59,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             loginPath = '/logistics-secure/login';
         }
 
+        // Use router.push for client-side navigation
         router.push(loginPath);
-        router.refresh();
+        // No need for router.refresh() here, as state changes should re-render
         
     } catch (error) {
         console.error("Error signing out:", error);
