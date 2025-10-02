@@ -24,7 +24,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   LayoutDashboard,
@@ -60,7 +60,6 @@ import {
   Send,
   PackagePlus,
 } from 'lucide-react';
-import { usePageRefresh } from '@/hooks/usePageRefresh';
 import { useAuth } from '@/hooks/use-auth';
 import { getCookie } from 'cookies-next';
 
@@ -121,7 +120,7 @@ const vendorMenuItems = [
 
 export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, title }) => {
   const pathname = usePathname();
-  const { triggerRefresh } = usePageRefresh();
+  const router = useRouter();
   const { user, signOut } = useAuth();
   
   const role = getCookie('userRole');
@@ -220,7 +219,7 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
             <h2 className="text-xl font-semibold text-card-foreground">{title}</h2>
           </div>
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={triggerRefresh}>
+            <Button variant="ghost" size="icon" onClick={() => router.refresh()}>
               <RefreshCw className="h-5 w-5" />
               <span className="sr-only">Refresh Data</span>
             </Button>
@@ -288,5 +287,3 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
     </SidebarProvider>
   );
 };
-
-    
