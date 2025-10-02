@@ -6,7 +6,6 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import { format } from "date-fns";
 import { useState, useEffect, useCallback } from "react";
 import { Loader2, PlusCircle, Trash2, Save } from "lucide-react";
@@ -15,31 +14,9 @@ import { useToast } from "@/hooks/use-toast";
 import type { EditableOrder } from '../orders/page';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { v4 as uuidv4 } from 'uuid';
+import { getCollection, saveDocument, deleteDocument } from "@/services/firestore";
 
 type CancellationStatus = 'Pending' | 'Processed' | 'Failed';
-
-function formatAddress(address: ShopifyOrder['shipping_address']): string {
-    if (!address) return 'N/A';
-    const parts = [address.address1, address.city, address.province, address.country];
-    return parts.filter(Boolean).join(', ');
-}
-
-function mapShopifyToEditable(order: ShopifyOrder): EditableOrder {
-    return {
-        id: order.id.toString(),
-        orderId: order.name,
-        customerName: `${order.customer?.first_name || ''} ${order.customer?.last_name || ''}`.trim(),
-        customerAddress: formatAddress(order.shipping_address),
-        pincode: order.shipping_address?.zip || 'N/A',
-        contactNo: order.customer?.phone || 'N/A',
-        productOrdered: order.line_items.map(item => item.title).join(', '),
-        quantity: order.line_items.reduce((sum, item) => sum + item.quantity, 0),
-        price: order.total_price,
-        paymentStatus: order.financial_status || 'Pending',
-        date: format(new Date(order.created_at), "yyyy-MM-dd"),
-    };
-}
-
 
 export default function CancellationsPage() {
   const [orders, setOrders] = useState<EditableOrder[]>([]);
@@ -48,63 +25,17 @@ export default function CancellationsPage() {
 
   const fetchAndSetOrders = useCallback(async () => {
     setLoading(true);
-    let combinedOrders: EditableOrder[] = [];
     try {
-        const shopifyOrders = await getOrders();
-        const shopifyEditableOrders = shopifyOrders.map(mapShopifyToEditable);
-        combinedOrders = [...combinedOrders, ...shopifyEditableOrders];
+        const allOrders = await getCollection<EditableOrder>('orders');
+        setOrders(allOrders.map(o => ({...o, cancellationId: o.cancellationId || `CNCL-${uuidv4().substring(0, 8).toUpperCase()}`})));
     } catch (error) {
-        console.error("Failed to fetch Shopify orders:", error);
+        console.error("Failed to load orders:", error);
         toast({
             variant: 'destructive',
-            title: "Failed to load Shopify Orders",
-            description: "Displaying manually added orders only. Check Shopify API keys in Settings.",
+            title: "Error loading orders",
+            description: "Could not load orders from Firestore.",
         });
     }
-
-    try {
-        const manualOrdersJSON = localStorage.getItem('manualOrders');
-        const manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
-        combinedOrders = [...combinedOrders, ...manualOrders];
-    } catch (error) {
-        console.error("Failed to load manual orders:", error);
-        toast({
-            variant: 'destructive',
-            title: "Error loading manual orders",
-            description: "Could not load orders from local storage.",
-        });
-    }
-
-    const orderGroups = new Map<string, EditableOrder[]>();
-    combinedOrders.forEach(order => {
-        const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
-        const finalOrder = { ...order, ...storedOverrides };
-        const group = orderGroups.get(finalOrder.orderId) || [];
-        group.push(finalOrder);
-        orderGroups.set(finalOrder.orderId, group);
-    });
-
-    const unifiedOrders: EditableOrder[] = [];
-    orderGroups.forEach((group) => {
-        let representativeOrder = group.reduce((acc, curr) => ({ ...acc, ...curr }), group[0]);
-
-        const hasVoided = group.some(o => o.paymentStatus === 'Voided' || o.cancellationStatus === 'Processed');
-        if (hasVoided) {
-            representativeOrder.paymentStatus = 'Voided';
-            representativeOrder.cancellationStatus = 'Processed';
-        }
-
-        const sharedCancellationId = group.find(o => o.cancellationId)?.cancellationId;
-        if (sharedCancellationId) {
-            representativeOrder.cancellationId = sharedCancellationId;
-        } else {
-             representativeOrder.cancellationId = `CNCL-${uuidv4().substring(0, 8).toUpperCase()}`;
-        }
-
-        unifiedOrders.push(representativeOrder);
-    });
-
-    setOrders(unifiedOrders);
     setLoading(false);
   }, [toast]);
 
@@ -118,42 +49,25 @@ export default function CancellationsPage() {
     ));
   };
 
-  const handleSave = (orderId: string) => {
+  const handleSave = async (orderId: string) => {
     const orderToSave = orders.find(o => o.id === orderId);
     if (!orderToSave) return;
 
-    if (orderToSave.id.startsWith('gid://') || orderToSave.id.match(/^\d+$/)) {
-      const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${orderId}`) || '{}');
-      const newOverrides = { ...storedOverrides, ...orderToSave };
-      localStorage.setItem(`order-override-${orderId}`, JSON.stringify(newOverrides));
-    } else {
-      const manualOrdersJSON = localStorage.getItem('manualOrders');
-      let manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
-      const orderIndex = manualOrders.findIndex(o => o.id === orderId);
-      if (orderIndex > -1) {
-        manualOrders[orderIndex] = orderToSave;
-        localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
-      }
+    try {
+        await saveDocument('orders', orderToSave, orderId);
+        toast({
+            title: "Cancellation Info Saved",
+            description: `Details for order ${orderToSave.orderId} have been updated.`,
+        });
+    } catch(e) {
+        toast({ variant: 'destructive', title: 'Error Saving' });
     }
-    
-    toast({
-        title: "Cancellation Info Saved",
-        description: `Details for order ${orderToSave.orderId} have been updated.`,
-    });
   };
 
-  const handleRemove = (orderId: string) => {
+  const handleRemove = async (orderId: string) => {
+    // This will likely not delete the order, but maybe remove it from this view
+    // For now, it just removes from the state. To persist, we'd need a flag in Firestore
     setOrders(prev => prev.filter(order => order.id !== orderId));
-    
-    const manualOrdersJSON = localStorage.getItem('manualOrders');
-    if (manualOrdersJSON) {
-        let manualOrders: EditableOrder[] = JSON.parse(manualOrdersJSON);
-        manualOrders = manualOrders.filter(o => o.id !== orderId);
-        localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
-    }
-    
-    localStorage.removeItem(`order-override-${orderId}`);
-    
     toast({
         variant: 'destructive',
         title: "Order Removed",
@@ -243,5 +157,3 @@ export default function CancellationsPage() {
     </AppShell>
   );
 }
-
-    

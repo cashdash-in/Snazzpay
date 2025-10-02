@@ -14,6 +14,8 @@ import { format } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { saveDocument } from '@/services/firestore';
+import type { EditableOrder } from '../page';
 
 export default function NewOrderPage() {
     const router = useRouter();
@@ -41,24 +43,28 @@ export default function NewOrderPage() {
         setOrder(prev => ({ ...prev, paymentStatus: value }));
     };
     
-    const handleSave = () => {
-        const newOrder = {
+    const handleSave = async () => {
+        const id = uuidv4();
+        const newOrder: EditableOrder = {
             ...order,
-            id: uuidv4(), // Assign a unique ID for React keys and local storage
+            id,
             source: 'Manual'
         };
         
-        const existingOrdersJSON = localStorage.getItem('manualOrders');
-        const existingOrders = existingOrdersJSON ? JSON.parse(existingOrdersJSON) : [];
-        const updatedOrders = [...existingOrders, newOrder];
-        localStorage.setItem('manualOrders', JSON.stringify(updatedOrders));
-
-        toast({
-            title: "Order Created",
-            description: "The new order has been saved successfully.",
-        });
-
-        router.push('/orders');
+        try {
+            await saveDocument('orders', newOrder, id);
+            toast({
+                title: "Order Created",
+                description: "The new order has been saved successfully.",
+            });
+            router.push('/orders');
+        } catch (error) {
+             toast({
+                variant: 'destructive',
+                title: "Error Creating Order",
+                description: "Could not save the order to the database.",
+            });
+        }
     };
 
     return (

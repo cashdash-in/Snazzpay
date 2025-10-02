@@ -9,40 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useEffect, useCallback } from "react";
 import { Trash2, PlusCircle, Save, Loader2 as ButtonLoader, Mail, Copy, MessageSquare, Facebook, Instagram } from "lucide-react";
-import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import type { EditableOrder } from '../orders/page';
-import { format } from "date-fns";
-import { v4 as uuidv4 } from 'uuid';
 import { sanitizePhoneNumber } from "@/lib/utils";
+import { getCollection, saveDocument, deleteDocument } from "@/services/firestore";
 
 type OrderStatus = 'pending' | 'dispatched' | 'out-for-delivery' | 'delivered' | 'failed';
-
-function formatAddress(address: ShopifyOrder['shipping_address']): string {
-    if (!address) return 'N/A';
-    const parts = [address.address1, address.city, address.province, address.country, address.zip];
-    return parts.filter(Boolean).join(', ');
-}
-
-function mapShopifyToEditable(order: ShopifyOrder): EditableOrder {
-    return {
-        id: order.id.toString(),
-        orderId: order.name,
-        customerName: `${order.customer?.first_name || ''} ${order.customer?.last_name || ''}`.trim(),
-        customerEmail: order.customer?.email || undefined,
-        customerAddress: formatAddress(order.shipping_address),
-        pincode: order.shipping_address?.zip || 'N/A',
-        contactNo: order.customer?.phone || 'N/A',
-        productOrdered: order.line_items.map(item => item.title).join(', '),
-        quantity: order.line_items.reduce((sum, item) => sum + item.quantity, 0),
-        price: order.total_price,
-        paymentStatus: order.financial_status || 'Pending',
-        date: format(new Date(order.created_at), "yyyy-MM-dd"),
-    };
-}
-
 
 export default function DeliveryTrackingPage() {
     const [orders, setOrders] = useState<EditableOrder[]>([]);
@@ -52,62 +26,19 @@ export default function DeliveryTrackingPage() {
 
     const fetchAndSetOrders = useCallback(async () => {
         setLoading(true);
-        let combinedOrders: EditableOrder[] = [];
         try {
-            const shopifyOrders = await getOrders();
-            combinedOrders.push(...shopifyOrders.map(mapShopifyToEditable));
+            const allOrders = await getCollection<EditableOrder>('orders');
+            setOrders(allOrders.filter(o => o.paymentStatus !== 'Intent Verified'));
         } catch (error) {
-            console.error("Failed to fetch Shopify orders:", error);
+            console.error("Failed to load orders:", error);
+            toast({
+                variant: 'destructive',
+                title: "Error loading delivery data",
+                description: "Could not load orders from Firestore.",
+            });
         }
-
-        try {
-            const manualOrdersJSON = localStorage.getItem('manualOrders');
-            const manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
-            combinedOrders.push(...manualOrders);
-        } catch (error) {
-            console.error("Failed to load manual orders:", error);
-        }
-        
-        try {
-            const sellerOrdersJSON = localStorage.getItem('seller_orders');
-            const sellerOrders: EditableOrder[] = sellerOrdersJSON ? JSON.parse(sellerOrdersJSON) : [];
-            combinedOrders.push(...sellerOrders);
-        } catch (error) {
-            console.error("Failed to load seller orders:", error);
-        }
-
-        const orderGroups = new Map<string, EditableOrder[]>();
-        combinedOrders.forEach(order => {
-            const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
-            const finalOrder = { ...order, ...storedOverrides };
-            const group = orderGroups.get(finalOrder.orderId) || [];
-            group.push(finalOrder);
-            orderGroups.set(finalOrder.orderId, group);
-        });
-
-        const unifiedOrders: EditableOrder[] = [];
-        orderGroups.forEach((group) => {
-            let representativeOrder = group.reduce((acc, curr) => ({ ...acc, ...curr }), group[0]);
-
-            const hasVoided = group.some(o => o.paymentStatus === 'Voided' || o.cancellationStatus === 'Processed');
-            const hasRefunded = group.some(o => o.paymentStatus === 'Refunded' || o.refundStatus === 'Processed');
-
-            if (hasVoided) {
-                representativeOrder.paymentStatus = 'Voided';
-            } else if (hasRefunded) {
-                representativeOrder.paymentStatus = 'Refunded';
-            }
-            
-            if (!representativeOrder.cancellationId) {
-                 representativeOrder.cancellationId = `CNCL-${uuidv4().substring(0, 8).toUpperCase()}`;
-            }
-
-            unifiedOrders.push(representativeOrder);
-        });
-
-        setOrders(unifiedOrders.filter(o => o.paymentStatus !== 'Intent Verified'));
         setLoading(false);
-    }, []);
+    }, [toast]);
 
     useEffect(() => {
         fetchAndSetOrders();
@@ -120,32 +51,25 @@ export default function DeliveryTrackingPage() {
         setOrders(updatedOrders);
     };
 
-    const handleSave = (orderId: string) => {
+    const handleSave = async (orderId: string) => {
         const orderToSave = orders.find(o => o.id === orderId);
         if (!orderToSave) return;
         
-        const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${orderId}`) || '{}');
-        const newOverrides = { ...storedOverrides, ...orderToSave };
-        localStorage.setItem(`order-override-${orderId}`, JSON.stringify(newOverrides));
-
-        toast({
-            title: "Delivery Info Saved",
-            description: `Details for order ${orderToSave.orderId} have been updated.`,
-        });
+        try {
+            await saveDocument('orders', orderToSave, orderToSave.id);
+            toast({
+                title: "Delivery Info Saved",
+                description: `Details for order ${orderToSave.orderId} have been updated.`,
+            });
+        } catch(e) {
+            toast({ variant: 'destructive', title: 'Error Saving' });
+        }
     };
     
-    const handleRemoveOrder = (orderId: string) => {
+    const handleRemoveOrder = async (orderId: string) => {
+        // This likely just removes it from the view, not deletes.
+        // A 'deleted' flag in Firestore would be better.
         setOrders(prev => prev.filter(order => order.id !== orderId));
-        
-        const manualOrdersJSON = localStorage.getItem('manualOrders');
-        if(manualOrdersJSON) {
-            let manualOrders: EditableOrder[] = JSON.parse(manualOrdersJSON);
-            manualOrders = manualOrders.filter(o => o.id !== orderId);
-            localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
-        }
-        
-        localStorage.removeItem(`order-override-${orderId}`);
-
         toast({
             variant: 'destructive',
             title: "Order Removed",
@@ -155,25 +79,18 @@ export default function DeliveryTrackingPage() {
 
     const sendAuthLink = async (order: EditableOrder, method: 'email') => {
         setSendingState(order.id);
-        
         try {
             const response = await fetch('/api/send-auth-link', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ order, method }),
             });
-
             const result = await response.json();
-
-            if (!response.ok) {
-                throw new Error(result.error || `Failed to send link via ${method}.`);
-            }
-
+            if (!response.ok) throw new Error(result.error);
             toast({
                 title: "Link Sent Successfully!",
                 description: result.message,
             });
-
         } catch (error: any) {
              toast({
                 variant: 'destructive',
@@ -333,5 +250,3 @@ export default function DeliveryTrackingPage() {
     </AppShell>
   );
 }
-
-    

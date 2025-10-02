@@ -6,7 +6,6 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import { format } from "date-fns";
 import { useState, useEffect, useCallback } from "react";
 import { Loader2, PlusCircle, Trash2, Save, MessageSquare, CreditCard, Ban, CircleDollarSign } from "lucide-react";
@@ -16,6 +15,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { sanitizePhoneNumber } from "@/lib/utils";
+import { getCollection, saveDocument, deleteDocument, getDocument } from "@/services/firestore";
 
 export type EditableOrder = {
   id: string;
@@ -30,6 +30,7 @@ export type EditableOrder = {
   price: string;
   paymentStatus: string;
   date: string;
+  sellerId?: string;
   // Fields from other tabs
   trackingNumber?: string;
   courierCompanyName?: string;
@@ -45,29 +46,15 @@ export type EditableOrder = {
   source?: 'Shopify' | 'Manual' | 'Seller';
 };
 
-function formatAddress(address: ShopifyOrder['shipping_address']): string {
-    if (!address) return 'N/A';
-    const parts = [address.address1, address.city, address.province, address.country, address.zip];
-    return parts.filter(Boolean).join(', ');
-}
+type PaymentInfo = {
+    paymentId: string;
+    orderId: string; 
+    razorpayOrderId: string;
+    signature: string;
+    status: string;
+    authorizedAt: string;
+};
 
-function mapShopifyToEditable(order: ShopifyOrder): EditableOrder {
-    return {
-        id: order.id.toString(),
-        orderId: order.name,
-        customerName: `${order.customer?.first_name || ''} ${order.customer?.last_name || ''}`.trim(),
-        customerEmail: order.customer?.email || undefined,
-        customerAddress: formatAddress(order.shipping_address),
-        pincode: order.shipping_address?.zip || 'N/A',
-        contactNo: order.customer?.phone || 'N/A',
-        productOrdered: order.line_items.map(item => item.title).join(', '),
-        quantity: order.line_items.reduce((sum, item) => sum + item.quantity, 0),
-        price: order.total_price,
-        paymentStatus: order.financial_status || 'Pending',
-        date: format(new Date(order.created_at), "yyyy-MM-dd"),
-        source: 'Shopify'
-    };
-}
 
 const TEST_ORDER_ID = '#TEST-1001';
 
@@ -79,86 +66,38 @@ export default function OrdersPage() {
 
   const fetchAndSetOrders = useCallback(async () => {
     setLoading(true);
-    let combinedOrders: EditableOrder[] = [];
     try {
-        const shopifyOrders = await getOrders();
-        const shopifyEditableOrders = shopifyOrders.map(mapShopifyToEditable);
-        combinedOrders = [...combinedOrders, ...shopifyEditableOrders];
-    } catch (error) {
-        console.error("Failed to fetch Shopify orders:", error);
+        const allOrders = await getCollection<EditableOrder>('orders');
+        const testOrderExists = allOrders.some(order => order.orderId === TEST_ORDER_ID);
+
+        if (!testOrderExists) {
+            const testOrder: EditableOrder = {
+                id: uuidv4(),
+                orderId: TEST_ORDER_ID,
+                customerName: 'Test Customer',
+                customerEmail: 'test@example.com',
+                customerAddress: '123 Test Street, Testville',
+                pincode: '12345',
+                contactNo: '9876543210',
+                productOrdered: 'Sample Product for Testing',
+                quantity: 1,
+                price: '499.00',
+                paymentStatus: 'Pending',
+                date: format(new Date(), 'yyyy-MM-dd'),
+                source: 'Manual',
+            };
+            await saveDocument('orders', testOrder, testOrder.id);
+            allOrders.push(testOrder);
+        }
+        setOrders(allOrders.filter(o => o.paymentStatus !== 'Intent Verified'));
+    } catch(error) {
+        console.error("Failed to load orders:", error);
         toast({
             variant: 'destructive',
-            title: "Failed to load Shopify Orders",
-            description: "Displaying manually added orders only. Check Shopify API keys in Settings.",
+            title: "Error loading orders",
+            description: "Could not load orders from Firestore.",
         });
     }
-
-    try {
-        const manualOrdersJSON = localStorage.getItem('manualOrders');
-        const manualOrders: EditableOrder[] = manualOrdersJSON ? JSON.parse(manualOrdersJSON) : [];
-        combinedOrders = [...combinedOrders, ...manualOrders];
-    } catch (error) {
-        console.error("Failed to load manual orders:", error);
-        toast({
-            variant: 'destructive',
-            title: "Error loading manual orders",
-            description: "Could not load orders from local storage.",
-        });
-    }
-
-    const testOrderExists = combinedOrders.some(order => order.orderId === TEST_ORDER_ID);
-    if (!testOrderExists) {
-        const testOrder: EditableOrder = {
-            id: uuidv4(),
-            orderId: TEST_ORDER_ID,
-            customerName: 'Test Customer',
-            customerEmail: 'test@example.com',
-            customerAddress: '123 Test Street, Testville',
-            pincode: '12345',
-            contactNo: '9876543210',
-            productOrdered: 'Sample Product for Testing',
-            quantity: 1,
-            price: '499.00',
-            paymentStatus: 'Pending',
-            date: format(new Date(), 'yyyy-MM-dd'),
-            source: 'Manual',
-        };
-        combinedOrders.unshift(testOrder);
-    }
-
-    const orderGroups = new Map<string, EditableOrder[]>();
-    combinedOrders.forEach(order => {
-        const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
-        const finalOrder = { ...order, ...storedOverrides };
-        const group = orderGroups.get(finalOrder.orderId) || [];
-        group.push(finalOrder);
-        orderGroups.set(finalOrder.orderId, group);
-    });
-
-    const unifiedOrders: EditableOrder[] = [];
-    orderGroups.forEach((group) => {
-        let representativeOrder = group.reduce((acc, curr) => ({ ...acc, ...curr }), group[0]);
-
-        const hasVoided = group.some(o => o.paymentStatus === 'Voided' || o.cancellationStatus === 'Processed');
-        const hasRefunded = group.some(o => o.paymentStatus === 'Refunded' || o.refundStatus === 'Processed');
-
-        if (hasVoided) {
-            representativeOrder.paymentStatus = 'Voided';
-        } else if (hasRefunded) {
-            representativeOrder.paymentStatus = 'Refunded';
-        }
-        
-        const sharedCancellationId = group.find(o => o.cancellationId)?.cancellationId;
-        if (sharedCancellationId) {
-            representativeOrder.cancellationId = sharedCancellationId;
-        } else {
-             representativeOrder.cancellationId = `CNCL-${uuidv4().substring(0, 8).toUpperCase()}`;
-        }
-
-        unifiedOrders.push(representativeOrder);
-    });
-
-    setOrders(unifiedOrders.filter(o => o.paymentStatus !== 'Intent Verified'));
     setLoading(false);
   }, [toast]);
 
@@ -172,40 +111,36 @@ export default function OrdersPage() {
     ));
   };
   
-  const handleSaveOrder = (orderId: string) => {
+  const handleSaveOrder = async (orderId: string) => {
     const orderToSave = orders.find(o => o.id === orderId);
     if (!orderToSave) return;
     
-    // We only save overrides, never the original shopify/manual order data
-    const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${orderId}`) || '{}');
-    const newOverrides = { ...storedOverrides, ...orderToSave };
-    localStorage.setItem(`order-override-${orderId}`, JSON.stringify(newOverrides));
-
-    toast({
-        title: "Changes Saved",
-        description: `Order ${orderToSave?.orderId} has been updated.`,
-    });
+    try {
+        await saveDocument('orders', orderToSave, orderToSave.id);
+        toast({
+            title: "Changes Saved",
+            description: `Order ${orderToSave?.orderId} has been updated.`,
+        });
+    } catch(e) {
+         toast({
+            variant: 'destructive',
+            title: "Error Saving Order",
+        });
+    }
   };
 
-  const handleRemoveOrder = (orderId: string, source: 'Shopify' | 'Manual' | 'Seller' | undefined) => {
-    if (source === 'Manual' || source === 'Seller') {
-        const manualOrdersJSON = localStorage.getItem('manualOrders');
-        if (manualOrdersJSON) {
-            let manualOrders: EditableOrder[] = JSON.parse(manualOrdersJSON);
-            manualOrders = manualOrders.filter(o => o.id !== orderId);
-            localStorage.setItem('manualOrders', JSON.stringify(manualOrders));
-        }
+  const handleRemoveOrder = async (orderId: string) => {
+    try {
+        await deleteDocument('orders', orderId);
+        setOrders(prev => prev.filter(order => order.id !== orderId));
+        toast({
+            variant: 'destructive',
+            title: "Order Removed",
+            description: "The order has been removed from the database.",
+        });
+    } catch(e) {
+        toast({ variant: 'destructive', title: "Error Removing Order" });
     }
-    
-    localStorage.removeItem(`order-override-${orderId}`);
-    
-    setOrders(prev => prev.filter(order => order.id !== orderId));
-    
-    toast({
-        variant: 'destructive',
-        title: "Order Removed",
-        description: "The order has been removed from this view.",
-    });
   };
 
   const sendWhatsAppNotification = (order: EditableOrder) => {
@@ -230,8 +165,9 @@ export default function OrdersPage() {
 
     const handleQuickCapture = async (order: EditableOrder) => {
         setProcessingChargeId(order.id);
-        const paymentInfoJSON = localStorage.getItem(`payment_info_${order.orderId}`);
-        if (!paymentInfoJSON) {
+        const paymentInfo = await getDocument<PaymentInfo>('payment_info', order.orderId);
+        
+        if (!paymentInfo) {
             toast({
                 variant: 'destructive',
                 title: "Payment Info Not Found",
@@ -240,8 +176,6 @@ export default function OrdersPage() {
             setProcessingChargeId(null);
             return;
         }
-
-        const paymentInfo = JSON.parse(paymentInfoJSON);
         
         try {
             const response = await fetch('/api/charge-mandate', {
@@ -256,15 +190,9 @@ export default function OrdersPage() {
             const result = await response.json();
             if (!response.ok) throw new Error(result.error || 'Failed to charge payment.');
 
-            const updatedOrders = orders.map(o => o.id === order.id ? {...o, paymentStatus: 'Paid'} : o)
-            setOrders(updatedOrders);
-            
-            const orderToSave = updatedOrders.find(o => o.id === order.id);
-            if (orderToSave) {
-                const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
-                const newOverrides = { ...storedOverrides, ...orderToSave };
-                localStorage.setItem(`order-override-${order.id}`, JSON.stringify(newOverrides));
-            }
+            const updatedOrder = {...order, paymentStatus: 'Paid'};
+            await saveDocument('orders', updatedOrder, order.id);
+            setOrders(prev => prev.map(o => o.id === order.id ? updatedOrder : o));
 
             toast({
                 title: "Charge Successful!",
@@ -381,7 +309,7 @@ export default function OrdersPage() {
                                 <Button variant="outline" size="icon" onClick={() => handleSaveOrder(order.id)}>
                                     <Save className="h-4 w-4" />
                                 </Button>
-                                <Button variant="destructive" size="icon" onClick={() => handleRemoveOrder(order.id, order.source)}>
+                                <Button variant="destructive" size="icon" onClick={() => handleRemoveOrder(order.id)}>
                                     <Trash2 className="h-4 w-4" />
                                 </Button>
                             </TableCell>
@@ -397,5 +325,3 @@ export default function OrdersPage() {
     </AppShell>
   );
 }
-
-    

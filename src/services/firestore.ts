@@ -1,22 +1,30 @@
-
 'use server';
 
 import { db } from '@/lib/firebase';
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, DocumentData, writeBatch } from 'firebase/firestore';
-import type { EditableOrder } from '@/app/orders/page';
 
 export const getCollection = async <T>(collectionName: string): Promise<T[]> => {
     if (!db) return [];
-    const q = query(collection(db, collectionName));
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as unknown as T));
+    try {
+        const q = query(collection(db, collectionName));
+        const querySnapshot = await getDocs(q);
+        return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as unknown as T));
+    } catch (error) {
+        console.error(`Error getting collection ${collectionName}:`, error);
+        return [];
+    }
 };
 
 export const getDocument = async <T>(collectionName: string, id: string): Promise<T | null> => {
     if (!db) return null;
-    const docRef = doc(db, collectionName, id);
-    const docSnap = await getDoc(docRef);
-    return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } as T : null;
+    try {
+        const docRef = doc(db, collectionName, id);
+        const docSnap = await getDoc(docRef);
+        return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } as T : null;
+    } catch (error) {
+        console.error(`Error getting document ${id} from ${collectionName}:`, error);
+        return null;
+    }
 };
 
 export const saveDocument = async (collectionName: string, data: any, id?: string) => {
