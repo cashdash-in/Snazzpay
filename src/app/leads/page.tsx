@@ -101,7 +101,7 @@ export default function LeadsPage() {
 
   const handleConvertToOrder = async (lead: EditableOrder) => {
     try {
-        const newOrder = {
+        const newOrder: EditableOrder = {
             ...lead,
             paymentStatus: 'Pending', // Set as a pending manual order
             source: 'Manual' as const,
@@ -203,3 +203,4 @@ export default function LeadsPage() {
     </AppShell>
   );
 }
+
