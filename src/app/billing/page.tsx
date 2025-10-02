@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -7,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Loader2, Sparkles, PackagePlus, Settings } from "lucide-react";
+import { Loader2, Sparkles, PackagePlus, Settings, DollarSign, Percent } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getCollection, getDocument, saveDocument } from "@/services/firestore";
 import type { SellerUser } from "@/app/seller-accounts/page";
@@ -17,6 +16,7 @@ import type { ProductDrop } from "@/app/vendor/product-drops/page";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import type { EditableOrder } from '@/app/orders/page';
 
 type UserPermissions = {
     id: string;
@@ -32,10 +32,13 @@ type UsageData = {
     aiUploadLimit: number;
     productDrops: number;
     productDropLimit: number;
+    totalValue: number;
+    commission: number;
 };
 
 const DEFAULT_AI_LIMIT = 50;
 const DEFAULT_DROP_LIMIT = 50;
+const COMMISSION_RATE = 0.025; // 2.5%
 
 export default function BillingPage() {
     const { toast } = useToast();
@@ -49,12 +52,13 @@ export default function BillingPage() {
         const loadUsageData = async () => {
             setIsLoading(true);
             try {
-                const [allSellers, allVendors, allProducts, allDrops, allPermissions] = await Promise.all([
+                const [allSellers, allVendors, allProducts, allDrops, allPermissions, allOrders] = await Promise.all([
                     getCollection<SellerUser>('seller_users'),
                     getCollection<Vendor>('vendors'),
                     getCollection<SellerProduct>('seller_products'),
                     getCollection<ProductDrop>('product_drops'),
-                    getCollection<UserPermissions>('user_permissions')
+                    getCollection<UserPermissions>('user_permissions'),
+                    getCollection<EditableOrder>('orders')
                 ]);
 
                 const permissionsMap = new Map(allPermissions.map(p => [p.id, p]));
@@ -68,16 +72,28 @@ export default function BillingPage() {
                     acc[drop.vendorId] = (acc[drop.vendorId] || 0) + 1;
                     return acc;
                 }, {} as Record<string, number>);
+                
+                const sellerValueMap = allOrders.reduce((acc, order) => {
+                    if (order.sellerId) {
+                        acc[order.sellerId] = (acc[order.sellerId] || 0) + parseFloat(order.price || '0');
+                    }
+                    return acc;
+                }, {} as Record<string, number>);
 
-                const sellerData = allSellers.map(s => ({
-                    id: s.id,
-                    name: s.companyName,
-                    email: s.email,
-                    aiUploads: sellerUsageMap[s.id] || 0,
-                    aiUploadLimit: permissionsMap.get(s.id)?.aiUploadLimit || DEFAULT_AI_LIMIT,
-                    productDrops: 0,
-                    productDropLimit: 0,
-                }));
+                const sellerData = allSellers.map(s => {
+                    const totalValue = sellerValueMap[s.id] || 0;
+                    return {
+                        id: s.id,
+                        name: s.companyName,
+                        email: s.email,
+                        aiUploads: sellerUsageMap[s.id] || 0,
+                        aiUploadLimit: permissionsMap.get(s.id)?.aiUploadLimit || DEFAULT_AI_LIMIT,
+                        productDrops: 0,
+                        productDropLimit: 0,
+                        totalValue: totalValue,
+                        commission: totalValue * COMMISSION_RATE,
+                    };
+                });
 
                 const vendorData = allVendors.map(v => ({
                     id: v.id,
@@ -87,6 +103,8 @@ export default function BillingPage() {
                     aiUploadLimit: 0,
                     productDrops: vendorUsageMap[v.id] || 0,
                     productDropLimit: permissionsMap.get(v.id)?.productDropLimit || DEFAULT_DROP_LIMIT,
+                    totalValue: 0, // Placeholder for vendor-specific value logic
+                    commission: 0, // Placeholder
                 }));
 
                 setSellers(sellerData);
@@ -140,8 +158,8 @@ export default function BillingPage() {
                 <TabsContent value="sellers" className="mt-4">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Seller Feature Usage</CardTitle>
-                            <CardDescription>Track and manage premium feature usage for all approved sellers.</CardDescription>
+                            <CardTitle>Seller Feature Usage & Financials</CardTitle>
+                            <CardDescription>Track feature usage, transaction value, and commissions for all sellers.</CardDescription>
                         </CardHeader>
                         <CardContent>
                              {isLoading ? (
@@ -151,7 +169,9 @@ export default function BillingPage() {
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Seller</TableHead>
-                                        <TableHead>AI Product Uploads</TableHead>
+                                        <TableHead>AI Uploads</TableHead>
+                                        <TableHead>Total Value</TableHead>
+                                        <TableHead>Commission (2.5%)</TableHead>
                                         <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -166,6 +186,18 @@ export default function BillingPage() {
                                                 <div className="flex items-center gap-1">
                                                     <Sparkles className="h-4 w-4 text-muted-foreground" />
                                                     {seller.aiUploads} / {seller.aiUploadLimit}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center gap-1">
+                                                    <DollarSign className="h-4 w-4 text-muted-foreground" />
+                                                    {seller.totalValue.toFixed(2)}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center gap-1 font-medium text-green-600">
+                                                    <Percent className="h-4 w-4 text-muted-foreground" />
+                                                    {seller.commission.toFixed(2)}
                                                 </div>
                                             </TableCell>
                                             <TableCell className="text-right">
@@ -280,4 +312,3 @@ export default function BillingPage() {
             </Tabs>
         </AppShell>
     );
-}
