@@ -16,7 +16,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { getRazorpayKeyId } from "@/app/actions";
 
 const AI_UPLOADER_LIMIT = 50;
-const PRODUCT_DROP_LIMIT = 50;
 
 const limitIncreaseOptions = [
     { type: 'ai' as const, label: '+50 AI Uploads', increaseAmount: 50, cost: 250 },
@@ -27,43 +26,46 @@ export function SellerDashboard() {
     const { user } = useAuth();
     const { toast } = useToast();
     const [sellerInfo, setSellerInfo] = useState<SellerUser | null>(null);
-    const [usage, setUsage] = useState({ drops: 0, aiUploads: 0 });
-    const [limits, setLimits] = useState({ aiUploadLimit: AI_UPLOADER_LIMIT, productDropLimit: PRODUCT_DROP_LIMIT });
+    const [usage, setUsage] = useState({ aiUploads: 0 });
+    const [limits, setLimits] = useState({ aiUploadLimit: AI_UPLOADER_LIMIT });
     const [razorpayKeyId, setRazorpayKeyId] = useState<string | null>(null);
     const [isToppingUp, setIsToppingUp] = useState(false);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         async function loadSellerInfo() {
+            setLoading(true);
             if (user) {
-                getRazorpayKeyId().then(setRazorpayKeyId);
-
-                const [info, products, permissions] = await Promise.all([
+                const [info, products, permissions, keyId] = await Promise.all([
                     getDocument<SellerUser>('seller_users', user.uid),
                     getCollection<SellerProduct>('seller_products'),
-                    getDocument<{ aiUploadLimit?: number; productDropLimit?: number }>('user_permissions', user.uid)
+                    getDocument<{ aiUploadLimit?: number }>('user_permissions', user.uid),
+                    getRazorpayKeyId(),
                 ]);
+
+                setRazorpayKeyId(keyId);
 
                 if (info) {
                     setSellerInfo(info);
                 }
 
                 const sellerProducts = products.filter(p => p.sellerId === user.uid);
-                setUsage({ drops: 0, aiUploads: sellerProducts.length });
+                setUsage({ aiUploads: sellerProducts.length });
 
                 if (permissions) {
                     setLimits({
                         aiUploadLimit: permissions.aiUploadLimit || AI_UPLOADER_LIMIT,
-                        productDropLimit: permissions.productDropLimit || PRODUCT_DROP_LIMIT
                     });
                 }
             }
+            setLoading(false);
         }
         loadSellerInfo();
     }, [user]);
 
     const handleRequestLimitIncrease = async (option: typeof limitIncreaseOptions[0]) => {
          if (!user || !razorpayKeyId) {
-            toast({ variant: 'destructive', title: 'Error', description: 'User details or Razorpay key not available.' });
+            toast({ variant: 'destructive', title: 'Error', description: 'User details or Razorpay key not available. The admin may need to configure it in settings.' });
             return;
         }
         setIsToppingUp(true);
@@ -140,7 +142,7 @@ export function SellerDashboard() {
                             <CardDescription>Generate product listings using AI.</CardDescription>
                         </div>
                         <div className="text-right">
-                            <p className="text-2xl font-bold">{usage.aiUploads} / {limits.aiUploadLimit}</p>
+                            <p className="text-2xl font-bold">{loading ? <Loader2 className="h-6 w-6 animate-spin" /> : `${usage.aiUploads} / ${limits.aiUploadLimit}`}</p>
                             <p className="text-xs text-muted-foreground">Generations Used</p>
                         </div>
                     </CardHeader>
@@ -172,19 +174,13 @@ export function SellerDashboard() {
                     </CardFooter>
                 </Card>
                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between">
-                        <div className="space-y-1">
-                            <CardTitle className="text-lg flex items-center gap-2"><PackagePlus /> Product Drops</CardTitle>
-                            <CardDescription>Receive new product info from vendors.</CardDescription>
-                        </div>
-                        <div className="text-right">
-                             <p className="text-2xl font-bold">{usage.drops} / {limits.productDropLimit}</p>
-                            <p className="text-xs text-muted-foreground">Usage (Placeholder)</p>
-                        </div>
+                    <CardHeader>
+                        <CardTitle>Coming Soon</CardTitle>
+                        <CardDescription>More features and analytics are on the way.</CardDescription>
                     </CardHeader>
-                     <CardFooter>
-                        <p className="text-sm text-muted-foreground">This feature's usage is not yet tracked.</p>
-                    </CardFooter>
+                     <CardContent>
+                        <p className="text-sm text-muted-foreground">Stay tuned for more tools to help you grow your business.</p>
+                    </CardContent>
                 </Card>
             </div>
         </div>

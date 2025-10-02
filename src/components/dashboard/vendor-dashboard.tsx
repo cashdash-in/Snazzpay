@@ -5,12 +5,11 @@ import { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
-import { DollarSign, ShoppingCart, Activity, Star, Sparkles, PackagePlus, Loader2 } from "lucide-react";
+import { DollarSign, Users, ShoppingCart, Activity, Star, Sparkles, PackagePlus, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { getDocument, getCollection, saveDocument } from "@/services/firestore";
 import type { Vendor } from "@/app/vendors/page";
 import type { ProductDrop } from "@/app/vendor/product-drops/page";
-import { getCookie } from "cookies-next";
 import { useToast } from "@/hooks/use-toast";
 import { v4 as uuidv4 } from 'uuid';
 import { getRazorpayKeyId } from "@/app/actions";
@@ -30,17 +29,20 @@ export function VendorDashboard() {
     const [limit, setLimit] = useState(PRODUCT_DROP_LIMIT);
     const [razorpayKeyId, setRazorpayKeyId] = useState<string | null>(null);
     const [isToppingUp, setIsToppingUp] = useState(false);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         async function loadVendorInfo() {
+            setLoading(true);
             if (user) {
-                 getRazorpayKeyId().then(setRazorpayKeyId);
-
-                const [info, drops, permissions] = await Promise.all([
+                const [info, drops, permissions, keyId] = await Promise.all([
                     getDocument<Vendor>('vendors', user.uid),
                     getCollection<ProductDrop>('product_drops'),
-                    getDocument<{ productDropLimit?: number }>('user_permissions', user.uid)
+                    getDocument<{ productDropLimit?: number }>('user_permissions', user.uid),
+                    getRazorpayKeyId(),
                 ]);
+                
+                setRazorpayKeyId(keyId);
 
                 if (info) {
                     setVendorInfo(info);
@@ -53,13 +55,14 @@ export function VendorDashboard() {
                     setLimit(permissions.productDropLimit);
                 }
             }
+            setLoading(false);
         }
         loadVendorInfo();
     }, [user]);
 
     const handleRequestLimitIncrease = async (option: typeof limitIncreaseOptions[0]) => {
          if (!user || !razorpayKeyId) {
-            toast({ variant: 'destructive', title: 'Error', description: 'User details or Razorpay key not available.' });
+            toast({ variant: 'destructive', title: 'Error', description: 'User details or Razorpay key not available. The admin may need to configure it in settings.' });
             return;
         }
         setIsToppingUp(true);
@@ -127,7 +130,7 @@ export function VendorDashboard() {
                         <CardDescription>Share new products with your seller network.</CardDescription>
                     </div>
                     <div className="text-right">
-                        <p className="text-2xl font-bold">{usage.drops} / {limit}</p>
+                        <p className="text-2xl font-bold">{loading ? <Loader2 className="h-6 w-6 animate-spin" /> : `${usage.drops} / ${limit}`}</p>
                         <p className="text-xs text-muted-foreground">Drops Used</p>
                     </div>
                 </CardHeader>
