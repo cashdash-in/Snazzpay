@@ -29,6 +29,7 @@ import { useState, useEffect, useMemo } from "react";
 import { format } from "date-fns";
 import { v4 as uuidv4 } from 'uuid';
 import type { ShaktiCardData } from "@/components/shakti-card";
+import { getCollection, saveDocument } from '@/services/firestore';
 
 export type PartnerData = {
     id: string;
@@ -82,31 +83,36 @@ export default function PartnerHubPage() {
     const [searchQuery, setSearchQuery] = useState('');
 
     useEffect(() => {
-        function loadData() {
-            const allPayPartnersJSON = localStorage.getItem('payPartners');
-            const allPayPartners: PartnerData[] = allPayPartnersJSON ? JSON.parse(allPayPartnersJSON) : [];
-            setPayPartners(allPayPartners.filter(p => p.status === 'approved'));
-            setPayPartnerRequests(allPayPartners.filter(p => p.status === 'pending'));
+        async function loadData() {
+            try {
+                const allPayPartners = await getCollection<PartnerData>('payPartners');
+                setPayPartners(allPayPartners.filter(p => p.status === 'approved'));
+                setPayPartnerRequests(allPayPartners.filter(p => p.status === 'pending'));
 
-            const allTopUpsJSON = localStorage.getItem('topUpRequests');
-            const allTopUps: TopUpRequest[] = allTopUpsJSON ? JSON.parse(allTopUpsJSON) : [];
-            setTopUpRequests(allTopUps);
-            
-            const allShaktiCardsJSON = localStorage.getItem('shakti_cards_db');
-            const allShaktiCards: ShaktiCardData[] = allShaktiCardsJSON ? JSON.parse(allShaktiCardsJSON) : [];
-            setShaktiCards(allShaktiCards);
-            
-            const storedRules = localStorage.getItem('shakti_card_rules_db');
-            if (storedRules) {
-                setRewardRules(JSON.parse(storedRules));
+                const allTopUps = await getCollection<TopUpRequest>('topUpRequests');
+                setTopUpRequests(allTopUps);
+                
+                const allShaktiCards = await getCollection<ShaktiCardData>('shakti_cards');
+                setShaktiCards(allShaktiCards);
+                
+                const storedRules = await getCollection<any>('shakti_card_rules_db');
+                if (storedRules.length > 0) {
+                    const rulesMap = storedRules.reduce((acc, rule) => {
+                        acc[rule.id] = rule;
+                        return acc;
+                    }, {});
+                    setRewardRules(rulesMap);
+                }
+
+                const approvedSellersList = await getCollection<SellerUser>('seller_users');
+                setApprovedSellers(approvedSellersList.filter(s => s.status === 'approved'));
+            } catch (error) {
+                console.error("Error loading data from Firestore:", error);
+                toast({ variant: 'destructive', title: "Failed to load data", description: "Could not retrieve initial data from the database." });
             }
-
-            const approvedSellersJSON = localStorage.getItem('approved_sellers');
-            const approvedSellersList: SellerUser[] = approvedSellersJSON ? JSON.parse(approvedSellersJSON) : [];
-            setApprovedSellers(approvedSellersList);
         }
         loadData();
-    }, []);
+    }, [toast]);
     
     useEffect(() => {
         if(selectedSellerForRules && rewardRules[selectedSellerForRules]) {
@@ -146,12 +152,13 @@ export default function PartnerHubPage() {
         setSelectedPartner('');
     };
 
-    const handlePayPartnerRequest = (partnerId: string, newStatus: 'approved' | 'rejected') => {
-        let allPayPartnersJSON = localStorage.getItem('payPartners');
-        let allPayPartners: PartnerData[] = allPayPartnersJSON ? JSON.parse(allPayPartnersJSON) : [];
-        allPayPartners = allPayPartners.map(p => p.id === partnerId ? { ...p, status: newStatus } : p);
-        localStorage.setItem('payPartners', JSON.stringify(allPayPartners));
+    const handlePayPartnerRequest = async (partnerId: string, newStatus: 'approved' | 'rejected') => {
+        const partner = payPartnerRequests.find(p => p.id === partnerId);
+        if (!partner) return;
 
+        await saveDocument('payPartners', { ...partner, status: newStatus }, partnerId);
+        
+        const allPayPartners = await getCollection<PartnerData>('payPartners');
         setPayPartners(allPayPartners.filter(p => p.status === 'approved'));
         setPayPartnerRequests(allPayPartners.filter(p => p.status === 'pending'));
 
@@ -163,33 +170,30 @@ export default function PartnerHubPage() {
         if(!request || request.status === 'Approved') return;
 
         const updatedRequest = { ...request, status: 'Approved' as const };
+        await saveDocument('topUpRequests', updatedRequest, requestId);
         
-        let allPayPartnersJSON = localStorage.getItem('payPartners');
-        let allPayPartners: PartnerData[] = allPayPartnersJSON ? JSON.parse(allPayPartnersJSON) : [];
-        let partner = allPayPartners.find(p => p.id === request.partnerId);
+        const partner = await getCollection<PartnerData>('payPartners').then(partners => partners.find(p => p.id === request.partnerId));
 
         if (partner) {
             const updatedPartner = { ...partner, balance: partner.balance + request.coinsRequested };
-            allPayPartners = allPayPartners.map(p => p.id === partner!.id ? updatedPartner : p);
-            localStorage.setItem('payPartners', JSON.stringify(allPayPartners));
-            setPayPartners(allPayPartners.filter(p => p.status === 'approved'));
+            await saveDocument('payPartners', updatedPartner, partner.id);
+            setPayPartners(prev => prev.map(p => p.id === partner!.id ? updatedPartner : p));
         }
 
-        const updatedTopUps = topUpRequests.map(r => r.id === requestId ? updatedRequest : r);
-        setTopUpRequests(updatedTopUps);
-        localStorage.setItem('topUpRequests', JSON.stringify(updatedTopUps));
+        setTopUpRequests(prev => prev.map(r => r.id === requestId ? updatedRequest : r));
 
         toast({ title: "Top-up Approved!", description: `${request.coinsRequested.toLocaleString()} coins added to ${request.partnerName}'s balance.` });
     };
     
-    const handleSaveRules = () => {
+    const handleSaveRules = async () => {
         if (!selectedSellerForRules) {
             toast({ variant: 'destructive', title: 'No Seller Selected', description: 'Please select a seller to configure their reward rules.' });
             return;
         }
+        await saveDocument('shakti_card_rules_db', currentSellerRules, selectedSellerForRules);
         const updatedRules = { ...rewardRules, [selectedSellerForRules]: currentSellerRules };
         setRewardRules(updatedRules);
-        localStorage.setItem('shakti_card_rules_db', JSON.stringify(updatedRules));
+        
         toast({ title: "Reward Rules Saved", description: `The new rules for ${approvedSellers.find(s => s.id === selectedSellerForRules)?.companyName} have been applied.` });
     };
 
@@ -510,3 +514,5 @@ export default function PartnerHubPage() {
         </AppShell>
     );
 }
+
+    
