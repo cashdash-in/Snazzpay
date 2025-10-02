@@ -82,14 +82,13 @@ export default function VendorsPage() {
         }
 
         const newVendorId = uuidv4();
-        const vendorToAdd: Vendor = {
-            id: newVendorId,
+        const vendorToAdd: Omit<Vendor, 'id'> = {
             ...newVendor,
             status: 'approved' // Admins add vendors as approved by default
         };
         
         try {
-            await saveDocument('vendors', vendorToAdd);
+            await saveDocument('vendors', vendorToAdd, newVendorId);
             await loadVendors(); // Reload all vendors to get updated list
             setNewVendor({ name: '', contactPerson: '', phone: '', email: '' });
             toast({ title: "Vendor Added", description: `${newVendor.name} has been added and approved.` });
@@ -107,7 +106,7 @@ export default function VendorsPage() {
         const newStatus = isApproved ? 'approved' : 'rejected';
 
         try {
-            await saveDocument('vendors', { ...vendor, status: newStatus });
+            await saveDocument('vendors', { ...vendor, status: newStatus }, vendor.id);
             await loadVendors(); // Reload all vendors
             
             toast({
@@ -143,7 +142,7 @@ export default function VendorsPage() {
     const handleSavePermissions = async () => {
         if (!permissions) return;
         try {
-            await saveDocument('user_permissions', permissions);
+            await saveDocument('user_permissions', permissions, permissions.id);
             toast({ title: "Permissions Saved", description: "The user's feature access has been updated." });
         } catch (error) {
             toast({ variant: "destructive", title: "Error saving permissions" });
