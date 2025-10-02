@@ -11,7 +11,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { getDocument, saveDocument } from "@/services/firestore";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { Terminal } from "lucide-react";
+import { Terminal, PackagePlus, Sparkles } from "lucide-react";
+import type { SellerProduct } from '@/app/seller/ai-product-uploader/page';
 
 type PaymentSettings = {
     razorpay_key_id: string;
@@ -22,6 +23,7 @@ export default function SellerSettingsPage() {
     const { user } = useAuth();
     const { toast } = useToast();
     const [paymentSettings, setPaymentSettings] = useState<PaymentSettings>({ razorpay_key_id: '', razorpay_key_secret: '' });
+    const [usage, setUsage] = useState({ drops: 0, aiUploads: 0 });
 
     useEffect(() => {
         if (user) {
@@ -30,6 +32,11 @@ export default function SellerSettingsPage() {
                     setPaymentSettings(settings);
                 }
             });
+
+            const storedAiProducts = localStorage.getItem(`seller_products_${user.uid}`);
+            const aiProducts: SellerProduct[] = storedAiProducts ? JSON.parse(storedAiProducts) : [];
+            // In the future, product drops usage could be tracked here too
+            setUsage({ drops: 0, aiUploads: aiProducts.length });
         }
     }, [user]);
 
@@ -53,9 +60,10 @@ export default function SellerSettingsPage() {
     return (
         <AppShell title="My Settings">
             <Tabs defaultValue="profile">
-                <TabsList>
+                <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="profile">My Profile</TabsTrigger>
                     <TabsTrigger value="payments">Payment Gateway</TabsTrigger>
+                    <TabsTrigger value="usage">Usage & Billing</TabsTrigger>
                 </TabsList>
                 <TabsContent value="profile">
                     <Card>
@@ -114,7 +122,36 @@ export default function SellerSettingsPage() {
                         </CardFooter>
                     </Card>
                 </TabsContent>
+                <TabsContent value="usage">
+                     <Card>
+                        <CardHeader>
+                            <CardTitle>Usage and Billing</CardTitle>
+                            <CardDescription>
+                                Track your usage of premium features and manage your subscription.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                             <Card>
+                                <CardHeader className="flex flex-row items-center justify-between">
+                                    <div className="space-y-1">
+                                        <CardTitle className="text-lg flex items-center gap-2"><Sparkles /> AI Product Uploader</CardTitle>
+                                        <CardDescription>Generate product listings using AI.</CardDescription>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-2xl font-bold">{usage.aiUploads} / 50</p>
+                                        <p className="text-xs text-muted-foreground">Free Generations Used</p>
+                                    </div>
+                                </CardHeader>
+                                <CardFooter>
+                                    <p className="text-sm text-muted-foreground">You are currently on the free plan. Contact the administrator to upgrade for unlimited AI product generations.</p>
+                                </CardFooter>
+                            </Card>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
             </Tabs>
         </AppShell>
     );
 }
+
+    

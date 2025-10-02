@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,12 +9,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, PackagePlus } from 'lucide-react';
+import { Loader2, PackagePlus, Lock } from 'lucide-react';
 import Image from 'next/image';
 import { useAuth } from '@/hooks/use-auth';
 import { v4 as uuidv4 } from 'uuid';
 import { Dialog, DialogTrigger } from '@/components/ui/dialog';
 import { ShareComposerDialog } from '@/components/share-composer-dialog';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 export interface ProductDrop {
     id: string;
@@ -28,6 +29,8 @@ export interface ProductDrop {
     createdAt: string;
 }
 
+const PRODUCT_DROP_LIMIT = 50;
+
 export default function VendorProductDropsPage() {
     const { user } = useAuth();
     const { toast } = useToast();
@@ -37,7 +40,18 @@ export default function VendorProductDropsPage() {
     const [costPrice, setCostPrice] = useState('');
     const [imagePreviews, setImagePreviews] = useState<string[]>([]);
     const [imageDataUris, setImageDataUris] = useState<string[]>([]);
+    const [usageCount, setUsageCount] = useState(0);
+    const isLimitReached = usageCount >= PRODUCT_DROP_LIMIT;
     
+    useEffect(() => {
+        if (user) {
+            const storedDrops = localStorage.getItem('product_drops');
+            const drops: ProductDrop[] = storedDrops ? JSON.parse(storedDrops) : [];
+            const vendorDrops = drops.filter(d => d.vendorId === user.uid);
+            setUsageCount(vendorDrops.length);
+        }
+    }, [user]);
+
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
         if (files) {
@@ -74,6 +88,15 @@ export default function VendorProductDropsPage() {
             return;
         }
 
+        if (isLimitReached) {
+            toast({
+                variant: 'destructive',
+                title: 'Product Drop Limit Reached',
+                description: `You have used your quota of ${PRODUCT_DROP_LIMIT} free product drops. Please contact the admin to upgrade.`,
+            });
+            return;
+        }
+
         setIsLoading(true);
 
         const newDrop: ProductDrop = {
@@ -89,7 +112,9 @@ export default function VendorProductDropsPage() {
 
         try {
             const existingDrops = JSON.parse(localStorage.getItem('product_drops') || '[]');
-            localStorage.setItem('product_drops', JSON.stringify([newDrop, ...existingDrops]));
+            const updatedDrops = [newDrop, ...existingDrops];
+            localStorage.setItem('product_drops', JSON.stringify(updatedDrops));
+            setUsageCount(updatedDrops.filter(d => d.vendorId === user.uid).length);
             
             toast({
                 title: 'Product Drop Sent!',
@@ -116,6 +141,15 @@ export default function VendorProductDropsPage() {
 
     return (
         <AppShell title="Create Product Drop">
+             {isLimitReached && (
+                <Alert variant="destructive" className="mb-6 max-w-3xl mx-auto">
+                    <Lock className="h-4 w-4" />
+                    <AlertTitle>Feature Limit Reached</AlertTitle>
+                    <AlertDescription>
+                        You have reached your free limit of {PRODUCT_DROP_LIMIT} product drops. Please contact the administrator to upgrade your plan for unlimited access.
+                    </AlertDescription>
+                </Alert>
+            )}
             <Card className="max-w-3xl mx-auto">
                 <CardHeader>
                     <CardTitle>New Product Drop</CardTitle>
@@ -151,9 +185,9 @@ export default function VendorProductDropsPage() {
                 <CardFooter>
                      <Dialog>
                         <DialogTrigger asChild>
-                            <Button className="w-full" disabled={isLoading || !title || !description || imageDataUris.length === 0}>
-                                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <PackagePlus className="mr-2 h-4 w-4"/>}
-                                Create & Share Product Drop
+                            <Button className="w-full" disabled={isLoading || isLimitReached || !title || !description || imageDataUris.length === 0}>
+                                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : isLimitReached ? <Lock className="mr-2 h-4 w-4"/> : <PackagePlus className="mr-2 h-4 w-4"/>}
+                                {isLimitReached ? 'Limit Reached' : 'Create & Share Product Drop'}
                             </Button>
                         </DialogTrigger>
                         <ShareComposerDialog product={{

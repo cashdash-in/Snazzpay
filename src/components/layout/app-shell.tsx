@@ -130,22 +130,19 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
     setRole(getCookie('userRole'));
   }, [pathname]); // Rerun on path change if needed
 
-  const isSeller = role === 'seller';
-  const isVendor = role === 'vendor';
-
   const getMenuItems = () => {
-    if (isSeller) {
+    switch (role) {
+      case 'seller':
         return { core: sellerMenuItems, growth: [], config: [] };
-    }
-    if (isVendor) {
+      case 'vendor':
         return { core: vendorMenuItems, growth: [], config: [] };
+      default: // Admin view
+        return {
+            core: adminCoreMenuItems,
+            growth: adminGrowthMenuItems,
+            config: adminConfigMenuItems
+        };
     }
-    // Default to Admin view
-    return {
-        core: adminCoreMenuItems,
-        growth: adminGrowthMenuItems,
-        config: adminConfigMenuItems
-    };
   }
 
   const {core, growth, config} = getMenuItems();
@@ -293,3 +290,5 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
     </SidebarProvider>
   );
 };
+
+    

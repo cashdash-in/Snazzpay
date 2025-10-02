@@ -25,10 +25,12 @@ import {
   Rocket,
   Wand2,
   CheckCircle,
+  Lock,
 } from 'lucide-react';
 import Image from 'next/image';
 import { useAuth } from '@/hooks/use-auth';
 import { v4 as uuidv4 } from 'uuid';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 export interface SellerProduct extends ProductListingOutput {
     id: string;
@@ -36,6 +38,8 @@ export interface SellerProduct extends ProductListingOutput {
     imageDataUris: string[];
     createdAt: string;
 }
+
+const AI_UPLOADER_LIMIT = 50;
 
 export default function AiProductUploaderPage() {
   const { toast } = useToast();
@@ -49,6 +53,17 @@ export default function AiProductUploaderPage() {
   const [margin, setMargin] = useState('100'); // Default 100% margin
   const [generatedListing, setGeneratedListing] =
     useState<ProductListingOutput | null>(null);
+    
+  const [usageCount, setUsageCount] = useState(0);
+  const isLimitReached = usageCount >= AI_UPLOADER_LIMIT;
+
+    useEffect(() => {
+        if (user) {
+            const storedProducts = localStorage.getItem(`seller_products_${user.uid}`);
+            const products: SellerProduct[] = storedProducts ? JSON.parse(storedProducts) : [];
+            setUsageCount(products.length);
+        }
+    }, [user]);
 
     useEffect(() => {
         const prefillDataJSON = localStorage.getItem('ai_uploader_prefill');
@@ -118,8 +133,10 @@ export default function AiProductUploaderPage() {
         const storageKey = `seller_products_${user.uid}`;
         const existingProductsJSON = localStorage.getItem(storageKey);
         const existingProducts: SellerProduct[] = existingProductsJSON ? JSON.parse(existingProductsJSON) : [];
+        const updatedProducts = [newSellerProduct, ...existingProducts];
         
-        localStorage.setItem(storageKey, JSON.stringify([newSellerProduct, ...existingProducts]));
+        localStorage.setItem(storageKey, JSON.stringify(updatedProducts));
+        setUsageCount(updatedProducts.length);
     } catch(e) {
         console.error("Failed to save product to seller's catalog", e);
         toast({
@@ -139,6 +156,15 @@ export default function AiProductUploaderPage() {
       });
       return;
     }
+    if (isLimitReached) {
+        toast({
+            variant: 'destructive',
+            title: 'AI Uploader Limit Reached',
+            description: `You have used your quota of ${AI_UPLOADER_LIMIT} free AI generations. Please contact the admin to upgrade.`,
+        });
+        return;
+    }
+
     setIsLoading(true);
     setGeneratedListing(null);
 
@@ -214,6 +240,15 @@ export default function AiProductUploaderPage() {
 
   return (
     <AppShell title="AI Product Uploader">
+      {isLimitReached && (
+          <Alert variant="destructive" className="mb-6">
+            <Lock className="h-4 w-4" />
+            <AlertTitle>Feature Limit Reached</AlertTitle>
+            <AlertDescription>
+                You have reached your free limit of {AI_UPLOADER_LIMIT} AI-generated products. Please contact the administrator to upgrade your plan for unlimited access.
+            </AlertDescription>
+          </Alert>
+      )}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <Card>
           <CardHeader>
@@ -284,15 +319,17 @@ export default function AiProductUploaderPage() {
           <CardFooter>
             <Button
               onClick={handleGenerateListing}
-              disabled={isLoading}
+              disabled={isLoading || isLimitReached}
               className="w-full"
             >
               {isLoading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : isLimitReached ? (
+                <Lock className="mr-2 h-4 w-4" />
               ) : (
                 <Wand2 className="mr-2 h-4 w-4" />
               )}
-              Generate Listing with AI
+              {isLimitReached ? 'Limit Reached' : 'Generate Listing with AI'}
             </Button>
           </CardFooter>
         </Card>
@@ -424,3 +461,5 @@ export default function AiProductUploaderPage() {
     </AppShell>
   );
 }
+
+    
