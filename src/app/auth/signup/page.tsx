@@ -115,7 +115,7 @@ export default function SignupPage() {
                     vendorId: selectedVendor,
                     vendorName: approvedVendors.find(v => v.id === selectedVendor)?.name,
                 };
-                await saveDocument('seller_users', newRequest, user.uid);
+                await saveDocument('seller_users', newRequest);
                 toast({ title: "Registration Submitted!", description: "Your seller account is pending admin approval." });
                 await auth.signOut();
                 router.push('/seller/login');
@@ -128,7 +128,7 @@ export default function SignupPage() {
                     email,
                     status: 'pending'
                 };
-                await saveDocument('vendors', newRequest, user.uid);
+                await saveDocument('vendors', newRequest);
                 toast({ title: "Registration Submitted!", description: "Your vendor account is pending admin approval." });
                 await auth.signOut();
                 router.push('/vendor/login');
