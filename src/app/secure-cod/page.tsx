@@ -11,7 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
 import type { EditableOrder } from '@/app/orders/page';
 import { getRazorpayKeyId } from '@/app/actions';
-import { addDocument } from '@/services/firestore';
+import { addDocument, saveDocument } from '@/services/firestore';
 import { format, addYears } from 'date-fns';
 import type { ShaktiCardData } from '@/components/shakti-card';
 import { sanitizePhoneNumber } from '@/lib/utils';
@@ -47,8 +47,6 @@ function SecureCodPaymentForm() {
         productName: 'Loading...',
         amount: 0,
         orderId: '',
-        sellerId: '',
-        sellerName: '',
     });
     
     const [razorpayKeyId, setRazorpayKeyId] = useState<string | null>(null);
@@ -63,10 +61,8 @@ function SecureCodPaymentForm() {
         const name = searchParams.get('name') || 'Your Product';
         const amount = parseFloat(searchParams.get('amount') || '0');
         const orderId = searchParams.get('order_id') || `SNZ-${uuidv4().substring(0, 8)}`;
-        const sellerId = searchParams.get('seller_id') || 'snazzify';
-        const sellerName = searchParams.get('seller_name') || 'Snazzify';
-
-        setOrderDetails({ productName: name, amount, orderId, sellerId, sellerName });
+        
+        setOrderDetails({ productName: name, amount, orderId });
         
         getRazorpayKeyId().then(key => {
             if (!key) {
@@ -140,54 +136,52 @@ function SecureCodPaymentForm() {
             price: orderDetails.amount.toFixed(2),
             paymentStatus: 'Intent Verified',
             date: new Date().toISOString(),
-            source: orderDetails.sellerId ? 'Seller' : 'Shopify',
-            sellerId: orderDetails.sellerId,
-            sellerName: orderDetails.sellerName,
+            source: 'Shopify', // Assume main site orders are like Shopify orders
         };
 
         try {
-            // Step 1: Create ₹1 order for intent verification
-            const intentResponse = await fetch('/api/create-mandate-order', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...customerDetails, amount: 1, productName: `Intent - ${orderDetails.productName}` })
-            });
-            const intentResult = await intentResponse.json();
-            if (!intentResponse.ok) throw new Error(intentResult.error);
+            // Step 1: Create BOTH orders (intent and auth) with Razorpay first
+            const [intentResult, authResult] = await Promise.all([
+                fetch('/api/create-mandate-order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ...customerDetails, amount: 1, productName: `Intent - ${orderDetails.productName}` })
+                }).then(res => res.json()),
+                fetch('/api/create-mandate-order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ...customerDetails, amount: orderDetails.amount, productName: orderDetails.productName, isAuthorization: true })
+                }).then(res => res.json())
+            ]);
+            
+            if (intentResult.error || authResult.error) {
+                throw new Error(intentResult.error || authResult.error || 'Failed to create Razorpay orders.');
+            }
 
-            // Open Razorpay for ₹1 payment
+            // Step 2: Open Razorpay for ₹1 intent payment
             const intentOptions = {
                 key: razorpayKeyId, amount: 100, currency: "INR", name: "Verify Order Intent",
                 description: `₹1 verification for Order #${orderDetails.orderId}`, order_id: intentResult.order_id,
                 handler: async () => {
-                    // Step 1a: Intent verified, save as lead immediately
+                    // Step 3: Intent verified, save as lead immediately
                     await addDocument('leads', newLead);
                     
-                    // Step 2: Create full amount order for authorization
-                    const authResponse = await fetch('/api/create-mandate-order', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ ...customerDetails, amount: orderDetails.amount, productName: orderDetails.productName, isAuthorization: true })
-                    });
-                    const authResult = await authResponse.json();
-                    if (!authResponse.ok) throw new Error(authResult.error);
-                    
-                    // Step 2a: Open Razorpay for full authorization
+                    // Step 4: Open Razorpay for full authorization
                     const authOptions = {
                         key: razorpayKeyId, amount: orderDetails.amount * 100, currency: "INR", name: "Authorize Full Amount",
                         description: `Authorize ₹${orderDetails.amount} for Order #${orderDetails.orderId}`, order_id: authResult.order_id,
                         handler: async (response: any) => {
-                            const finalOrder: EditableOrder = { ...newLead, paymentStatus: 'Authorized' };
+                            const finalOrder: EditableOrder = { ...newLead, paymentStatus: 'Authorized', source: 'Shopify' }; // Ensure source is set for admin
                             const paymentInfo: PaymentInfo = {
                                 paymentId: response.razorpay_payment_id, orderId: orderDetails.orderId, razorpayOrderId: response.razorpay_order_id,
                                 signature: response.razorpay_signature, status: 'authorized', authorizedAt: new Date().toISOString()
                             };
 
-                            await addDocument('orders', finalOrder);
+                            await saveDocument('orders', finalOrder, finalOrder.id);
                             localStorage.setItem(`payment_info_${finalOrder.orderId}`, JSON.stringify(paymentInfo));
                             createNewShaktiCard(finalOrder);
                             
-                            await addDocument('leads', { ...newLead, paymentStatus: 'Converted' });
+                            await saveDocument('leads', { ...newLead, paymentStatus: 'Converted' }, newLead.id);
                             
                             toast({ title: "Payment Successful!", description: `Your payment is Authorized. Order ${finalOrder.orderId} confirmed.` });
                             setStep('complete');
@@ -314,3 +308,5 @@ function Page() {
 }
 
 export default Page;
+
+    
