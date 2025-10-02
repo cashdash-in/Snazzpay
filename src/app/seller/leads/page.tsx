@@ -29,7 +29,7 @@ export default function SellerLeadsPage() {
     setLoading(true);
     try {
         const allLeads = await getCollection<Lead>('leads');
-        const sellerLeads = allLeads.filter(lead => lead.sellerId === user.uid);
+        const sellerLeads = allLeads.filter(lead => lead.sellerId === user.uid && lead.paymentStatus === 'Lead');
         setLeads(sellerLeads);
     } catch (error) {
         console.error("Failed to load leads:", error);
@@ -71,7 +71,9 @@ export default function SellerLeadsPage() {
         };
         
         await saveDocument('orders', newOrder, newOrder.id);
-        await deleteDocument('leads', lead.id);
+        
+        // Mark lead as converted instead of deleting
+        await saveDocument('leads', { paymentStatus: 'Converted' }, lead.id);
 
         setLeads(prev => prev.filter(l => l.id !== lead.id));
 
@@ -80,7 +82,7 @@ export default function SellerLeadsPage() {
             description: `Lead for ${lead.customerName} has been moved to your 'My Orders' list.`,
         });
         
-        router.refresh();
+        router.push('/seller/orders');
 
     } catch (error: any) {
         toast({

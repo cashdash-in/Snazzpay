@@ -62,8 +62,8 @@ export default function SellerOrdersPage() {
   const handlePushToVendor = async (orderToPush: EditableOrder) => {
     if (!user) return;
     
-    const approvedSellers = await getCollection<any>('seller_users');
-    const sellerInfo = approvedSellers.find((s: any) => s.id === user.uid);
+    const allSellers = await getCollection<any>('seller_users');
+    const sellerInfo = allSellers.find((s: any) => s.id === user.uid);
     const vendorId = sellerInfo?.vendorId;
     
     if (!vendorId) {
@@ -108,7 +108,9 @@ export default function SellerOrdersPage() {
         return;
     }
     
-    if (order.paymentMethod === 'Cash on Delivery') {
+    const isPrepaid = order.paymentMethod === 'Prepaid';
+
+    if (!isPrepaid) {
         toast({
             title: 'COD Order',
             description: 'This is a Cash on Delivery order. No payment link is needed.',
@@ -116,10 +118,9 @@ export default function SellerOrdersPage() {
         return;
     }
     
-    const isPrepaid = order.paymentMethod === 'Prepaid';
     // The link now includes the seller's user ID to fetch the correct payment keys on the backend
     const baseUrl = `${window.location.origin}/payment`;
-    const finalUrl = `${baseUrl}?amount=${encodeURIComponent(order.price)}&name=${encodeURIComponent(order.productOrdered)}&order_id=${encodeURIComponent(order.orderId)}&seller_id=${user?.uid}&prepaid=${isPrepaid}`;
+    const finalUrl = `${baseUrl}?amount=${encodeURIComponent(order.price)}&name=${encodeURIComponent(order.productOrdered)}&order_id=${encodeURIComponent(order.orderId)}&seller_id=${user?.uid}&prepaid=true`;
     
     const message = `Hi ${order.customerName}, your order for "${order.productOrdered}" (₹${order.price}) is ready. Please complete your payment securely using this link: ${finalUrl}`;
     const whatsappUrl = `https://wa.me/${sanitizePhoneNumber(order.contactNo)}?text=${encodeURIComponent(message)}`;
@@ -198,7 +199,7 @@ export default function SellerOrdersPage() {
                                       <Send className="mr-2 h-4 w-4" /> {order.paymentStatus === 'Pushed to Vendor' ? 'Pushed' : 'Push to Vendor'}
                                   </Button>
                               )}
-                            <Button variant="secondary" size="sm" onClick={() => handleShareOnWhatsApp(order)} disabled={isCOD}>
+                            <Button variant="secondary" size="sm" onClick={() => handleShareOnWhatsApp(order)}>
                               <MessageSquare className="mr-2 h-4 w-4" /> Share
                             </Button>
                             <Button variant="destructive" size="icon" onClick={() => handleRemoveOrder(order.id)}>

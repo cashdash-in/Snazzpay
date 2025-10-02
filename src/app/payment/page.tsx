@@ -11,7 +11,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { format, addYears } from 'date-fns';
 import type { EditableOrder } from '@/app/orders/page';
 import { getRazorpayKeyId } from '@/app/actions';
-import { saveOrder, savePaymentInfo, addDocument } from '@/services/firestore';
+import { getCollection, saveDocument } from '@/services/firestore';
 import type { ShaktiCardData } from '@/components/shakti-card';
 import { sanitizePhoneNumber } from '@/lib/utils';
 import { CancellationForm } from '@/components/cancellation-form';
@@ -66,10 +66,11 @@ function PaymentPageContent() {
         if (!order.contactNo || !order.customerEmail) return;
 
         const sanitizedMobile = sanitizePhoneNumber(order.contactNo);
-        // This would be a Firestore call in a real app to check for existence
-        // For now, we assume it's a new card if not in local storage for demo purposes
         const cardStorageKey = `shakti_card_${sanitizedMobile}`;
-        if (localStorage.getItem(cardStorageKey)) return; 
+        
+        const existingCards = await getCollection<ShaktiCardData>('shakti_cards');
+        const cardExists = existingCards.some(card => card.customerPhone === sanitizedMobile);
+        if (cardExists) return;
 
         const newCard: ShaktiCardData = {
             cardNumber: `SHAKTI-${uuidv4().substring(0, 4).toUpperCase()}-${uuidv4().substring(0, 4).toUpperCase()}`,
@@ -86,8 +87,7 @@ function PaymentPageContent() {
         };
 
         try {
-            await addDocument('shakti_cards', newCard);
-            localStorage.setItem(cardStorageKey, JSON.stringify(newCard));
+            await saveDocument('shakti_cards', newCard, newCard.cardNumber);
             toast({
                 title: "Shakti Card Issued!",
                 description: "You've earned a Shakti Card for future benefits!",
@@ -97,7 +97,7 @@ function PaymentPageContent() {
         }
     };
 
-    const processPayment = async (isAuthorization: boolean) => {
+    const processPayment = async () => {
         setIsSubmitting(true);
         if (!razorpayKeyId) {
              toast({ variant: 'destructive', title: "Razorpay Not Configured", description: "The payment gateway is not set up." });
@@ -106,26 +106,25 @@ function PaymentPageContent() {
         }
 
         try {
-            // Find order in seller_orders to get customer details
-            const sellerOrders = JSON.parse(localStorage.getItem('seller_orders') || '[]');
-            const order: EditableOrder | undefined = sellerOrders.find((o: EditableOrder) => o.orderId === orderDetails.orderId);
+            const allOrders = await getCollection<EditableOrder>('orders');
+            const order = allOrders.find((o: EditableOrder) => o.id === orderDetails.orderId);
 
             if (!order) {
                 throw new Error("Could not find the original order details. Please contact the seller.");
             }
             
-            const response = await fetch('/api/create-mandate-order', {
+            const response = await fetch('/api/create-payment-link', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     amount: orderDetails.amount,
-                    productName: orderDetails.productName,
                     customerName: order.customerName,
                     customerEmail: order.customerEmail,
                     customerContact: order.contactNo,
-                    customerAddress: order.customerAddress,
-                    customerPincode: order.pincode,
-                    isAuthorization,
+                    orderId: orderDetails.orderId,
+                    productName: orderDetails.productName,
+                    userId: order.sellerId,
+                    userRole: 'seller',
                 })
             });
 
@@ -136,14 +135,14 @@ function PaymentPageContent() {
                 key: razorpayKeyId,
                 amount: orderDetails.amount * 100,
                 currency: "INR",
-                name: "Snazzify Secure COD",
+                name: "Snazzify Seller Payment",
                 description: `Payment for ${orderDetails.productName}`,
                 order_id: result.order_id,
                 handler: async (response: any) => {
-                    const paymentStatus = isAuthorization ? 'Authorized' : 'Paid';
+                    const paymentStatus = 'Paid';
 
                     const orderToUpdate: EditableOrder = { ...order, paymentStatus };
-                    await saveOrder(orderToUpdate, orderToUpdate.id);
+                    await saveDocument('orders', orderToUpdate, order.id);
 
                     createNewShaktiCard(order);
 
@@ -212,7 +211,7 @@ function PaymentPageContent() {
                     </div>
                  </CardContent>
                  <CardFooter>
-                    <Button className="w-full" onClick={() => processPayment(!orderDetails.prepaid)} disabled={isSubmitting || loading}>
+                    <Button className="w-full" onClick={() => processPayment()} disabled={isSubmitting || loading}>
                         {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                         Pay ₹{orderDetails.amount.toFixed(2)} Now
                     </Button>
