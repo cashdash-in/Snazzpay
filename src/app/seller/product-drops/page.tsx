@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import Image from 'next/image';
-import { Loader2, Package, Sparkles, ShoppingCart, Info, MessageSquare } from 'lucide-react';
+import { Loader2, Package, Sparkles, MessageSquare } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useRouter } from 'next/navigation';
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
@@ -47,12 +47,12 @@ export default function SellerProductDropsPage() {
             const storedDropsJSON = localStorage.getItem('product_drops');
             const storedDrops: ProductDrop[] = storedDropsJSON ? JSON.parse(storedDropsJSON) : [];
             
-            // Filter drops to only show those from the seller's vendor
-            if (sellerVendorId) {
-                setDrops(storedDrops.filter(drop => drop.vendorId === sellerVendorId));
-            } else {
-                 setDrops([]); // If seller has no vendor, show no drops
-            }
+            // Filter drops to only show those from the seller's vendor and admin
+            const relevantDrops = storedDrops.filter(drop => 
+                drop.vendorId === sellerVendorId || drop.vendorId === 'admin_snazzify'
+            );
+            
+            setDrops(relevantDrops);
 
         } catch (error) {
             toast({
@@ -144,3 +144,5 @@ export default function SellerProductDropsPage() {
         </AppShell>
     );
 }
+
+    

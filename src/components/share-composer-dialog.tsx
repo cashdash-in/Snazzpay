@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -10,6 +10,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import Image from 'next/image';
 import { useAuth } from '@/hooks/use-auth';
+import { Loader2, Wand2 } from 'lucide-react';
+import { createProductDescription } from '@/ai/flows/create-product-description';
 
 // Can be a ProductDrop or a SellerProduct
 type ShareableProduct = {
@@ -38,19 +40,52 @@ async function dataUriToFile(dataUri: string, fileName: string): Promise<File> {
 export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
     const { toast } = useToast();
     const { user } = useAuth();
+    const [isGenerating, setIsGenerating] = useState(false);
     const [selectedImages, setSelectedImages] = useState<string[]>(product.imageDataUris);
+    const [appUrl, setAppUrl] = useState('');
+
+    useEffect(() => {
+        // This ensures the URL is read on the client-side
+        setAppUrl(process.env.NEXT_PUBLIC_APP_URL || window.location.origin);
+    }, []);
     
     // The link now points to the lead generation form
-    const orderLink = `${process.env.NEXT_PUBLIC_APP_URL || ''}/secure-cod?name=${encodeURIComponent(product.title)}&amount=${product.price || product.costPrice || 0}&seller_id=${user?.uid || ''}&seller_name=${user?.displayName || ''}`;
+    const orderLink = `${appUrl}/secure-cod?name=${encodeURIComponent(product.title)}&amount=${product.price || product.costPrice || 0}&seller_id=${user?.uid || ''}&seller_name=${user?.displayName || ''}`;
         
     const [shareText, setShareText] = useState(
-        `Check out this new product!\n\n*${product.title}*\n${product.description}\n\n*Price:* ₹${(product.price || product.costPrice)?.toFixed(2)}\n\nClick here to order with *Secure COD*, *Prepaid*, or *Cash on Delivery*: ${orderLink}`
+        `Check out this new product!\n\n*${product.title}*\n${product.description}\n\n*Price:* ₹${(product.price || product.costPrice)?.toFixed(2)}\n\nClick here to order with **Secure COD**, **Prepaid**, or **Cash on Delivery**: ${orderLink}`
     );
 
     const handleImageSelection = (imageUri: string) => {
         setSelectedImages(prev => 
             prev.includes(imageUri) ? prev.filter(uri => uri !== imageUri) : [...prev, imageUri]
         );
+    };
+
+    const handleGenerateDescription = async () => {
+        setIsGenerating(true);
+        try {
+            const { description: newDescription } = await createProductDescription({
+                title: product.title,
+                imagesDataUri: product.imageDataUris,
+            });
+            // Update the share text with the new AI-generated description
+            setShareText(
+                `Check out this new product!\n\n*${product.title}*\n${newDescription}\n\n*Price:* ₹${(product.price || product.costPrice)?.toFixed(2)}\n\nClick here to order with **Secure COD**, **Prepaid**, or **Cash on Delivery**: ${orderLink}`
+            );
+            toast({
+                title: "Description Generated!",
+                description: "The AI has crafted a new description for your post.",
+            });
+        } catch (error: any) {
+            toast({
+                variant: 'destructive',
+                title: "Generation Failed",
+                description: error.message || "Could not generate a new description.",
+            });
+        } finally {
+            setIsGenerating(false);
+        }
     };
 
     const handleShareMobile = async () => {
@@ -110,8 +145,14 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
                         ))}
                     </div>
                 </div>
-                 <div className="space-y-4">
-                    <Label htmlFor="share-text">2. Edit Your Message</Label>
+                 <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                        <Label htmlFor="share-text">2. Edit Your Message</Label>
+                        <Button variant="outline" size="sm" onClick={handleGenerateDescription} disabled={isGenerating}>
+                             {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Wand2 className="mr-2 h-4 w-4" />}
+                            AI Generate
+                        </Button>
+                    </div>
                     <Textarea 
                         id="share-text"
                         value={shareText}
@@ -133,5 +174,6 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
         </DialogContent>
     );
 }
+
 
     

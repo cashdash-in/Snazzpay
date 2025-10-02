@@ -14,6 +14,8 @@ import Image from 'next/image';
 import { useAuth } from '@/hooks/use-auth';
 import { v4 as uuidv4 } from 'uuid';
 import type { ProductDrop } from '@/app/vendor/product-drops/page';
+import { Dialog, DialogTrigger } from '@/components/ui/dialog';
+import { ShareComposerDialog } from '@/components/share-composer-dialog';
 
 
 export default function AdminProductDropsPage() {
@@ -137,12 +139,25 @@ export default function AdminProductDropsPage() {
                     </div>
                 </CardContent>
                 <CardFooter>
-                    <Button onClick={handleSendDrop} disabled={isLoading} className="w-full">
-                        {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <PackagePlus className="mr-2 h-4 w-4"/>}
-                        Send Product Drop to All Sellers
-                    </Button>
+                    <Dialog>
+                        <DialogTrigger asChild>
+                            <Button className="w-full" disabled={isLoading || !title || !description || imageDataUris.length === 0}>
+                                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <PackagePlus className="mr-2 h-4 w-4"/>}
+                                Create & Share Product Drop
+                            </Button>
+                        </DialogTrigger>
+                        <ShareComposerDialog product={{
+                            id: 'temp-admin-drop',
+                            title,
+                            description,
+                            costPrice: parseFloat(costPrice),
+                            imageDataUris
+                        }} />
+                    </Dialog>
                 </CardFooter>
             </Card>
         </AppShell>
     );
 }
+
+    

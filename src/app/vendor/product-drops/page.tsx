@@ -13,6 +13,8 @@ import { Loader2, PackagePlus } from 'lucide-react';
 import Image from 'next/image';
 import { useAuth } from '@/hooks/use-auth';
 import { v4 as uuidv4 } from 'uuid';
+import { Dialog, DialogTrigger } from '@/components/ui/dialog';
+import { ShareComposerDialog } from '@/components/share-composer-dialog';
 
 export interface ProductDrop {
     id: string;
@@ -147,12 +149,25 @@ export default function VendorProductDropsPage() {
                     </div>
                 </CardContent>
                 <CardFooter>
-                    <Button onClick={handleSendDrop} disabled={isLoading} className="w-full">
-                        {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <PackagePlus className="mr-2 h-4 w-4"/>}
-                        Send Product Drop to My Sellers
-                    </Button>
+                     <Dialog>
+                        <DialogTrigger asChild>
+                            <Button className="w-full" disabled={isLoading || !title || !description || imageDataUris.length === 0}>
+                                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <PackagePlus className="mr-2 h-4 w-4"/>}
+                                Create & Share Product Drop
+                            </Button>
+                        </DialogTrigger>
+                        <ShareComposerDialog product={{
+                            id: 'temp-vendor-drop',
+                            title,
+                            description,
+                            costPrice: parseFloat(costPrice),
+                            imageDataUris
+                        }} />
+                    </Dialog>
                 </CardFooter>
             </Card>
         </AppShell>
     );
 }
+
+    
