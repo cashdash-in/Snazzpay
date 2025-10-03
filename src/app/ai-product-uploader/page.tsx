@@ -195,11 +195,17 @@ export default function AiProductUploaderPage() {
         setIsPasting(true);
         try {
             const result = await createProductFromText({ text: pastedText });
+            // This is the fix: safely update the state
             setGeneratedListing(prev => ({
-                ...(prev as ProductListingOutput),
                 title: result.title,
-                description: result.description
+                description: result.description,
+                category: prev?.category || '',
+                price: prev?.price || 0,
+                sizes: prev?.sizes || [],
+                colors: prev?.colors || []
             }));
+            // Also update the vendor description field
+            setVendorDescription(result.description);
             toast({
                 title: "AI Parsing Complete!",
                 description: "Product title and description have been filled in.",
@@ -456,3 +462,5 @@ export default function AiProductUploaderPage() {
     </AppShell>
   );
 }
+
+    
