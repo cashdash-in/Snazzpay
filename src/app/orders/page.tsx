@@ -273,7 +273,14 @@ export default function OrdersPage() {
                                     )}
                                 </div>
                             </TableCell>
-                            <TableCell><Input type="date" value={order.date} onChange={(e) => handleFieldChange(order.id, 'date', e.target.value)} className="w-32" /></TableCell>
+                            <TableCell>
+                                <Input 
+                                    type="date" 
+                                    value={order.date ? format(new Date(order.date), 'yyyy-MM-dd') : ''} 
+                                    onChange={(e) => handleFieldChange(order.id, 'date', e.target.value)} 
+                                    className="w-32" 
+                                />
+                            </TableCell>
                             <TableCell><Badge variant={order.source === 'Shopify' ? 'secondary' : 'outline'}>{order.source || 'Manual'}</Badge></TableCell>
                             <TableCell className="text-center space-x-2">
                                 {isAuthorized && (
