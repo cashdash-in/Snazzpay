@@ -54,6 +54,25 @@ export default function SellerLogisticsPage() {
 
         toast({title: "Sharing Update", description: "Opening WhatsApp to share status with your reseller."})
     };
+    
+    const handleNotifyCustomer = (order: EditableOrder) => {
+        if (!order.contactNo) {
+            toast({
+                variant: 'destructive',
+                title: 'Customer Contact Missing',
+                description: 'Cannot send a notification without the customer\'s phone number.'
+            });
+            return;
+        }
+
+        const message = `Hi ${order.customerName}, here is an update on your order #${order.orderId}. The current status is: "${order.deliveryStatus || 'Processing'}". ${order.trackingNumber ? `You can track it with ${order.courierCompanyName} using AWB: ${order.trackingNumber}` : 'Tracking information will be available soon.'}`;
+        
+        const whatsappUrl = `https://wa.me/${sanitizePhoneNumber(order.contactNo)}?text=${encodeURIComponent(message)}`;
+        window.open(whatsappUrl, '_blank');
+
+        toast({title: "Notifying Customer", description: "Opening WhatsApp to send status update."})
+    };
+
 
     return (
         <AppShell title="Logistics Hub">
@@ -93,7 +112,10 @@ export default function SellerLogisticsPage() {
                                                         {order.deliveryStatus || 'Pending Fulfillment'}
                                                     </Badge>
                                                 </TableCell>
-                                                <TableCell className="text-right">
+                                                <TableCell className="text-right space-x-2">
+                                                    <Button variant="outline" size="sm" onClick={() => handleNotifyCustomer(order)} disabled={!order.contactNo}>
+                                                        <MessageSquare className="mr-2 h-4 w-4" /> Notify Customer
+                                                    </Button>
                                                     <Button variant="secondary" size="sm" onClick={() => handleShareWithReseller(order)}>
                                                         <MessageSquare className="mr-2 h-4 w-4" /> Share with Reseller
                                                     </Button>
