@@ -121,8 +121,8 @@ function SecureCodPaymentForm() {
 
     }, [searchParams]);
     
-    // Simple, one-step prepaid flow for Super Admin links (no seller_id)
-    const handleAdminFlowSubmit = async () => {
+    // Simple, one-step prepaid flow
+    const handleSimplePrepaidFlow = async () => {
         setIsSubmitting(true);
         const { name, email, contact, address, pincode } = customerDetails;
 
@@ -170,7 +170,8 @@ function SecureCodPaymentForm() {
                         price: orderDetails.amount.toString(),
                         date: new Date().toISOString(),
                         paymentStatus: 'Paid',
-                        source: 'Shopify'
+                        source: isSellerFlow ? 'Seller' : 'Shopify',
+                        sellerId: orderDetails.sellerId,
                     };
                     
                     await saveDocument('orders', newOrder, newOrder.id);
@@ -203,8 +204,8 @@ function SecureCodPaymentForm() {
         }
     };
     
-    // Robust, two-step verification flow for Seller links
-    const handleSellerFlowSubmit = async () => {
+    // Robust, two-step verification flow 
+    const handleTwoStepVerificationFlow = async () => {
         setIsSubmitting(true);
         const { name, email, contact, address, pincode } = customerDetails;
 
@@ -242,7 +243,7 @@ function SecureCodPaymentForm() {
                 orderId: tempLeadId,
                 customerName: name, customerEmail: email, customerAddress: address, pincode, contactNo: contact,
                 productOrdered: orderDetails.productName, quantity: 1, price: orderDetails.amount.toString(),
-                date: new Date().toISOString(), paymentStatus: 'Intent Verified', source: 'Seller', sellerId: orderDetails.sellerId
+                date: new Date().toISOString(), paymentStatus: 'Intent Verified', source: isSellerFlow ? 'Seller' : 'Shopify', sellerId: orderDetails.sellerId
             };
             await saveDocument('leads', tempLead, tempLeadId);
 
@@ -334,7 +335,7 @@ function SecureCodPaymentForm() {
                     <CardHeader>
                          <CheckCircle className="mx-auto h-12 w-12 text-green-500" />
                         <CardTitle>Thank You!</CardTitle>
-                        <CardDescription>{isSellerFlow ? "Your payment has been securely authorized." : "Your payment was successful."}</CardDescription>
+                        <CardDescription>{isSellerFlow ? "Your payment has been authorized!" : "Your payment was successful."}</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <p className="text-muted-foreground">{isSellerFlow ? "Your order is confirmed. You will receive shipping and tracking details soon." : "The seller has been notified and will process your order."}</p>
@@ -387,13 +388,12 @@ function SecureCodPaymentForm() {
 
     const handleSubmit = (e: FormEvent) => {
         e.preventDefault();
-        // This is the correct logic based on the user's final request
-        // Super Admin (no seller_id) gets the simple prepaid flow.
-        // Seller links get the two-step verification flow.
+        // Super Admin (no seller_id) gets the two-step flow.
+        // Seller links get the simple prepaid flow.
         if (isSellerFlow) {
-            handleSellerFlowSubmit();
+             handleSimplePrepaidFlow();
         } else {
-            handleAdminFlowSubmit();
+             handleTwoStepVerificationFlow();
         }
     };
 
@@ -403,8 +403,8 @@ function SecureCodPaymentForm() {
                 <form onSubmit={handleSubmit}>
                     <CardHeader className="text-center">
                         <ShieldCheck className="mx-auto h-12 w-12 text-primary" />
-                        <CardTitle>{isSellerFlow ? "Secure Your Order" : "Secure COD Checkout"}</CardTitle>
-                        <CardDescription>{isSellerFlow ? `From ${orderDetails.sellerName}` : `Confirm details for order ${orderDetails.orderId}`}</CardDescription>
+                        <CardTitle>{!isSellerFlow ? "Secure Your Order" : "Secure COD Checkout"}</CardTitle>
+                        <CardDescription>{!isSellerFlow ? `Confirm details for order ${orderDetails.orderId}` : `From ${orderDetails.sellerName}`}</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
                         <div className="border rounded-lg p-4 space-y-2 text-sm bg-muted/30">
@@ -418,9 +418,9 @@ function SecureCodPaymentForm() {
                     <CardFooter className="flex-col gap-2">
                          <Button type="submit" className="w-full" disabled={isSubmitting || loading}>
                             {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                            {isSellerFlow ? "Proceed to Secure Payment" : "Proceed to Payment"}
+                            {!isSellerFlow ? "Proceed to Secure Payment" : "Proceed to Payment"}
                         </Button>
-                        {isSellerFlow && <p className="text-xs text-muted-foreground text-center">You will first be charged ₹1 to verify your card. The full amount will be authorized next.</p>}
+                        {!isSellerFlow && <p className="text-xs text-muted-foreground text-center">You will first be charged ₹1 to verify your card. The full amount will be authorized next.</p>}
                         <div className="flex items-center justify-center space-x-4 text-sm mt-2">
                             <Link href="/customer/login" passHref><span className="text-primary hover:underline cursor-pointer inline-flex items-center gap-1">Customer Login</span></Link>
                             <Link href="/faq" passHref><span className="text-primary hover:underline cursor-pointer inline-flex items-center gap-1"><HelpCircle className="h-4 w-4" />How this works</span></Link>
@@ -446,6 +446,5 @@ function Page() {
 }
 
 export default Page;
-
 
     
