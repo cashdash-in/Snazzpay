@@ -64,7 +64,7 @@ function SecureCodPaymentForm() {
     const [newlyCreatedCard, setNewlyCreatedCard] = useState<ShaktiCardData | null>(null);
 
 
-    const createNewShaktiCard = async (order: EditableOrder): Promise<ShaktiCardData | null> => {
+    const getOrCreateShaktiCard = async (order: EditableOrder): Promise<ShaktiCardData | null> => {
         if (!order.contactNo || !order.customerEmail) return null;
 
         const sanitizedMobile = sanitizePhoneNumber(order.contactNo);
@@ -258,7 +258,7 @@ function SecureCodPaymentForm() {
                             // Delete the temporary lead
                             await deleteDocument('leads', intentInternalOrderId);
 
-                            const card = await createNewShaktiCard(finalOrder);
+                            const card = await getOrCreateShaktiCard(finalOrder);
                             if (card) setNewlyCreatedCard(card);
                             
                             toast({ title: "Authorization Successful!", description: `Your order ${finalOrder.orderId} is confirmed.` });
@@ -413,3 +413,5 @@ function Page() {
 }
 
 export default Page;
+
+    
