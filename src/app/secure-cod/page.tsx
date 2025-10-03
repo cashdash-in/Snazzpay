@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, Suspense, FormEvent } from 'react';
@@ -109,6 +110,15 @@ function SecureCodPaymentForm() {
         const sellerId = searchParams.get('seller_id') || '';
         const sellerName = searchParams.get('seller_name') || '';
 
+        // Pre-fill customer details if they exist in the URL
+        setCustomerDetails({
+            name: searchParams.get('customerName') || '',
+            email: searchParams.get('customerEmail') || '',
+            contact: searchParams.get('customerContact') || '',
+            address: searchParams.get('customerAddress') || '',
+            pincode: searchParams.get('customerPincode') || '',
+        });
+
         setIsSellerFlow(!!(sellerId && sellerId !== 'YOUR_UNIQUE_SELLER_ID'));
         
         setOrderDetails({ productName: name, amount, orderId, sellerId, sellerName });
@@ -174,68 +184,44 @@ function SecureCodPaymentForm() {
         }
 
         try {
-            // STEP 1: Create a ₹1 Intent Verification Order
-            const intentResult = await fetch('/api/create-mandate-order', {
+            // This is now a simple prepaid flow for admin
+            const response = await fetch('/api/create-mandate-order', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
-                    amount: 1, 
-                    productName: `Intent Verification for ${orderDetails.productName}`,
-                    isAuthorization: false,
+                    amount: orderDetails.amount, 
+                    productName: orderDetails.productName,
+                    isAuthorization: false, // Make it a direct payment
                     name, email, contact, address, pincode
                 })
-            }).then(res => res.json());
+            });
+
+            const result = await response.json();
+            if (result.error) throw new Error(result.error);
+            const uniqueInternalOrderId = result.internal_order_id;
             
-            if (intentResult.error) throw new Error(intentResult.error);
-
-            const tempLeadId = intentResult.internal_order_id || uuidv4();
-            const tempLead: EditableOrder = {
-                id: tempLeadId, orderId: tempLeadId, customerName: name, customerEmail: email, customerAddress: address, pincode, contactNo: contact, productOrdered: orderDetails.productName, quantity: 1, price: orderDetails.amount.toString(), date: new Date().toISOString(), paymentStatus: 'Intent Verified', source: 'Shopify', sellerId: orderDetails.sellerId
-            };
-            await saveDocument('leads', tempLead, tempLeadId);
-
-            const optionsIntent = {
-                key: razorpayKeyId, amount: 100, currency: "INR", name: "Snazzify Order Verification", description: `Verify intent for Order #${orderDetails.orderId}`, order_id: intentResult.order_id,
-                handler: async () => {
-                    const authResult = await fetch('/api/create-mandate-order', {
-                        method: 'POST', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
-                            amount: orderDetails.amount, productName: orderDetails.productName, isAuthorization: true,
-                            name, email, contact, address, pincode
-                        })
-                    }).then(res => res.json());
-
-                    if (authResult.error) throw new Error(authResult.error);
-                    
-                    const uniqueInternalOrderId = authResult.internal_order_id;
-                    const optionsAuth = {
-                        key: razorpayKeyId, amount: orderDetails.amount * 100, order_id: authResult.order_id, name: "Authorize Secure COD Payment", description: `Authorize ₹${orderDetails.amount} for Order #${uniqueInternalOrderId}`,
-                        handler: async (authResponse: any) => {
-                            const finalOrder: EditableOrder = { 
-                                ...tempLead, id: uniqueInternalOrderId, orderId: uniqueInternalOrderId, paymentStatus: 'Authorized',
-                            };
-                            await saveDocument('orders', finalOrder, finalOrder.id);
-                            await deleteDocument('leads', tempLeadId);
-
-                            const paymentInfo: PaymentInfo = {
-                                paymentId: authResponse.razorpay_payment_id, orderId: uniqueInternalOrderId, razorpayOrderId: authResponse.razorpay_order_id,
-                                signature: authResponse.razorpay_signature, status: 'authorized', authorizedAt: new Date().toISOString()
-                            };
-                            await saveDocument('payment_info', paymentInfo, finalOrder.id);
-                            
-                            const card = await createNewShaktiCard(finalOrder);
-                            if (card) setNewlyCreatedCard(card);
-                            
-                            toast({ title: "Payment Authorized!", description: `Order ${finalOrder.orderId} is confirmed.` });
-                            setStep('complete');
-                        },
-                        prefill: { name, email, contact }, theme: { color: "#663399" }, modal: { ondismiss: () => setIsSubmitting(false) }
+            const options = {
+                key: razorpayKeyId,
+                amount: orderDetails.amount * 100,
+                order_id: result.order_id,
+                name: "Snazzify Purchase",
+                description: `Payment for ${orderDetails.productName}`,
+                handler: async (response: any) => {
+                    const finalOrder: EditableOrder = { 
+                        id: uniqueInternalOrderId, orderId: uniqueInternalOrderId, customerName: name, customerEmail: email, contactNo: contact, customerAddress: address, pincode, productOrdered: orderDetails.productName, quantity: 1, price: orderDetails.amount.toString(), date: new Date().toISOString(), paymentStatus: 'Paid', source: 'Shopify', sellerId: orderDetails.sellerId
                     };
-                    new (window as any).Razorpay(optionsAuth).open();
+                    await saveDocument('orders', finalOrder, finalOrder.id);
+
+                    const card = await createNewShaktiCard(finalOrder);
+                    if (card) setNewlyCreatedCard(card);
+                    
+                    toast({ title: "Payment Successful!", description: `Order ${finalOrder.orderId} is confirmed.` });
+                    setStep('complete');
                 },
                 prefill: { name, email, contact }, theme: { color: "#663399" }, modal: { ondismiss: () => setIsSubmitting(false) }
             };
-            new (window as any).Razorpay(optionsIntent).open();
+            new (window as any).Razorpay(options).open();
+
         } catch (error: any) {
             toast({ variant: 'destructive', title: 'Error', description: error.message });
             setIsSubmitting(false);
@@ -335,7 +321,7 @@ function SecureCodPaymentForm() {
                         {isSellerFlow && (
                             <div className="space-y-3">
                                 <Label>Select Payment Method</Label>
-                                <RadioGroup defaultValue="Secure Charge on Delivery" onValueChange={setPaymentMethod} className="flex gap-4">
+                                <RadioGroup defaultValue="Secure Charge on Delivery" onValueChange={(value: 'Prepaid' | 'Secure Charge on Delivery' | 'Cash on Delivery') => setPaymentMethod(value)} className="flex gap-4">
                                     <div className="flex items-center space-x-2"><RadioGroupItem value="Prepaid" id="r1" /><Label htmlFor="r1">Prepaid</Label></div>
                                     <div className="flex items-center space-x-2"><RadioGroupItem value="Secure Charge on Delivery" id="r2" /><Label htmlFor="r2">Secure COD</Label></div>
                                     <div className="flex items-center space-x-2"><RadioGroupItem value="Cash on Delivery" id="r3" /><Label htmlFor="r3">Cash on Delivery</Label></div>

@@ -158,7 +158,17 @@ function OrderDetailContent() {
 
     const getSecureUrl = (order: EditableOrder) => {
         const baseUrl = window.location.origin;
-        return `${baseUrl}/secure-cod?amount=${encodeURIComponent(order.price)}&name=${encodeURIComponent(order.productOrdered)}&order_id=${encodeURIComponent(order.orderId)}`;
+        const params = new URLSearchParams({
+            amount: order.price,
+            name: order.productOrdered,
+            order_id: order.orderId,
+            customerName: order.customerName,
+            customerEmail: order.customerEmail || '',
+            customerContact: order.contactNo,
+            customerAddress: order.customerAddress,
+            customerPincode: order.pincode,
+        });
+        return `${baseUrl}/secure-cod?${params.toString()}`;
     };
     
     const sendAuthLink = async (order: EditableOrder, method: 'email') => {
