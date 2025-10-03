@@ -120,7 +120,7 @@ function SecureCodPaymentForm() {
 
     }, [searchParams]);
     
-    // Simple, one-step prepaid flow for Admin/Main site
+    // Simple, one-step prepaid flow for Super Admin links
     const handleAdminFlowSubmit = async () => {
         setIsSubmitting(true);
         const { name, email, contact, address, pincode } = customerDetails;
@@ -386,6 +386,9 @@ function SecureCodPaymentForm() {
 
     const handleSubmit = (e: FormEvent) => {
         e.preventDefault();
+        // This is the correct logic based on the user's last request.
+        // Seller links (isSellerFlow = true) get the two-step verification.
+        // Admin links (isSellerFlow = false) get the simple one-step prepaid flow.
         if (isSellerFlow) {
             handleSellerFlowSubmit();
         } else {
