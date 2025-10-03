@@ -1,3 +1,4 @@
+
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -79,7 +80,7 @@ export default function SellerOrdersPage() {
         await saveDocument('vendor_orders', orderForVendor, orderToPush.id);
 
         const updatedOrder = { ...orderToPush, paymentStatus: 'Pushed to Vendor' };
-        await saveDocument('orders', updatedOrder, orderToPush.id);
+        await saveDocument('orders', { paymentStatus: 'Pushed to Vendor' }, orderToPush.id);
         
         setOrders(prev => prev.map(o => o.id === orderToPush.id ? updatedOrder : o));
 
@@ -180,7 +181,7 @@ export default function SellerOrdersPage() {
                           <TableCell>{order.productOrdered}</TableCell>
                           <TableCell>₹{order.price}</TableCell>
                            <TableCell>
-                            <Badge variant={isCOD ? "secondary" : "outline"}>{(order as any).paymentMethod}</Badge>
+                            <Badge variant={isCOD ? "secondary" : "outline"}>{(order as any).paymentMethod || 'Prepaid'}</Badge>
                           </TableCell>
                           <TableCell>
                             <Badge variant={canPush || order.paymentStatus === "Pushed to Vendor" ? 'default' : 'secondary'} className={

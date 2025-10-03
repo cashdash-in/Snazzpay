@@ -13,6 +13,7 @@ import { useAuth } from '@/hooks/use-auth';
 import type { EditableOrder } from '@/app/orders/page';
 import { Badge } from "@/components/ui/badge";
 import { sanitizePhoneNumber } from "@/lib/utils";
+import { getCollection, saveDocument } from "@/services/firestore";
 
 export default function VendorOrdersPage() {
     const [orders, setOrders] = useState<EditableOrder[]>([]);
@@ -20,19 +21,21 @@ export default function VendorOrdersPage() {
     const { toast } = useToast();
     const { user } = useAuth();
 
-    const fetchVendorOrders = useCallback(() => {
+    const fetchVendorOrders = useCallback(async () => {
         if (!user) return;
         setLoading(true);
         try {
-            const ordersStorageKey = `vendor_orders_${user.uid}`;
-            const allVendorOrdersJSON = localStorage.getItem(ordersStorageKey);
-            const allVendorOrders: EditableOrder[] = allVendorOrdersJSON ? JSON.parse(allVendorOrdersJSON) : [];
+            // Fetch orders from Firestore that are assigned to this vendor
+            const allVendorOrders = await getCollection<EditableOrder>('vendor_orders');
+            const myOrders = allVendorOrders.filter(o => (o as any).vendorId === user.uid);
             
-            const unifiedOrders = allVendorOrders.map(order => {
+            // For prototype purposes, let's also ensure local overrides are applied.
+            // In a real app, this status would be part of the main document.
+            const unifiedOrders = myOrders.map(order => {
                 const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
                 return { ...order, ...storedOverrides };
             });
-      
+
             setOrders(unifiedOrders);
 
         } catch (error) {
@@ -40,7 +43,7 @@ export default function VendorOrdersPage() {
             toast({
                 variant: 'destructive',
                 title: "Error loading your orders",
-                description: "Could not load orders from local storage.",
+                description: "Could not load orders from Firestore.",
             });
         }
         setLoading(false);
@@ -50,21 +53,27 @@ export default function VendorOrdersPage() {
         fetchVendorOrders();
     }, [fetchVendorOrders]);
 
-    const handleMarkAsDispatched = (orderId: string) => {
-        const updatedOrders = orders.map(o => 
-            o.id === orderId ? { ...o, deliveryStatus: 'dispatched' } : o
-        );
-        setOrders(updatedOrders);
 
-        // Also update the master override for this order so seller sees it
-        const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${orderId}`) || '{}');
-        const newOverrides = { ...storedOverrides, deliveryStatus: 'dispatched' };
-        localStorage.setItem(`order-override-${orderId}`, JSON.stringify(newOverrides));
+    const handleMarkAsDispatched = async (order: EditableOrder) => {
+        const updatedOrder = { ...order, deliveryStatus: 'dispatched' as const };
+        
+        try {
+            // Update the order in both vendor and main orders collection
+            await saveDocument('vendor_orders', { deliveryStatus: 'dispatched' }, order.id);
+            await saveDocument('orders', { deliveryStatus: 'dispatched' }, order.id);
 
-        toast({
-            title: "Order Marked as Dispatched",
-            description: "The seller and admin can now see the updated status.",
-        });
+            setOrders(prevOrders => prevOrders.map(o => o.id === order.id ? updatedOrder : o));
+            
+            toast({
+                title: "Order Marked as Dispatched",
+                description: "The seller and admin can now see the updated status.",
+            });
+        } catch (error) {
+             toast({
+                variant: 'destructive',
+                title: "Failed to Update Status",
+            });
+        }
     };
 
     const handleShareOnWhatsApp = (order: EditableOrder) => {
@@ -101,7 +110,7 @@ export default function VendorOrdersPage() {
                                         <TableHead>Order ID</TableHead>
                                         <TableHead>Customer</TableHead>
                                         <TableHead>Product(s)</TableHead>
-                                        <TableHead>Date Received</TableHead>
+                                        <TableHead>Payment Type</TableHead>
                                         <TableHead>Fulfillment Status</TableHead>
                                         <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
@@ -117,15 +126,19 @@ export default function VendorOrdersPage() {
                                                 </TableCell>
                                                 <TableCell>{order.customerName}</TableCell>
                                                 <TableCell>{order.productOrdered}</TableCell>
-                                                <TableCell>{new Date(order.date).toLocaleDateString()}</TableCell>
+                                                <TableCell>
+                                                     <Badge variant={(order as any).paymentMethod === 'Cash on Delivery' ? "secondary" : "outline"}>
+                                                        {(order as any).paymentMethod || 'Prepaid'}
+                                                    </Badge>
+                                                </TableCell>
                                                 <TableCell>
                                                     <Badge variant={order.deliveryStatus === 'dispatched' ? 'default' : 'secondary'}>
                                                         {order.deliveryStatus || 'Pending Fulfillment'}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell className="text-right space-x-2">
-                                                    <Button variant="outline" size="sm" onClick={() => handleMarkAsDispatched(order.id)} disabled={order.deliveryStatus === 'dispatched'}>
-                                                        <Truck className="mr-2 h-4 w-4" /> Mark as Dispatched
+                                                    <Button variant="outline" size="sm" onClick={() => handleMarkAsDispatched(order)} disabled={order.deliveryStatus === 'dispatched'}>
+                                                        <Truck className="mr-2 h-4 w-4" /> {order.deliveryStatus === 'dispatched' ? 'Dispatched' : 'Mark as Dispatched'}
                                                     </Button>
                                                     <Button variant="secondary" size="sm" onClick={() => handleShareOnWhatsApp(order)}>
                                                         <MessageSquare className="mr-2 h-4 w-4" /> Notify Customer
@@ -149,5 +162,3 @@ export default function VendorOrdersPage() {
         </AppShell>
     );
 }
-
-    
