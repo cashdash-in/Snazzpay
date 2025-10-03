@@ -184,43 +184,95 @@ function SecureCodPaymentForm() {
         }
 
         try {
-            // This is now a simple prepaid flow for admin
-            const response = await fetch('/api/create-mandate-order', {
+             // STEP 1: Create and process the ₹1 intent verification order.
+            const intentResponse = await fetch('/api/create-mandate-order', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
-                    amount: orderDetails.amount, 
-                    productName: orderDetails.productName,
-                    isAuthorization: false, // Make it a direct payment
+                    amount: 1, 
+                    productName: `Intent Verification for ${orderDetails.productName}`,
+                    isAuthorization: false, // This is a direct payment (payment_capture: 1)
                     name, email, contact, address, pincode
                 })
             });
 
-            const result = await response.json();
-            if (result.error) throw new Error(result.error);
-            const uniqueInternalOrderId = result.internal_order_id;
+            const intentResult = await intentResponse.json();
+            if (intentResult.error) throw new Error(intentResult.error);
+            const intentInternalOrderId = intentResult.internal_order_id;
             
-            const options = {
+            const intentOptions = {
                 key: razorpayKeyId,
-                amount: orderDetails.amount * 100,
-                order_id: result.order_id,
-                name: "Snazzify Purchase",
-                description: `Payment for ${orderDetails.productName}`,
+                amount: 100, // ₹1 in paise
+                order_id: intentResult.order_id,
+                name: "Snazzify Order Verification",
+                description: `₹1 to verify your intent`,
                 handler: async (response: any) => {
-                    const finalOrder: EditableOrder = { 
-                        id: uniqueInternalOrderId, orderId: uniqueInternalOrderId, customerName: name, customerEmail: email, contactNo: contact, customerAddress: address, pincode, productOrdered: orderDetails.productName, quantity: 1, price: orderDetails.amount.toString(), date: new Date().toISOString(), paymentStatus: 'Paid', source: 'Shopify', sellerId: orderDetails.sellerId
+                    // Create a Lead record after successful ₹1 payment
+                    const newLead: EditableOrder = { 
+                        id: intentInternalOrderId, orderId: intentInternalOrderId, customerName: name, customerEmail: email, contactNo: contact, customerAddress: address, pincode, productOrdered: orderDetails.productName, quantity: 1, price: orderDetails.amount.toString(), date: new Date().toISOString(), paymentStatus: 'Intent Verified', source: 'Shopify', sellerId: orderDetails.sellerId
                     };
-                    await saveDocument('orders', finalOrder, finalOrder.id);
-
-                    const card = await createNewShaktiCard(finalOrder);
-                    if (card) setNewlyCreatedCard(card);
+                    await saveDocument('leads', newLead, intentInternalOrderId);
                     
-                    toast({ title: "Payment Successful!", description: `Order ${finalOrder.orderId} is confirmed.` });
-                    setStep('complete');
+                    toast({ title: "Verification Successful!", description: "Now proceeding to secure the full order amount." });
+
+                    // STEP 2: Immediately create and open the full amount authorization order.
+                    const authResponse = await fetch('/api/create-mandate-order', {
+                         method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            amount: orderDetails.amount, 
+                            productName: orderDetails.productName,
+                            isAuthorization: true, // This is an authorization (payment_capture: 0)
+                            name, email, contact, address, pincode
+                        })
+                    });
+                    const authResult = await authResponse.json();
+                    if (authResult.error) throw new Error(authResult.error);
+                    const finalInternalOrderId = authResult.internal_order_id;
+
+                    const authOptions = {
+                        key: razorpayKeyId,
+                        order_id: authResult.order_id,
+                        name: "Authorize Secure COD Payment",
+                        description: `Securely authorize ₹${orderDetails.amount} for ${orderDetails.productName}`,
+                        handler: async (authResponse: any) => {
+                            // Authorization successful, save payment info and create final order
+                            const paymentData: PaymentInfo = {
+                                paymentId: authResponse.razorpay_payment_id,
+                                orderId: finalInternalOrderId,
+                                razorpayOrderId: authResponse.razorpay_order_id,
+                                signature: authResponse.razorpay_signature,
+                                status: 'authorized',
+                                authorizedAt: new Date().toISOString()
+                            };
+                            await saveDocument('payment_info', paymentData, finalInternalOrderId);
+                            
+                            const finalOrder: EditableOrder = { 
+                                ...newLead, // Carry over all customer details
+                                id: finalInternalOrderId, 
+                                orderId: finalInternalOrderId,
+                                paymentStatus: 'Authorized',
+                            };
+                            await saveDocument('orders', finalOrder, finalInternalOrderId);
+                            
+                            // Delete the temporary lead
+                            await deleteDocument('leads', intentInternalOrderId);
+
+                            const card = await createNewShaktiCard(finalOrder);
+                            if (card) setNewlyCreatedCard(card);
+                            
+                            toast({ title: "Authorization Successful!", description: `Your order ${finalOrder.orderId} is confirmed.` });
+                            setStep('complete');
+                        },
+                        prefill: { name, email, contact }, theme: { color: "#663399" },
+                        modal: { ondismiss: () => setIsSubmitting(false) }
+                    };
+                    new (window as any).Razorpay(authOptions).open();
                 },
-                prefill: { name, email, contact }, theme: { color: "#663399" }, modal: { ondismiss: () => setIsSubmitting(false) }
+                prefill: { name, email, contact }, theme: { color: "#663399" },
+                modal: { ondismiss: () => setIsSubmitting(false) }
             };
-            new (window as any).Razorpay(options).open();
+            new (window as any).Razorpay(intentOptions).open();
 
         } catch (error: any) {
             toast({ variant: 'destructive', title: 'Error', description: error.message });

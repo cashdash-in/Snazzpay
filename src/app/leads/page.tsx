@@ -26,8 +26,8 @@ export default function LeadsPage() {
     setLoading(true);
     try {
         const loadedLeads = await getCollection<EditableOrder>('leads');
-        // Filter out any leads that have been converted
-        setLeads(loadedLeads.filter(lead => lead.paymentStatus !== 'Converted' && lead.paymentStatus !== 'Authorized' && lead.paymentStatus !== 'Paid'));
+        // Now also includes 'Lead' status from seller flow
+        setLeads(loadedLeads.filter(lead => ['Intent Verified', 'Lead'].includes(lead.paymentStatus)));
     } catch (error) {
         console.error("Failed to load leads from Firestore:", error);
         toast({
@@ -64,17 +64,11 @@ export default function LeadsPage() {
   const handleSendLink = async (lead: EditableOrder) => {
     setSendingLinkId(lead.id);
     try {
-        const response = await fetch('/api/create-payment-link', {
+        // Use the generic send-auth-link endpoint now
+        const response = await fetch('/api/send-auth-link', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                amount: lead.price,
-                customerName: lead.customerName,
-                customerContact: lead.contactNo,
-                customerEmail: lead.customerEmail,
-                orderId: lead.orderId,
-                productName: lead.productOrdered,
-            }),
+            body: JSON.stringify({ order: lead, method: 'email' }),
         });
 
         const result = await response.json();
@@ -135,8 +129,8 @@ export default function LeadsPage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle>Intent Verified Leads</CardTitle>
-              <CardDescription>Customers who completed verification but did not complete the final authorization. Follow up to convert them!</CardDescription>
+              <CardTitle>Leads</CardTitle>
+              <CardDescription>Customers who started the order process but did not complete the final payment.</CardDescription>
             </div>
         </CardHeader>
         <CardContent>
@@ -157,6 +151,7 @@ export default function LeadsPage() {
                   <TableHead>Address</TableHead>
                   <TableHead>Product(s)</TableHead>
                   <TableHead>Value</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead className="text-center">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -171,12 +166,14 @@ export default function LeadsPage() {
                     <TableCell>{lead.customerAddress}, {lead.pincode}</TableCell>
                     <TableCell>{lead.productOrdered}</TableCell>
                     <TableCell>₹{lead.price}</TableCell>
+                    <TableCell>{lead.paymentStatus}</TableCell>
                     <TableCell className="text-center space-x-2">
                         <Button 
                             variant="default" 
                             size="sm" 
                             onClick={() => handleSendLink(lead)}
-                            disabled={sendingLinkId === lead.id}
+                            disabled={sendingLinkId === lead.id || !lead.customerEmail}
+                            title={!lead.customerEmail ? 'Email is required to send link' : 'Send Payment Link'}
                         >
                             {sendingLinkId === lead.id ? <ButtonLoader className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
                             Send Payment Link
