@@ -109,7 +109,8 @@ function SecureCodPaymentForm() {
         const sellerId = searchParams.get('seller_id') || '';
         const sellerName = searchParams.get('seller_name') || '';
 
-        setIsSellerFlow(!!sellerId);
+        // Determine the flow based on the presence of a seller_id
+        setIsSellerFlow(!!(sellerId && sellerId !== 'YOUR_UNIQUE_SELLER_ID'));
         
         setOrderDetails({ productName: name, amount, orderId, sellerId, sellerName });
         
@@ -120,7 +121,7 @@ function SecureCodPaymentForm() {
 
     }, [searchParams]);
     
-    // Simple, one-step prepaid flow for Super Admin links
+    // Simple, one-step prepaid flow for Super Admin links (no seller_id)
     const handleAdminFlowSubmit = async () => {
         setIsSubmitting(true);
         const { name, email, contact, address, pincode } = customerDetails;
@@ -132,7 +133,7 @@ function SecureCodPaymentForm() {
         }
         
         if (!razorpayKeyId) {
-             toast({ variant: 'destructive', title: "Razorpay Not Configured", description: "The payment gateway is not set up." });
+             toast({ variant: 'destructive', title: "Razorpay Not Configured" });
              setIsSubmitting(false);
              return;
         }
@@ -144,7 +145,7 @@ function SecureCodPaymentForm() {
                 body: JSON.stringify({ 
                     amount: orderDetails.amount, 
                     productName: orderDetails.productName,
-                    isAuthorization: false, // This is a prepaid payment, so capture immediately
+                    isAuthorization: false, // Prepaid, so capture immediately
                     name, email, contact, address, pincode
                 })
             });
@@ -174,7 +175,7 @@ function SecureCodPaymentForm() {
                     
                     await saveDocument('orders', newOrder, newOrder.id);
                     
-                    const paymentInfo = { // Store basic payment info for reference
+                    const paymentInfo = {
                         paymentId: response.razorpay_payment_id,
                         orderId: uniqueInternalOrderId,
                         razorpayOrderId: response.razorpay_order_id,
@@ -214,7 +215,7 @@ function SecureCodPaymentForm() {
         }
         
         if (!razorpayKeyId) {
-             toast({ variant: 'destructive', title: "Razorpay Not Configured", description: "The payment gateway is not set up." });
+             toast({ variant: 'destructive', title: "Razorpay Not Configured" });
              setIsSubmitting(false);
              return;
         }
@@ -260,7 +261,7 @@ function SecureCodPaymentForm() {
                         body: JSON.stringify({ 
                             amount: orderDetails.amount, 
                             productName: orderDetails.productName, 
-                            isAuthorization: true, // This is an authorization
+                            isAuthorization: true, // This IS an authorization
                             name, email, contact, address, pincode
                         })
                     }).then(res => res.json());
@@ -386,9 +387,9 @@ function SecureCodPaymentForm() {
 
     const handleSubmit = (e: FormEvent) => {
         e.preventDefault();
-        // This is the correct logic based on the user's last request.
-        // Seller links (isSellerFlow = true) get the two-step verification.
-        // Admin links (isSellerFlow = false) get the simple one-step prepaid flow.
+        // This is the correct logic based on the user's final request
+        // Super Admin (no seller_id) gets the simple prepaid flow.
+        // Seller links get the two-step verification flow.
         if (isSellerFlow) {
             handleSellerFlowSubmit();
         } else {
@@ -445,3 +446,6 @@ function Page() {
 }
 
 export default Page;
+
+
+    
