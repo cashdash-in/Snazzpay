@@ -11,7 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
 import type { EditableOrder } from '@/app/orders/page';
 import { getRazorpayKeyId } from '@/app/actions';
-import { addDocument, saveDocument, getCollection, getDocument } from '@/services/firestore';
+import { addDocument, saveDocument, getCollection, getDocument, deleteDocument } from '@/services/firestore';
 import { format, addYears } from 'date-fns';
 import { ShaktiCard, type ShaktiCardData } from '@/components/shakti-card';
 import { sanitizePhoneNumber } from '@/lib/utils';
@@ -29,8 +29,6 @@ type CustomerDetails = {
     alternateContact?: string;
     landmark?: string;
 };
-
-type PaymentMethod = 'Prepaid' | 'Secure Charge on Dispatch';
 
 type PaymentInfo = {
     paymentId: string;
@@ -62,7 +60,6 @@ function SecureCodPaymentForm() {
     const [customerDetails, setCustomerDetails] = useState<CustomerDetails>({
         name: '', email: '', contact: '', address: '', pincode: ''
     });
-    const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Prepaid');
     const [newlyCreatedCard, setNewlyCreatedCard] = useState<ShaktiCardData | null>(null);
 
 
@@ -123,48 +120,90 @@ function SecureCodPaymentForm() {
 
     }, [searchParams]);
     
-    const handleSellerFlowSubmit = async (e: FormEvent) => {
-        e.preventDefault();
-        const { name, email, contact, address, pincode } = customerDetails;
-        if (!name || !email || !contact || !address || !pincode) {
-            toast({ variant: 'destructive', title: "Missing Details", description: "Please fill out all required fields." });
-            return;
-        }
+    // Simple, one-step prepaid flow for Admin/Main site
+    const handleAdminFlowSubmit = async () => {
         setIsSubmitting(true);
+        const { name, email, contact, address, pincode } = customerDetails;
+
+        if (!name || !email || !contact || !address || !pincode) {
+             toast({ variant: 'destructive', title: "Missing Details", description: "Please fill out all required fields." });
+             setIsSubmitting(false);
+             return;
+        }
+        
+        if (!razorpayKeyId) {
+             toast({ variant: 'destructive', title: "Razorpay Not Configured", description: "The payment gateway is not set up." });
+             setIsSubmitting(false);
+             return;
+        }
+        
         try {
-            const newLead: EditableOrder = {
-                id: uuidv4(),
-                orderId: orderDetails.orderId,
-                customerName: name,
-                customerEmail: email,
-                customerAddress: `${address}, Landmark: ${customerDetails.landmark || 'N/A'}`,
-                pincode: pincode,
-                contactNo: contact,
-                productOrdered: orderDetails.productName,
-                quantity: 1,
-                price: orderDetails.amount.toString(),
-                date: new Date().toISOString(),
-                sellerId: orderDetails.sellerId,
-                paymentStatus: 'Lead',
-                source: 'Seller'
-            };
-            
-            await saveDocument('leads', newLead, newLead.id);
-            
-            toast({
-                title: "Order Request Sent!",
-                description: `Your request has been sent to ${orderDetails.sellerName}. They will contact you shortly.`,
+            const response = await fetch('/api/create-mandate-order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    amount: orderDetails.amount, 
+                    productName: orderDetails.productName,
+                    isAuthorization: false, // This is a prepaid payment, so capture immediately
+                    name, email, contact, address, pincode
+                })
             });
-            setStep('complete');
+            const result = await response.json();
+            if (result.error) throw new Error(result.error);
+            const uniqueInternalOrderId = result.internal_order_id;
+
+            const options = {
+                key: razorpayKeyId,
+                amount: orderDetails.amount * 100,
+                currency: "INR",
+                name: "Snazzify Order Payment",
+                description: `Payment for ${orderDetails.productName}`,
+                order_id: result.order_id,
+                handler: async (response: any) => {
+                     const newOrder: EditableOrder = {
+                        id: uniqueInternalOrderId,
+                        orderId: uniqueInternalOrderId,
+                        customerName: name, customerEmail: email, customerAddress: address, pincode, contactNo: contact,
+                        productOrdered: orderDetails.productName,
+                        quantity: 1,
+                        price: orderDetails.amount.toString(),
+                        date: new Date().toISOString(),
+                        paymentStatus: 'Paid',
+                        source: 'Shopify'
+                    };
+                    
+                    await saveDocument('orders', newOrder, newOrder.id);
+                    
+                    const paymentInfo = { // Store basic payment info for reference
+                        paymentId: response.razorpay_payment_id,
+                        orderId: uniqueInternalOrderId,
+                        razorpayOrderId: response.razorpay_order_id,
+                        status: 'captured',
+                        authorizedAt: new Date().toISOString()
+                    };
+                    await saveDocument('payment_info', paymentInfo, newOrder.id);
+
+                    const card = await createNewShaktiCard(newOrder);
+                    if (card) setNewlyCreatedCard(card);
+
+                    toast({ title: "Payment Successful!", description: `Your order ${uniqueInternalOrderId} is confirmed.` });
+                    setStep('complete');
+                },
+                prefill: { name, email, contact },
+                theme: { color: "#663399" },
+                modal: { ondismiss: () => setIsSubmitting(false) }
+            };
+            const rzp = new (window as any).Razorpay(options);
+            rzp.open();
 
         } catch (error: any) {
-            toast({ variant: 'destructive', title: "Submission Failed", description: error.message || 'Could not submit your order request.' });
-        } finally {
+            toast({ variant: 'destructive', title: 'Error', description: error.message });
             setIsSubmitting(false);
         }
     };
     
-    const handleAdminFlowSubmit = async () => {
+    // Robust, two-step verification flow for Seller links
+    const handleSellerFlowSubmit = async () => {
         setIsSubmitting(true);
         const { name, email, contact, address, pincode } = customerDetails;
 
@@ -202,7 +241,7 @@ function SecureCodPaymentForm() {
                 orderId: tempLeadId,
                 customerName: name, customerEmail: email, customerAddress: address, pincode, contactNo: contact,
                 productOrdered: orderDetails.productName, quantity: 1, price: orderDetails.amount.toString(),
-                date: new Date().toISOString(), paymentStatus: 'Intent Verified', source: 'Shopify'
+                date: new Date().toISOString(), paymentStatus: 'Intent Verified', source: 'Seller', sellerId: orderDetails.sellerId
             };
             await saveDocument('leads', tempLead, tempLeadId);
 
@@ -260,9 +299,7 @@ function SecureCodPaymentForm() {
                             await saveDocument('payment_info', paymentInfo, finalOrder.id);
                             
                             const card = await createNewShaktiCard(finalOrder);
-                            if (card) {
-                                setNewlyCreatedCard(card);
-                            }
+                            if (card) setNewlyCreatedCard(card);
                             
                             toast({ title: "Payment Authorized!", description: `Order ${finalOrder.orderId} is confirmed.` });
                             setStep('complete');
@@ -296,10 +333,10 @@ function SecureCodPaymentForm() {
                     <CardHeader>
                          <CheckCircle className="mx-auto h-12 w-12 text-green-500" />
                         <CardTitle>Thank You!</CardTitle>
-                        <CardDescription>{isSellerFlow ? "Your request has been sent to the seller." : "Your order is confirmed."}</CardDescription>
+                        <CardDescription>{isSellerFlow ? "Your payment has been securely authorized." : "Your payment was successful."}</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <p className="text-muted-foreground">{isSellerFlow ? "The seller will contact you shortly to confirm details and arrange payment." : "Your payment has been securely authorized. You will receive shipping and tracking details soon."}</p>
+                        <p className="text-muted-foreground">{isSellerFlow ? "Your order is confirmed. You will receive shipping and tracking details soon." : "The seller has been notified and will process your order."}</p>
                         {newlyCreatedCard && (
                             <div className="pt-4 border-t">
                                 <h4 className="font-semibold mb-2">Your Shakti COD Card is Ready!</h4>
@@ -347,14 +384,23 @@ function SecureCodPaymentForm() {
         </div>
     );
 
+    const handleSubmit = (e: FormEvent) => {
+        e.preventDefault();
+        if (isSellerFlow) {
+            handleSellerFlowSubmit();
+        } else {
+            handleAdminFlowSubmit();
+        }
+    };
+
     return (
         <div className="flex items-center justify-center min-h-screen bg-transparent p-4">
             <Card className="w-full max-w-md shadow-lg">
-                <form onSubmit={isSellerFlow ? handleSellerFlowSubmit : (e) => { e.preventDefault(); handleAdminFlowSubmit(); }}>
+                <form onSubmit={handleSubmit}>
                     <CardHeader className="text-center">
                         <ShieldCheck className="mx-auto h-12 w-12 text-primary" />
-                        <CardTitle>{isSellerFlow ? "Place Your Order" : "Secure COD Checkout"}</CardTitle>
-                        <CardDescription>{isSellerFlow ? `Order from ${orderDetails.sellerName}` : `Confirm details for order ${orderDetails.orderId}`}</CardDescription>
+                        <CardTitle>{isSellerFlow ? "Secure Your Order" : "Secure COD Checkout"}</CardTitle>
+                        <CardDescription>{isSellerFlow ? `From ${orderDetails.sellerName}` : `Confirm details for order ${orderDetails.orderId}`}</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
                         <div className="border rounded-lg p-4 space-y-2 text-sm bg-muted/30">
@@ -363,31 +409,14 @@ function SecureCodPaymentForm() {
                         </div>
 
                         {customerDetailsForm}
-
-                        {isSellerFlow && (
-                             <div className="space-y-3">
-                                <Label>Select Payment Type</Label>
-                                <RadioGroup defaultValue="Prepaid" onValueChange={(value: PaymentMethod) => setPaymentMethod(value)} className="flex gap-4">
-                                    <div className="flex items-center space-x-2">
-                                        <RadioGroupItem value="Prepaid" id="r1" />
-                                        <Label htmlFor="r1">Prepaid</Label>
-                                    </div>
-                                    <div className="flex items-center space-x-2">
-                                        <RadioGroupItem value="Secure Charge on Dispatch" id="r2" />
-                                        <Label htmlFor="r2">Secure Charge on Dispatch</Label>
-                                    </div>
-                                </RadioGroup>
-                                <p className="text-xs text-muted-foreground">The seller will contact you to arrange payment or confirm your order.</p>
-                            </div>
-                        )}
                         
                     </CardContent>
                     <CardFooter className="flex-col gap-2">
                          <Button type="submit" className="w-full" disabled={isSubmitting || loading}>
                             {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                            {isSellerFlow ? "Send Order Request" : "Proceed to Secure Payment"}
+                            {isSellerFlow ? "Proceed to Secure Payment" : "Proceed to Payment"}
                         </Button>
-                        {!isSellerFlow && <p className="text-xs text-muted-foreground text-center">You will first be charged ₹1 to verify. The full amount will be authorized next.</p>}
+                        {isSellerFlow && <p className="text-xs text-muted-foreground text-center">You will first be charged ₹1 to verify your card. The full amount will be authorized next.</p>}
                         <div className="flex items-center justify-center space-x-4 text-sm mt-2">
                             <Link href="/customer/login" passHref><span className="text-primary hover:underline cursor-pointer inline-flex items-center gap-1">Customer Login</span></Link>
                             <Link href="/faq" passHref><span className="text-primary hover:underline cursor-pointer inline-flex items-center gap-1"><HelpCircle className="h-4 w-4" />How this works</span></Link>
