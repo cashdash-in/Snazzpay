@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Wallet, ShoppingCart, ShieldAlert, LogOut, CheckCircle, Clock, Mail, MessageSquare, PackageCheck, FileText, Calendar, Truck, ArrowRight, CircleDotDashed, AlertTriangle } from "lucide-react";
+import { Wallet, ShoppingCart, ShieldAlert, LogOut, CheckCircle, Clock, Mail, MessageSquare, PackageCheck, FileText, Calendar, Truck, ArrowRight, CircleDotDashed, AlertTriangle, Gem, Gift } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
@@ -195,6 +195,27 @@ export default function CustomerDashboardPage() {
                                 )}
                             </CardContent>
                         </Card>
+
+                        {shaktiCard && (
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Your Rewards</CardTitle>
+                                </CardHeader>
+                                <CardContent className="grid grid-cols-2 gap-4">
+                                    <div className="p-4 bg-blue-50 rounded-lg text-center">
+                                        <Gem className="h-8 w-8 text-blue-500 mx-auto mb-2" />
+                                        <p className="text-2xl font-bold">{shaktiCard.points}</p>
+                                        <p className="text-sm text-muted-foreground">Points Balance</p>
+                                    </div>
+                                    <div className="p-4 bg-green-50 rounded-lg text-center">
+                                        <Gift className="h-8 w-8 text-green-500 mx-auto mb-2" />
+                                        <p className="text-2xl font-bold">₹{shaktiCard.cashback.toFixed(2)}</p>
+                                        <p className="text-sm text-muted-foreground">Cashback Earned</p>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        )}
+                        
                         <Card className="shadow-lg">
                             <CardHeader className="flex flex-row items-center justify-between">
                                 <CardTitle>Snazzify Trust Wallet</CardTitle>
@@ -381,9 +402,5 @@ export default function CustomerDashboardPage() {
         </div>
     );
 }
-
-    
-
-    
 
     
