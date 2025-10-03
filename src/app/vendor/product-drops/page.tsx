@@ -330,5 +330,3 @@ export default function VendorProductDropsPage() {
         </AppShell>
     );
 }
-
-    

@@ -24,8 +24,7 @@ export default function SellerProductDropsPage() {
     const [drops, setDrops] = useState<ProductDrop[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const { user } = useAuth();
-    const [addedProducts, setAddedProducts] = useState<string[]>([]);
-
+    
     useEffect(() => {
         if (!user) {
             setIsLoading(false);
@@ -49,10 +48,28 @@ export default function SellerProductDropsPage() {
                 
                 setDrops(relevantDrops);
 
-                 // Check which products are already in the seller's catalog
+                // Automatically add new drops to seller's products
                 const sellerProducts = await getCollection<SellerProduct>('seller_products');
-                const myProductsIds = sellerProducts.filter(p => p.sellerId === user.uid).map(p => p.id);
-                setAddedProducts(myProductsIds);
+                const myProductsIds = new Set(sellerProducts.filter(p => p.sellerId === user.uid).map(p => p.id));
+                
+                for (const drop of relevantDrops) {
+                    if (!myProductsIds.has(drop.id)) {
+                        const newSellerProduct: SellerProduct = {
+                            id: drop.id, // Use drop ID to link them
+                            sellerId: user.uid,
+                            title: drop.title,
+                            description: drop.description,
+                            category: drop.category || 'Uncategorized',
+                            price: drop.costPrice, // Seller can adjust this later
+                            sizes: [],
+                            colors: [],
+                            imageDataUris: drop.imageDataUris,
+                            createdAt: new Date().toISOString(),
+                        };
+                        await saveDocument('seller_products', newSellerProduct, newSellerProduct.id);
+                    }
+                }
+
 
             } catch (error) {
                 toast({
@@ -67,53 +84,6 @@ export default function SellerProductDropsPage() {
         loadData();
 
     }, [toast, user]);
-
-    const handleUseThisProduct = (drop: ProductDrop) => {
-        const prefillData = {
-            description: drop.description,
-            cost: drop.costPrice,
-            imageDataUris: drop.imageDataUris,
-            imagePreviews: drop.imageDataUris, // Pass previews as well
-        };
-        localStorage.setItem('ai_uploader_prefill', JSON.stringify(prefillData));
-        toast({
-            title: "Redirecting to AI Uploader",
-            description: `Pre-filling details for "${drop.title}".`,
-        });
-        router.push('/seller/ai-product-uploader');
-    };
-    
-    const handleAddToMyProducts = async (drop: ProductDrop) => {
-        if (!user) return;
-        
-        const newSellerProduct: SellerProduct = {
-            id: drop.id, // Use drop ID to link them
-            sellerId: user.uid,
-            title: drop.title,
-            description: drop.description,
-            category: drop.category || 'Uncategorized',
-            price: drop.costPrice, // Seller can adjust this later in their catalog
-            sizes: [],
-            colors: [],
-            imageDataUris: drop.imageDataUris,
-            createdAt: new Date().toISOString(), // Use current date for when seller added it
-        };
-
-        try {
-            await saveDocument('seller_products', newSellerProduct, newSellerProduct.id);
-            setAddedProducts(prev => [...prev, drop.id]);
-            toast({
-                title: "Product Added!",
-                description: `"${drop.title}" has been added to your 'My Products' catalog.`,
-            });
-        } catch (error) {
-            toast({
-                variant: 'destructive',
-                title: 'Error Adding Product',
-                description: 'There was an issue saving the product to your catalog.',
-            });
-        }
-    };
     
     return (
         <AppShell title="Product Drops">
@@ -122,7 +92,7 @@ export default function SellerProductDropsPage() {
                     <CardHeader>
                         <CardTitle>Incoming Product Drops from Your Vendor</CardTitle>
                         <CardDescription>
-                            This is your feed of new products shared by your approved vendor. Review the details and decide which products to add to your catalog.
+                            This is your feed of new products shared by your approved vendor. These are automatically added to your "My Products" page.
                         </CardDescription>
                     </CardHeader>
                 </Card>
@@ -141,41 +111,34 @@ export default function SellerProductDropsPage() {
                     </Card>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {drops.map(drop => {
-                            const isAdded = addedProducts.includes(drop.id);
-                            return (
-                                <Card key={drop.id} className="flex flex-col">
-                                    <CardHeader>
-                                        <div className="flex justify-center mb-4 h-40">
-                                            <Image src={drop.imageDataUris[0]} alt={drop.title} width={200} height={200} className="object-contain rounded-md"/>
-                                        </div>
-                                        <CardTitle>{drop.title}</CardTitle>
-                                        <CardDescription>From: {drop.vendorName} &bull; {formatDistanceToNow(new Date(drop.createdAt), { addSuffix: true })}</CardDescription>
-                                    </CardHeader>
-                                    <CardContent className="flex-grow">
-                                        <p className="text-sm text-muted-foreground line-clamp-3">{drop.description}</p>
-                                        <div className="mt-4">
-                                            <p className="text-lg font-bold">Cost: ₹{drop.costPrice.toFixed(2)}</p>
-                                        </div>
-                                    </CardContent>
-                                    <CardFooter className="flex-col items-stretch space-y-2">
-                                         <Button className="w-full" onClick={() => handleAddToMyProducts(drop)} disabled={isAdded}>
-                                            {isAdded ? <CheckCircle className="mr-2 h-4 w-4"/> : <Sparkles className="mr-2 h-4 w-4"/>}
-                                            {isAdded ? 'Added to My Products' : 'Add to My Products'}
-                                        </Button>
-                                        <Dialog>
-                                            <DialogTrigger asChild>
-                                                <Button className="w-full" variant="secondary">
-                                                    <MessageSquare className="mr-2 h-4 w-4" />
-                                                    Share on WhatsApp
-                                                </Button>
-                                            </DialogTrigger>
-                                            <ShareComposerDialog product={drop} />
-                                        </Dialog>
-                                    </CardFooter>
-                                </Card>
-                            )
-                        })}
+                        {drops.map(drop => (
+                            <Card key={drop.id} className="flex flex-col">
+                                <CardHeader>
+                                    <div className="flex justify-center mb-4 h-40">
+                                        <Image src={drop.imageDataUris[0]} alt={drop.title} width={200} height={200} className="object-contain rounded-md"/>
+                                    </div>
+                                    <CardTitle>{drop.title}</CardTitle>
+                                    <CardDescription>From: {drop.vendorName} &bull; {formatDistanceToNow(new Date(drop.createdAt), { addSuffix: true })}</CardDescription>
+                                </CardHeader>
+                                <CardContent className="flex-grow">
+                                    <p className="text-sm text-muted-foreground line-clamp-3">{drop.description}</p>
+                                    <div className="mt-4">
+                                        <p className="text-lg font-bold">Cost: ₹{drop.costPrice.toFixed(2)}</p>
+                                    </div>
+                                </CardContent>
+                                <CardFooter className="flex-col items-stretch space-y-2">
+                                    <Dialog>
+                                        <DialogTrigger asChild>
+                                            <Button className="w-full" variant="secondary">
+                                                <MessageSquare className="mr-2 h-4 w-4" />
+                                                Share on WhatsApp
+                                            </Button>
+                                        </DialogTrigger>
+                                        <ShareComposerDialog product={drop} />
+                                    </Dialog>
+                                </CardFooter>
+                            </Card>
+                        ))}
                     </div>
                 )}
             </div>
