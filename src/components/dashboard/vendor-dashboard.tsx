@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { getDocument, getCollection, saveDocument } from "@/services/firestore";
 import type { Vendor } from "@/app/vendors/page";
 import type { ProductDrop } from "@/app/vendor/product-drops/page";
+import type { EditableOrder } from "@/app/orders/page";
 import { useToast } from "@/hooks/use-toast";
 import { v4 as uuidv4 } from 'uuid';
 import { getRazorpayKeyId } from "@/app/actions";
@@ -27,6 +28,7 @@ export function VendorDashboard() {
     const [vendorInfo, setVendorInfo] = useState<Vendor | null>(null);
     const [usage, setUsage] = useState({ drops: 0 });
     const [limit, setLimit] = useState(PRODUCT_DROP_LIMIT);
+    const [stats, setStats] = useState({ totalOrders: 0, totalRevenue: 0, activeSellers: 0 });
     const [razorpayKeyId, setRazorpayKeyId] = useState<string | null>(null);
     const [isToppingUp, setIsToppingUp] = useState(false);
     const [loading, setLoading] = useState(true);
@@ -35,11 +37,13 @@ export function VendorDashboard() {
         async function loadVendorInfo() {
             setLoading(true);
             if (user) {
-                const [info, drops, permissions, keyId] = await Promise.all([
+                const [info, drops, permissions, keyId, allOrders, allSellers] = await Promise.all([
                     getDocument<Vendor>('vendors', user.uid),
                     getCollection<ProductDrop>('product_drops'),
                     getDocument<{ productDropLimit?: number }>('user_permissions', user.uid),
                     getRazorpayKeyId(),
+                    getCollection<EditableOrder>('orders'),
+                    getCollection<any>('seller_users'),
                 ]);
                 
                 setRazorpayKeyId(keyId);
@@ -50,6 +54,16 @@ export function VendorDashboard() {
 
                 const vendorDrops = drops.filter(d => d.vendorId === user.uid);
                 setUsage({ drops: vendorDrops.length });
+                
+                const mySellerIds = allSellers.filter(s => s.vendorId === user.uid).map(s => s.id);
+                const vendorOrders = allOrders.filter(o => o.sellerId && mySellerIds.includes(o.sellerId) && o.paymentStatus === 'Paid');
+
+                setStats({
+                    totalOrders: vendorOrders.length,
+                    totalRevenue: vendorOrders.reduce((sum, o) => sum + parseFloat(o.price), 0),
+                    activeSellers: mySellerIds.length,
+                });
+
 
                 if (permissions?.productDropLimit) {
                     setLimit(permissions.productDropLimit);
@@ -123,54 +137,15 @@ export function VendorDashboard() {
                 </CardHeader>
             </Card>
 
-             <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                    <div className="space-y-1">
-                        <CardTitle className="text-lg flex items-center gap-2"><PackagePlus /> Product Drops</CardTitle>
-                        <CardDescription>Share new products with your seller network.</CardDescription>
-                    </div>
-                    <div className="text-right">
-                        <p className="text-2xl font-bold">{loading ? <Loader2 className="h-6 w-6 animate-spin" /> : `${usage.drops} / ${limit}`}</p>
-                        <p className="text-xs text-muted-foreground">Drops Used</p>
-                    </div>
-                </CardHeader>
-                <CardFooter>
-                     <Dialog>
-                        <DialogTrigger asChild>
-                            <Button variant="secondary" className="w-full">Request Limit Increase</Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                            <DialogHeader>
-                                <DialogTitle>Increase Product Drop Limit</DialogTitle>
-                                <DialogDescription>Purchase more product drop credits. Your new limit will be active after admin approval.</DialogDescription>
-                            </DialogHeader>
-                            <div className="py-4 space-y-4">
-                                {limitIncreaseOptions.map(opt => (
-                                    <Card key={opt.label}>
-                                        <CardContent className="p-4 flex justify-between items-center">
-                                            <p className="font-bold text-lg">{opt.label}</p>
-                                            <Button onClick={() => handleRequestLimitIncrease(opt)} disabled={isToppingUp}>
-                                                {isToppingUp ? <Loader2 className="h-4 w-4 animate-spin"/> : `Pay ₹${opt.cost}`}
-                                            </Button>
-                                        </CardContent>
-                                    </Card>
-                                ))}
-                            </div>
-                            <DialogFooter><DialogClose asChild><Button id="close-limit-dialog" variant="outline">Close</Button></DialogClose></DialogFooter>
-                        </DialogContent>
-                    </Dialog>
-                </CardFooter>
-            </Card>
-
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                  <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
                         <ShoppingCart className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">1,250</div>
-                        <p className="text-xs text-muted-foreground">(Placeholder)</p>
+                        <div className="text-2xl font-bold">{stats.totalOrders}</div>
+                        <p className="text-xs text-muted-foreground">From your seller network.</p>
                     </CardContent>
                 </Card>
                  <Card>
@@ -179,8 +154,8 @@ export function VendorDashboard() {
                         <DollarSign className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">₹8,50,000</div>
-                        <p className="text-xs text-muted-foreground">(Placeholder)</p>
+                        <div className="text-2xl font-bold">₹{stats.totalRevenue.toFixed(2)}</div>
+                        <p className="text-xs text-muted-foreground">From fulfilled orders.</p>
                     </CardContent>
                 </Card>
                  <Card>
@@ -189,9 +164,46 @@ export function VendorDashboard() {
                         <Users className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">42</div>
-                        <p className="text-xs text-muted-foreground">(Placeholder)</p>
+                        <div className="text-2xl font-bold">{stats.activeSellers}</div>
+                        <p className="text-xs text-muted-foreground">Selling your products.</p>
                     </CardContent>
+                </Card>
+                 <Card>
+                    <CardHeader className="flex flex-row items-center justify-between">
+                        <div className="space-y-1">
+                            <CardTitle className="text-lg flex items-center gap-2"><PackagePlus /> Product Drops</CardTitle>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-2xl font-bold">{loading ? <Loader2 className="h-6 w-6 animate-spin" /> : `${usage.drops} / ${limit}`}</p>
+                            <p className="text-xs text-muted-foreground">Drops Used</p>
+                        </div>
+                    </CardHeader>
+                    <CardFooter>
+                        <Dialog>
+                            <DialogTrigger asChild>
+                                <Button variant="secondary" className="w-full">Request Limit Increase</Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>Increase Product Drop Limit</DialogTitle>
+                                    <DialogDescription>Purchase more product drop credits. Your new limit will be active after admin approval.</DialogDescription>
+                                </DialogHeader>
+                                <div className="py-4 space-y-4">
+                                    {limitIncreaseOptions.map(opt => (
+                                        <Card key={opt.label}>
+                                            <CardContent className="p-4 flex justify-between items-center">
+                                                <p className="font-bold text-lg">{opt.label}</p>
+                                                <Button onClick={() => handleRequestLimitIncrease(opt)} disabled={isToppingUp}>
+                                                    {isToppingUp ? <Loader2 className="h-4 w-4 animate-spin"/> : `Pay ₹${opt.cost}`}
+                                                </Button>
+                                            </CardContent>
+                                        </Card>
+                                    ))}
+                                </div>
+                                <DialogFooter><DialogClose asChild><Button id="close-limit-dialog" variant="outline">Close</Button></DialogClose></DialogFooter>
+                            </DialogContent>
+                        </Dialog>
+                    </CardFooter>
                 </Card>
             </div>
         </div>

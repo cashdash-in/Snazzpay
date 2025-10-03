@@ -61,6 +61,8 @@ export default function VendorLogisticsPage() {
                 deliveryStatus: orderToSave.deliveryStatus,
                 courierCompanyName: orderToSave.courierCompanyName,
                 trackingNumber: orderToSave.trackingNumber,
+                readyForDispatchDate: orderToSave.readyForDispatchDate,
+                estDelivery: orderToSave.estDelivery,
             };
 
             await saveDocument('vendor_orders', updateData, orderToSave.id);
@@ -121,10 +123,10 @@ export default function VendorLogisticsPage() {
                                     <TableRow>
                                         <TableHead>Order ID</TableHead>
                                         <TableHead>Customer</TableHead>
-                                        <TableHead>Courier</TableHead>
-                                        <TableHead>Tracking No.</TableHead>
+                                        <TableHead>Courier &amp; AWB</TableHead>
+                                        <TableHead>Dates</TableHead>
                                         <TableHead>Status</TableHead>
-                                        <TableHead className="text-center w-[350px]">Actions</TableHead>
+                                        <TableHead className="text-right w-[250px]">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -133,20 +135,36 @@ export default function VendorLogisticsPage() {
                                             <TableCell className="font-medium">{order.orderId}</TableCell>
                                             <TableCell>{order.customerName}</TableCell>
                                             <TableCell>
-                                                <Input
-                                                    value={order.courierCompanyName || ''}
-                                                    onChange={(e) => handleFieldChange(order.id, 'courierCompanyName', e.target.value)}
-                                                    placeholder="e.g., Delhivery"
-                                                    className="w-32"
-                                                />
+                                                <div className="flex flex-col gap-1">
+                                                    <Input
+                                                        value={order.courierCompanyName || ''}
+                                                        onChange={(e) => handleFieldChange(order.id, 'courierCompanyName', e.target.value)}
+                                                        placeholder="e.g., Delhivery"
+                                                        className="h-8"
+                                                    />
+                                                    <Input
+                                                        value={order.trackingNumber || ''}
+                                                        onChange={(e) => handleFieldChange(order.id, 'trackingNumber', e.target.value)}
+                                                        placeholder="AWB Number"
+                                                        className="h-8"
+                                                    />
+                                                </div>
                                             </TableCell>
                                             <TableCell>
-                                                <Input
-                                                    value={order.trackingNumber || ''}
-                                                    onChange={(e) => handleFieldChange(order.id, 'trackingNumber', e.target.value)}
-                                                    placeholder="AWB Number"
-                                                    className="w-40"
-                                                />
+                                                <div className="flex flex-col gap-1">
+                                                     <Input
+                                                        type="date"
+                                                        value={order.readyForDispatchDate || ''}
+                                                        onChange={(e) => handleFieldChange(order.id, 'readyForDispatchDate', e.target.value)}
+                                                        className="h-8"
+                                                    />
+                                                    <Input
+                                                        type="date"
+                                                        value={order.estDelivery || ''}
+                                                        onChange={(e) => handleFieldChange(order.id, 'estDelivery', e.target.value)}
+                                                        className="h-8"
+                                                    />
+                                                </div>
                                             </TableCell>
                                             <TableCell>
                                                 <Select value={order.deliveryStatus || 'pending'} onValueChange={(value: OrderStatus) => handleFieldChange(order.id, 'deliveryStatus', value)}>
@@ -162,11 +180,15 @@ export default function VendorLogisticsPage() {
                                                 </Select>
                                             </TableCell>
                                             <TableCell className="text-right space-x-1">
-                                                <Button variant="outline" size="icon" onClick={() => handleSave(order.id)} disabled={updatingId === order.id}>
+                                                <Button variant="outline" size="icon" onClick={() => handleSave(order.id)} disabled={updatingId === order.id} title="Save Changes">
                                                     {updatingId === order.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Save className="h-4 w-4" />}
                                                 </Button>
-                                                <Button variant="secondary" size="icon" onClick={() => sendWhatsApp(order)} disabled={!order.contactNo}><MessageSquare className="h-4 w-4" /></Button>
-                                                <Button variant="secondary" size="icon" onClick={() => sendNotification(order, 'dispatch')} disabled={!order.customerEmail || updatingId === order.id}><Mail className="h-4 w-4" /></Button>
+                                                <Button variant="secondary" size="icon" onClick={() => sendWhatsApp(order)} disabled={!order.contactNo} title="Send WhatsApp Update">
+                                                    <MessageSquare className="h-4 w-4" />
+                                                </Button>
+                                                <Button variant="secondary" size="icon" onClick={() => sendNotification(order, 'dispatch')} disabled={!order.customerEmail || updatingId === order.id} title="Send Email Notification">
+                                                    <Mail className="h-4 w-4" />
+                                                </Button>
                                             </TableCell>
                                         </TableRow>
                                     ))}

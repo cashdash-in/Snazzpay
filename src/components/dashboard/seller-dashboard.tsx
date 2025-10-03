@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { getDocument, getCollection, saveDocument } from "@/services/firestore";
 import type { SellerUser } from "@/app/seller-accounts/page";
 import type { SellerProduct } from "@/app/seller/ai-product-uploader/page";
+import type { EditableOrder } from "@/app/orders/page";
 import { getCookie } from "cookies-next";
 import { useToast } from "@/hooks/use-toast";
 import { v4 as uuidv4 } from 'uuid';
@@ -28,6 +29,7 @@ export function SellerDashboard() {
     const [sellerInfo, setSellerInfo] = useState<SellerUser | null>(null);
     const [usage, setUsage] = useState({ aiUploads: 0 });
     const [limits, setLimits] = useState({ aiUploadLimit: AI_UPLOADER_LIMIT });
+    const [stats, setStats] = useState({ totalOrders: 0, totalRevenue: 0 });
     const [razorpayKeyId, setRazorpayKeyId] = useState<string | null>(null);
     const [isToppingUp, setIsToppingUp] = useState(false);
     const [loading, setLoading] = useState(true);
@@ -36,11 +38,12 @@ export function SellerDashboard() {
         async function loadSellerInfo() {
             setLoading(true);
             if (user) {
-                const [info, products, permissions, keyId] = await Promise.all([
+                const [info, products, permissions, keyId, allOrders] = await Promise.all([
                     getDocument<SellerUser>('seller_users', user.uid),
                     getCollection<SellerProduct>('seller_products'),
                     getDocument<{ aiUploadLimit?: number }>('user_permissions', user.uid),
                     getRazorpayKeyId(),
+                    getCollection<EditableOrder>('orders'),
                 ]);
 
                 setRazorpayKeyId(keyId);
@@ -51,6 +54,13 @@ export function SellerDashboard() {
 
                 const sellerProducts = products.filter(p => p.sellerId === user.uid);
                 setUsage({ aiUploads: sellerProducts.length });
+
+                const sellerOrders = allOrders.filter(o => o.sellerId === user.uid && o.paymentStatus === 'Paid');
+                setStats({
+                    totalOrders: sellerOrders.length,
+                    totalRevenue: sellerOrders.reduce((sum, o) => sum + parseFloat(o.price), 0),
+                });
+
 
                 if (permissions) {
                     setLimits({
@@ -134,11 +144,31 @@ export function SellerDashboard() {
                 </CardHeader>
             </Card>
 
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                 <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+                        <DollarSign className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">₹{stats.totalRevenue.toFixed(2)}</div>
+                        <p className="text-xs text-muted-foreground">From all completed sales.</p>
+                    </CardContent>
+                </Card>
+                 <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
+                        <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{stats.totalOrders}</div>
+                         <p className="text-xs text-muted-foreground">Number of successful orders.</p>
+                    </CardContent>
+                </Card>
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between">
                         <div className="space-y-1">
-                            <CardTitle className="text-lg flex items-center gap-2"><Sparkles /> AI Product Uploader</CardTitle>
+                            <CardTitle className="text-lg flex items-center gap-2"><Sparkles /> AI Uploader</CardTitle>
                             <CardDescription>Generate product listings using AI.</CardDescription>
                         </div>
                         <div className="text-right">
@@ -172,15 +202,6 @@ export function SellerDashboard() {
                             </DialogContent>
                         </Dialog>
                     </CardFooter>
-                </Card>
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Coming Soon</CardTitle>
-                        <CardDescription>More features and analytics are on the way.</CardDescription>
-                    </CardHeader>
-                     <CardContent>
-                        <p className="text-sm text-muted-foreground">Stay tuned for more tools to help you grow your business.</p>
-                    </CardContent>
                 </Card>
             </div>
         </div>
