@@ -1,4 +1,3 @@
-
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -108,9 +107,9 @@ export default function SellerOrdersPage() {
         return;
     }
     
-    const isPrepaid = order.paymentMethod === 'Prepaid';
+    const isCOD = (order as any).paymentMethod === 'Cash on Delivery';
 
-    if (!isPrepaid) {
+    if (isCOD) {
         toast({
             title: 'COD Order',
             description: 'This is a Cash on Delivery order. No payment link is needed.',
@@ -118,9 +117,8 @@ export default function SellerOrdersPage() {
         return;
     }
     
-    // The link now includes the seller's user ID to fetch the correct payment keys on the backend
     const baseUrl = `${window.location.origin}/payment`;
-    const finalUrl = `${baseUrl}?amount=${encodeURIComponent(order.price)}&name=${encodeURIComponent(order.productOrdered)}&order_id=${encodeURIComponent(order.orderId)}&seller_id=${user?.uid}&prepaid=true`;
+    const finalUrl = `${baseUrl}?amount=${encodeURIComponent(order.price)}&name=${encodeURIComponent(order.productOrdered)}&order_id=${encodeURIComponent(order.id)}&seller_id=${user?.uid}&prepaid=true`;
     
     const message = `Hi ${order.customerName}, your order for "${order.productOrdered}" (₹${order.price}) is ready. Please complete your payment securely using this link: ${finalUrl}`;
     const whatsappUrl = `https://wa.me/${sanitizePhoneNumber(order.contactNo)}?text=${encodeURIComponent(message)}`;
@@ -168,7 +166,7 @@ export default function SellerOrdersPage() {
                 <TableBody>
                   {orders.length > 0 ? (
                     orders.map((order) => {
-                      const isCOD = order.paymentMethod === 'Cash on Delivery';
+                      const isCOD = (order as any).paymentMethod === 'Cash on Delivery';
                       const canPush = (order.paymentStatus === 'Paid' || order.paymentStatus === 'Authorized' || isCOD);
 
                       return (
@@ -182,7 +180,7 @@ export default function SellerOrdersPage() {
                           <TableCell>{order.productOrdered}</TableCell>
                           <TableCell>₹{order.price}</TableCell>
                            <TableCell>
-                            <Badge variant={isCOD ? "secondary" : "outline"}>{order.paymentMethod}</Badge>
+                            <Badge variant={isCOD ? "secondary" : "outline"}>{(order as any).paymentMethod}</Badge>
                           </TableCell>
                           <TableCell>
                             <Badge variant={canPush || order.paymentStatus === "Pushed to Vendor" ? 'default' : 'secondary'} className={

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState, Suspense, FormEvent } from 'react';
@@ -9,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Loader2, ShieldCheck, CheckCircle } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
-import { format, addYears } from 'date-fns';
 import type { EditableOrder } from '@/app/orders/page';
 import { getRazorpayKeyId } from '@/app/actions';
 import { getCollection, saveDocument, getDocument, deleteDocument } from '@/services/firestore';
@@ -56,7 +54,7 @@ function PaymentPageContent() {
             const cardExists = existingCards.find(card => card.customerPhone === sanitizedMobile);
             if (cardExists) {
                 console.log("Shakti Card already exists for this customer.");
-                return cardExists; // Return existing card
+                return cardExists;
             }
 
             const newCard: ShaktiCardData = {
@@ -67,7 +65,7 @@ function PaymentPageContent() {
                 customerAddress: order.customerAddress,
                 validFrom: format(new Date(), 'MM/yy'),
                 validThru: format(addYears(new Date(), 2), 'MM/yy'),
-                points: 100, // Welcome bonus
+                points: 100,
                 cashback: 0,
                 sellerId: order.sellerId || 'snazzify',
                 sellerName: 'Snazzify',
@@ -114,8 +112,7 @@ function PaymentPageContent() {
         }
 
         try {
-            const allLeads = await getCollection<EditableOrder>('leads');
-            const lead = allLeads.find((l: EditableOrder) => l.id === orderDetails.orderId);
+            const lead = await getDocument<EditableOrder>('leads', orderDetails.orderId);
 
             if (!lead) {
                 throw new Error("Could not find the original order request. Please contact the seller.");
@@ -127,7 +124,7 @@ function PaymentPageContent() {
                 body: JSON.stringify({ 
                     amount: orderDetails.amount, 
                     productName: `Prepaid for ${orderDetails.productName}`,
-                    isAuthorization: false, // This is a prepaid payment, so capture immediately
+                    isAuthorization: false,
                     name: lead.customerName, email: lead.customerEmail, contact: lead.contactNo, address: lead.customerAddress, pincode: lead.pincode
                 })
             });
@@ -145,16 +142,16 @@ function PaymentPageContent() {
                 description: `Payment for ${orderDetails.productName}`,
                 order_id: result.order_id,
                 handler: async (response: any) => {
-                    const newOrder: EditableOrder = {
+                     const newOrder: EditableOrder = {
                       ...lead,
-                      id: uniqueInternalOrderId, // Use the new unique ID
+                      id: uniqueInternalOrderId,
                       orderId: uniqueInternalOrderId,
                       paymentStatus: 'Paid',
                       source: 'Seller'
                     };
                     
                     await saveDocument('orders', newOrder, newOrder.id);
-                    await deleteDocument('leads', lead.id); // Remove the old lead
+                    await deleteDocument('leads', lead.id);
 
                     const card = await createNewShaktiCard(newOrder);
                     if (card) {

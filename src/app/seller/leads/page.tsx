@@ -1,4 +1,3 @@
-
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -6,13 +5,13 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, Trash2, ArrowRight } from "lucide-react";
+import { Loader2, Trash2, ArrowRight, MessageSquare } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { EditableOrder } from '@/app/orders/page';
 import { useAuth } from "@/hooks/use-auth";
 import { getCollection, saveDocument, deleteDocument } from "@/services/firestore";
 import { useRouter } from "next/navigation";
-
+import { sanitizePhoneNumber } from "@/lib/utils";
 
 type Lead = EditableOrder & { sellerId: string; paymentMethod: string; };
 
@@ -72,7 +71,6 @@ export default function SellerLeadsPage() {
         
         await saveDocument('orders', newOrder, newOrder.id);
         
-        // Mark lead as converted instead of deleting
         await saveDocument('leads', { paymentStatus: 'Converted' }, lead.id);
 
         setLeads(prev => prev.filter(l => l.id !== lead.id));
@@ -91,6 +89,16 @@ export default function SellerLeadsPage() {
             description: error.message,
         });
     }
+  };
+
+  const handleSendPaymentLink = (lead: Lead) => {
+      const baseUrl = `${window.location.origin}/payment`;
+      const finalUrl = `${baseUrl}?amount=${encodeURIComponent(lead.price)}&name=${encodeURIComponent(lead.productOrdered)}&order_id=${encodeURIComponent(lead.id)}&prepaid=true`;
+      
+      const message = `Hi ${lead.customerName}, please complete your order for "${lead.productOrdered}" (₹${lead.price}) by paying securely at this link: ${finalUrl}`;
+      const whatsappUrl = `https://wa.me/${sanitizePhoneNumber(lead.contactNo)}?text=${encodeURIComponent(message)}`;
+      
+      window.open(whatsappUrl, '_blank');
   };
 
   return (
@@ -131,6 +139,11 @@ export default function SellerLeadsPage() {
                     <TableCell>₹{lead.price}</TableCell>
                     <TableCell>{lead.paymentMethod || 'N/A'}</TableCell>
                     <TableCell className="text-center space-x-2">
+                        {lead.paymentMethod !== 'Cash on Delivery' && (
+                            <Button variant="secondary" size="sm" onClick={() => handleSendPaymentLink(lead)}>
+                                <MessageSquare className="mr-2 h-4 w-4" /> Send Link
+                            </Button>
+                        )}
                         <Button 
                             variant="default" 
                             size="sm" 
