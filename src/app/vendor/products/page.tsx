@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/hooks/use-auth';
 import type { ProductDrop } from '@/app/vendor/product-drops/page';
 import Image from 'next/image';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, isBefore, subDays } from 'date-fns';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,8 +23,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogTrigger } from '@/components/ui/dialog';
 import { ShareComposerDialog } from '@/components/share-composer-dialog';
+import { getCollection, deleteDocument } from '@/services/firestore';
 
 export default function VendorProductsPage() {
     const { user } = useAuth();
@@ -39,30 +40,32 @@ export default function VendorProductsPage() {
             setIsLoading(false);
             return;
         }
-        try {
-            const storedDrops = localStorage.getItem(storageKey);
-            if (storedDrops) {
-                const allDrops: ProductDrop[] = JSON.parse(storedDrops);
+        async function loadProducts() {
+            try {
+                const allDrops = await getCollection<ProductDrop>(storageKey);
                 // Filter drops to show only those created by the current vendor
-                setProducts(allDrops.filter(drop => drop.vendorId === user.uid));
+                const vendorDrops = allDrops.filter(drop => drop.vendorId === user.uid);
+                
+                // Filter out products older than 30 days
+                const thirtyDaysAgo = subDays(new Date(), 30);
+                const recentProducts = vendorDrops.filter(p => 
+                    !isBefore(new Date(p.createdAt), thirtyDaysAgo)
+                );
+                
+                setProducts(recentProducts.sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+
+            } catch (error) {
+                toast({ variant: 'destructive', title: "Error loading data", description: "Could not load products from local storage." });
+            } finally {
+                setIsLoading(false);
             }
-        } catch (error) {
-            toast({ variant: 'destructive', title: "Error loading data", description: "Could not load products from local storage." });
-        } finally {
-            setIsLoading(false);
         }
+        loadProducts();
     }, [user, toast]);
 
-    const handleDeleteProduct = (id: string) => {
+    const handleDeleteProduct = async (id: string) => {
         try {
-            const allDropsJSON = localStorage.getItem(storageKey);
-            let allDrops: ProductDrop[] = allDropsJSON ? JSON.parse(allDropsJSON) : [];
-            
-            // Remove the product with the matching ID
-            const updatedDrops = allDrops.filter(drop => drop.id !== id);
-            
-            // Save the updated list back to localStorage
-            localStorage.setItem(storageKey, JSON.stringify(updatedDrops));
+            await deleteDocument(storageKey, id);
             
             // Update the component's state to reflect the change
             setProducts(prev => prev.filter(p => p.id !== id));
@@ -83,7 +86,7 @@ export default function VendorProductsPage() {
             <CardHeader>
                 <CardTitle>My Products Catalog</CardTitle>
                 <CardDescription>
-                    This is a list of all the products you have dropped to your sellers. Deleting a product here will remove it for everyone.
+                    This is a list of the products you have dropped to your sellers in the last 30 days. Deleting a product here will remove it for everyone.
                 </CardDescription>
             </CardHeader>
             <CardContent>
