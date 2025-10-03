@@ -94,7 +94,7 @@ export default function CustomerDashboardPage() {
             setPaymentInfos(loadedPaymentInfos);
             
             const allCards = await getCollection<ShaktiCardData>('shakti_cards');
-            const customerCard = allCards.find(card => card.customerPhone === sanitizedMobile);
+            const customerCard = allCards.find(card => card.customerPhone && sanitizePhoneNumber(card.customerPhone) === sanitizedMobile);
             if (customerCard) {
                 setShaktiCard(customerCard);
             }
@@ -381,6 +381,8 @@ export default function CustomerDashboardPage() {
         </div>
     );
 }
+
+    
 
     
 
