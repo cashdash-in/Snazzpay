@@ -18,16 +18,15 @@ export default function CodInstructionsPage() {
         setAppUrl(origin);
 
         const code = `<div style="margin-top: 15px; width: 100%;">
-  <a id="secure-cod-link" href="#" target="_blank" style="text-decoration: none; display: block; width: 100%;">
-    <button 
-      type="button" 
-      style="width: 100%; min-height: 45px; font-size: 16px; background-color: #5a31f4; color: white; border: none; border-radius: 5px; cursor: pointer;"
-      onmouseover="this.style.backgroundColor='#4a28c7'"
-      onmouseout="this.style.backgroundColor='#5a31f4'"
-    >
-      Buy now with Secure COD
-    </button>
-  </a>
+  <button 
+    id="secure-cod-button"
+    type="button" 
+    style="width: 100%; min-height: 45px; font-size: 16px; background-color: #5a31f4; color: white; border: none; border-radius: 5px; cursor: pointer;"
+    onmouseover="this.style.backgroundColor='#4a28c7'"
+    onmouseout="this.style.backgroundColor='#5a31f4'"
+  >
+    Buy now with Secure COD
+  </button>
   <div style="text-align: center; margin-top: 8px; font-size: 12px;">
     <a href="${origin}/secure-cod-info" target="_blank" style="color: #5a31f4; text-decoration: underline;">What is this?</a>
   </div>
@@ -35,38 +34,42 @@ export default function CodInstructionsPage() {
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    var secureCodLink = document.getElementById('secure-cod-link');
+    var secureCodButton = document.getElementById('secure-cod-button');
     
-    if (!secureCodLink) {
-        console.error('Secure COD: Could not find link element.');
+    if (!secureCodButton) {
+        console.error('Secure COD: Could not find button element.');
         return;
     }
 
-    try {
-      // Sellers: These are standard Shopify liquid variables. 
-      // They should work on most Shopify themes out-of-the-box.
-      var productName = '{{ product.title | url_encode }}';
-      var productPrice = {{ product.price | money_without_currency | replace: ',', '' }};
-      var productImage = '{{ product.featured_image | img_url: "large" }}';
-      
-      // ** CRITICAL FIX: **
-      // Generate a new, unique Order ID on the client-side for every transaction.
-      var uniqueId = 'SNZ-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5).toUpperCase();
-      
-      // Your unique Seller ID and Name provided by SnazzPay.
-      // YOU MUST REPLACE THESE VALUES.
-      var sellerId = 'YOUR_UNIQUE_SELLER_ID'; // <-- REPLACE THIS
-      var sellerName = 'YOUR_SELLER_NAME'; // <-- REPLACE THIS
-      
-      var baseUrl = '${origin}/secure-cod';
+    secureCodButton.addEventListener('click', function() {
+        try {
+            // Sellers: These are standard Shopify liquid variables. 
+            // They should work on most Shopify themes out-of-the-box.
+            var productName = '{{ product.title | url_encode }}';
+            var productPrice = {{ product.price | money_without_currency | replace: ',', '' }};
+            var productImage = '{{ product.featured_image | img_url: "large" }}';
+            
+            // ** CRITICAL FIX: **
+            // Generate a new, unique Order ID on the client-side for every transaction.
+            var uniqueId = 'SNZ-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5).toUpperCase();
+            
+            // Your unique Seller ID and Name provided by SnazzPay.
+            // YOU MUST REPLACE THESE VALUES.
+            var sellerId = 'YOUR_UNIQUE_SELLER_ID'; // <-- REPLACE THIS
+            var sellerName = 'YOUR_SELLER_NAME'; // <-- REPLACE THIS
+            
+            var baseUrl = '${origin}/secure-cod';
 
-      var finalUrl = baseUrl + '?amount=' + encodeURIComponent(productPrice) + '&name=' + productName + '&order_id=' + uniqueId + '&seller_id=' + encodeURIComponent(sellerId) + '&seller_name=' + encodeURIComponent(sellerName) + '&image=' + encodeURIComponent(productImage);
-      secureCodLink.href = finalUrl;
-    } catch (e) {
-        console.error("Secure COD Liquid Error: ", e);
-        // Fallback URL if liquid variables are not available
-        secureCodLink.href = '${origin}/secure-cod';
-    }
+            var finalUrl = baseUrl + '?amount=' + encodeURIComponent(productPrice) + '&name=' + productName + '&order_id=' + uniqueId + '&seller_id=' + encodeURIComponent(sellerId) + '&seller_name=' + encodeURIComponent(sellerName) + '&image=' + encodeURIComponent(productImage);
+            
+            window.open(finalUrl, '_blank');
+
+        } catch (e) {
+            console.error("Secure COD Liquid Error: ", e);
+            // Fallback URL if liquid variables are not available
+            window.open('${origin}/secure-cod', '_blank');
+        }
+    });
 });
 </script>`;
         setEmbedCode(code);
