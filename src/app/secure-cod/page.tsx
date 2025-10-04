@@ -98,7 +98,6 @@ function SecureCodPaymentForm() {
         const image = searchParams.get('image');
 
         setOrderDetails({ productName: name, amount, orderId: id, sellerId, sellerName });
-        setTotalPrice(amount); // Initial total price
         setIsSellerFlow(!!(sellerId && sellerId !== 'YOUR_UNIQUE_SELLER_ID'));
         if (image) setProductImage(image);
         
@@ -113,6 +112,7 @@ function SecureCodPaymentForm() {
         getRazorpayKeyId().then(key => { setLoading(false); setRazorpayKeyId(key); });
     }, [searchParams]);
 
+    // Correctly recalculate total price when quantity or base amount changes
     useEffect(() => {
         const newTotal = orderDetails.amount * quantity;
         setTotalPrice(newTotal);
@@ -348,3 +348,5 @@ function Page() {
 }
 
 export default Page;
+
+    
