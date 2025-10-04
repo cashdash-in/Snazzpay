@@ -58,27 +58,16 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
         const currentUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
         setAppUrl(currentUrl);
 
-        // Generate a catalogue link instead of a direct order link
+        // Generate a magazine link instead of a direct order link
+        const productData = [{...product, price: productPrice}];
         const params = new URLSearchParams({
-            title: product.title,
-            description: product.description,
-            price: productPrice.toString(),
-            image: product.imageDataUris[0], // Use first image for preview
-            sellerName: user?.displayName || product.vendorName || 'Snazzify',
-            sellerId: user?.uid || 'admin',
-            orderId: `SNZ-${uuidv4().substring(0, 8).toUpperCase()}`,
-            source: 'Catalogue'
+            products: JSON.stringify(productData)
         });
 
-        // Add optional params if they exist
-        if (product.size) params.append('size', product.size);
-        if (product.color) params.append('color', product.color);
-        if (product.quantity) params.append('quantity', product.quantity.toString());
-
-        const catalogueLink = `${currentUrl}/catalogue?${params.toString()}`;
+        const magazineLink = `${currentUrl}/smart-magazine?${params.toString()}`;
         
         setShareText(
-            `Check out this new product!\n\n*${product.title}*\n${product.description}\n\n*Price:* ₹${(productPrice).toFixed(2)}\n\nClick here to view and order: ${catalogueLink}`
+            `Check out this new product!\n\n*${product.title}*\n${product.description}\n\n*Price:* ₹${(productPrice).toFixed(2)}\n\nClick here to view in our Smart Magazine: ${magazineLink}`
         );
     }, [product, user, productPrice]);
         
@@ -95,26 +84,16 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
                 title: product.title,
                 imagesDataUri: product.imageDataUris,
             });
-
+            
+            const productData = [{...product, price: productPrice, description: newDescription}];
             const params = new URLSearchParams({
-                title: product.title,
-                description: newDescription, // Use new description
-                price: productPrice.toString(),
-                image: product.imageDataUris[0],
-                sellerName: user?.displayName || product.vendorName || 'Snazzify',
-                sellerId: user?.uid || 'admin',
-                orderId: `SNZ-${uuidv4().substring(0, 8).toUpperCase()}`,
-                source: 'Catalogue'
+                 products: JSON.stringify(productData)
             });
 
-            if (product.size) params.append('size', product.size);
-            if (product.color) params.append('color', product.color);
-            if (product.quantity) params.append('quantity', product.quantity.toString());
-
-            const catalogueLink = `${appUrl}/catalogue?${params.toString()}`;
+            const magazineLink = `${appUrl}/smart-magazine?${params.toString()}`;
 
             setShareText(
-                `Check out this new product!\n\n*${product.title}*\n${newDescription}\n\n*Price:* ₹${(productPrice).toFixed(2)}\n\nClick here to view and order: ${catalogueLink}`
+                `Check out this new product!\n\n*${product.title}*\n${newDescription}\n\n*Price:* ₹${(productPrice).toFixed(2)}\n\nClick here to view in our Smart Magazine: ${magazineLink}`
             );
             toast({
                 title: "Description Generated!",

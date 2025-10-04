@@ -60,6 +60,7 @@ import {
   Send,
   PackagePlus,
   Receipt,
+  BookOpen,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { getCookie } from 'cookies-next';
