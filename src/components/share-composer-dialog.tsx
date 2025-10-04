@@ -25,6 +25,9 @@ type ShareableProduct = {
     price?: number;
     category?: string;
     vendorName?: string;
+    quantity?: number;
+    size?: string;
+    color?: string;
 };
 
 
@@ -54,13 +57,28 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
         // This ensures the URL is read on the client-side
         const currentUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
         setAppUrl(currentUrl);
-        
-        // Generate a unique order ID for every share dialog open
-        const uniqueOrderId = `SNZ-${uuidv4().substring(0, 4).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
-        const orderLink = `${currentUrl}/secure-cod?name=${encodeURIComponent(product.title)}&amount=${productPrice}&order_id=${uniqueOrderId}&seller_id=${user?.uid || ''}&seller_name=${user?.displayName || ''}&source=Catalogue`;
+
+        // Generate a catalogue link instead of a direct order link
+        const params = new URLSearchParams({
+            title: product.title,
+            description: product.description,
+            price: productPrice.toString(),
+            image: product.imageDataUris[0], // Use first image for preview
+            sellerName: user?.displayName || product.vendorName || 'Snazzify',
+            sellerId: user?.uid || 'admin',
+            orderId: `SNZ-${uuidv4().substring(0, 8).toUpperCase()}`,
+            source: 'Catalogue'
+        });
+
+        // Add optional params if they exist
+        if (product.size) params.append('size', product.size);
+        if (product.color) params.append('color', product.color);
+        if (product.quantity) params.append('quantity', product.quantity.toString());
+
+        const catalogueLink = `${currentUrl}/catalogue?${params.toString()}`;
         
         setShareText(
-            `Check out this new product!\n\n*${product.title}*\n${product.description}\n\n*Price:* ₹${(productPrice).toFixed(2)}\n\nClick here to order with **Secure COD**, **Prepaid**, or **Secure Charge on Dispatch**: ${orderLink}`
+            `Check out this new product!\n\n*${product.title}*\n${product.description}\n\n*Price:* ₹${(productPrice).toFixed(2)}\n\nClick here to view and order: ${catalogueLink}`
         );
     }, [product, user, productPrice]);
         
@@ -78,13 +96,25 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
                 imagesDataUri: product.imageDataUris,
             });
 
-            // Regenerate the link with a new unique ID
-            const uniqueOrderId = `SNZ-${uuidv4().substring(0, 4).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
-            const orderLink = `${appUrl}/secure-cod?name=${encodeURIComponent(product.title)}&amount=${productPrice}&order_id=${uniqueOrderId}&seller_id=${user?.uid || ''}&seller_name=${user?.displayName || ''}&source=Catalogue`;
+            const params = new URLSearchParams({
+                title: product.title,
+                description: newDescription, // Use new description
+                price: productPrice.toString(),
+                image: product.imageDataUris[0],
+                sellerName: user?.displayName || product.vendorName || 'Snazzify',
+                sellerId: user?.uid || 'admin',
+                orderId: `SNZ-${uuidv4().substring(0, 8).toUpperCase()}`,
+                source: 'Catalogue'
+            });
 
-            // Update the share text with the new AI-generated description
+            if (product.size) params.append('size', product.size);
+            if (product.color) params.append('color', product.color);
+            if (product.quantity) params.append('quantity', product.quantity.toString());
+
+            const catalogueLink = `${appUrl}/catalogue?${params.toString()}`;
+
             setShareText(
-                `Check out this new product!\n\n*${product.title}*\n${newDescription}\n\n*Price:* ₹${(productPrice).toFixed(2)}\n\nClick here to order with **Secure COD**, **Prepaid**, or **Secure Charge on Dispatch**: ${orderLink}`
+                `Check out this new product!\n\n*${product.title}*\n${newDescription}\n\n*Price:* ₹${(productPrice).toFixed(2)}\n\nClick here to view and order: ${catalogueLink}`
             );
             toast({
                 title: "Description Generated!",
