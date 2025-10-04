@@ -6,6 +6,7 @@ import type { NextRequest } from 'next/server'
 
 export function middleware(request: NextRequest) {
   const token = request.cookies.get('firebaseAuthToken');
+  const role = request.cookies.get('userRole')?.value;
   const { pathname } = request.nextUrl;
 
   const publicPaths = [

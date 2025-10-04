@@ -43,10 +43,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signOut = useCallback(async () => {
     try {
+        const role = getCookie('userRole');
+        
         await firebaseSignOut(auth);
         await fetch('/api/auth/session', { method: 'DELETE' });
         
-        const role = getCookie('userRole');
         let loginPath = '/auth/login'; // Default
         
         if (role === 'seller') {
@@ -59,9 +60,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             loginPath = '/logistics-secure/login';
         }
 
-        // Use router.push for client-side navigation
         router.push(loginPath);
-        // No need for router.refresh() here, as state changes should re-render
         
     } catch (error) {
         console.error("Error signing out:", error);
