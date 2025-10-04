@@ -12,55 +12,69 @@ export default function CodInstructionsPage() {
     const [embedCode, setEmbedCode] = useState('');
 
     useEffect(() => {
-        const origin = typeof window !== 'undefined' ? window.location.origin : 'https://snazzpay.netlify.app';
-
-        const code = `<form id="secure-cod-form" action="https://snazzpay.netlify.app/secure-cod" method="GET" target="_blank" style="margin-top: 15px; width: 100%;">
-  <!-- Hidden fields to carry product data -->
-  <input type="hidden" id="cod-p-name" name="name" value="" />
-  <input type="hidden" id="cod-p-amount" name="amount" value="" />
-  <input type="hidden" id="cod-p-image" name="image" value="" />
-  <input type="hidden" id="cod-p-order-id" name="order_id" value="" />
-
-  <button 
-    type="submit" 
-    style="width: 100%; min-height: 45px; font-size: 16px; background-color: #5a31f4; color: white; border: none; border-radius: 5px; cursor: pointer;"
-    onmouseover="this.style.backgroundColor='#4a28c7'"
-    onmouseout="this.style.backgroundColor='#5a31f4'"
-  >
-    Buy now with Secure COD
-  </button>
-  <div style="text-align: center; margin-top: 8px; font-size: 12px;">
-    <a href="https://snazzpay.netlify.app/secure-cod-info" target="_blank" style="color: #5a31f4; text-decoration: underline;">What is this?</a>
-  </div>
-</form>
+        const code = `
+<div id="snazzpay-secure-cod-button-container"></div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    var secureCodForm = document.getElementById('secure-cod-form');
-    if (secureCodForm) {
-        secureCodForm.addEventListener('submit', function(event) {
-            try {
-                // These are standard Shopify liquid variables.
-                var productName = '{{ product.title | url_encode }}';
-                var productPrice = {{ product.price | money_without_currency | replace: ',', '' }};
-                var productImage = '{{ product.featured_image | img_url: "large" }}';
-                var uniqueId = 'SNZ-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5).toUpperCase();
-                
-                // Set the values of the hidden input fields just before submitting
-                document.getElementById('cod-p-name').value = productName;
-                document.getElementById('cod-p-amount').value = productPrice;
-                document.getElementById('cod-p-image').value = productImage;
-                document.getElementById('cod-p-order-id').value = uniqueId;
-
-            } catch (e) {
-                console.error("Secure COD Liquid Error: ", e);
-                // If there's an error, we can prevent submission or allow it to go to a fallback.
-                // For now, we'll let it submit with blank values, and the next page will handle it.
-            }
-        });
+  document.addEventListener('DOMContentLoaded', function() {
+    // --- START: Find Shopify Product Data ---
+    // This script tries to find the product data Shopify makes available.
+    let productData = null;
+    try {
+      const productJsonScript = document.querySelector('script[type="application/json"][data-product-json]');
+      if (productJsonScript) {
+        productData = JSON.parse(productJsonScript.textContent);
+      } else {
+        // Fallback for some themes
+        const variantJsonScript = document.querySelector('script[type="application/json"][data-variant-json]');
+        if (variantJsonScript) {
+            const variantData = JSON.parse(variantJsonScript.textContent);
+            productData = {
+                title: variantData.product.title,
+                price: variantData.price,
+                featured_image: variantData.featured_image ? { path: variantData.featured_image.src } : { path: '' }
+            };
+        }
+      }
+    } catch(e) {
+      console.error("SnazzPay Error: Could not find Shopify product data.", e);
     }
-});
-</script>`;
+    // --- END: Find Shopify Product Data ---
+
+    if (productData) {
+      const container = document.getElementById('snazzpay-secure-cod-button-container');
+      
+      const appUrl = 'https://snazzpay.netlify.app/secure-cod';
+      const orderId = 'SNZ-' + Date.now().toString(36) + Math.random().toString(36).substring(2, 7).toUpperCase();
+
+      const params = new URLSearchParams({
+        name: productData.title,
+        amount: (productData.price / 100).toString(), // Convert from paise to rupees
+        image: productData.featured_image ? \`https:\${productData.featured_image.path}\` : '',
+        order_id: orderId,
+      });
+
+      const secureCodUrl = \`\${appUrl}?\${params.toString()}\`;
+
+      // --- Button Styling (can be customized) ---
+      container.innerHTML = \`
+        <a href="\${secureCodUrl}" target="_blank" style="display: block; width: 100%; text-decoration: none;">
+          <button 
+            type="button" 
+            style="width: 100%; min-height: 45px; font-size: 16px; background-color: #5a31f4; color: white; border: none; border-radius: 5px; cursor: pointer; transition: background-color 0.2s;"
+            onmouseover="this.style.backgroundColor='#4a28c7'"
+            onmouseout="this.style.backgroundColor='#5a31f4'"
+          >
+            Buy with Secure COD
+          </button>
+        </a>
+        <div style="text-align: center; margin-top: 8px; font-size: 12px;">
+          <a href="https://snazzpay.netlify.app/secure-cod-info" target="_blank" style="color: #5a31f4; text-decoration: underline;">What is this?</a>
+        </div>
+      \`;
+    }
+  });
+<\/script>`;
         setEmbedCode(code);
     }, []);
     
