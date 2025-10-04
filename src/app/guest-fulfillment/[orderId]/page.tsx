@@ -148,17 +148,31 @@ function GuestFulfillmentPageContent() {
                     </CardHeader>
                     <CardContent className="space-y-6">
                         <Card className="bg-muted/50">
-                            <CardContent className="p-4 grid grid-cols-2 gap-4 text-sm">
-                                <div>
+                            <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+                                <div className="sm:col-span-2">
                                     <h4 className="font-semibold">Shipping To:</h4>
                                     <p>{order?.customerName}</p>
                                     <p>{order?.customerAddress}</p>
                                     <p>{order?.pincode}</p>
-                                </div>
-                                 <div>
+                                    <hr className="my-2"/>
                                     <h4 className="font-semibold">Product Details:</h4>
                                     <p>{order?.productOrdered}</p>
                                     <p>Quantity: {order?.quantity}</p>
+                                </div>
+                                <div className="flex items-center justify-center">
+                                    {order?.packageImageUrls?.[0] ? (
+                                        <Image 
+                                            src={order.packageImageUrls[0]} 
+                                            alt={order.productOrdered} 
+                                            width={150} 
+                                            height={150} 
+                                            className="rounded-md object-contain aspect-square bg-white shadow-sm"
+                                        />
+                                    ) : (
+                                        <div className="w-32 h-32 bg-white rounded-md flex items-center justify-center text-muted-foreground text-xs text-center p-2">
+                                            Product Image Not Available
+                                        </div>
+                                    )}
                                 </div>
                             </CardContent>
                         </Card>
