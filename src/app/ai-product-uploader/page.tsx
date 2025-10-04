@@ -39,7 +39,7 @@ export default function AiProductUploaderPage() {
   const [isPasting, setIsPasting] = useState(false);
   const [isPushing, setIsPushing] = useState(false);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
-  const [imageDataUris, setImageDataUris] = useState<string[]>([]);
+  const [resizedImageDataUris, setResizedImageDataUris] = useState<string[]>([]);
   const [vendorDescription, setVendorDescription] = useState('');
   const [cost, setCost] = useState('');
   const [margin, setMargin] = useState('100'); // Default 100% margin
@@ -89,12 +89,12 @@ export default function AiProductUploaderPage() {
 
       for (const file of fileArray) {
           const resizedDataUri = await resizeImage(file);
-          newPreviews.push(resizedDataUri);
-          newDataUris.push(resizedDataUri);
+          newPreviews.push(URL.createObjectURL(file)); // Use object URL for preview to show original
+          newDataUris.push(resizedDataUri); // Store resized data for upload
       }
       
       setImagePreviews(prev => [...prev, ...newPreviews]);
-      setImageDataUris(prev => [...prev, ...newDataUris]);
+      setResizedImageDataUris(prev => [...prev, ...newDataUris]);
       
       toast({ title: 'Images added!', description: 'The resized images have been added.' });
   }
@@ -138,7 +138,7 @@ export default function AiProductUploaderPage() {
 
 
   const handleGenerateListing = async () => {
-    if (imageDataUris.length === 0 || !vendorDescription || !cost || !margin) {
+    if (resizedImageDataUris.length === 0 || !vendorDescription || !cost || !margin) {
       toast({
         variant: 'destructive',
         title: 'Missing Information',
@@ -151,7 +151,7 @@ export default function AiProductUploaderPage() {
 
     try {
       const result = await createProductListing({
-        imageDataUris,
+        imageDataUris: resizedImageDataUris, // Use resized data
         description: vendorDescription,
         cost: parseFloat(cost),
         margin: parseFloat(margin),
@@ -184,7 +184,7 @@ export default function AiProductUploaderPage() {
             product_type: generatedListing.category,
             vendor: 'Snazzify AI',
             variants: [{ price: generatedListing.price }],
-             images: imageDataUris.map(uri => ({
+             images: resizedImageDataUris.map(uri => ({ // Use resized data
                 attachment: uri.split(',')[1] // Send base64 data only
             })),
         };

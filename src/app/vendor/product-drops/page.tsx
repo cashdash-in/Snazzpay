@@ -45,7 +45,7 @@ export default function VendorProductDropsPage() {
     const [description, setDescription] = useState('');
     const [costPrice, setCostPrice] = useState('');
     const [imagePreviews, setImagePreviews] = useState<string[]>([]);
-    const [imageDataUris, setImageDataUris] = useState<string[]>([]);
+    const [resizedImageDataUris, setResizedImageDataUris] = useState<string[]>([]);
     const [usageCount, setUsageCount] = useState(0);
     const [limit, setLimit] = useState(PRODUCT_DROP_LIMIT);
     const [isLimitReached, setIsLimitReached] = useState(false);
@@ -88,17 +88,17 @@ export default function VendorProductDropsPage() {
 
         toast({ title: 'Processing images...', description: 'Resizing images before upload.' });
         
-        const resizedPreviews: string[] = [];
-        const resizedDataUris: string[] = [];
+        const newPreviews: string[] = [];
+        const newDataUris: string[] = [];
 
         for (const file of fileArray) {
             const resizedDataUri = await resizeImage(file);
-            resizedPreviews.push(resizedDataUri);
-            resizedDataUris.push(resizedDataUri);
+            newPreviews.push(URL.createObjectURL(file));
+            newDataUris.push(resizedDataUri);
         }
         
-        setImagePreviews(prev => [...prev, ...resizedPreviews]);
-        setImageDataUris(prev => [...prev, ...resizedDataUris]);
+        setImagePreviews(prev => [...prev, ...newPreviews]);
+        setResizedImageDataUris(prev => [...prev, ...newDataUris]);
         
         toast({ title: 'Images added!', description: 'The resized images have been added.' });
     }
@@ -164,7 +164,7 @@ export default function VendorProductDropsPage() {
     }, [user]);
     
     const handleSendDrop = async () => {
-        if (!title || !description || !costPrice || imageDataUris.length === 0) {
+        if (!title || !description || !costPrice || resizedImageDataUris.length === 0) {
             toast({
                 variant: 'destructive',
                 title: 'Missing Information',
@@ -195,7 +195,7 @@ export default function VendorProductDropsPage() {
             title,
             description,
             costPrice: parseFloat(costPrice),
-            imageDataUris,
+            imageDataUris: resizedImageDataUris, // Use resized data
             createdAt: new Date().toISOString(),
         };
 
@@ -213,7 +213,7 @@ export default function VendorProductDropsPage() {
             setDescription('');
             setCostPrice('');
             setImagePreviews([]);
-            setImageDataUris([]);
+            setResizedImageDataUris([]);
 
         } catch (error: any) {
             toast({
@@ -346,7 +346,7 @@ export default function VendorProductDropsPage() {
                 <CardFooter>
                      <Dialog>
                         <DialogTrigger asChild>
-                            <Button className="w-full" onClick={handleSendDrop} disabled={isLoading || isLimitReached || !title || !description || imageDataUris.length === 0}>
+                            <Button className="w-full" onClick={handleSendDrop} disabled={isLoading || isLimitReached || !title || !description || resizedImageDataUris.length === 0}>
                                 {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : isLimitReached ? <Lock className="mr-2 h-4 w-4"/> : <PackagePlus className="mr-2 h-4 w-4"/>}
                                 {isLimitReached ? 'Limit Reached' : 'Create & Share Product Drop'}
                             </Button>
@@ -356,7 +356,7 @@ export default function VendorProductDropsPage() {
                             title,
                             description,
                             costPrice: parseFloat(costPrice),
-                            imageDataUris
+                            imageDataUris: resizedImageDataUris, // Use resized data for sharing
                         }} />
                     </Dialog>
                 </CardFooter>
