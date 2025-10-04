@@ -6,7 +6,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Loader2, Trash2, Package, MessageSquare } from "lucide-react";
+import { Loader2, Trash2, Package, MessageSquare, BookOpen } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/hooks/use-auth';
 import type { ProductDrop } from '@/app/vendor/product-drops/page';
@@ -26,6 +26,7 @@ import {
 import { Dialog, DialogTrigger } from '@/components/ui/dialog';
 import { ShareComposerDialog } from '@/components/share-composer-dialog';
 import { getCollection, deleteDocument } from '@/services/firestore';
+import Link from 'next/link';
 
 export default function VendorProductsPage() {
     const { user } = useAuth();
@@ -83,11 +84,19 @@ export default function VendorProductsPage() {
   return (
     <AppShell title="My Products">
         <Card>
-            <CardHeader>
-                <CardTitle>My Products Catalog</CardTitle>
-                <CardDescription>
-                    This is a list of the products you have dropped to your sellers in the last 30 days. Deleting a product here will remove it for everyone.
-                </CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                    <CardTitle>My Products Catalog</CardTitle>
+                    <CardDescription>
+                        Products you have dropped in the last 30 days. Deleting removes it for all sellers.
+                    </CardDescription>
+                </div>
+                 <Link href="/share/magazine">
+                    <Button>
+                        <BookOpen className="mr-2 h-4 w-4" />
+                        Create Smart Magazine
+                    </Button>
+                </Link>
             </CardHeader>
             <CardContent>
                 {isLoading ? (

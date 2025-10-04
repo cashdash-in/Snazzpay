@@ -5,7 +5,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Loader2, Trash2, Package, MessageSquare } from "lucide-react";
+import { Loader2, Trash2, Package, MessageSquare, BookOpen } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/hooks/use-auth';
 import type { SellerProduct } from '@/app/seller/ai-product-uploader/page';
@@ -27,6 +27,7 @@ import { ShareComposerDialog } from '@/components/share-composer-dialog';
 import { getCollection, saveDocument, deleteDocument } from '@/services/firestore';
 import type { ProductDrop } from '@/app/vendor/product-drops/page';
 import type { SellerUser } from '@/app/seller-accounts/page';
+import Link from 'next/link';
 
 export default function SellerProductsPage() {
     const { user } = useAuth();
@@ -81,11 +82,19 @@ export default function SellerProductsPage() {
     return (
     <AppShell title="My Products">
         <Card>
-            <CardHeader>
-                <CardTitle>My Products Catalog</CardTitle>
-                <CardDescription>
-                    This is a list of all products you have generated or received from your vendor in the last 30 days.
-                </CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                    <CardTitle>My Products Catalog</CardTitle>
+                    <CardDescription>
+                        Products you have generated or received in the last 30 days.
+                    </CardDescription>
+                </div>
+                 <Link href="/share/magazine">
+                    <Button>
+                        <BookOpen className="mr-2 h-4 w-4" />
+                        Create Smart Magazine
+                    </Button>
+                </Link>
             </CardHeader>
             <CardContent>
                 {isLoading ? (
