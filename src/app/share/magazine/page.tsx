@@ -13,6 +13,7 @@ import Image from 'next/image';
 import { Loader2, Share2, Copy } from 'lucide-react';
 import { getCollection } from '@/services/firestore';
 import { getCookie } from 'cookies-next';
+import { Label } from '@/components/ui/label';
 
 export default function ShareMagazinePage() {
     const { user } = useAuth();
@@ -104,7 +105,7 @@ export default function ShareMagazinePage() {
                                                 <Image src={product.imageDataUris[0]} alt={product.title} width={60} height={60} className="rounded-md object-cover aspect-square" />
                                                 <div className="flex-grow">
                                                     <p className="font-semibold">{product.title}</p>
-                                                    <p className="text-sm text-muted-foreground">Price: ₹{product.price?.toFixed(2) || product.costPrice?.toFixed(2)}</p>
+                                                    <p className="text-sm text-muted-foreground">Price: ₹{product.price?.toFixed(2) || (product as any).costPrice?.toFixed(2)}</p>
                                                 </div>
                                             </label>
                                         </div>
