@@ -7,7 +7,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, HelpCircle, ShieldCheck, CheckCircle, User, Phone, Mail as MailIcon, Home, MapPin } from "lucide-react";
+import { Loader2, HelpCircle, ShieldCheck, CheckCircle, User, Phone, Mail as MailIcon, Home, MapPin, Edit, ShoppingCart, Pencil } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
 import type { EditableOrder } from '@/app/orders/page';
@@ -48,7 +48,7 @@ function SecureCodPaymentForm() {
 
     const [isSellerFlow, setIsSellerFlow] = useState(false);
     const [orderDetails, setOrderDetails] = useState({
-        productName: 'Loading...',
+        productName: 'Your Product',
         amount: 0,
         orderId: '',
         sellerId: '',
@@ -189,7 +189,11 @@ function SecureCodPaymentForm() {
              setIsSubmitting(false);
              return;
         }
-        
+        if (orderDetails.amount <= 0) {
+            toast({ variant: 'destructive', title: "Invalid Amount", description: "Please enter the order total." });
+            setIsSubmitting(false);
+            return;
+        }
         if (!razorpayKeyId) {
              toast({ variant: 'destructive', title: "Razorpay Not Configured" });
              setIsSubmitting(false);
@@ -373,44 +377,51 @@ function SecureCodPaymentForm() {
                     <CardHeader className="text-center">
                         <ShieldCheck className="mx-auto h-12 w-12 text-primary" />
                         <CardTitle>{isSellerFlow ? "Confirm Your Order" : "Secure Your Order"}</CardTitle>
-                        <CardDescription>{isSellerFlow ? `From ${orderDetails.sellerName}` : `Confirm details for order ${orderDetails.orderId}`}</CardDescription>
+                        <CardDescription>
+                            {isSellerFlow 
+                                ? `From ${orderDetails.sellerName}` 
+                                : orderDetails.orderId 
+                                    ? `Confirm details for order ${orderDetails.orderId}`
+                                    : 'Please enter your order details below.'
+                            }
+                        </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                        <div className="border rounded-lg p-4 space-y-2 text-sm bg-muted/30">
-                            {orderDetails.imageUrl && (
-                                <div className="flex justify-center mb-4">
-                                     <Image 
-                                        src={orderDetails.imageUrl}
-                                        alt={orderDetails.productName}
-                                        width={100}
-                                        height={100}
-                                        className="rounded-lg object-contain"
-                                    />
+                        <Card className="bg-muted/30">
+                            <CardHeader className="p-4">
+                               <div className="flex justify-between items-center">
+                                 <CardTitle className="text-lg">Order Summary</CardTitle>
+                                 {orderDetails.amount === 0 && (
+                                     <Button variant="ghost" size="icon" onClick={() => setOrderDetails(d => ({ ...d, amount: NaN }))}>
+                                        <Pencil className="h-4 w-4 text-muted-foreground" />
+                                    </Button>
+                                 )}
+                               </div>
+                            </CardHeader>
+                            <CardContent className="p-4 pt-0 space-y-2 text-sm">
+                                {orderDetails.imageUrl && (
+                                    <div className="flex justify-center mb-4">
+                                         <Image 
+                                            src={orderDetails.imageUrl}
+                                            alt={orderDetails.productName}
+                                            width={100}
+                                            height={100}
+                                            className="rounded-lg object-contain"
+                                        />
+                                    </div>
+                                )}
+                                <div className="space-y-2">
+                                    <Label htmlFor="productName">Product Name</Label>
+                                    <Input id="productName" value={orderDetails.productName} onChange={(e) => setOrderDetails(d => ({...d, productName: e.target.value}))} />
                                 </div>
-                            )}
-                            <div className="flex justify-between"><span className="text-muted-foreground">Product:</span><span className="font-medium text-right">{orderDetails.productName}</span></div>
-                            <div className="flex justify-between"><span className="text-muted-foreground">Quantity:</span><span className="font-medium text-right">{orderDetails.quantity}</span></div>
-                            {orderDetails.size && <div className="flex justify-between"><span className="text-muted-foreground">Size:</span><span className="font-medium text-right">{orderDetails.size}</span></div>}
-                            {orderDetails.color && <div className="flex justify-between"><span className="text-muted-foreground">Color:</span><span className="font-medium text-right">{orderDetails.color}</span></div>}
-                            <div className="flex justify-between font-bold text-lg"><span className="text-muted-foreground">Amount:</span><span>₹{orderDetails.amount.toFixed(2)}</span></div>
-                        </div>
+                                 <div className="space-y-2">
+                                    <Label htmlFor="amount">Order Total (INR)</Label>
+                                    <Input id="amount" type="number" value={isNaN(orderDetails.amount) ? '' : orderDetails.amount} onChange={(e) => setOrderDetails(d => ({...d, amount: parseFloat(e.target.value) || 0}))} placeholder="Enter order total"/>
+                                </div>
+                            </CardContent>
+                        </Card>
 
                         {customerDetailsForm}
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="quantity">Quantity</Label>
-                                <Input id="quantity" type="number" value={orderDetails.quantity} onChange={e => setOrderDetails(d => ({ ...d, quantity: parseInt(e.target.value, 10) || 1 }))} min="1" />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="size">Size</Label>
-                                <Input id="size" value={orderDetails.size} onChange={e => setOrderDetails(d => ({ ...d, size: e.target.value }))} placeholder="e.g., L" />
-                            </div>
-                            <div className="space-y-2 col-span-2">
-                                <Label htmlFor="color">Color</Label>
-                                <Input id="color" value={orderDetails.color} onChange={e => setOrderDetails(d => ({ ...d, color: e.target.value }))} placeholder="e.g., Blue" />
-                            </div>
-                        </div>
 
                         {isSellerFlow && (
                             <div className="space-y-3">
@@ -455,3 +466,4 @@ function Page() {
 }
 
 export default Page;
+

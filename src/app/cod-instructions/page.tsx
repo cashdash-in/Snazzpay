@@ -16,49 +16,21 @@ export default function CodInstructionsPage() {
         const origin = typeof window !== 'undefined' ? window.location.origin : 'https://<your-app-url>';
         setAppUrl(origin);
 
-        const code = `<div id="secure-cod-button-container" style="margin-top: 15px; width: 100%;">
-    <button 
-      id="secure-cod-button" 
-      type="button" 
-      style="width: 100%; min-height: 45px; font-size: 16px; background-color: #5a31f4; color: white; border: none; border-radius: 5px; cursor: pointer;"
-      onmouseover="this.style.backgroundColor='#4a28c7'"
-      onmouseout="this.style.backgroundColor='#5a31f4'"
-    >
-      Buy now with Secure COD
-    </button>
-     <div style="text-align: center; margin-top: 8px; font-size: 12px;">
+        const code = `<div style="margin-top: 15px; width: 100%;">
+    <a href="https://<your-app-url>/secure-cod" target="_blank" style="text-decoration: none; display: block;">
+        <button 
+          type="button" 
+          style="width: 100%; min-height: 45px; font-size: 16px; background-color: #5a31f4; color: white; border: none; border-radius: 5px; cursor: pointer;"
+          onmouseover="this.style.backgroundColor='#4a28c7'"
+          onmouseout="this.style.backgroundColor='#5a31f4'"
+        >
+          Buy now with Secure COD
+        </button>
+    </a>
+    <div style="text-align: center; margin-top: 8px; font-size: 12px;">
         <a href="https://<your-app-url>/secure-cod-info" target="_blank" style="color: #5a31f4; text-decoration: underline;">What is this?</a>
     </div>
-</div>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    var secureCodButton = document.getElementById('secure-cod-button');
-    if (secureCodButton) {
-        secureCodButton.addEventListener('click', function() {
-            try {
-                // These are standard Shopify liquid variables.
-                var productName = '{{ product.title | url_encode }}';
-                var productPrice = {{ product.price | money_without_currency | replace: ',', '' }};
-                var productImage = '{{ product.featured_image | img_url: "large" }}';
-
-                // Generate a new, unique Order ID on the client-side for every transaction.
-                var uniqueId = 'SNZ-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5).toUpperCase();
-                
-                var baseUrl = 'https://<your-app-url>/secure-cod';
-                var finalUrl = baseUrl + '?amount=' + encodeURIComponent(productPrice) + '&name=' + productName + '&order_id=' + uniqueId + '&image=' + encodeURIComponent(productImage);
-                
-                // Open the URL in a new tab.
-                window.open(finalUrl, '_blank');
-            } catch (e) {
-                console.error("Secure COD Liquid Error: ", e);
-                // Fallback if liquid variables are not available
-                window.open('https://<your-app-url>/secure-cod', '_blank');
-            }
-        });
-    }
-});
-</script>`;
+</div>`;
         setEmbedCode(code);
     }, []);
     
@@ -91,7 +63,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <div className="space-y-2">
             <h3 className="text-lg font-semibold">Step 2: Copy and Paste the Code</h3>
             <p className="text-muted-foreground">
-              Paste the code below where you want the button to appear (e.g., near your 'Add to Cart' button). Make sure to replace both instances of {'`<your-app-url>`'} with your actual live application URL.
+              This simplified code creates a direct link to the payment page. The customer will need to enter the product details manually. Make sure to replace both instances of {'`<your-app-url>`'} with your actual live application URL.
             </p>
             <CodeBlock code={embedCode} />
           </div>
@@ -99,7 +71,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <div className="space-y-2">
             <h3 className="text-lg font-semibold">How it works</h3>
             <p className="text-muted-foreground">
-              The button uses a small script to grab the product details (name and price) from your Shopify page, generates a unique order ID, and then opens the Secure COD payment page in a new tab with all the necessary information.
+              The button now acts as a simple link to the Secure COD page, avoiding any browser blocking issues. Customers will fill in their order details on the next page.
             </p>
           </div>
         </CardContent>
