@@ -449,13 +449,21 @@ function OrderDetailContent() {
                             <Label htmlFor="pincode">Pincode</Label>
                             <Input id="pincode" value={order.pincode} onChange={(e) => handleInputChange('pincode', e.target.value)} />
                         </div>
-                        <div className="space-y-2 md:col-span-3">
+                        <div className="space-y-2">
                             <Label htmlFor="productOrdered">Product(s)</Label>
                             <Input id="productOrdered" value={order.productOrdered} onChange={(e) => handleInputChange('productOrdered', e.target.value)} />
                         </div>
-                         <div className="space-y-2">
+                        <div className="space-y-2">
                             <Label htmlFor="quantity">Quantity</Label>
                             <Input id="quantity" type="number" value={order.quantity} onChange={(e) => handleInputChange('quantity', parseInt(e.target.value, 10))} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="size">Size</Label>
+                            <Input id="size" value={order.size || ''} onChange={(e) => handleInputChange('size', e.target.value)} />
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="color">Color</Label>
+                            <Input id="color" value={order.color || ''} onChange={(e) => handleInputChange('color', e.target.value)} />
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="price">Price</Label>

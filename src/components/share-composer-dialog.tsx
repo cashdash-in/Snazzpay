@@ -57,7 +57,7 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
         
         // Generate a unique order ID for every share dialog open
         const uniqueOrderId = `SNZ-${uuidv4().substring(0, 4).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
-        const orderLink = `${currentUrl}/secure-cod?name=${encodeURIComponent(product.title)}&amount=${productPrice}&order_id=${uniqueOrderId}&seller_id=${user?.uid || ''}&seller_name=${user?.displayName || ''}`;
+        const orderLink = `${currentUrl}/secure-cod?name=${encodeURIComponent(product.title)}&amount=${productPrice}&order_id=${uniqueOrderId}&seller_id=${user?.uid || ''}&seller_name=${user?.displayName || ''}&source=Catalogue`;
         
         setShareText(
             `Check out this new product!\n\n*${product.title}*\n${product.description}\n\n*Price:* ₹${(productPrice).toFixed(2)}\n\nClick here to order with **Secure COD**, **Prepaid**, or **Secure Charge on Dispatch**: ${orderLink}`
@@ -80,7 +80,7 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
 
             // Regenerate the link with a new unique ID
             const uniqueOrderId = `SNZ-${uuidv4().substring(0, 4).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
-            const orderLink = `${appUrl}/secure-cod?name=${encodeURIComponent(product.title)}&amount=${productPrice}&order_id=${uniqueOrderId}&seller_id=${user?.uid || ''}&seller_name=${user?.displayName || ''}`;
+            const orderLink = `${appUrl}/secure-cod?name=${encodeURIComponent(product.title)}&amount=${productPrice}&order_id=${uniqueOrderId}&seller_id=${user?.uid || ''}&seller_name=${user?.displayName || ''}&source=Catalogue`;
 
             // Update the share text with the new AI-generated description
             setShareText(

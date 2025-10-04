@@ -29,14 +29,7 @@ export default function VendorOrdersPage() {
             const allVendorOrders = await getCollection<EditableOrder>('vendor_orders');
             const myOrders = allVendorOrders.filter(o => (o as any).vendorId === user.uid);
             
-            // For prototype purposes, let's also ensure local overrides are applied.
-            // In a real app, this status would be part of the main document.
-            const unifiedOrders = myOrders.map(order => {
-                const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
-                return { ...order, ...storedOverrides };
-            });
-
-            setOrders(unifiedOrders);
+            setOrders(myOrders);
 
         } catch (error) {
             console.error("Failed to load vendor orders:", error);
@@ -127,7 +120,7 @@ export default function VendorOrdersPage() {
                                                 <TableCell>{order.customerName}</TableCell>
                                                 <TableCell>{order.productOrdered}</TableCell>
                                                 <TableCell>
-                                                     <Badge variant={(order as any).paymentMethod === 'Cash on Delivery' ? "secondary" : "outline"}>
+                                                     <Badge variant={(order as any).paymentMethod === 'Cash on Delivery' ? "secondary" : "default"}>
                                                         {(order as any).paymentMethod || 'Prepaid'}
                                                     </Badge>
                                                 </TableCell>

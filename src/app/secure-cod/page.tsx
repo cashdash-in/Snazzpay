@@ -51,6 +51,9 @@ function SecureCodPaymentForm() {
         orderId: '',
         sellerId: '',
         sellerName: '',
+        quantity: 1,
+        size: '',
+        color: '',
     });
     
     const [razorpayKeyId, setRazorpayKeyId] = useState<string | null>(null);
@@ -109,6 +112,9 @@ function SecureCodPaymentForm() {
         const orderId = searchParams.get('order_id') || `LEGACY-${uuidv4().substring(0, 4)}`.toUpperCase();
         const sellerId = searchParams.get('seller_id') || '';
         const sellerName = searchParams.get('seller_name') || '';
+        const quantity = parseInt(searchParams.get('quantity') || '1', 10);
+        const size = searchParams.get('size') || '';
+        const color = searchParams.get('color') || '';
 
         // Pre-fill customer details if they exist in the URL
         setCustomerDetails({
@@ -121,7 +127,7 @@ function SecureCodPaymentForm() {
 
         setIsSellerFlow(!!(sellerId && sellerId !== 'YOUR_UNIQUE_SELLER_ID'));
         
-        setOrderDetails({ productName: name, amount, orderId, sellerId, sellerName });
+        setOrderDetails({ productName: name, amount, orderId, sellerId, sellerName, quantity, size, color });
         
         getRazorpayKeyId().then(key => {
             setRazorpayKeyId(key);
@@ -142,7 +148,7 @@ function SecureCodPaymentForm() {
 
         try {
             const leadId = uuidv4();
-            const newLead = {
+            const newLead: EditableOrder = {
                 id: leadId,
                 orderId: orderDetails.orderId,
                 customerName: name,
@@ -151,11 +157,13 @@ function SecureCodPaymentForm() {
                 pincode: pincode,
                 contactNo: contact,
                 productOrdered: orderDetails.productName,
-                quantity: 1,
+                quantity: orderDetails.quantity,
+                size: orderDetails.size,
+                color: orderDetails.color,
                 price: orderDetails.amount.toString(),
                 date: new Date().toISOString(),
                 paymentStatus: 'Lead',
-                paymentMethod: paymentMethod,
+                source: orderDetails.sellerId ? 'Seller' : 'Catalogue',
                 sellerId: orderDetails.sellerId,
             };
             await saveDocument('leads', newLead, leadId);
@@ -209,7 +217,7 @@ function SecureCodPaymentForm() {
                 handler: async (response: any) => {
                     // Create a Lead record after successful ₹1 payment
                     const newLead: EditableOrder = { 
-                        id: intentInternalOrderId, orderId: intentInternalOrderId, customerName: name, customerEmail: email, contactNo: contact, customerAddress: address, pincode, productOrdered: orderDetails.productName, quantity: 1, price: orderDetails.amount.toString(), date: new Date().toISOString(), paymentStatus: 'Intent Verified', source: 'Shopify', sellerId: orderDetails.sellerId
+                        id: intentInternalOrderId, orderId: intentInternalOrderId, customerName: name, customerEmail: email, contactNo: contact, customerAddress: address, pincode, productOrdered: orderDetails.productName, quantity: orderDetails.quantity, size: orderDetails.size, color: orderDetails.color, price: orderDetails.amount.toString(), date: new Date().toISOString(), paymentStatus: 'Intent Verified', source: 'Shopify', sellerId: orderDetails.sellerId
                     };
                     await saveDocument('leads', newLead, intentInternalOrderId);
                     
@@ -365,10 +373,28 @@ function SecureCodPaymentForm() {
                     <CardContent className="space-y-6">
                         <div className="border rounded-lg p-4 space-y-2 text-sm bg-muted/30">
                             <div className="flex justify-between"><span className="text-muted-foreground">Product:</span><span className="font-medium text-right">{orderDetails.productName}</span></div>
+                            <div className="flex justify-between"><span className="text-muted-foreground">Quantity:</span><span className="font-medium text-right">{orderDetails.quantity}</span></div>
+                            {orderDetails.size && <div className="flex justify-between"><span className="text-muted-foreground">Size:</span><span className="font-medium text-right">{orderDetails.size}</span></div>}
+                            {orderDetails.color && <div className="flex justify-between"><span className="text-muted-foreground">Color:</span><span className="font-medium text-right">{orderDetails.color}</span></div>}
                             <div className="flex justify-between font-bold text-lg"><span className="text-muted-foreground">Amount:</span><span>₹{orderDetails.amount.toFixed(2)}</span></div>
                         </div>
 
                         {customerDetailsForm}
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="quantity">Quantity</Label>
+                                <Input id="quantity" type="number" value={orderDetails.quantity} onChange={e => setOrderDetails(d => ({ ...d, quantity: parseInt(e.target.value, 10) || 1 }))} min="1" />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="size">Size</Label>
+                                <Input id="size" value={orderDetails.size} onChange={e => setOrderDetails(d => ({ ...d, size: e.target.value }))} placeholder="e.g., L" />
+                            </div>
+                            <div className="space-y-2 col-span-2">
+                                <Label htmlFor="color">Color</Label>
+                                <Input id="color" value={orderDetails.color} onChange={e => setOrderDetails(d => ({ ...d, color: e.target.value }))} placeholder="e.g., Blue" />
+                            </div>
+                        </div>
 
                         {isSellerFlow && (
                             <div className="space-y-3">
@@ -413,5 +439,3 @@ function Page() {
 }
 
 export default Page;
-
-    

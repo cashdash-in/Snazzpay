@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, DragEvent, ClipboardEvent } from 'react';
@@ -245,7 +244,7 @@ export default function VendorProductDropsPage() {
                 <CardHeader>
                     <CardTitle>New Product Drop</CardTitle>
                     <CardDescription>
-                        Share a new product with your network of sellers. They will be able to see this information and start selling.
+                        Share a new product with your network of sellers. It will automatically be added to your 'My Products' page.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
