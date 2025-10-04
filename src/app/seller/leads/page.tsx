@@ -173,13 +173,15 @@ export default function SellerLeadsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {leads.length > 0 ? leads.map((lead) => (
+                {leads.length > 0 ? leads.map((lead) => {
+                    const imageUrl = lead.packageImageUrls?.[0] || lead.imageDataUris?.[0];
+                    return (
                   <TableRow key={lead.id}>
                     <TableCell>{new Date(lead.date).toLocaleDateString()}</TableCell>
                      <TableCell>
                         <div className="flex items-center gap-2">
-                           {lead.packageImageUrls?.[0] ? (
-                                <Image src={lead.packageImageUrls[0]} alt={lead.productOrdered} width={40} height={40} className="rounded-md object-cover aspect-square"/>
+                           {imageUrl ? (
+                                <Image src={imageUrl} alt={lead.productOrdered} width={40} height={40} className="rounded-md object-cover aspect-square"/>
                             ) : (
                                 <div className="h-10 w-10 bg-muted rounded-md flex items-center justify-center text-muted-foreground text-xs">No Img</div>
                             )}
@@ -218,7 +220,7 @@ export default function SellerLeadsPage() {
                         </Button>
                     </TableCell>
                   </TableRow>
-                )) : (
+                )}) : (
                     <TableRow>
                         <TableCell colSpan={7} className="text-center h-24 text-muted-foreground">
                             You have no new leads. Share product links to get started!

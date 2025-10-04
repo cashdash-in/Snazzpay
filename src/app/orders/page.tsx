@@ -56,6 +56,7 @@ export type EditableOrder = {
   guestVendorName?: string;
   guestFulfillmentToken?: string;
   packageImageUrls?: string[];
+  imageDataUris?: string[]; // Added for compatibility
 };
 
 type PaymentInfo = {
@@ -246,7 +247,7 @@ export default function OrdersPage() {
                   <TableHead>Price</TableHead>
                   <TableHead>Payment Status</TableHead>
                   <TableHead>Date</TableHead>
-                  <TableHead>Actors</TableHead>
+                  <TableHead>Source / Actors</TableHead>
                   <TableHead className="text-center">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -254,6 +255,7 @@ export default function OrdersPage() {
                 {orders.map((order) => {
                     const isAuthorized = order.paymentStatus === 'Authorized';
                     const isProcessing = processingChargeId === order.id;
+                    const imageUrl = order.packageImageUrls?.[0] || order.imageDataUris?.[0];
 
                     return (
                         <TableRow key={order.id}>
@@ -264,8 +266,8 @@ export default function OrdersPage() {
                             </TableCell>
                             <TableCell>
                                 <div className="flex items-center gap-2">
-                                   {order.packageImageUrls?.[0] ? (
-                                        <Image src={order.packageImageUrls[0]} alt={order.productOrdered} width={40} height={40} className="rounded-md object-cover aspect-square"/>
+                                   {imageUrl ? (
+                                        <Image src={imageUrl} alt={order.productOrdered} width={40} height={40} className="rounded-md object-cover aspect-square"/>
                                     ) : (
                                         <div className="h-10 w-10 bg-muted rounded-md flex items-center justify-center text-muted-foreground text-xs">No Img</div>
                                     )}
@@ -309,7 +311,7 @@ export default function OrdersPage() {
                                     className="w-32 h-8" 
                                 />
                             </TableCell>
-                             <TableCell>
+                            <TableCell>
                                 <div className="space-y-1">
                                     {order.sellerName || order.vendorName ? (
                                         <>
@@ -326,7 +328,7 @@ export default function OrdersPage() {
                                         </>
                                     ) : (
                                         <div className="text-xs text-muted-foreground flex items-center gap-1">
-                                            <Store className="h-3 w-3" /> Snazzify
+                                            <Store className="h-3 w-3" /> {order.source === 'Manual' ? 'Snazzify (Manual)' : 'Snazzify'}
                                         </div>
                                     )}
                                 </div>

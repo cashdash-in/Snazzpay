@@ -196,6 +196,7 @@ export default function SellerOrdersPage() {
                     orders.map((order) => {
                       const isCOD = (order as any).paymentMethod === 'Cash on Delivery';
                       const canPush = (order.paymentStatus === 'Paid' || order.paymentStatus === 'Authorized' || isCOD);
+                      const imageUrl = order.packageImageUrls?.[0] || order.imageDataUris?.[0];
 
                       return (
                         <TableRow key={order.id}>
@@ -206,8 +207,8 @@ export default function SellerOrdersPage() {
                           </TableCell>
                            <TableCell>
                                 <div className="flex items-center gap-2">
-                                   {order.packageImageUrls?.[0] ? (
-                                        <Image src={order.packageImageUrls[0]} alt={order.productOrdered} width={40} height={40} className="rounded-md object-cover aspect-square"/>
+                                   {imageUrl ? (
+                                        <Image src={imageUrl} alt={order.productOrdered} width={40} height={40} className="rounded-md object-cover aspect-square"/>
                                     ) : (
                                         <div className="h-10 w-10 bg-muted rounded-md flex items-center justify-center text-muted-foreground text-xs">No Img</div>
                                     )}

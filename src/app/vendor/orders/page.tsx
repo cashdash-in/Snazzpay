@@ -111,7 +111,9 @@ export default function VendorOrdersPage() {
                                 </TableHeader>
                                 <TableBody>
                                     {orders.length > 0 ? (
-                                        orders.map((order) => (
+                                        orders.map((order) => {
+                                            const imageUrl = order.packageImageUrls?.[0] || order.imageDataUris?.[0];
+                                            return (
                                             <TableRow key={order.id}>
                                                 <TableCell>
                                                     <Link href={`/orders/${order.id}`} className="font-medium text-primary hover:underline cursor-pointer">
@@ -120,8 +122,8 @@ export default function VendorOrdersPage() {
                                                 </TableCell>
                                                  <TableCell>
                                                     <div className="flex items-center gap-2">
-                                                       {order.packageImageUrls?.[0] ? (
-                                                            <Image src={order.packageImageUrls[0]} alt={order.productOrdered} width={40} height={40} className="rounded-md object-cover aspect-square"/>
+                                                       {imageUrl ? (
+                                                            <Image src={imageUrl} alt={order.productOrdered} width={40} height={40} className="rounded-md object-cover aspect-square"/>
                                                         ) : (
                                                             <div className="h-10 w-10 bg-muted rounded-md flex items-center justify-center text-muted-foreground text-xs">No Img</div>
                                                         )}
@@ -148,7 +150,7 @@ export default function VendorOrdersPage() {
                                                     </Button>
                                                 </TableCell>
                                             </TableRow>
-                                        ))
+                                        )})
                                     ) : (
                                         <TableRow>
                                             <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">

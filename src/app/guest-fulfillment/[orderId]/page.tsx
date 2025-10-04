@@ -132,6 +132,8 @@ function GuestFulfillmentPageContent() {
             </div>
         )
     }
+    
+    const imageUrl = order?.packageImageUrls?.[0] || order?.imageDataUris?.[0];
 
     return (
         <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
@@ -160,10 +162,10 @@ function GuestFulfillmentPageContent() {
                                     <p>Quantity: {order?.quantity}</p>
                                 </div>
                                 <div className="flex items-center justify-center">
-                                    {order?.packageImageUrls?.[0] ? (
+                                    {imageUrl ? (
                                         <Image 
-                                            src={order.packageImageUrls[0]} 
-                                            alt={order.productOrdered} 
+                                            src={imageUrl} 
+                                            alt={order?.productOrdered || 'Product Image'} 
                                             width={150} 
                                             height={150} 
                                             className="rounded-md object-contain aspect-square bg-white shadow-sm"

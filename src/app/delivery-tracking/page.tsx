@@ -188,13 +188,15 @@ export default function DeliveryTrackingPage() {
                     <TableHead>Order ID</TableHead>
                     <TableHead>Product</TableHead>
                     <TableHead>Customer</TableHead>
-                    <TableHead>Actors</TableHead>
+                    <TableHead>Source / Actors</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-center w-[550px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {orders.map((order) => (
+                  {orders.map((order) => {
+                      const imageUrl = order.packageImageUrls?.[0] || order.imageDataUris?.[0];
+                      return (
                     <TableRow key={order.id}>
                       <TableCell>
                         <Link href={`/orders/${order.id}`} className="font-medium text-primary hover:underline cursor-pointer">
@@ -203,8 +205,8 @@ export default function DeliveryTrackingPage() {
                       </TableCell>
                        <TableCell>
                         <div className="flex items-center gap-2">
-                           {order.packageImageUrls?.[0] ? (
-                                <Image src={order.packageImageUrls[0]} alt={order.productOrdered} width={40} height={40} className="rounded-md object-cover aspect-square"/>
+                           {imageUrl ? (
+                                <Image src={imageUrl} alt={order.productOrdered} width={40} height={40} className="rounded-md object-cover aspect-square"/>
                             ) : (
                                 <div className="h-10 w-10 bg-muted rounded-md flex items-center justify-center text-muted-foreground text-xs">No Img</div>
                             )}
@@ -236,7 +238,7 @@ export default function DeliveryTrackingPage() {
                                 </>
                             ) : (
                                 <div className="text-xs text-muted-foreground flex items-center gap-1">
-                                <Store className="h-3 w-3" /> Snazzify
+                                <Store className="h-3 w-3" /> {order.source === 'Manual' ? 'Snazzify (Manual)' : 'Snazzify'}
                                 </div>
                             )}
                         </div>
@@ -270,7 +272,7 @@ export default function DeliveryTrackingPage() {
                         <Button variant="destructive" size="icon" onClick={() => handleRemoveOrder(order.id)} title="Remove Order"><Trash2 className="h-4 w-4" /></Button>
                       </TableCell>
                     </TableRow>
-                  ))}
+                  )})}
                 </TableBody>
               </Table>
             </div>

@@ -151,19 +151,21 @@ export default function LeadsPage() {
                   <TableHead>Product(s)</TableHead>
                   <TableHead>Customer</TableHead>
                   <TableHead>Value</TableHead>
-                  <TableHead>Actors</TableHead>
+                  <TableHead>Source / Actors</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-center">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {leads.map((lead) => (
+                {leads.map((lead) => {
+                    const imageUrl = lead.packageImageUrls?.[0] || lead.imageDataUris?.[0];
+                    return (
                   <TableRow key={lead.id}>
                     <TableCell>{lead.date ? format(new Date(lead.date), 'PP') : 'N/A'}</TableCell>
                     <TableCell>
                         <div className="flex items-center gap-2">
-                           {lead.packageImageUrls?.[0] ? (
-                                <Image src={lead.packageImageUrls[0]} alt={lead.productOrdered} width={40} height={40} className="rounded-md object-cover aspect-square"/>
+                           {imageUrl ? (
+                                <Image src={imageUrl} alt={lead.productOrdered} width={40} height={40} className="rounded-md object-cover aspect-square"/>
                             ) : (
                                 <div className="h-10 w-10 bg-muted rounded-md flex items-center justify-center text-muted-foreground text-xs">No Img</div>
                             )}
@@ -221,7 +223,7 @@ export default function LeadsPage() {
                         </Button>
                     </TableCell>
                   </TableRow>
-                ))}
+                )})}
               </TableBody>
             </Table>
             </div>
