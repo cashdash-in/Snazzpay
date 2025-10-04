@@ -7,7 +7,7 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, ClipboardEvent } from "react";
 import { Trash2, PlusCircle, Save, Loader2 as ButtonLoader, Mail, Copy, MessageSquare, Facebook, Instagram, Store, Factory } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -55,6 +55,29 @@ export default function DeliveryTrackingPage() {
             order.id === orderId ? { ...order, [field]: value } : order
         );
         setOrders(updatedOrders);
+    };
+
+    const handleImagePaste = async (e: ClipboardEvent, orderId: string) => {
+        const items = e.clipboardData?.items;
+        if (!items) return;
+        
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf('image') !== -1) {
+                const file = items[i].getAsFile();
+                if (file) {
+                    e.preventDefault();
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        const result = reader.result as string;
+                        setOrders(prevOrders => prevOrders.map(order =>
+                            order.id === orderId ? { ...order, imageDataUris: [result] } : order
+                        ));
+                         toast({ title: "Image Pasted!", description: "Image added. Click save to persist." });
+                    };
+                    reader.readAsDataURL(file);
+                }
+            }
+        }
     };
 
     const handleSave = async (orderId: string) => {
@@ -197,7 +220,7 @@ export default function DeliveryTrackingPage() {
                   {orders.map((order) => {
                       const imageUrl = order.imageDataUris?.[0];
                       return (
-                    <TableRow key={order.id}>
+                    <TableRow key={order.id} onPaste={(e) => handleImagePaste(e, order.id)}>
                       <TableCell>
                         <Link href={`/orders/${order.id}`} className="font-medium text-primary hover:underline cursor-pointer">
                           {order.orderId}
@@ -208,7 +231,7 @@ export default function DeliveryTrackingPage() {
                            {imageUrl ? (
                                 <Image src={imageUrl} alt={order.productOrdered} width={40} height={40} className="rounded-md object-cover aspect-square"/>
                             ) : (
-                                <div className="h-10 w-10 bg-muted rounded-md flex items-center justify-center text-muted-foreground text-xs">No Img</div>
+                                <div className="h-10 w-10 bg-muted rounded-md flex items-center justify-center text-muted-foreground text-xs text-center p-1">Paste Image Here</div>
                             )}
                             <span className="text-xs max-w-24 truncate">{order.productOrdered}</span>
                         </div>

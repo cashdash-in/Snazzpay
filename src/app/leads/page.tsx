@@ -6,7 +6,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, ClipboardEvent } from "react";
 import { Loader2, Trash2, Send, Loader2 as ButtonLoader, ArrowRight, Store, Factory } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { EditableOrder } from '../orders/page';
@@ -98,6 +98,29 @@ export default function LeadsPage() {
     }
   };
 
+  const handleImagePaste = async (e: ClipboardEvent, leadId: string) => {
+        const items = e.clipboardData?.items;
+        if (!items) return;
+        
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf('image') !== -1) {
+                const file = items[i].getAsFile();
+                if (file) {
+                    e.preventDefault();
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        const result = reader.result as string;
+                        setLeads(prevLeads => prevLeads.map(lead =>
+                            lead.id === leadId ? { ...lead, imageDataUris: [result] } : lead
+                        ));
+                         toast({ title: "Image Pasted!", description: "Image added to the lead. Remember to save if needed." });
+                    };
+                    reader.readAsDataURL(file);
+                }
+            }
+        }
+  };
+
   const handleConvertToOrder = async (lead: EditableOrder) => {
     try {
         const newOrder: EditableOrder = {
@@ -161,14 +184,14 @@ export default function LeadsPage() {
                 {leads.map((lead) => {
                     const imageUrl = lead.imageDataUris?.[0];
                     return (
-                  <TableRow key={lead.id}>
+                  <TableRow key={lead.id} onPaste={(e) => handleImagePaste(e, lead.id)}>
                     <TableCell>{lead.date ? format(new Date(lead.date), 'PP') : 'N/A'}</TableCell>
                     <TableCell>
                         <div className="flex items-center gap-2">
                            {imageUrl ? (
                                 <Image src={imageUrl} alt={lead.productOrdered} width={40} height={40} className="rounded-md object-cover aspect-square"/>
                             ) : (
-                                <div className="h-10 w-10 bg-muted rounded-md flex items-center justify-center text-muted-foreground text-xs">No Img</div>
+                                <div className="h-10 w-10 bg-muted rounded-md flex items-center justify-center text-muted-foreground text-xs text-center p-1">Paste Image Here</div>
                             )}
                             <span className="font-medium max-w-xs truncate">{lead.productOrdered}</span>
                         </div>

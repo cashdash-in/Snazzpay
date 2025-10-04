@@ -7,8 +7,8 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { format, subDays } from "date-fns";
-import { useState, useEffect, useCallback } from "react";
-import { Loader2, PlusCircle, Trash2, Save, MessageSquare, CreditCard, Ban, CircleDollarSign, Factory, Store } from "lucide-react";
+import { useState, useEffect, useCallback, ClipboardEvent } from "react";
+import { Loader2, PlusCircle, Trash2, Save, MessageSquare, CreditCard, Ban, CircleDollarSign, Factory, Store, ImagePlus } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { v4 as uuidv4 } from 'uuid';
@@ -111,6 +111,29 @@ export default function OrdersPage() {
     setOrders(prevOrders => prevOrders.map(order =>
         order.id === orderId ? { ...order, [field]: value } : order
     ));
+  };
+
+  const handleImagePaste = async (e: ClipboardEvent, orderId: string) => {
+        const items = e.clipboardData?.items;
+        if (!items) return;
+        
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf('image') !== -1) {
+                const file = items[i].getAsFile();
+                if (file) {
+                    e.preventDefault();
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        const result = reader.result as string;
+                        setOrders(prevOrders => prevOrders.map(order =>
+                            order.id === orderId ? { ...order, imageDataUris: [result] } : order
+                        ));
+                         toast({ title: "Image Pasted!", description: "Image added to the order. Remember to save." });
+                    };
+                    reader.readAsDataURL(file);
+                }
+            }
+        }
   };
   
   const handleSaveOrder = async (orderId: string) => {
@@ -258,7 +281,7 @@ export default function OrdersPage() {
                     const imageUrl = order.imageDataUris?.[0];
 
                     return (
-                        <TableRow key={order.id}>
+                        <TableRow key={order.id} onPaste={(e) => handleImagePaste(e, order.id)}>
                             <TableCell>
                                 <Link href={`/orders/${order.id}`} className="font-medium text-primary hover:underline cursor-pointer">
                                     {order.orderId}
@@ -269,7 +292,7 @@ export default function OrdersPage() {
                                    {imageUrl ? (
                                         <Image src={imageUrl} alt={order.productOrdered} width={40} height={40} className="rounded-md object-cover aspect-square"/>
                                     ) : (
-                                        <div className="h-10 w-10 bg-muted rounded-md flex items-center justify-center text-muted-foreground text-xs">No Img</div>
+                                        <div className="h-10 w-10 bg-muted rounded-md flex items-center justify-center text-muted-foreground text-xs text-center p-1">Paste Image Here</div>
                                     )}
                                     <span className="font-medium max-w-xs truncate">{order.productOrdered}</span>
                                 </div>
