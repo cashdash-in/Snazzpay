@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, Suspense, FormEvent } from 'react';
@@ -16,8 +17,8 @@ import { ShaktiCard, type ShaktiCardData } from '@/components/shakti-card';
 import { sanitizePhoneNumber } from '@/lib/utils';
 import { CancellationForm } from '@/components/cancellation-form';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import Image from 'next/image';
 
 type CustomerDetails = {
@@ -63,7 +64,7 @@ function SecureCodPaymentForm() {
     const [paymentMethod, setPaymentMethod] = useState<'Prepaid' | 'Secure Charge on Delivery' | 'Cash on Delivery'>('Secure Charge on Delivery');
     const [newlyCreatedCard, setNewlyCreatedCard] = useState<ShaktiCardData | null>(null);
 
-    // Directly calculate total price on every render. This is simpler and more reliable.
+    // This is the key change: Calculate totalPrice directly on each render.
     const totalPrice = orderDetails.amount * quantity;
 
     const getOrCreateShaktiCard = async (order: EditableOrder): Promise<ShaktiCardData | null> => {
@@ -342,5 +343,6 @@ function Page() {
 }
 
 export default Page;
+
 
     
