@@ -3,15 +3,14 @@ import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
-// These variables are loaded from the .env file.
-// Make sure to set them in your environment.
+// Hardcoded Firebase configuration to definitively resolve API key loading issues.
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  apiKey: "AIzaSyAuDrR2rGznuMf1EZ1XW_2Ry1SeIm4HrfU",
+  authDomain: "snazzpay-djsy0.firebaseapp.com",
+  projectId: "snazzpay-djsy0",
+  storageBucket: "snazzpay-djsy0.appspot.com",
+  messagingSenderId: "594300598004",
+  appId: "1:594300598004:web:2f22346cbfa62070fa10a1"
 };
 
 // Singleton pattern to initialize Firebase app
