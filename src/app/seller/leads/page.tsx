@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -10,10 +11,11 @@ import { Loader2, Trash2, Send, Loader2 as ButtonLoader, ArrowRight, Mail } from
 import { useToast } from "@/hooks/use-toast";
 import type { EditableOrder } from '@/app/orders/page';
 import { useAuth } from "@/hooks/use-auth";
-import { getCollection, saveDocument, deleteDocument } from "@/services/firestore";
+import { getCollection, saveDocument, deleteDocument, getDocument } from "@/services/firestore";
 import { useRouter } from "next/navigation";
 import { sanitizePhoneNumber } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import type { SellerUser } from "@/app/seller-accounts/page";
 
 type Lead = EditableOrder & { sellerId: string; };
 
@@ -100,25 +102,34 @@ export default function SellerLeadsPage() {
 
   const handleConvertToOrder = async (lead: Lead) => {
     if (!user) return;
+    setProcessingId(lead.id);
     try {
+        const sellerDoc = await getDocument<SellerUser>('seller_users', user.uid);
+        if (!sellerDoc || !sellerDoc.vendorId) {
+            throw new Error("Your account is not associated with a vendor. Please contact support.");
+        }
+
         const newOrder: EditableOrder = {
             ...lead,
-            paymentStatus: 'Pending', // Set as a pending manual order
+            sellerId: user.uid,
+            vendorId: sellerDoc.vendorId, // Add vendorId
+            paymentStatus: lead.paymentMethod === 'Cash on Delivery' ? 'Pending' : 'Pending Payment',
             source: 'Seller' as const,
         };
         
         await saveDocument('orders', newOrder, newOrder.id);
         
-        // Instead of deleting, we update the lead's status so it doesn't show up again
+        // Update the lead's status to 'Converted' so it doesn't show up again.
         await saveDocument('leads', { ...lead, paymentStatus: 'Converted' }, lead.id);
         
         setLeads(prev => prev.filter(l => l.id !== lead.id));
 
         toast({
             title: "Converted to Order",
-            description: `Lead for ${lead.customerName} has been moved to the main orders list.`,
+            description: `Lead for ${lead.customerName} has been moved to the 'My Orders' list.`,
         });
         
+        router.push('/seller/orders');
         router.refresh();
 
     } catch (error: any) {
@@ -127,6 +138,8 @@ export default function SellerLeadsPage() {
             title: "Error Converting Lead",
             description: error.message,
         });
+    } finally {
+        setProcessingId(null);
     }
   };
 
@@ -186,8 +199,9 @@ export default function SellerLeadsPage() {
                             variant="default" 
                             size="sm" 
                             onClick={() => handleConvertToOrder(lead)}
+                            disabled={processingId === lead.id}
                         >
-                           <ArrowRight className="mr-2 h-4 w-4" /> Convert to Order
+                           {processingId === lead.id ? <ButtonLoader className="mr-2 h-4 w-4 animate-spin" /> : <ArrowRight className="mr-2 h-4 w-4" />} Convert to Order
                         </Button>
                         <Button variant="destructive" size="icon" onClick={() => handleRemoveLead(lead.id)}>
                             <Trash2 className="h-4 w-4" />

@@ -192,7 +192,7 @@ export default function SellerAccountsPage() {
                                     <TableRow>
                                         <TableHead>Company</TableHead>
                                         <TableHead>Email / Phone</TableHead>
-                                        <TableHead>Vendor</TableHead>
+                                        <TableHead>Vendor ID</TableHead>
                                         <TableHead>AI Uploads</TableHead>
                                         <TableHead>Status</TableHead>
                                         <TableHead className="text-right">Actions</TableHead>
@@ -207,7 +207,7 @@ export default function SellerAccountsPage() {
                                                 <div className="text-xs text-muted-foreground">{seller.phone || 'No phone provided'}</div>
                                             </TableCell>
                                             <TableCell>
-                                                 <div className="text-sm text-muted-foreground">{seller.vendorName || 'N/A'}</div>
+                                                 <div className="text-sm font-mono text-muted-foreground">{seller.vendorId || 'N/A'}</div>
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex items-center gap-1 text-sm">
