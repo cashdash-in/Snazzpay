@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -17,52 +16,43 @@ export default function CodInstructionsPage() {
         const origin = typeof window !== 'undefined' ? window.location.origin : 'https://<your-app-url>';
         setAppUrl(origin);
 
-        const code = `<div style="margin-top: 15px; width: 100%;">
-  <a id="secure-cod-link" href="#" style="text-decoration: none; display: block; width: 100%;">
-    <button 
-      type="button" 
-      style="width: 100%; min-height: 45px; font-size: 16px; background-color: #5a31f4; color: white; border: none; border-radius: 5px; cursor: pointer;"
-      onmouseover="this.style.backgroundColor='#4a28c7'"
-      onmouseout="this.style.backgroundColor='#5a31f4'"
-    >
-      Buy now with Secure COD
-    </button>
-  </a>
+        const code = `<form id="secure-cod-form" action="${origin}/redirect" method="GET" style="margin-top: 15px; width: 100%;">
+  <!-- Hidden fields to carry product data -->
+  <input type="hidden" id="cod-p-name" name="name" value="" />
+  <input type="hidden" id="cod-p-amount" name="amount" value="" />
+  <input type="hidden" id="cod-p-image" name="image" value="" />
+  <input type="hidden" id="cod-p-order-id" name="order_id" value="" />
+
+  <button 
+    type="submit" 
+    style="width: 100%; min-height: 45px; font-size: 16px; background-color: #5a31f4; color: white; border: none; border-radius: 5px; cursor: pointer;"
+    onmouseover="this.style.backgroundColor='#4a28c7'"
+    onmouseout="this.style.backgroundColor='#5a31f4'"
+  >
+    Buy now with Secure COD
+  </button>
   <div style="text-align: center; margin-top: 8px; font-size: 12px;">
     <a href="${origin}/secure-cod-info" target="_blank" style="color: #5a31f4; text-decoration: underline;">What is this?</a>
   </div>
-</div>
+</form>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    var secureCodLink = document.getElementById('secure-cod-link');
-    
-    if (!secureCodLink) {
-        console.error('Secure COD: Could not find link element.');
-        return;
-    }
-
     try {
         // These are standard Shopify liquid variables.
         var productName = '{{ product.title | url_encode }}';
         var productPrice = {{ product.price | money_without_currency | replace: ',', '' }};
         var productImage = '{{ product.featured_image | img_url: "large" }}';
-        
-        // Generate a new, unique Order ID on the client-side for every transaction.
         var uniqueId = 'SNZ-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5).toUpperCase();
         
-        // ** NEW: Point to the server-side redirect page **
-        var baseUrl = '${origin}/redirect';
-
-        var finalUrl = baseUrl + '?amount=' + encodeURIComponent(productPrice) + '&name=' + productName + '&order_id=' + uniqueId + '&image=' + encodeURIComponent(productImage);
-        
-        // Directly set the href on the anchor tag.
-        secureCodLink.href = finalUrl;
+        // Set the values of the hidden input fields
+        document.getElementById('cod-p-name').value = productName;
+        document.getElementById('cod-p-amount').value = productPrice;
+        document.getElementById('cod-p-image').value = productImage;
+        document.getElementById('cod-p-order-id').value = uniqueId;
 
     } catch (e) {
         console.error("Secure COD Liquid Error: ", e);
-        // Fallback URL if liquid variables are not available
-        secureCodLink.href = '${origin}/secure-cod';
     }
 });
 </script>`;
