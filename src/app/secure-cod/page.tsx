@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useEffect, useState, Suspense, FormEvent } from 'react';
@@ -176,6 +175,7 @@ function SecureCodPaymentForm() {
                 price: totalPrice.toString(),
                 date: new Date().toISOString(),
                 paymentStatus: 'Lead',
+                paymentMethod,
                 source: orderDetails.sellerId ? 'Seller' : 'Catalogue',
                 sellerId: orderDetails.sellerId,
                 imageDataUris: orderDetails.imageUrl ? [orderDetails.imageUrl] : [],
