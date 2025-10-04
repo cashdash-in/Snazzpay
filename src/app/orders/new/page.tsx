@@ -29,6 +29,8 @@ export default function NewOrderPage() {
         contactNo: '',
         productOrdered: '',
         quantity: 1,
+        size: '',
+        color: '',
         price: '0.00',
         paymentStatus: 'Pending',
         date: format(new Date(), 'yyyy-MM-dd'),
@@ -85,7 +87,7 @@ export default function NewOrderPage() {
                         </div>
                     </div>
                 </CardHeader>
-                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     <div className="space-y-2">
                         <Label htmlFor="orderId">Order ID</Label>
                         <Input id="orderId" value={order.orderId} onChange={handleInputChange} placeholder="#1005" />
@@ -102,7 +104,7 @@ export default function NewOrderPage() {
                         <Label htmlFor="contactNo">Contact No.</Label>
                         <Input id="contactNo" value={order.contactNo} onChange={handleInputChange} placeholder="+1234567890" />
                     </div>
-                    <div className="space-y-2 md:col-span-2">
+                    <div className="space-y-2 md:col-span-2 lg:col-span-3">
                         <Label htmlFor="customerAddress">Address</Label>
                         <Input id="customerAddress" value={order.customerAddress} onChange={handleInputChange} placeholder="123 Main St, Anytown, USA" />
                     </div>
@@ -111,13 +113,21 @@ export default function NewOrderPage() {
                         <Input id="pincode" value={order.pincode} onChange={handleInputChange} placeholder="12345" />
                     </div>
                     
-                    <div className="space-y-2 md:col-span-2">
+                    <div className="space-y-2 lg:col-span-3">
                         <Label htmlFor="productOrdered">Product(s)</Label>
                         <Input id="productOrdered" value={order.productOrdered} onChange={handleInputChange} placeholder="T-Shirt, Mug" />
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="quantity">Quantity</Label>
-                        <Input id="quantity" type="number" value={order.quantity} onChange={handleInputChange} min="1" />
+                        <Input id="quantity" type="number" value={order.quantity} onChange={(e) => setOrder(p => ({...p, quantity: parseInt(e.target.value, 10)}))} min="1" />
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="size">Size</Label>
+                        <Input id="size" value={order.size} onChange={handleInputChange} placeholder="e.g., L, 42" />
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="color">Color</Label>
+                        <Input id="color" value={order.color} onChange={handleInputChange} placeholder="e.g., Blue" />
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="price">Price</Label>

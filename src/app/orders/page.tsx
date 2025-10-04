@@ -27,6 +27,8 @@ export type EditableOrder = {
   contactNo: string;
   productOrdered: string;
   quantity: number;
+  size?: string;
+  color?: string;
   price: string;
   paymentStatus: string;
   date: string;
@@ -43,7 +45,7 @@ export type EditableOrder = {
   refundAmount?: string;
   refundReason?: string;
   refundStatus?: 'Pending' | 'Processed' | 'Failed';
-  source?: 'Shopify' | 'Manual' | 'Seller';
+  source?: 'Shopify' | 'Manual' | 'Seller' | 'Catalogue';
 };
 
 type PaymentInfo = {
