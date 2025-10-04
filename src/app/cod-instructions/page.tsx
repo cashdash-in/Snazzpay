@@ -16,7 +16,7 @@ export default function CodInstructionsPage() {
         const origin = typeof window !== 'undefined' ? window.location.origin : 'https://<your-app-url>';
         setAppUrl(origin);
 
-        const code = `<form id="secure-cod-form" action="https://<!!!-REPLACE-THIS-!!!>/redirect" method="GET" target="_blank" style="margin-top: 15px; width: 100%;">
+        const code = `<form id="secure-cod-form" action="https://<!!!-REPLACE-THIS-!!!>/redirect" method="GET" style="margin-top: 15px; width: 100%;">
   <!-- Hidden fields to carry product data -->
   <input type="hidden" id="cod-p-name" name="name" value="" />
   <input type="hidden" id="cod-p-amount" name="amount" value="" />
