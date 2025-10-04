@@ -10,7 +10,7 @@ import { ShieldCheck, Mail, Lock, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { FirebaseError } from 'firebase/app';
 
@@ -26,7 +26,7 @@ export default function AdminLoginPage() {
     const handleLogin = async () => {
         setIsLoading(true);
         if (email.toLowerCase() !== ADMIN_EMAIL) {
-            toast({ variant: 'destructive', title: "Access Denied", description: "This login is for administrators only. Sellers should use the Seller Login." });
+            toast({ variant: 'destructive', title: "Access Denied", description: "This login is for administrators only." });
             setIsLoading(false);
             return;
         }
@@ -35,13 +35,32 @@ export default function AdminLoginPage() {
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const idToken = await userCredential.user.getIdToken();
 
-            // Explicitly set role to 'admin'
-            await fetch('/api/auth/session', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ idToken, role: 'admin' }),
-            });
-            
+            // Explicitly set role to 'admin' and create the session
+            try {
+                const response = await fetch('/api/auth/session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ idToken, role: 'admin' }),
+                });
+
+                if (!response.ok) {
+                    // If session creation fails, sign the user out of Firebase and show an error.
+                    await signOut(auth);
+                    const errorResult = await response.json().catch(() => ({ error: 'Failed to create server session.' }));
+                    throw new Error(errorResult.error);
+                }
+
+            } catch (sessionError: any) {
+                // Catch errors from the fetch call or if the response was not ok
+                 toast({
+                    variant: 'destructive',
+                    title: "Admin Session Error",
+                    description: sessionError.message || "Could not create a server session. Please try again.",
+                });
+                setIsLoading(false);
+                return;
+            }
+
             toast({ title: "Admin Login Successful", description: "Redirecting to admin dashboard." });
             router.push('/');
             router.refresh();
@@ -52,6 +71,8 @@ export default function AdminLoginPage() {
             if (error instanceof FirebaseError) {
                 if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found') {
                     errorMessage = 'Invalid credentials. Please ensure you have created the admin user via the signup page first.';
+                } else {
+                    errorMessage = error.message;
                 }
             }
             toast({ variant: 'destructive', title: "Admin Login Error", description: errorMessage });
