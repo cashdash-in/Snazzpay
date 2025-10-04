@@ -34,6 +34,8 @@ export interface ProductDrop {
 
 const PRODUCT_DROP_LIMIT = 50;
 
+const MAX_IMAGE_SIZE_PX = 800; // Max width/height for resizing
+
 export default function VendorProductDropsPage() {
     const { user } = useAuth();
     const { toast } = useToast();
@@ -47,26 +49,60 @@ export default function VendorProductDropsPage() {
     const [usageCount, setUsageCount] = useState(0);
     const [limit, setLimit] = useState(PRODUCT_DROP_LIMIT);
     const [isLimitReached, setIsLimitReached] = useState(false);
-    
-    const handleFiles = (files: FileList | File[]) => {
-        const newPreviews: string[] = [];
-        const newDataUris: string[] = [];
-        Array.from(files).forEach((file) => {
-            if (!file.type.startsWith('image/')) return;
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                const result = reader.result as string;
-                newPreviews.push(result);
-                newDataUris.push(result);
 
-                if (newPreviews.length === Array.from(files).filter(f => f.type.startsWith('image/')).length) {
-                    setImagePreviews(prev => [...prev, ...newPreviews]);
-                    setImageDataUris(prev => [...prev, ...newDataUris]);
-                }
+    const resizeImage = (file: File): Promise<string> => {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = document.createElement('img');
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let { width, height } = img;
+
+                    if (width > height) {
+                        if (width > MAX_IMAGE_SIZE_PX) {
+                            height *= MAX_IMAGE_SIZE_PX / width;
+                            width = MAX_IMAGE_SIZE_PX;
+                        }
+                    } else {
+                        if (height > MAX_IMAGE_SIZE_PX) {
+                            width *= MAX_IMAGE_SIZE_PX / height;
+                            height = MAX_IMAGE_SIZE_PX;
+                        }
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx?.drawImage(img, 0, 0, width, height);
+                    resolve(canvas.toDataURL(file.type));
+                };
+                img.src = e.target?.result as string;
             };
             reader.readAsDataURL(file);
         });
+    };
+    
+    const handleFiles = async (files: FileList | File[]) => {
+        const fileArray = Array.from(files).filter(f => f.type.startsWith('image/'));
+        if (fileArray.length === 0) return;
+
+        toast({ title: 'Processing images...', description: 'Resizing images before upload.' });
+        
+        const resizedPreviews: string[] = [];
+        const resizedDataUris: string[] = [];
+
+        for (const file of fileArray) {
+            const resizedDataUri = await resizeImage(file);
+            resizedPreviews.push(resizedDataUri);
+            resizedDataUris.push(resizedDataUri);
+        }
+        
+        setImagePreviews(prev => [...prev, ...resizedPreviews]);
+        setImageDataUris(prev => [...prev, ...resizedDataUris]);
+        
+        toast({ title: 'Images added!', description: 'The resized images have been added.' });
     }
+
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
@@ -91,7 +127,6 @@ export default function VendorProductDropsPage() {
         if(files.length > 0) {
             event.preventDefault();
             handleFiles(files);
-            toast({ title: 'Image(s) Pasted!', description: 'The image has been added to your product.' });
         }
     };
     
@@ -244,7 +279,7 @@ export default function VendorProductDropsPage() {
                 <CardHeader>
                     <CardTitle>New Product Drop</CardTitle>
                     <CardDescription>
-                        Share a new product with your network of sellers. It will automatically be added to your 'My Products' page.
+                        Share a new product with your network of sellers. It will automatically be added to your "My Products" page.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
