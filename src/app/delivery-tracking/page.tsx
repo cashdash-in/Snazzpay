@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useEffect, useCallback } from "react";
-import { Trash2, PlusCircle, Save, Loader2 as ButtonLoader, Mail, Copy, MessageSquare, Facebook, Instagram } from "lucide-react";
+import { Trash2, PlusCircle, Save, Loader2 as ButtonLoader, Mail, Copy, MessageSquare, Facebook, Instagram, Store } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
@@ -184,6 +184,7 @@ export default function DeliveryTrackingPage() {
                     <TableHead>Order ID</TableHead>
                     <TableHead>Customer</TableHead>
                     <TableHead>Contact / Email</TableHead>
+                    <TableHead>Seller / Source</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-center w-[550px]">Actions</TableHead>
                   </TableRow>
@@ -219,6 +220,15 @@ export default function DeliveryTrackingPage() {
                                 placeholder="Email Address"
                             />
                          </div>
+                      </TableCell>
+                       <TableCell>
+                         {order.sellerName ? (
+                            <div className="flex items-center gap-1 text-xs">
+                                <Store className="h-3 w-3" /> {order.sellerName}
+                            </div>
+                         ) : (
+                            <span className="text-xs text-muted-foreground">{order.source || 'N/A'}</span>
+                         )}
                       </TableCell>
                        <TableCell>
                         <Select

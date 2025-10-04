@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, Trash2, Send, Loader2 as ButtonLoader, ArrowRight } from "lucide-react";
+import { Loader2, Trash2, Send, Loader2 as ButtonLoader, ArrowRight, Store } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { EditableOrder } from '../orders/page';
 import { format } from "date-fns";
@@ -146,11 +146,9 @@ export default function LeadsPage() {
                   <TableHead>Captured On</TableHead>
                   <TableHead>Original Order ID</TableHead>
                   <TableHead>Customer</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Contact No</TableHead>
-                  <TableHead>Address</TableHead>
                   <TableHead>Product(s)</TableHead>
                   <TableHead>Value</TableHead>
+                  <TableHead>Seller</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-center">Actions</TableHead>
                 </TableRow>
@@ -160,12 +158,21 @@ export default function LeadsPage() {
                   <TableRow key={lead.id}>
                     <TableCell>{lead.date ? format(new Date(lead.date), 'PP') : 'N/A'}</TableCell>
                     <TableCell className="font-medium">{lead.orderId}</TableCell>
-                    <TableCell>{lead.customerName}</TableCell>
-                    <TableCell>{lead.customerEmail}</TableCell>
-                    <TableCell>{lead.contactNo}</TableCell>
-                    <TableCell>{lead.customerAddress}, {lead.pincode}</TableCell>
+                    <TableCell>
+                      <div>{lead.customerName}</div>
+                      <div className='text-xs text-muted-foreground'>{lead.contactNo}</div>
+                    </TableCell>
                     <TableCell>{lead.productOrdered}</TableCell>
                     <TableCell>₹{lead.price}</TableCell>
+                     <TableCell>
+                      {lead.sellerName ? (
+                        <div className="flex items-center gap-1 text-xs">
+                          <Store className="h-3 w-3" /> {lead.sellerName}
+                        </div>
+                      ): (
+                        'N/A'
+                      )}
+                    </TableCell>
                     <TableCell>{lead.paymentStatus}</TableCell>
                     <TableCell className="text-center space-x-2">
                         <Button 

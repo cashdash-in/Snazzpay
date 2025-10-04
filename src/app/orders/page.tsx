@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, PlusCircle, Trash2, Save, MessageSquare, CreditCard, Ban, CircleDollarSign } from "lucide-react";
+import { Loader2, PlusCircle, Trash2, Save, MessageSquare, CreditCard, Ban, CircleDollarSign, Factory, Store } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { v4 as uuidv4 } from 'uuid';
@@ -34,6 +34,8 @@ export type EditableOrder = {
   date: string;
   sellerId?: string;
   sellerName?: string;
+  vendorId?: string;
+  vendorName?: string;
   paymentMethod?: 'Prepaid' | 'Secure Charge on Delivery' | 'Cash on Delivery';
   // Fields from other tabs
   trackingNumber?: string;
@@ -248,7 +250,7 @@ export default function OrdersPage() {
                   <TableHead>Price</TableHead>
                   <TableHead>Payment Status</TableHead>
                   <TableHead>Date</TableHead>
-                  <TableHead>Source</TableHead>
+                  <TableHead>Source / Seller</TableHead>
                   <TableHead className="text-center">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -285,7 +287,19 @@ export default function OrdersPage() {
                                     className="w-32" 
                                 />
                             </TableCell>
-                            <TableCell><Badge variant={order.source === 'Shopify' ? 'secondary' : 'outline'}>{order.source || 'Manual'}</Badge></TableCell>
+                             <TableCell>
+                                <Badge variant={order.source === 'Shopify' ? 'secondary' : 'outline'}>{order.source || 'Manual'}</Badge>
+                                {order.sellerName && (
+                                    <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                                      <Store className="h-3 w-3" /> {order.sellerName}
+                                    </div>
+                                )}
+                                 {order.vendorName && (
+                                    <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                                      <Factory className="h-3 w-3" /> {order.vendorName}
+                                    </div>
+                                )}
+                            </TableCell>
                             <TableCell className="text-center space-x-2">
                                 {isAuthorized && (
                                      <AlertDialog>
