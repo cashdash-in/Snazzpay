@@ -14,12 +14,14 @@ import { Loader2, Share2, Copy } from 'lucide-react';
 import { getCollection } from '@/services/firestore';
 import { getCookie } from 'cookies-next';
 import { Label } from '@/components/ui/label';
+import type { ProductDrop } from '@/app/vendor/product-drops/page';
+
 
 export default function ShareMagazinePage() {
     const { user } = useAuth();
     const { toast } = useToast();
-    const [products, setProducts] = useState<SellerProduct[]>([]);
-    const [selectedProducts, setSelectedProducts] = useState<SellerProduct[]>([]);
+    const [products, setProducts] = useState<Array<SellerProduct | ProductDrop>>([]);
+    const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [magazineLink, setMagazineLink] = useState('');
 
@@ -31,16 +33,20 @@ export default function ShareMagazinePage() {
             }
             try {
                 const role = getCookie('userRole');
-                let productsCollection: SellerProduct[] = [];
+                let productsCollection: Array<SellerProduct | ProductDrop> = [];
                 
                 if (role === 'seller') {
                     const sellerProducts = await getCollection<SellerProduct>('seller_products');
                     productsCollection = sellerProducts.filter(p => p.sellerId === user.uid);
                 } else { // admin or vendor
-                    productsCollection = await getCollection<SellerProduct>('product_drops');
+                    const allDrops = await getCollection<ProductDrop>('product_drops');
+                     // For admin, show all. For vendor, filter by their ID.
+                    productsCollection = role === 'admin' 
+                        ? allDrops
+                        : allDrops.filter(p => p.vendorId === user.uid);
                 }
 
-                setProducts(productsCollection.sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+                setProducts(productsCollection.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
             } catch (error) {
                 toast({ variant: 'destructive', title: "Error loading products", description: "Could not load your products catalog." });
             } finally {
@@ -50,24 +56,25 @@ export default function ShareMagazinePage() {
         loadProducts();
     }, [user, toast]);
 
-    const handleProductSelect = (product: SellerProduct, checked: boolean) => {
+    const handleProductSelect = (productId: string, checked: boolean) => {
         if (checked) {
-            setSelectedProducts(prev => [...prev, product]);
+            setSelectedProductIds(prev => [...prev, productId]);
         } else {
-            setSelectedProducts(prev => prev.filter(p => p.id !== product.id));
+            setSelectedProductIds(prev => prev.filter(id => id !== productId));
         }
         // Clear the generated link when selection changes
         setMagazineLink('');
     };
 
     const handleGenerateLink = () => {
-        if (selectedProducts.length === 0) {
+        if (selectedProductIds.length === 0) {
             toast({ variant: 'destructive', title: 'No Products Selected', description: 'Please select at least one product to create a magazine.' });
             return;
         }
 
         const baseUrl = window.location.origin;
-        const productsParam = encodeURIComponent(JSON.stringify(selectedProducts));
+        // Pass only the IDs, not the full product objects
+        const productsParam = encodeURIComponent(selectedProductIds.join(','));
         const link = `${baseUrl}/smart-magazine?products=${productsParam}`;
         
         setMagazineLink(link);
@@ -76,6 +83,7 @@ export default function ShareMagazinePage() {
     };
 
     const handleCopyLink = () => {
+        if(!magazineLink) return;
         navigator.clipboard.writeText(magazineLink);
         toast({ title: 'Link Copied!' });
     };
@@ -98,14 +106,14 @@ export default function ShareMagazinePage() {
                                         <div key={product.id} className="flex items-center gap-4 p-2 border rounded-lg">
                                             <Checkbox 
                                                 id={`product-${product.id}`}
-                                                onCheckedChange={(checked) => handleProductSelect(product, !!checked)}
-                                                checked={selectedProducts.some(p => p.id === product.id)}
+                                                onCheckedChange={(checked) => handleProductSelect(product.id, !!checked)}
+                                                checked={selectedProductIds.includes(product.id)}
                                             />
                                             <label htmlFor={`product-${product.id}`} className="flex items-center gap-4 cursor-pointer w-full">
                                                 <Image src={product.imageDataUris[0]} alt={product.title} width={60} height={60} className="rounded-md object-cover aspect-square" />
                                                 <div className="flex-grow">
                                                     <p className="font-semibold">{product.title}</p>
-                                                    <p className="text-sm text-muted-foreground">Price: ₹{product.price?.toFixed(2) || (product as any).costPrice?.toFixed(2)}</p>
+                                                    <p className="text-sm text-muted-foreground">Price: ₹{(product.price || (product as any).costPrice).toFixed(2)}</p>
                                                 </div>
                                             </label>
                                         </div>
@@ -122,8 +130,8 @@ export default function ShareMagazinePage() {
                             <CardDescription>Once you've selected your products, generate a shareable link.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <p className="font-medium">{selectedProducts.length} product(s) selected.</p>
-                             <Button onClick={handleGenerateLink} className="w-full" disabled={selectedProducts.length === 0}>
+                            <p className="font-medium">{selectedProductIds.length} product(s) selected.</p>
+                             <Button onClick={handleGenerateLink} className="w-full" disabled={selectedProductIds.length === 0}>
                                 <Share2 className="mr-2 h-4 w-4" />
                                 Generate Magazine Link
                             </Button>
