@@ -36,6 +36,7 @@ export type EditableOrder = {
   sellerName?: string;
   vendorId?: string;
   vendorName?: string;
+  cancellationFee?: string;
   paymentMethod?: 'Prepaid' | 'Secure Charge on Delivery' | 'Cash on Delivery';
   // Fields from other tabs
   trackingNumber?: string;
@@ -250,7 +251,7 @@ export default function OrdersPage() {
                   <TableHead>Price</TableHead>
                   <TableHead>Payment Status</TableHead>
                   <TableHead>Date</TableHead>
-                  <TableHead>Source / Seller</TableHead>
+                  <TableHead>Source / Actors</TableHead>
                   <TableHead className="text-center">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -289,16 +290,18 @@ export default function OrdersPage() {
                             </TableCell>
                              <TableCell>
                                 <Badge variant={order.source === 'Shopify' ? 'secondary' : 'outline'}>{order.source || 'Manual'}</Badge>
-                                {order.sellerName && (
-                                    <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                                      <Store className="h-3 w-3" /> {order.sellerName}
-                                    </div>
-                                )}
-                                 {order.vendorName && (
-                                    <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                                      <Factory className="h-3 w-3" /> {order.vendorName}
-                                    </div>
-                                )}
+                                <div className="space-y-1 mt-1">
+                                    {order.vendorName && (
+                                        <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                          <Factory className="h-3 w-3" /> {order.vendorName}
+                                        </div>
+                                    )}
+                                    {order.sellerName && (
+                                        <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                          <Store className="h-3 w-3" /> {order.sellerName}
+                                        </div>
+                                    )}
+                                </div>
                             </TableCell>
                             <TableCell className="text-center space-x-2">
                                 {isAuthorized && (
