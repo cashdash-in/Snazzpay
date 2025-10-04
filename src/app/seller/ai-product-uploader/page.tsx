@@ -57,7 +57,7 @@ export default function AiProductUploaderPage() {
   const [isPasting, setIsPasting] = useState(false);
   const [isPushing, setIsPushing] = useState(false);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
-  const [imageDataUris, setImageDataUris] = useState<string[]>([]);
+  const [resizedImageDataUris, setResizedImageDataUris] = useState<string[]>([]);
   const [vendorDescription, setVendorDescription] = useState('');
   const [cost, setCost] = useState('');
   const [margin, setMargin] = useState('100'); // Default 100% margin
@@ -116,7 +116,7 @@ export default function AiProductUploaderPage() {
       }
       
       setImagePreviews(prev => [...prev, ...newPreviews]);
-      setImageDataUris(prev => [...prev, ...newDataUris]);
+      setResizedImageDataUris(prev => [...prev, ...newDataUris]);
       
       toast({ title: 'Images added!', description: 'The resized images have been added.' });
   }
@@ -128,7 +128,7 @@ export default function AiProductUploaderPage() {
     }
   };
   
-  const handlePaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
+  const handlePaste = (event: ClipboardEvent<HTMLTextAreaElement | HTMLInputElement>) => {
       const items = event.clipboardData?.items;
       if (!items) return;
       
@@ -188,10 +188,9 @@ export default function AiProductUploaderPage() {
                 setVendorDescription(data.description || '');
                 setCost(data.cost?.toString() || '');
                 if (data.imageDataUris) {
-                    setImageDataUris(data.imageDataUris);
-                }
-                 if (data.imagePreviews) {
-                    setImagePreviews(data.imagePreviews);
+                    // When prefilling, both preview and data should be the same
+                    setImagePreviews(data.imageDataUris);
+                    setResizedImageDataUris(data.imageDataUris);
                 }
                 toast({
                     title: "Product Data Pre-filled",
@@ -216,7 +215,7 @@ export default function AiProductUploaderPage() {
             id: uuidv4(),
             sellerId: user.uid,
             ...listing,
-            imageDataUris: imageDataUris,
+            imageDataUris: resizedImageDataUris,
             createdAt: new Date().toISOString(),
         };
 
@@ -233,7 +232,7 @@ export default function AiProductUploaderPage() {
   };
 
   const handleGenerateListing = async () => {
-    if (imageDataUris.length === 0 || !vendorDescription || !cost || !margin) {
+    if (resizedImageDataUris.length === 0 || !vendorDescription || !cost || !margin) {
       toast({
         variant: 'destructive',
         title: 'Missing Information',
@@ -255,7 +254,7 @@ export default function AiProductUploaderPage() {
 
     try {
       const result = await createProductListing({
-        imageDataUris,
+        imageDataUris: resizedImageDataUris,
         description: vendorDescription,
         cost: parseFloat(cost),
         margin: parseFloat(margin),
@@ -281,17 +280,10 @@ export default function AiProductUploaderPage() {
 
    const handleMagicPaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
         const pastedText = e.clipboardData.getData('text');
-        if (pastedText.trim().length < 10) return;
-
-        // Check if pasted content is an image, if so, do not process as text
-        const items = e.clipboardData?.items;
-        if (items) {
-          for (let i = 0; i < items.length; i++) {
-            if (items[i].type.indexOf('image') !== -1) {
-              return; // Let the image paste handler take care of it
-            }
-          }
+        if (e.clipboardData.files.length > 0) {
+            return; // Let image handler take over
         }
+        if (pastedText.trim().length < 10) return;
 
         e.preventDefault();
         e.stopPropagation();
@@ -299,7 +291,6 @@ export default function AiProductUploaderPage() {
         setIsPasting(true);
         try {
             const result = await createProductFromText({ text: pastedText });
-            // For sellers, we only want to fill the description. They should provide their own title.
             setVendorDescription(result.description);
             toast({
                 title: "AI Parsing Complete!",
@@ -572,7 +563,7 @@ export default function AiProductUploaderPage() {
                             <MessageSquare className="mr-2 h-4 w-4" /> Share on WhatsApp
                         </Button>
                     </DialogTrigger>
-                    <ShareComposerDialog product={{...generatedListing, costPrice: parseFloat(cost), imageDataUris: imageDataUris, id: 'temp'}} />
+                    <ShareComposerDialog product={{...generatedListing, costPrice: parseFloat(cost), imageDataUris: resizedImageDataUris, id: 'temp'}} />
                 </Dialog>
               </CardFooter>
             </>
@@ -582,3 +573,5 @@ export default function AiProductUploaderPage() {
     </AppShell>
   );
 }
+
+    

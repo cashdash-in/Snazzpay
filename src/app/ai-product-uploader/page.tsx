@@ -89,8 +89,9 @@ export default function AiProductUploaderPage() {
 
       for (const file of fileArray) {
           const resizedDataUri = await resizeImage(file);
-          newPreviews.push(URL.createObjectURL(file)); // Use object URL for preview to show original
-          newDataUris.push(resizedDataUri); // Store resized data for upload
+          // For admin uploader, we can use the resized URI for preview directly
+          newPreviews.push(resizedDataUri);
+          newDataUris.push(resizedDataUri);
       }
       
       setImagePreviews(prev => [...prev, ...newPreviews]);
@@ -107,7 +108,7 @@ export default function AiProductUploaderPage() {
     }
   };
   
-  const handlePaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
+  const handlePaste = (event: ClipboardEvent<HTMLTextAreaElement | HTMLInputElement>) => {
       const items = event.clipboardData?.items;
       if (!items) return;
       
@@ -220,26 +221,26 @@ export default function AiProductUploaderPage() {
 
   const handleMagicPaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
         const pastedText = e.clipboardData.getData('text');
+        // Check if clipboard contains files, if so, let the other handler take care of it.
+        if (e.clipboardData.files.length > 0) {
+            return;
+        }
         if (pastedText.trim().length < 10) return;
 
-        // Prevent the image paste handler from also firing
         e.preventDefault();
         e.stopPropagation();
 
         setIsPasting(true);
         try {
             const result = await createProductFromText({ text: pastedText });
-            // This is the fix: safely update the state
+            // For admin, fill both title and description
+            setVendorDescription(result.description);
             setGeneratedListing(prev => ({
+                ...(prev || { title: '', description: '', category: '', price: 0, sizes: [], colors: [] }),
                 title: result.title,
                 description: result.description,
-                category: prev?.category || '',
-                price: prev?.price || 0,
-                sizes: prev?.sizes || [],
-                colors: prev?.colors || []
             }));
-            // Also update the vendor description field
-            setVendorDescription(result.description);
+            
             toast({
                 title: "AI Parsing Complete!",
                 description: "Product title and description have been filled in.",
@@ -496,3 +497,5 @@ export default function AiProductUploaderPage() {
     </AppShell>
   );
 }
+
+    
