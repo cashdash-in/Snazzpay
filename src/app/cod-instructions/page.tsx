@@ -43,8 +43,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     try {
-        // These are standard Shopify liquid variables. 
-        // They should work on most Shopify themes out-of-the-box.
+        // These are standard Shopify liquid variables.
         var productName = '{{ product.title | url_encode }}';
         var productPrice = {{ product.price | money_without_currency | replace: ',', '' }};
         var productImage = '{{ product.featured_image | img_url: "large" }}';
@@ -52,7 +51,8 @@ document.addEventListener('DOMContentLoaded', function() {
         // Generate a new, unique Order ID on the client-side for every transaction.
         var uniqueId = 'SNZ-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5).toUpperCase();
         
-        var baseUrl = '${origin}/secure-cod';
+        // ** NEW: Point to the server-side redirect page **
+        var baseUrl = '${origin}/redirect';
 
         var finalUrl = baseUrl + '?amount=' + encodeURIComponent(productPrice) + '&name=' + productName + '&order_id=' + uniqueId + '&image=' + encodeURIComponent(productImage);
         
