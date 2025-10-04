@@ -170,18 +170,20 @@ export default function LeadsPage() {
                     <TableCell>₹{lead.price}</TableCell>
                      <TableCell>
                       <div className="space-y-1">
-                          {lead.vendorName ? (
-                              <div className="text-xs text-muted-foreground flex items-center gap-1">
-                                <Factory className="h-3 w-3" /> {lead.vendorName}
-                              </div>
+                          {lead.sellerName ? (
+                              <>
+                                {lead.vendorName && (
+                                    <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                      <Factory className="h-3 w-3" /> {lead.vendorName}
+                                    </div>
+                                )}
+                                <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                  <Store className="h-3 w-3" /> {lead.sellerName}
+                                </div>
+                              </>
                           ) : (
                               <div className="text-xs text-muted-foreground flex items-center gap-1">
                                 <Store className="h-3 w-3" /> Snazzify
-                              </div>
-                          )}
-                          {lead.sellerName && (
-                              <div className="text-xs text-muted-foreground flex items-center gap-1">
-                                <Store className="h-3 w-3" /> {lead.sellerName}
                               </div>
                           )}
                       </div>

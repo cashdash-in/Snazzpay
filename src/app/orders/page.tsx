@@ -295,21 +295,23 @@ export default function OrdersPage() {
                                 />
                             </TableCell>
                              <TableCell>
-                                <Badge variant={order.source === 'Shopify' ? 'secondary' : 'outline'}>{order.source || 'Manual'}</Badge>
-                                <div className="space-y-1 mt-1">
-                                    {order.vendorName ? (
+                                <div className="space-y-1">
+                                    <Badge variant={order.source === 'Shopify' ? 'secondary' : 'outline'}>{order.source || 'Manual'}</Badge>
+                                    {order.sellerName ? (
+                                    <>
+                                        {order.vendorName && (
+                                            <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                            <Factory className="h-3 w-3" /> {order.vendorName}
+                                            </div>
+                                        )}
                                         <div className="text-xs text-muted-foreground flex items-center gap-1">
-                                          <Factory className="h-3 w-3" /> {order.vendorName}
+                                        <Store className="h-3 w-3" /> {order.sellerName}
                                         </div>
-                                    ) : order.source !== 'Seller' && (
-                                        <div className="text-xs text-muted-foreground flex items-center gap-1">
-                                          <Store className="h-3 w-3" /> Snazzify
-                                        </div>
-                                    )}
-                                    {order.sellerName && (
-                                        <div className="text-xs text-muted-foreground flex items-center gap-1">
-                                          <Store className="h-3 w-3" /> {order.sellerName}
-                                        </div>
+                                    </>
+                                    ) : (
+                                    <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                        <Store className="h-3 w-3" /> Snazzify
+                                    </div>
                                     )}
                                 </div>
                             </TableCell>
