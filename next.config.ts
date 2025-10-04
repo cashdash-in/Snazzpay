@@ -23,6 +23,12 @@ const nextConfig: NextConfig = {
         hostname: 'picsum.photos',
         port: '',
         pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'cdn.shopify.com',
+        port: '',
+        pathname: '/**',
       }
     ],
   },
@@ -34,3 +40,5 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
+
+      
