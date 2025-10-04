@@ -51,6 +51,10 @@ export type EditableOrder = {
   refundReason?: string;
   refundStatus?: 'Pending' | 'Processed' | 'Failed';
   source?: 'Shopify' | 'Manual' | 'Seller' | 'Catalogue' | 'SmartMagazine';
+  // Guest vendor fields
+  guestVendorName?: string;
+  guestFulfillmentToken?: string;
+  packageImageUrls?: string[];
 };
 
 type PaymentInfo = {
@@ -78,7 +82,11 @@ export default function OrdersPage() {
         
         const sortedOrders = allOrders
             .filter(o => o.paymentStatus !== 'Intent Verified')
-            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            .sort((a, b) => {
+                 try {
+                    return new Date(b.date).getTime() - new Date(a.date).getTime();
+                } catch(e) { return 0; }
+            });
             
         setOrders(sortedOrders);
 
@@ -236,7 +244,7 @@ export default function OrdersPage() {
                   <TableHead>Price</TableHead>
                   <TableHead>Payment Status</TableHead>
                   <TableHead>Date</TableHead>
-                  <TableHead>Source / Actors</TableHead>
+                  <TableHead>Actors</TableHead>
                   <TableHead className="text-center">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -252,11 +260,27 @@ export default function OrdersPage() {
                                     {order.orderId}
                                 </Link>
                             </TableCell>
-                            <TableCell><Input value={order.customerName} onChange={(e) => handleFieldChange(order.id, 'customerName', e.target.value)} className="w-40" /></TableCell>
-                            <TableCell><Input value={order.price} onChange={(e) => handleFieldChange(order.id, 'price', e.target.value)} className="w-24" /></TableCell>
+                            <TableCell>
+                                <Input 
+                                    value={order.customerName} 
+                                    onChange={(e) => handleFieldChange(order.id, 'customerName', e.target.value)} 
+                                    className="w-40 h-8"
+                                />
+                            </TableCell>
+                            <TableCell>
+                                <Input 
+                                    value={order.price} 
+                                    onChange={(e) => handleFieldChange(order.id, 'price', e.target.value)} 
+                                    className="w-24 h-8"
+                                />
+                            </TableCell>
                             <TableCell>
                                 <div className="flex flex-col gap-1">
-                                    <Input value={order.paymentStatus} onChange={(e) => handleFieldChange(order.id, 'paymentStatus', e.target.value)} className="w-32 h-8" />
+                                    <Input 
+                                        value={order.paymentStatus} 
+                                        onChange={(e) => handleFieldChange(order.id, 'paymentStatus', e.target.value)} 
+                                        className="w-32 h-8" 
+                                    />
                                     {order.cancellationStatus === 'Processed' && (
                                         <Badge variant="destructive" className="w-fit"><Ban className="mr-1 h-3 w-3"/>Cancelled</Badge>
                                     )}
@@ -270,27 +294,26 @@ export default function OrdersPage() {
                                     type="date" 
                                     value={order.date ? format(new Date(order.date), 'yyyy-MM-dd') : ''} 
                                     onChange={(e) => handleFieldChange(order.id, 'date', e.target.value)} 
-                                    className="w-32" 
+                                    className="w-32 h-8" 
                                 />
                             </TableCell>
                              <TableCell>
                                 <div className="space-y-1">
-                                    <Badge variant={order.source === 'Shopify' ? 'secondary' : 'outline'}>{order.source || 'Manual'}</Badge>
                                     {order.sellerName ? (
-                                    <>
-                                        {order.vendorName && (
+                                        <>
+                                            {order.vendorName && (
+                                                <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                                <Factory className="h-3 w-3" /> {order.vendorName}
+                                                </div>
+                                            )}
                                             <div className="text-xs text-muted-foreground flex items-center gap-1">
-                                            <Factory className="h-3 w-3" /> {order.vendorName}
+                                                <Store className="h-3 w-3" /> {order.sellerName}
                                             </div>
-                                        )}
-                                        <div className="text-xs text-muted-foreground flex items-center gap-1">
-                                        <Store className="h-3 w-3" /> {order.sellerName}
-                                        </div>
-                                    </>
+                                        </>
                                     ) : (
-                                    <div className="text-xs text-muted-foreground flex items-center gap-1">
-                                        <Store className="h-3 w-3" /> Snazzify
-                                    </div>
+                                        <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                            <Store className="h-3 w-3" /> Snazzify
+                                        </div>
                                     )}
                                 </div>
                             </TableCell>

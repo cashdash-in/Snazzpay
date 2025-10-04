@@ -8,7 +8,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, Save, ExternalLink, CreditCard, Send, Loader2 as ButtonLoader, Mail, Printer, Copy, ShieldAlert, AlertTriangle, MessageSquare, Rocket, Facebook, Instagram } from 'lucide-react';
+import { ArrowLeft, Loader2, Save, ExternalLink, CreditCard, Send, Loader2 as ButtonLoader, Mail, Printer, Copy, ShieldAlert, AlertTriangle, MessageSquare, Rocket, Facebook, Instagram, Share2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { EditableOrder } from '../page';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -272,7 +272,31 @@ function OrderDetailContent() {
             setIsProcessingFee(false);
         }
     };
-
+    
+    const handleGenerateGuestLink = async () => {
+        if (!order) return;
+        
+        const token = uuidv4();
+        const updatedOrder = { 
+            ...order, 
+            guestFulfillmentToken: token 
+        };
+        
+        try {
+            await saveDocument('orders', { guestFulfillmentToken: token }, order.id);
+            setOrder(updatedOrder);
+            
+            const guestLink = `${window.location.origin}/guest-fulfillment/${order.id}?token=${token}`;
+            navigator.clipboard.writeText(guestLink);
+            
+            toast({
+                title: 'Guest Link Generated & Copied!',
+                description: 'The secure link has been copied to your clipboard. Send it to your fulfillment partner.',
+            });
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Failed to Generate Link', description: 'Could not save the secure token for the guest link.' });
+        }
+    };
 
     if (loading) {
         return (
@@ -502,6 +526,10 @@ function OrderDetailContent() {
                     </CardHeader>
                     <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="space-y-2">
+                            <Label htmlFor="guestVendorName">Guest Vendor Name</Label>
+                            <Input id="guestVendorName" value={order.guestVendorName || ''} onChange={(e) => handleInputChange('guestVendorName', e.target.value)} placeholder="e.g., Surat Textiles"/>
+                        </div>
+                        <div className="space-y-2">
                             <Label htmlFor="courierCompanyName">Courier Company</Label>
                             <Input id="courierCompanyName" value={order.courierCompanyName || ''} onChange={(e) => handleInputChange('courierCompanyName', e.target.value)} />
                         </div>
@@ -541,6 +569,9 @@ function OrderDetailContent() {
                           {isSendingLink ? <ButtonLoader className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />} Email Link
                         </Button>
                          <Button variant="secondary" size="sm" onClick={() => copyAuthLink(order)}><Copy className="mr-2 h-4 w-4" /> Copy Link</Button>
+                         <Button variant="outline" size="sm" onClick={handleGenerateGuestLink}>
+                            <Share2 className="mr-2 h-4 w-4" /> Generate Guest Link
+                        </Button>
                     </CardFooter>
                 </Card>
 
