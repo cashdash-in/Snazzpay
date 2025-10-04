@@ -74,7 +74,8 @@ export default function VendorProductDropsPage() {
                     canvas.height = height;
                     const ctx = canvas.getContext('2d');
                     ctx?.drawImage(img, 0, 0, width, height);
-                    resolve(canvas.toDataURL(file.type));
+                    // Force JPEG format with 70% quality for significant size reduction
+                    resolve(canvas.toDataURL('image/jpeg', 0.7));
                 };
                 img.src = e.target?.result as string;
             };
@@ -86,21 +87,21 @@ export default function VendorProductDropsPage() {
         const fileArray = Array.from(files).filter(f => f.type.startsWith('image/'));
         if (fileArray.length === 0) return;
 
-        toast({ title: 'Processing images...', description: 'Resizing images before upload.' });
+        toast({ title: 'Processing images...', description: 'Resizing and compressing images before upload.' });
         
         const newPreviews: string[] = [];
         const newDataUris: string[] = [];
 
         for (const file of fileArray) {
             const resizedDataUri = await resizeImage(file);
-            newPreviews.push(URL.createObjectURL(file));
+            newPreviews.push(URL.createObjectURL(file)); // Use blob URL for previews to save memory
             newDataUris.push(resizedDataUri);
         }
         
         setImagePreviews(prev => [...prev, ...newPreviews]);
         setResizedImageDataUris(prev => [...prev, ...newDataUris]);
         
-        toast({ title: 'Images added!', description: 'The resized images have been added.' });
+        toast({ title: 'Images added!', description: 'The compressed images have been added.' });
     }
 
 
@@ -112,22 +113,33 @@ export default function VendorProductDropsPage() {
     };
     
     const handlePaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
-        const items = event.clipboardData?.items;
-        if (!items) return;
-        
-        const files = [];
-        for (let i = 0; i < items.length; i++) {
+        const pastedText = event.clipboardData?.getData('text');
+      // If clipboard contains files, let the image handler take it.
+      if (event.clipboardData.files.length > 0) {
+        event.preventDefault();
+        handleFiles(event.clipboardData.files);
+        toast({ title: 'Image(s) Pasted!', description: 'The image has been added to your product.' });
+        return;
+      }
+      // If it's just text, let the default magic paste handler do its job (defined on the Textarea)
+      if (!pastedText) {
+          const items = event.clipboardData?.items;
+          if (!items) return;
+          const files = [];
+          for (let i = 0; i < items.length; i++) {
             if (items[i].type.indexOf('image') !== -1) {
-            const file = items[i].getAsFile();
-            if (file) {
+              const file = items[i].getAsFile();
+              if (file) {
                 files.push(file);
+              }
             }
-            }
-        }
-        if(files.length > 0) {
+          }
+          if(files.length > 0) {
             event.preventDefault();
             handleFiles(files);
-        }
+            toast({ title: 'Image(s) Pasted!', description: 'The image has been added to your product.' });
+          }
+      }
     };
     
     const handleDrop = (event: DragEvent<HTMLDivElement>) => {
@@ -228,17 +240,11 @@ export default function VendorProductDropsPage() {
 
     const handleMagicPaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
         const pastedText = e.clipboardData.getData('text');
-        if (pastedText.trim().length < 10) return;
-
-        // Check if pasted content is an image, if so, do not process as text
-        const items = e.clipboardData?.items;
-        if (items) {
-          for (let i = 0; i < items.length; i++) {
-            if (items[i].type.indexOf('image') !== -1) {
-              return; // Let the image paste handler take care of it
-            }
-          }
+         // Check if clipboard contains files, if so, let the other handler take care of it.
+        if (e.clipboardData.files.length > 0) {
+            return;
         }
+        if (pastedText.trim().length < 10) return;
 
         e.preventDefault();
         e.stopPropagation();
