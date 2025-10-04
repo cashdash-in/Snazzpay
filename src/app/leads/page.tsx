@@ -12,6 +12,7 @@ import type { EditableOrder } from '../orders/page';
 import { format } from "date-fns";
 import { getCollection, deleteDocument, saveDocument } from "@/services/firestore";
 import { useRouter } from "next/navigation";
+import Image from 'next/image';
 
 
 export default function LeadsPage() {
@@ -147,9 +148,8 @@ export default function LeadsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Captured On</TableHead>
-                  <TableHead>Original Order ID</TableHead>
-                  <TableHead>Customer</TableHead>
                   <TableHead>Product(s)</TableHead>
+                  <TableHead>Customer</TableHead>
                   <TableHead>Value</TableHead>
                   <TableHead>Actors</TableHead>
                   <TableHead>Status</TableHead>
@@ -160,25 +160,35 @@ export default function LeadsPage() {
                 {leads.map((lead) => (
                   <TableRow key={lead.id}>
                     <TableCell>{lead.date ? format(new Date(lead.date), 'PP') : 'N/A'}</TableCell>
-                    <TableCell className="font-medium">{lead.orderId}</TableCell>
+                    <TableCell>
+                        <div className="flex items-center gap-2">
+                           {lead.packageImageUrls?.[0] ? (
+                                <Image src={lead.packageImageUrls[0]} alt={lead.productOrdered} width={40} height={40} className="rounded-md object-cover aspect-square"/>
+                            ) : (
+                                <div className="h-10 w-10 bg-muted rounded-md flex items-center justify-center text-muted-foreground text-xs">No Img</div>
+                            )}
+                            <span className="font-medium max-w-xs truncate">{lead.productOrdered}</span>
+                        </div>
+                    </TableCell>
                     <TableCell>
                       <div>{lead.customerName}</div>
                       <div className='text-xs text-muted-foreground'>{lead.contactNo}</div>
                     </TableCell>
-                    <TableCell>{lead.productOrdered}</TableCell>
                     <TableCell>₹{lead.price}</TableCell>
                      <TableCell>
                       <div className="space-y-1">
-                          {lead.sellerName ? (
+                          {lead.sellerName || lead.vendorName ? (
                               <>
                                 {lead.vendorName && (
                                     <div className="text-xs text-muted-foreground flex items-center gap-1">
                                       <Factory className="h-3 w-3" /> {lead.vendorName}
                                     </div>
                                 )}
-                                <div className="text-xs text-muted-foreground flex items-center gap-1">
-                                  <Store className="h-3 w-3" /> {lead.sellerName}
-                                </div>
+                                 {lead.sellerName && (
+                                    <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                        <Store className="h-3 w-3" /> {lead.sellerName}
+                                    </div>
+                                )}
                               </>
                           ) : (
                               <div className="text-xs text-muted-foreground flex items-center gap-1">

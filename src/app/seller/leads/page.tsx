@@ -16,6 +16,7 @@ import { useRouter } from "next/navigation";
 import { sanitizePhoneNumber } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import type { SellerUser } from "@/app/seller-accounts/page";
+import Image from 'next/image';
 
 type Lead = EditableOrder & { sellerId: string; };
 
@@ -163,9 +164,9 @@ export default function SellerLeadsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Captured On</TableHead>
+                  <TableHead>Product(s)</TableHead>
                   <TableHead>Customer</TableHead>
                   <TableHead>Contact No</TableHead>
-                  <TableHead>Product(s)</TableHead>
                   <TableHead>Value</TableHead>
                   <TableHead>Payment Choice</TableHead>
                   <TableHead className="text-center">Actions</TableHead>
@@ -175,9 +176,18 @@ export default function SellerLeadsPage() {
                 {leads.length > 0 ? leads.map((lead) => (
                   <TableRow key={lead.id}>
                     <TableCell>{new Date(lead.date).toLocaleDateString()}</TableCell>
+                     <TableCell>
+                        <div className="flex items-center gap-2">
+                           {lead.packageImageUrls?.[0] ? (
+                                <Image src={lead.packageImageUrls[0]} alt={lead.productOrdered} width={40} height={40} className="rounded-md object-cover aspect-square"/>
+                            ) : (
+                                <div className="h-10 w-10 bg-muted rounded-md flex items-center justify-center text-muted-foreground text-xs">No Img</div>
+                            )}
+                            <span className="font-medium max-w-xs truncate">{lead.productOrdered}</span>
+                        </div>
+                    </TableCell>
                     <TableCell className="font-medium">{lead.customerName}</TableCell>
                     <TableCell>{lead.contactNo}</TableCell>
-                    <TableCell>{lead.productOrdered}</TableCell>
                     <TableCell>₹{lead.price}</TableCell>
                     <TableCell>
                       <Badge variant={lead.paymentMethod === 'Cash on Delivery' ? 'secondary' : 'outline'}>

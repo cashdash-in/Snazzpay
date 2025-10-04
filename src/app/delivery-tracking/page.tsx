@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { EditableOrder } from '../orders/page';
 import { sanitizePhoneNumber } from "@/lib/utils";
 import { getCollection, saveDocument, deleteDocument } from "@/services/firestore";
+import Image from 'next/image';
 
 type OrderStatus = 'pending' | 'dispatched' | 'out-for-delivery' | 'delivered' | 'failed';
 
@@ -185,8 +186,8 @@ export default function DeliveryTrackingPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Order ID</TableHead>
+                    <TableHead>Product</TableHead>
                     <TableHead>Customer</TableHead>
-                    <TableHead>Contact / Email</TableHead>
                     <TableHead>Actors</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-center w-[550px]">Actions</TableHead>
@@ -200,6 +201,16 @@ export default function DeliveryTrackingPage() {
                           {order.orderId}
                         </Link>
                       </TableCell>
+                       <TableCell>
+                        <div className="flex items-center gap-2">
+                           {order.packageImageUrls?.[0] ? (
+                                <Image src={order.packageImageUrls[0]} alt={order.productOrdered} width={40} height={40} className="rounded-md object-cover aspect-square"/>
+                            ) : (
+                                <div className="h-10 w-10 bg-muted rounded-md flex items-center justify-center text-muted-foreground text-xs">No Img</div>
+                            )}
+                            <span className="text-xs max-w-24 truncate">{order.productOrdered}</span>
+                        </div>
+                      </TableCell>
                       <TableCell>
                          <Input
                             value={order.customerName}
@@ -208,34 +219,20 @@ export default function DeliveryTrackingPage() {
                             placeholder="Customer Name"
                         />
                       </TableCell>
-                      <TableCell>
-                         <div className="flex flex-col gap-1">
-                             <Input
-                                value={order.contactNo}
-                                onChange={(e) => handleFieldChange(order.id, 'contactNo', e.target.value)}
-                                className="w-32 h-8"
-                                placeholder="Contact No."
-                            />
-                            <Input
-                                value={order.customerEmail || ''}
-                                onChange={(e) => handleFieldChange(order.id, 'customerEmail', e.target.value)}
-                                className="w-40 h-8"
-                                placeholder="Email Address"
-                            />
-                         </div>
-                      </TableCell>
                        <TableCell>
                          <div className="space-y-1">
-                            {order.sellerName ? (
+                            {order.sellerName || order.vendorName ? (
                                 <>
                                 {order.vendorName && (
                                     <div className="text-xs text-muted-foreground flex items-center gap-1">
                                     <Factory className="h-3 w-3" /> {order.vendorName}
                                     </div>
                                 )}
-                                <div className="text-xs text-muted-foreground flex items-center gap-1">
-                                    <Store className="h-3 w-3" /> {order.sellerName}
-                                </div>
+                                {order.sellerName && (
+                                    <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                        <Store className="h-3 w-3" /> {order.sellerName}
+                                    </div>
+                                )}
                                 </>
                             ) : (
                                 <div className="text-xs text-muted-foreground flex items-center gap-1">

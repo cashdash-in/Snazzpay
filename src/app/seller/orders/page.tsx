@@ -14,6 +14,7 @@ import type { EditableOrder } from '@/app/orders/page';
 import { Badge } from "@/components/ui/badge";
 import { sanitizePhoneNumber } from "@/lib/utils";
 import { getCollection, saveDocument, deleteDocument } from "@/services/firestore";
+import Image from 'next/image';
 
 export default function SellerOrdersPage() {
   const [orders, setOrders] = useState<EditableOrder[]>([]);
@@ -63,15 +64,14 @@ export default function SellerOrdersPage() {
   const handlePushToVendor = async (orderToPush: EditableOrder) => {
     if (!user) return;
     
-    const allSellers = await getCollection<any>('seller_users');
-    const sellerInfo = allSellers.find((s: any) => s.id === user.uid);
-    const vendorId = sellerInfo?.vendorId;
+    // The vendorId should already be on the order object when it was created
+    const vendorId = orderToPush.vendorId;
     
     if (!vendorId) {
         toast({
             variant: 'destructive',
             title: "Vendor Not Assigned",
-            description: "You do not have a vendor assigned to your account. Please contact admin.",
+            description: "This order doesn't have a vendor assigned. Please contact admin.",
         });
         return;
     }
@@ -183,8 +183,8 @@ export default function SellerOrdersPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Order ID</TableHead>
-                    <TableHead>Customer</TableHead>
                     <TableHead>Product(s)</TableHead>
+                    <TableHead>Customer</TableHead>
                     <TableHead>Value</TableHead>
                     <TableHead>Payment Type</TableHead>
                     <TableHead>Status</TableHead>
@@ -204,8 +204,17 @@ export default function SellerOrdersPage() {
                               {order.orderId}
                             </Link>
                           </TableCell>
+                           <TableCell>
+                                <div className="flex items-center gap-2">
+                                   {order.packageImageUrls?.[0] ? (
+                                        <Image src={order.packageImageUrls[0]} alt={order.productOrdered} width={40} height={40} className="rounded-md object-cover aspect-square"/>
+                                    ) : (
+                                        <div className="h-10 w-10 bg-muted rounded-md flex items-center justify-center text-muted-foreground text-xs">No Img</div>
+                                    )}
+                                    <span className="font-medium max-w-xs truncate">{order.productOrdered}</span>
+                                </div>
+                            </TableCell>
                           <TableCell>{order.customerName}</TableCell>
-                          <TableCell>{order.productOrdered}</TableCell>
                           <TableCell>₹{order.price}</TableCell>
                            <TableCell>
                             <Badge variant={isCOD ? "secondary" : "outline"}>{(order as any).paymentMethod || 'Prepaid'}</Badge>

@@ -16,6 +16,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from "@/components/ui/badge";
 import { sanitizePhoneNumber } from "@/lib/utils";
 import { getCollection, saveDocument, deleteDocument, getDocument } from "@/services/firestore";
+import Image from 'next/image';
 
 export type EditableOrder = {
   id: string;
@@ -240,6 +241,7 @@ export default function OrdersPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Order ID</TableHead>
+                  <TableHead>Product</TableHead>
                   <TableHead>Customer</TableHead>
                   <TableHead>Price</TableHead>
                   <TableHead>Payment Status</TableHead>
@@ -259,6 +261,16 @@ export default function OrdersPage() {
                                 <Link href={`/orders/${order.id}`} className="font-medium text-primary hover:underline cursor-pointer">
                                     {order.orderId}
                                 </Link>
+                            </TableCell>
+                            <TableCell>
+                                <div className="flex items-center gap-2">
+                                   {order.packageImageUrls?.[0] ? (
+                                        <Image src={order.packageImageUrls[0]} alt={order.productOrdered} width={40} height={40} className="rounded-md object-cover aspect-square"/>
+                                    ) : (
+                                        <div className="h-10 w-10 bg-muted rounded-md flex items-center justify-center text-muted-foreground text-xs">No Img</div>
+                                    )}
+                                    <span className="font-medium max-w-xs truncate">{order.productOrdered}</span>
+                                </div>
                             </TableCell>
                             <TableCell>
                                 <Input 
@@ -299,16 +311,18 @@ export default function OrdersPage() {
                             </TableCell>
                              <TableCell>
                                 <div className="space-y-1">
-                                    {order.sellerName ? (
+                                    {order.sellerName || order.vendorName ? (
                                         <>
                                             {order.vendorName && (
                                                 <div className="text-xs text-muted-foreground flex items-center gap-1">
                                                 <Factory className="h-3 w-3" /> {order.vendorName}
                                                 </div>
                                             )}
-                                            <div className="text-xs text-muted-foreground flex items-center gap-1">
-                                                <Store className="h-3 w-3" /> {order.sellerName}
-                                            </div>
+                                            {order.sellerName && (
+                                                <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                                    <Store className="h-3 w-3" /> {order.sellerName}
+                                                </div>
+                                            )}
                                         </>
                                     ) : (
                                         <div className="text-xs text-muted-foreground flex items-center gap-1">
