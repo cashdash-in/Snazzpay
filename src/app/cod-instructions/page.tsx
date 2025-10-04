@@ -18,7 +18,7 @@ export default function CodInstructionsPage() {
         setAppUrl(origin);
 
         const code = `<div style="margin-top: 15px; width: 100%;">
-  <a id="secure-cod-link" href="#" target="_blank" style="text-decoration: none; display: block; width: 100%;">
+  <a id="secure-cod-link" href="#" style="text-decoration: none; display: block; width: 100%;">
     <button 
       type="button" 
       style="width: 100%; min-height: 45px; font-size: 16px; background-color: #5a31f4; color: white; border: none; border-radius: 5px; cursor: pointer;"
