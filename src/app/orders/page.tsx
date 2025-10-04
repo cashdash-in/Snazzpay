@@ -33,6 +33,8 @@ export type EditableOrder = {
   paymentStatus: string;
   date: string;
   sellerId?: string;
+  sellerName?: string;
+  paymentMethod?: 'Prepaid' | 'Secure Charge on Delivery' | 'Cash on Delivery';
   // Fields from other tabs
   trackingNumber?: string;
   courierCompanyName?: string;
@@ -45,7 +47,7 @@ export type EditableOrder = {
   refundAmount?: string;
   refundReason?: string;
   refundStatus?: 'Pending' | 'Processed' | 'Failed';
-  source?: 'Shopify' | 'Manual' | 'Seller' | 'Catalogue';
+  source?: 'Shopify' | 'Manual' | 'Seller' | 'Catalogue' | 'SmartMagazine';
 };
 
 type PaymentInfo = {

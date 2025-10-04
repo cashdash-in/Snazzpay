@@ -113,7 +113,7 @@ export default function ShareMagazinePage() {
                                                 <Image src={product.imageDataUris[0]} alt={product.title} width={60} height={60} className="rounded-md object-cover aspect-square" />
                                                 <div className="flex-grow">
                                                     <p className="font-semibold">{product.title}</p>
-                                                    <p className="text-sm text-muted-foreground">Price: ₹{(product.price || (product as any).costPrice).toFixed(2)}</p>
+                                                    <p className="text-sm text-muted-foreground">Price: ₹{((product as SellerProduct).price || (product as ProductDrop).costPrice).toFixed(2)}</p>
                                                 </div>
                                             </label>
                                         </div>

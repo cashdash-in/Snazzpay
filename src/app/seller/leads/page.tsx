@@ -1,3 +1,4 @@
+
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -5,15 +6,16 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, Trash2, ArrowRight, MessageSquare } from "lucide-react";
+import { Loader2, Trash2, Send, Loader2 as ButtonLoader, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { EditableOrder } from '@/app/orders/page';
 import { useAuth } from "@/hooks/use-auth";
 import { getCollection, saveDocument, deleteDocument } from "@/services/firestore";
 import { useRouter } from "next/navigation";
 import { sanitizePhoneNumber } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
-type Lead = EditableOrder & { sellerId: string; paymentMethod: string; };
+type Lead = EditableOrder & { sellerId: string; };
 
 export default function SellerLeadsPage() {
   const { user } = useAuth();
@@ -28,7 +30,7 @@ export default function SellerLeadsPage() {
     setLoading(true);
     try {
         const allLeads = await getCollection<Lead>('leads');
-        const sellerLeads = allLeads.filter(lead => lead.sellerId === user.uid && lead.paymentStatus === 'Lead');
+        const sellerLeads = allLeads.filter(lead => lead.sellerId === user.uid && ['Lead', 'Intent Verified'].includes(lead.paymentStatus));
         setLeads(sellerLeads);
     } catch (error) {
         console.error("Failed to load leads:", error);
@@ -60,37 +62,6 @@ export default function SellerLeadsPage() {
     }
   };
 
-  const handleConvertToOrder = async (lead: Lead) => {
-    if (!user) return;
-    try {
-        const newOrder: EditableOrder = {
-            ...lead,
-            paymentStatus: 'Pending',
-            source: 'Seller',
-        };
-        
-        await saveDocument('orders', newOrder, newOrder.id);
-        
-        await saveDocument('leads', { paymentStatus: 'Converted' }, lead.id);
-
-        setLeads(prev => prev.filter(l => l.id !== lead.id));
-
-        toast({
-            title: "Converted to Order",
-            description: `Lead for ${lead.customerName} has been moved to your 'My Orders' list.`,
-        });
-        
-        router.push('/seller/orders');
-
-    } catch (error: any) {
-        toast({
-            variant: 'destructive',
-            title: "Error Converting Lead",
-            description: error.message,
-        });
-    }
-  };
-
   const handleSendPaymentLink = (lead: Lead) => {
       const baseUrl = `${window.location.origin}/payment`;
       const finalUrl = `${baseUrl}?amount=${encodeURIComponent(lead.price)}&name=${encodeURIComponent(lead.productOrdered)}&order_id=${encodeURIComponent(lead.id)}&prepaid=true`;
@@ -99,6 +70,38 @@ export default function SellerLeadsPage() {
       const whatsappUrl = `https://wa.me/${sanitizePhoneNumber(lead.contactNo)}?text=${encodeURIComponent(message)}`;
       
       window.open(whatsappUrl, '_blank');
+  };
+
+  const handleConvertToOrder = async (lead: Lead) => {
+    if (!user) return;
+    try {
+        const newOrder: EditableOrder = {
+            ...lead,
+            paymentStatus: 'Pending', // Set as a pending manual order
+            source: 'Seller' as const,
+        };
+        
+        await saveDocument('orders', newOrder, newOrder.id);
+        
+        // Instead of deleting, we update the lead's status so it doesn't show up again
+        await saveDocument('leads', { ...lead, paymentStatus: 'Converted' }, lead.id);
+        
+        setLeads(prev => prev.filter(l => l.id !== lead.id));
+
+        toast({
+            title: "Converted to Order",
+            description: `Lead for ${lead.customerName} has been moved to the main orders list.`,
+        });
+        
+        router.refresh();
+
+    } catch (error: any) {
+        toast({
+            variant: 'destructive',
+            title: "Error Converting Lead",
+            description: error.message,
+        });
+    }
   };
 
   return (
@@ -137,11 +140,15 @@ export default function SellerLeadsPage() {
                     <TableCell>{lead.contactNo}</TableCell>
                     <TableCell>{lead.productOrdered}</TableCell>
                     <TableCell>₹{lead.price}</TableCell>
-                    <TableCell>{lead.paymentMethod || 'N/A'}</TableCell>
+                    <TableCell>
+                      <Badge variant={lead.paymentMethod === 'Cash on Delivery' ? 'secondary' : 'outline'}>
+                        {lead.paymentMethod || 'Prepaid'}
+                      </Badge>
+                    </TableCell>
                     <TableCell className="text-center space-x-2">
                         {lead.paymentMethod !== 'Cash on Delivery' && (
                             <Button variant="secondary" size="sm" onClick={() => handleSendPaymentLink(lead)}>
-                                <MessageSquare className="mr-2 h-4 w-4" /> Send Link
+                                <Send className="mr-2 h-4 w-4" /> Send Link
                             </Button>
                         )}
                         <Button 

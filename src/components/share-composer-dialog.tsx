@@ -14,6 +14,7 @@ import { Loader2, Wand2, AlertTriangle } from 'lucide-react';
 import { createProductDescription } from '@/ai/flows/create-product-description';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { v4 as uuidv4 } from 'uuid';
+import { getCookie } from 'cookies-next';
 
 // Can be a ProductDrop or a SellerProduct
 type ShareableProduct = {
@@ -25,6 +26,8 @@ type ShareableProduct = {
     price?: number;
     category?: string;
     vendorName?: string;
+    sellerId?: string;
+    sellerName?: string;
     quantity?: number;
     size?: string;
     color?: string;
@@ -58,16 +61,30 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
         const currentUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
         setAppUrl(currentUrl);
 
-        // Generate a magazine link instead of a direct order link
-        const productData = [{...product, price: productPrice}];
-        const params = new URLSearchParams({
-            products: JSON.stringify(productData)
-        });
+        const params = new URLSearchParams();
+        params.set('id', product.id);
+        params.set('title', product.title);
+        params.set('description', product.description);
+        params.set('price', productPrice.toString());
+        params.set('image', product.imageDataUris[0]); // Pass primary image for social sharing previews
+        
+        // Pass seller/vendor info
+        const role = getCookie('userRole');
+        if (role === 'seller' && user) {
+            params.set('sellerId', user.uid);
+            params.set('sellerName', user.displayName || 'Seller');
+        } else if (role === 'vendor' && user) {
+            params.set('sellerId', `vendor_${user.uid}`); // Distinguish vendor-sourced leads
+            params.set('sellerName', user.displayName || 'Vendor');
+        } else {
+             params.set('sellerName', product.sellerName || product.vendorName || 'Snazzify');
+        }
 
-        const magazineLink = `${currentUrl}/smart-magazine?${params.toString()}`;
+
+        const catalogueLink = `${currentUrl}/catalogue?${params.toString()}`;
         
         setShareText(
-            `Check out this new product!\n\n*${product.title}*\n${product.description}\n\n*Price:* ₹${(productPrice).toFixed(2)}\n\nClick here to view in our Smart Magazine: ${magazineLink}`
+            `Check out this new product!\n\n*${product.title}*\n${product.description}\n\n*Price:* ₹${(productPrice).toFixed(2)}\n\nClick here to view & order: ${catalogueLink}`
         );
     }, [product, user, productPrice]);
         
@@ -85,15 +102,17 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
                 imagesDataUri: product.imageDataUris,
             });
             
-            const productData = [{...product, price: productPrice, description: newDescription}];
-            const params = new URLSearchParams({
-                 products: JSON.stringify(productData)
-            });
+            const params = new URLSearchParams();
+            params.set('id', product.id);
+            params.set('title', product.title);
+            params.set('description', newDescription); // Use new description
+            params.set('price', productPrice.toString());
+            params.set('image', product.imageDataUris[0]);
 
-            const magazineLink = `${appUrl}/smart-magazine?${params.toString()}`;
+            const catalogueLink = `${appUrl}/catalogue?${params.toString()}`;
 
             setShareText(
-                `Check out this new product!\n\n*${product.title}*\n${newDescription}\n\n*Price:* ₹${(productPrice).toFixed(2)}\n\nClick here to view in our Smart Magazine: ${magazineLink}`
+                `Check out this new product!\n\n*${product.title}*\n${newDescription}\n\n*Price:* ₹${(productPrice).toFixed(2)}\n\nClick here to view & order: ${catalogueLink}`
             );
             toast({
                 title: "Description Generated!",
