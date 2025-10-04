@@ -8,7 +8,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, Save, ExternalLink, CreditCard, Send, Loader2 as ButtonLoader, Mail, Printer, Copy, ShieldAlert, AlertTriangle, MessageSquare, Rocket, Facebook, Instagram, Share2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Save, ExternalLink, CreditCard, Send, Loader2 as ButtonLoader, Mail, Printer, Copy, ShieldAlert, AlertTriangle, MessageSquare, Rocket, Facebook, Instagram, Share2, Package } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { EditableOrder } from '../page';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -28,6 +28,7 @@ import Link from 'next/link';
 import { v4 as uuidv4 } from 'uuid';
 import { sanitizePhoneNumber } from '@/lib/utils';
 import { getCollection, getDocument, saveDocument } from '@/services/firestore';
+import Image from 'next/image';
 
 type PaymentInfo = {
     paymentId: string;
@@ -561,6 +562,23 @@ function OrderDetailContent() {
                             </Select>
                         </div>
                     </CardContent>
+                     {order.packageImageUrls && order.packageImageUrls.length > 0 && (
+                        <CardContent>
+                            <Label>Package Images from Guest Vendor</Label>
+                            <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 rounded-lg border p-4">
+                                {order.packageImageUrls.map((url, index) => (
+                                    <div key={index} className="relative aspect-square">
+                                        <Image
+                                            src={url}
+                                            alt={`Package image ${index + 1}`}
+                                            fill
+                                            className="object-cover rounded-md"
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                        </CardContent>
+                    )}
                      <CardFooter className="gap-2">
                         <Button variant="secondary" size="sm" onClick={() => shareToFacebook(order)}><Facebook className="mr-2 h-4 w-4" /> Facebook</Button>
                         <Button variant="secondary" size="sm" onClick={() => shareToInstagram(order)}><Instagram className="mr-2 h-4 w-4" /> Instagram</Button>
