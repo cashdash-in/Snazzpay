@@ -112,7 +112,6 @@ function SecureCodPaymentForm() {
         getRazorpayKeyId().then(key => { setLoading(false); setRazorpayKeyId(key); });
     }, [searchParams]);
 
-    // Correctly recalculate total price when quantity or base amount changes
     useEffect(() => {
         const newTotal = orderDetails.amount * quantity;
         setTotalPrice(newTotal);
@@ -348,5 +347,3 @@ function Page() {
 }
 
 export default Page;
-
-    
