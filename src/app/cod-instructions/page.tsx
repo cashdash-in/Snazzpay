@@ -17,6 +17,7 @@ export default function CodInstructionsPage() {
         setAppUrl(origin);
 
         const code = `<div style="margin-top: 15px; width: 100%;">
+  <!-- FINAL ATTEMPT: A simple link that navigates in the same tab -->
   <a id="secure-cod-link" href="#" style="text-decoration: none; display: block; width: 100%;">
     <button 
       type="button" 
@@ -28,6 +29,7 @@ export default function CodInstructionsPage() {
     </button>
   </a>
   <div style="text-align: center; margin-top: 8px; font-size: 12px;">
+    <!-- The "What is this?" link can still open in a new tab as it's not dynamic -->
     <a href="https://<!!!-REPLACE-THIS-!!!>/secure-cod-info" target="_blank" style="color: #5a31f4; text-decoration: underline;">What is this?</a>
   </div>
 </div>
@@ -97,7 +99,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <div className="space-y-2">
             <h3 className="text-lg font-semibold">Step 2: Copy and Paste the Code</h3>
             <p className="text-muted-foreground">
-              Paste the code below where you want the button to appear (e.g., near your 'Add to Cart' button). Make sure to replace the placeholder URLs with your live application URL.
+              Paste the code below where you want the button to appear (e.g., near your 'Add to Cart' button). Make sure to replace both highlighted placeholder URLs with your live application URL.
             </p>
             <CodeBlock code={embedCode} />
           </div>
@@ -105,7 +107,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <div className="space-y-2">
             <h3 className="text-lg font-semibold">How it works</h3>
             <p className="text-muted-foreground">
-             This HTML code creates a simple link styled as a button. When the page loads, a script dynamically sets the link's destination URL with the current product's details. When clicked, it navigates the user in the same tab to an intermediary page in your app, which then redirects them to the final secure payment page. This method is highly reliable and avoids pop-up blockers.
+             This HTML code creates a simple link styled as a button. When the page loads, a script dynamically sets the link's destination URL. When clicked, it will navigate the user in the **same tab** to an intermediary page in your app, which then redirects them to the final secure payment page. This method is the most reliable and avoids all pop-up blockers.
             </p>
           </div>
         </CardContent>
