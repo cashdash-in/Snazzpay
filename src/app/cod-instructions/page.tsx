@@ -16,43 +16,52 @@ export default function CodInstructionsPage() {
         const origin = typeof window !== 'undefined' ? window.location.origin : 'https://<your-app-url>';
         setAppUrl(origin);
 
-        const code = `<form id="secure-cod-form" action="https://<!!!-REPLACE-THIS-!!!>/redirect" method="GET" style="margin-top: 15px; width: 100%;">
-  <!-- Hidden fields to carry product data -->
-  <input type="hidden" id="cod-p-name" name="name" value="" />
-  <input type="hidden" id="cod-p-amount" name="amount" value="" />
-  <input type="hidden" id="cod-p-image" name="image" value="" />
-  <input type="hidden" id="cod-p-order-id" name="order_id" value="" />
-
-  <button 
-    type="submit" 
-    style="width: 100%; min-height: 45px; font-size: 16px; background-color: #5a31f4; color: white; border: none; border-radius: 5px; cursor: pointer;"
-    onmouseover="this.style.backgroundColor='#4a28c7'"
-    onmouseout="this.style.backgroundColor='#5a31f4'"
-  >
-    Buy now with Secure COD
-  </button>
+        const code = `<div style="margin-top: 15px; width: 100%;">
+  <a id="secure-cod-link" href="#" style="text-decoration: none; display: block; width: 100%;">
+    <button 
+      type="button" 
+      style="width: 100%; min-height: 45px; font-size: 16px; background-color: #5a31f4; color: white; border: none; border-radius: 5px; cursor: pointer;"
+      onmouseover="this.style.backgroundColor='#4a28c7'"
+      onmouseout="this.style.backgroundColor='#5a31f4'"
+    >
+      Buy now with Secure COD
+    </button>
+  </a>
   <div style="text-align: center; margin-top: 8px; font-size: 12px;">
     <a href="https://<!!!-REPLACE-THIS-!!!>/secure-cod-info" target="_blank" style="color: #5a31f4; text-decoration: underline;">What is this?</a>
   </div>
-</form>
+</div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    var secureCodLink = document.getElementById('secure-cod-link');
+    
+    if (!secureCodLink) {
+        console.error('Secure COD: Could not find link element.');
+        return;
+    }
+
     try {
         // These are standard Shopify liquid variables.
         var productName = '{{ product.title | url_encode }}';
         var productPrice = {{ product.price | money_without_currency | replace: ',', '' }};
         var productImage = '{{ product.featured_image | img_url: "large" }}';
+        
+        // Generate a new, unique Order ID on the client-side for every transaction.
         var uniqueId = 'SNZ-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5).toUpperCase();
         
-        // Set the values of the hidden input fields
-        document.getElementById('cod-p-name').value = productName;
-        document.getElementById('cod-p-amount').value = productPrice;
-        document.getElementById('cod-p-image').value = productImage;
-        document.getElementById('cod-p-order-id').value = uniqueId;
+        // Point to the server-side redirect page
+        var baseUrl = 'https://<!!!-REPLACE-THIS-!!!>/redirect';
+
+        var finalUrl = baseUrl + '?amount=' + encodeURIComponent(productPrice) + '&name=' + productName + '&order_id=' + uniqueId + '&image=' + encodeURIComponent(productImage);
+        
+        // Directly set the href on the anchor tag.
+        secureCodLink.href = finalUrl;
 
     } catch (e) {
         console.error("Secure COD Liquid Error: ", e);
+        // Fallback URL if liquid variables are not available
+        secureCodLink.href = 'https://<!!!-REPLACE-THIS-!!!>/secure-cod';
     }
 });
 </script>`;
@@ -88,7 +97,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <div className="space-y-2">
             <h3 className="text-lg font-semibold">Step 2: Copy and Paste the Code</h3>
             <p className="text-muted-foreground">
-              Paste the code below where you want the button to appear (e.g., near your 'Add to Cart' button). The URLs will be automatically configured to your app's domain.
+              Paste the code below where you want the button to appear (e.g., near your 'Add to Cart' button). Make sure to replace the placeholder URLs with your live application URL.
             </p>
             <CodeBlock code={embedCode} />
           </div>
@@ -96,7 +105,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <div className="space-y-2">
             <h3 className="text-lg font-semibold">How it works</h3>
             <p className="text-muted-foreground">
-             This HTML form uses hidden input fields to securely pass order details. When submitted, it navigates the user to the payment page, avoiding pop-up blockers.
+             This HTML code creates a simple link styled as a button. When the page loads, a script dynamically sets the link's destination URL with the current product's details. When clicked, it navigates the user in the same tab to an intermediary page in your app, which then redirects them to the final secure payment page. This method is highly reliable and avoids pop-up blockers.
             </p>
           </div>
         </CardContent>
