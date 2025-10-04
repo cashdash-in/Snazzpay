@@ -10,7 +10,7 @@ import { ShieldCheck, Mail, Lock, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { FirebaseError } from 'firebase/app';
 
@@ -35,30 +35,15 @@ export default function AdminLoginPage() {
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const idToken = await userCredential.user.getIdToken();
 
-            // Explicitly set role to 'admin' and create the session
-            try {
-                const response = await fetch('/api/auth/session', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ idToken, role: 'admin' }),
-                });
+            const response = await fetch('/api/auth/session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ idToken, role: 'admin' }),
+            });
 
-                if (!response.ok) {
-                    // If session creation fails, sign the user out of Firebase and show an error.
-                    await signOut(auth);
-                    const errorResult = await response.json().catch(() => ({ error: 'Failed to create server session.' }));
-                    throw new Error(errorResult.error);
-                }
-
-            } catch (sessionError: any) {
-                // Catch errors from the fetch call or if the response was not ok
-                 toast({
-                    variant: 'destructive',
-                    title: "Admin Session Error",
-                    description: sessionError.message || "Could not create a server session. Please try again.",
-                });
-                setIsLoading(false);
-                return;
+            if (!response.ok) {
+                const errorResult = await response.json();
+                throw new Error(errorResult.error);
             }
 
             toast({ title: "Admin Login Successful", description: "Redirecting to admin dashboard." });
@@ -70,7 +55,7 @@ export default function AdminLoginPage() {
             let errorMessage = 'An unexpected error occurred during admin login.';
             if (error instanceof FirebaseError) {
                 if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found') {
-                    errorMessage = 'Invalid credentials. Please ensure you have created the admin user via the signup page first.';
+                    errorMessage = 'Invalid credentials. Please check your email and password.';
                 } else {
                     errorMessage = error.message;
                 }
@@ -87,7 +72,7 @@ export default function AdminLoginPage() {
                 <CardHeader className="text-center">
                     <ShieldCheck className="mx-auto h-12 w-12 text-primary" />
                     <CardTitle>SnazzPay Admin Central</CardTitle>
-                    <CardDescription>Log in to the main dashboard. You must first create the admin user via the main signup page.</CardDescription>
+                    <CardDescription>Log in to the main dashboard.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">

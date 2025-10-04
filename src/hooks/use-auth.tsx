@@ -43,24 +43,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signOut = useCallback(async () => {
     try {
-        const role = getCookie('userRole');
-        
         await firebaseSignOut(auth);
+        
         await fetch('/api/auth/session', { method: 'DELETE' });
-        
-        let loginPath = '/auth/login'; // Default
-        
-        if (role === 'seller') {
-            loginPath = '/seller/login';
-        } else if (role === 'vendor') {
-            loginPath = '/vendor/login';
-        } else if (role === 'partner-pay') {
-            loginPath = '/partner-pay/login';
-        } else if (role === 'logistics') {
-            loginPath = '/logistics-secure/login';
-        }
 
-        router.push(loginPath);
+        // Redirect to the most general login page after sign-out.
+        // Let individual pages or a middleware handle role-specific redirects if needed.
+        router.push('/auth/login');
         
     } catch (error) {
         console.error("Error signing out:", error);
