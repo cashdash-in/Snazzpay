@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
@@ -62,8 +61,16 @@ function SmartMagazineContent() {
     
     const handleOrderClick = (product: DisplayProduct) => {
         const params = new URLSearchParams();
-        // CORRECT: Only pass the ID. The catalogue page will fetch the rest.
         params.set('id', product.id);
+
+        // Pass sizes and colors as comma-separated strings
+        if (product.sizes && product.sizes.length > 0) {
+            params.set('sizes', product.sizes.join(','));
+        }
+        if (product.colors && product.colors.length > 0) {
+            params.set('colors', product.colors.join(','));
+        }
+
         router.push(`/catalogue?${params.toString()}`);
     };
 

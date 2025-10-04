@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Suspense, useState, useEffect, useCallback } from 'react';
@@ -45,6 +44,10 @@ function CatalogueOrderPageContent() {
     const [selectedColor, setSelectedColor] = useState('');
     const [totalPrice, setTotalPrice] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    
+    // Get sizes and colors from URL params
+    const availableSizes = searchParams.get('sizes')?.split(',') || [];
+    const availableColors = searchParams.get('colors')?.split(',') || [];
 
 
     useEffect(() => {
@@ -71,8 +74,8 @@ function CatalogueOrderPageContent() {
                     };
                     setProduct(displayProduct);
                     setTotalPrice(displayProduct.price);
-                    if (displayProduct.sizes && displayProduct.sizes.length > 0) setSelectedSize(displayProduct.sizes[0]);
-                    if (displayProduct.colors && displayProduct.colors.length > 0) setSelectedColor(displayProduct.colors[0]);
+                    if (availableSizes.length > 0) setSelectedSize(availableSizes[0]);
+                    if (availableColors.length > 0) setSelectedColor(availableColors[0]);
                 } else {
                     toast({ variant: 'destructive', title: "Product not found", description: "We couldn't find details for this product." });
                 }
@@ -156,9 +159,6 @@ function CatalogueOrderPageContent() {
             </div>
         )
     }
-
-    const availableSizes = (product as SellerProduct).sizes || [];
-    const availableColors = (product as SellerProduct).colors || [];
 
     return (
         <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
