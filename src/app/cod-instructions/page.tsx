@@ -1,4 +1,3 @@
-
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -16,10 +15,9 @@ export default function CodInstructionsPage() {
         const origin = typeof window !== 'undefined' ? window.location.origin : 'https://<your-app-url>';
         setAppUrl(origin);
 
-        const code = `<div style="margin-top: 15px; width: 100%;">
-  <!-- FINAL ATTEMPT: A simple link that navigates in the same tab -->
-  <a id="secure-cod-link" href="#" style="text-decoration: none; display: block; width: 100%;">
+        const code = `<div id="secure-cod-button-container" style="margin-top: 15px; width: 100%;">
     <button 
+      id="secure-cod-button" 
       type="button" 
       style="width: 100%; min-height: 45px; font-size: 16px; background-color: #5a31f4; color: white; border: none; border-radius: 5px; cursor: pointer;"
       onmouseover="this.style.backgroundColor='#4a28c7'"
@@ -27,43 +25,36 @@ export default function CodInstructionsPage() {
     >
       Buy now with Secure COD
     </button>
-  </a>
-  <div style="text-align: center; margin-top: 8px; font-size: 12px;">
-    <!-- The "What is this?" link can still open in a new tab as it's not dynamic -->
-    <a href="https://<!!!-REPLACE-THIS-!!!>/secure-cod-info" target="_blank" style="color: #5a31f4; text-decoration: underline;">What is this?</a>
-  </div>
+     <div style="text-align: center; margin-top: 8px; font-size: 12px;">
+        <a href="https://<your-app-url>/secure-cod-info" target="_blank" style="color: #5a31f4; text-decoration: underline;">What is this?</a>
+    </div>
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    var secureCodLink = document.getElementById('secure-cod-link');
-    
-    if (!secureCodLink) {
-        console.error('Secure COD: Could not find link element.');
-        return;
-    }
+    var secureCodButton = document.getElementById('secure-cod-button');
+    if (secureCodButton) {
+        secureCodButton.addEventListener('click', function() {
+            try {
+                // These are standard Shopify liquid variables.
+                var productName = '{{ product.title | url_encode }}';
+                var productPrice = {{ product.price | money_without_currency | replace: ',', '' }};
+                var productImage = '{{ product.featured_image | img_url: "large" }}';
 
-    try {
-        // These are standard Shopify liquid variables.
-        var productName = '{{ product.title | url_encode }}';
-        var productPrice = {{ product.price | money_without_currency | replace: ',', '' }};
-        var productImage = '{{ product.featured_image | img_url: "large" }}';
-        
-        // Generate a new, unique Order ID on the client-side for every transaction.
-        var uniqueId = 'SNZ-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5).toUpperCase();
-        
-        // Point to the server-side redirect page
-        var baseUrl = 'https://<!!!-REPLACE-THIS-!!!>/redirect';
-
-        var finalUrl = baseUrl + '?amount=' + encodeURIComponent(productPrice) + '&name=' + productName + '&order_id=' + uniqueId + '&image=' + encodeURIComponent(productImage);
-        
-        // Directly set the href on the anchor tag.
-        secureCodLink.href = finalUrl;
-
-    } catch (e) {
-        console.error("Secure COD Liquid Error: ", e);
-        // Fallback URL if liquid variables are not available
-        secureCodLink.href = 'https://<!!!-REPLACE-THIS-!!!>/secure-cod';
+                // Generate a new, unique Order ID on the client-side for every transaction.
+                var uniqueId = 'SNZ-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5).toUpperCase();
+                
+                var baseUrl = 'https://<your-app-url>/secure-cod';
+                var finalUrl = baseUrl + '?amount=' + encodeURIComponent(productPrice) + '&name=' + productName + '&order_id=' + uniqueId + '&image=' + encodeURIComponent(productImage);
+                
+                // Open the URL in a new tab.
+                window.open(finalUrl, '_blank');
+            } catch (e) {
+                console.error("Secure COD Liquid Error: ", e);
+                // Fallback if liquid variables are not available
+                window.open('https://<your-app-url>/secure-cod', '_blank');
+            }
+        });
     }
 });
 </script>`;
@@ -99,7 +90,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <div className="space-y-2">
             <h3 className="text-lg font-semibold">Step 2: Copy and Paste the Code</h3>
             <p className="text-muted-foreground">
-              Paste the code below where you want the button to appear (e.g., near your 'Add to Cart' button). Make sure to replace both highlighted placeholder URLs with your live application URL.
+              Paste the code below where you want the button to appear (e.g., near your 'Add to Cart' button). Make sure to replace both instances of {'`<your-app-url>`'} with your actual live application URL.
             </p>
             <CodeBlock code={embedCode} />
           </div>
@@ -107,7 +98,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <div className="space-y-2">
             <h3 className="text-lg font-semibold">How it works</h3>
             <p className="text-muted-foreground">
-             This HTML code creates a simple link styled as a button. When the page loads, a script dynamically sets the link's destination URL. When clicked, it will navigate the user in the **same tab** to an intermediary page in your app, which then redirects them to the final secure payment page. This method is the most reliable and avoids all pop-up blockers.
+              The button uses a small script to grab the product details (name and price) from your Shopify page, generates a unique order ID, and then opens the Secure COD payment page in a new tab with all the necessary information.
             </p>
           </div>
         </CardContent>
