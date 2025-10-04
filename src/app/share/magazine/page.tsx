@@ -90,7 +90,8 @@ export default function ShareMagazinePage() {
 
     const handleShareOnWhatsApp = () => {
         if (!magazineLink) return;
-        const message = `Check out our new collection!\n\n${magazineLink}`;
+        const companyName = user?.displayName || 'Snazzify';
+        const message = `Welcome to ${companyName}!\n\nCheck out our new collection:\n${magazineLink}`;
         const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
         window.open(whatsappUrl, '_blank');
     };
