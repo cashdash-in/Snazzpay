@@ -96,7 +96,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <div className="space-y-2">
             <h3 className="text-lg font-semibold">How it works</h3>
             <p className="text-muted-foreground">
-              This HTML form uses hidden input fields to securely pass order details. When submitted, it navigates the user to the payment page in the same tab, which is a standard browser behavior that avoids pop-up blockers.
+             This HTML form uses hidden input fields to securely pass order details. When submitted, it navigates the user to the payment page, avoiding pop-up blockers.
             </p>
           </div>
         </CardContent>
