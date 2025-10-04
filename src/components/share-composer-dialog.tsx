@@ -28,9 +28,8 @@ type ShareableProduct = {
     vendorName?: string;
     sellerId?: string;
     sellerName?: string;
-    quantity?: number;
-    size?: string;
-    color?: string;
+    sizes?: string[];
+    colors?: string[];
 };
 
 
@@ -57,7 +56,6 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
     const isPriceValid = productPrice > 0;
 
     useEffect(() => {
-        // This ensures the URL is read on the client-side
         const currentUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
         setAppUrl(currentUrl);
 
@@ -66,25 +64,29 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
         params.set('title', product.title);
         params.set('description', product.description);
         params.set('price', productPrice.toString());
-        params.set('image', product.imageDataUris[0]); // Pass primary image for social sharing previews
+        params.set('image', product.imageDataUris[0]); 
         
-        // Pass seller/vendor info
         const role = getCookie('userRole');
         if (role === 'seller' && user) {
             params.set('sellerId', user.uid);
             params.set('sellerName', user.displayName || 'Seller');
-        } else if (role === 'vendor' && user) {
-            params.set('sellerId', `vendor_${user.uid}`); // Distinguish vendor-sourced leads
-            params.set('sellerName', user.displayName || 'Vendor');
         } else {
              params.set('sellerName', product.sellerName || product.vendorName || 'Snazzify');
+             if(product.sellerId) params.set('sellerId', product.sellerId);
+        }
+
+        if (product.sizes?.length) {
+            params.set('sizes', product.sizes.join(','));
+        }
+        if (product.colors?.length) {
+            params.set('colors', product.colors.join(','));
         }
 
 
         const catalogueLink = `${currentUrl}/catalogue?${params.toString()}`;
         
         setShareText(
-            `Check out this new product!\n\n*${product.title}*\n${product.description}\n\n*Price:* ₹${(productPrice).toFixed(2)}\n\nClick here to view & order: ${catalogueLink}`
+            `Check out this new product!\n\n*${product.title}*\n\n*Price:* ₹${(productPrice).toFixed(2)}\n\nClick here to view & order: ${catalogueLink}`
         );
     }, [product, user, productPrice]);
         

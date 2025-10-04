@@ -5,11 +5,10 @@ import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Loader2, ShoppingCart } from 'lucide-react';
+import { Loader2, ShoppingCart } from 'lucide-react';
 import Image from 'next/image';
-import { Badge } from '@/components/ui/badge';
 import type { SellerProduct } from '../seller/ai-product-uploader/page';
-import { getCollection, getDocument } from '@/services/firestore';
+import { getCollection } from '@/services/firestore';
 import type { ProductDrop } from '../vendor/product-drops/page';
 
 type DisplayProduct = SellerProduct | ProductDrop;
@@ -29,9 +28,13 @@ function SmartMagazineContent() {
             }
 
             const productIds = productIdsStr.split(',');
+            if (productIds.length === 0) {
+                setIsLoading(false);
+                return;
+            }
+
             const fetchedProducts: DisplayProduct[] = [];
 
-            // We need to check both seller_products and product_drops collections
             const [sellerProducts, productDrops] = await Promise.all([
                 getCollection<SellerProduct>('seller_products'),
                 getCollection<ProductDrop>('product_drops')
@@ -57,15 +60,27 @@ function SmartMagazineContent() {
     const handleOrderClick = (product: DisplayProduct) => {
         const params = new URLSearchParams();
         
-        params.set('name', product.title);
-        params.set('amount', (product.price || (product as any).costPrice).toString());
-        params.set('source', 'SmartMagazine');
+        params.set('id', product.id);
+        params.set('title', product.title);
+        params.set('description', product.description);
+        const price = product.price ?? (product as ProductDrop).costPrice;
+        params.set('price', price.toString());
+        params.set('image', product.imageDataUris[0]); 
+
+        const sellerName = (product as SellerProduct).sellerName || (product as ProductDrop).vendorName || 'Snazzify';
+        params.set('sellerName', sellerName);
         
-        // Forward other relevant details if they exist
-        if ((product as SellerProduct).sellerId) params.set('sellerId', (product as SellerProduct).sellerId);
-        if ((product as ProductDrop).vendorName) params.set('sellerName', (product as ProductDrop).vendorName);
+        const sellerId = (product as SellerProduct).sellerId || (product as ProductDrop).vendorId || '';
+        params.set('sellerId', sellerId);
         
-        router.push(`/secure-cod?${params.toString()}`);
+        if ((product as SellerProduct).sizes?.length) {
+            params.set('sizes', (product as SellerProduct).sizes.join(','));
+        }
+        if ((product as SellerProduct).colors?.length) {
+            params.set('colors', (product as SellerProduct).colors.join(','));
+        }
+        
+        router.push(`/catalogue?${params.toString()}`);
     };
 
     if (isLoading) {
@@ -87,36 +102,35 @@ function SmartMagazineContent() {
 
     return (
         <div className="min-h-screen bg-gray-50 p-4 sm:p-8">
-            <div className="max-w-4xl mx-auto">
+            <div className="max-w-6xl mx-auto">
                  <Card className="mb-8 text-center shadow-lg">
                     <CardHeader>
                         <CardTitle className="text-3xl font-bold">Our Latest Collection</CardTitle>
-                        <CardDescription>Curated just for you by {(products[0] as any).sellerName || (products[0] as any).vendorName || 'Snazzify'}</CardDescription>
+                        <CardDescription>Curated just for you by {products[0]?.sellerName || (products[0] as ProductDrop)?.vendorName || 'Snazzify'}</CardDescription>
                     </CardHeader>
                 </Card>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                     {products.map(product => (
-                        <Card key={product.id} className="shadow-lg overflow-hidden flex flex-col">
+                        <Card key={product.id} className="shadow-md hover:shadow-xl transition-shadow overflow-hidden flex flex-col group">
                             <CardHeader className="p-0">
                                 <Image
                                     src={product.imageDataUris[0]}
                                     alt={product.title}
-                                    width={600}
-                                    height={600}
-                                    className="object-cover w-full h-80"
+                                    width={300}
+                                    height={300}
+                                    className="object-cover w-full aspect-square"
                                 />
                             </CardHeader>
-                             <CardContent className="p-6 flex-grow">
-                                <CardTitle className="text-xl font-bold mb-2">{product.title}</CardTitle>
-                                <CardDescription className="line-clamp-3 mb-4">{product.description}</CardDescription>
-                                <div className="text-2xl font-bold">
-                                    ₹{(product.price || (product as any).costPrice).toFixed(2)}
+                             <CardContent className="p-4 flex-grow">
+                                <CardTitle className="text-base font-semibold mb-1 line-clamp-2">{product.title}</CardTitle>
+                                <div className="text-lg font-bold">
+                                    ₹{(product.price || (product as ProductDrop).costPrice).toFixed(2)}
                                 </div>
                             </CardContent>
-                            <CardFooter>
-                                <Button className="w-full" size="lg" onClick={() => handleOrderClick(product)}>
+                            <CardFooter className="p-2">
+                                <Button className="w-full" size="sm" onClick={() => handleOrderClick(product)}>
                                     Click to Order
-                                    <ShoppingCart className="ml-2 h-5 w-5" />
+                                    <ShoppingCart className="ml-2 h-4 w-4" />
                                 </Button>
                             </CardFooter>
                         </Card>
