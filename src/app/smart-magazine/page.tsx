@@ -123,9 +123,9 @@ function SmartMagazineContent() {
                                 <Image
                                     src={product.imageDataUris[0]}
                                     alt={product.title}
-                                    width={300}
-                                    height={300}
-                                    className="object-cover w-full aspect-square"
+                                    width={100}
+                                    height={200}
+                                    className="object-cover w-full h-48"
                                 />
                             </CardHeader>
                              <CardContent className="p-4 flex-grow">

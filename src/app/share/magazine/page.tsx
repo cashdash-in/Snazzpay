@@ -110,7 +110,7 @@ export default function ShareMagazinePage() {
                                                 checked={selectedProductIds.includes(product.id)}
                                             />
                                             <label htmlFor={`product-${product.id}`} className="flex items-center gap-4 cursor-pointer w-full">
-                                                <Image src={product.imageDataUris[0]} alt={product.title} width={60} height={60} className="rounded-md object-cover aspect-square" />
+                                                <Image src={product.imageDataUris[0]} alt={product.title} width={90} height={90} className="rounded-md object-contain aspect-square bg-muted" />
                                                 <div className="flex-grow">
                                                     <p className="font-semibold">{product.title}</p>
                                                     <p className="text-sm text-muted-foreground">Price: ₹{((product as SellerProduct).price || (product as ProductDrop).costPrice).toFixed(2)}</p>
