@@ -43,26 +43,20 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     try {
-        // Sellers: These are standard Shopify liquid variables. 
+        // These are standard Shopify liquid variables. 
         // They should work on most Shopify themes out-of-the-box.
         var productName = '{{ product.title | url_encode }}';
         var productPrice = {{ product.price | money_without_currency | replace: ',', '' }};
         var productImage = '{{ product.featured_image | img_url: "large" }}';
         
-        // ** CRITICAL FIX: **
         // Generate a new, unique Order ID on the client-side for every transaction.
         var uniqueId = 'SNZ-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5).toUpperCase();
         
-        // Your unique Seller ID and Name provided by SnazzPay.
-        // YOU MUST REPLACE THESE VALUES.
-        var sellerId = 'YOUR_UNIQUE_SELLER_ID'; // <-- REPLACE THIS
-        var sellerName = 'YOUR_SELLER_NAME'; // <-- REPLACE THIS
-        
         var baseUrl = '${origin}/secure-cod';
 
-        var finalUrl = baseUrl + '?amount=' + encodeURIComponent(productPrice) + '&name=' + productName + '&order_id=' + uniqueId + '&seller_id=' + encodeURIComponent(sellerId) + '&seller_name=' + encodeURIComponent(sellerName) + '&image=' + encodeURIComponent(productImage);
+        var finalUrl = baseUrl + '?amount=' + encodeURIComponent(productPrice) + '&name=' + productName + '&order_id=' + uniqueId + '&image=' + encodeURIComponent(productImage);
         
-        // Directly set the href on the anchor tag. This is more reliable than window.open.
+        // Directly set the href on the anchor tag.
         secureCodLink.href = finalUrl;
 
     } catch (e) {
@@ -107,13 +101,6 @@ document.addEventListener('DOMContentLoaded', function() {
               Paste the code below where you want the button to appear (e.g., near your 'Add to Cart' button). The URLs will be automatically configured to your app's domain.
             </p>
             <CodeBlock code={embedCode} />
-          </div>
-          
-           <div className="space-y-2">
-            <h3 className="text-lg font-semibold">Step 3: Update Seller Details</h3>
-            <p className="text-muted-foreground">
-              In the code you just pasted, you MUST replace <span className="font-mono bg-muted p-1 rounded-md">'YOUR_UNIQUE_SELLER_ID'</span> and <span className="font-mono bg-muted p-1 rounded-md">'YOUR_SELLER_NAME'</span> with the actual ID and name provided to you by the SnazzPay admin. This is critical for tracking your orders correctly.
-            </p>
           </div>
 
           <div className="space-y-2">
