@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/hooks/use-auth';
 import type { SellerProduct } from '@/app/seller/ai-product-uploader/page';
 import Image from 'next/image';
-import { Loader2, Share2, Copy } from 'lucide-react';
+import { Loader2, Share2, Copy, MessageSquare } from 'lucide-react';
 import { getCollection } from '@/services/firestore';
 import { getCookie } from 'cookies-next';
 import { Label } from '@/components/ui/label';
@@ -79,13 +79,20 @@ export default function ShareMagazinePage() {
         
         setMagazineLink(link);
         
-        toast({ title: 'Magazine Link Generated!', description: 'You can now copy the link below.' });
+        toast({ title: 'Magazine Link Generated!', description: 'You can now copy the link below or share it on WhatsApp.' });
     };
 
     const handleCopyLink = () => {
         if(!magazineLink) return;
         navigator.clipboard.writeText(magazineLink);
         toast({ title: 'Link Copied!' });
+    };
+
+    const handleShareOnWhatsApp = () => {
+        if (!magazineLink) return;
+        const message = `Check out our new collection!\n\n${magazineLink}`;
+        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+        window.open(whatsappUrl, '_blank');
     };
 
     return (
@@ -142,6 +149,10 @@ export default function ShareMagazinePage() {
                                         <input id="magazine-link" readOnly value={magazineLink} className="w-full text-xs p-2 border rounded-md bg-muted" />
                                         <Button size="icon" variant="outline" onClick={handleCopyLink}><Copy className="h-4 w-4"/></Button>
                                     </div>
+                                    <Button onClick={handleShareOnWhatsApp} className="w-full" variant="secondary">
+                                        <MessageSquare className="mr-2 h-4 w-4"/>
+                                        Share on WhatsApp
+                                    </Button>
                                     <p className="text-xs text-muted-foreground">Share this link on WhatsApp, Instagram, or anywhere else!</p>
                                 </div>
                             )}
