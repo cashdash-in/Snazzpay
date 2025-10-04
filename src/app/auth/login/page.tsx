@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
+import { FirebaseError } from 'firebase/app';
 
 const ADMIN_EMAIL = "admin@snazzpay.com";
 
@@ -47,9 +48,12 @@ export default function AdminLoginPage() {
 
         } catch (error: any) {
             console.error("Admin Login Error:", error);
-            const errorMessage = error.code === 'auth/invalid-credential' 
-                ? 'Invalid credentials. Please ensure you have created the admin user via the signup page first.' 
-                : 'An unexpected error occurred during admin login.';
+            let errorMessage = 'An unexpected error occurred during admin login.';
+            if (error instanceof FirebaseError) {
+                if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found') {
+                    errorMessage = 'Invalid credentials. Please ensure you have created the admin user via the signup page first.';
+                }
+            }
             toast({ variant: 'destructive', title: "Admin Login Error", description: errorMessage });
         } finally {
             setIsLoading(false);
