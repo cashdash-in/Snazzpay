@@ -28,7 +28,12 @@ export default function DeliveryTrackingPage() {
         setLoading(true);
         try {
             const allOrders = await getCollection<EditableOrder>('orders');
-            setOrders(allOrders.filter(o => o.paymentStatus !== 'Intent Verified'));
+            const filteredOrders = allOrders.filter(o => o.paymentStatus !== 'Intent Verified');
+
+            const sortedOrders = filteredOrders.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            
+            setOrders(sortedOrders);
+
         } catch (error) {
             console.error("Failed to load orders:", error);
             toast({

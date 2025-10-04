@@ -27,7 +27,11 @@ export default function LeadsPage() {
     try {
         const loadedLeads = await getCollection<EditableOrder>('leads');
         // Now also includes 'Lead' status from seller flow
-        setLeads(loadedLeads.filter(lead => ['Intent Verified', 'Lead'].includes(lead.paymentStatus)));
+        const filteredLeads = loadedLeads.filter(lead => ['Intent Verified', 'Lead'].includes(lead.paymentStatus));
+
+        const sortedLeads = filteredLeads.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+        setLeads(sortedLeads);
     } catch (error) {
         console.error("Failed to load leads from Firestore:", error);
         toast({

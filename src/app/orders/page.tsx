@@ -96,7 +96,13 @@ export default function OrdersPage() {
             await saveDocument('orders', testOrder, testOrder.id);
             allOrders.push(testOrder);
         }
-        setOrders(allOrders.filter(o => o.paymentStatus !== 'Intent Verified'));
+
+        const sortedOrders = allOrders
+            .filter(o => o.paymentStatus !== 'Intent Verified')
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            
+        setOrders(sortedOrders);
+
     } catch(error) {
         console.error("Failed to load orders:", error);
         toast({
