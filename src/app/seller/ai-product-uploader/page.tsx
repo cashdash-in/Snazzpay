@@ -47,6 +47,8 @@ export interface SellerProduct extends ProductListingOutput {
 }
 
 const AI_UPLOADER_LIMIT = 50;
+const MAX_IMAGE_SIZE_PX = 800; // Max width/height for resizing
+
 
 export default function AiProductUploaderPage() {
   const { toast } = useToast();
@@ -66,25 +68,57 @@ export default function AiProductUploaderPage() {
   const [limit, setLimit] = useState(AI_UPLOADER_LIMIT);
   const [isLimitReached, setIsLimitReached] = useState(false);
 
-  const handleFiles = (files: FileList | File[]) => {
-      const newPreviews: string[] = [];
-      const newDataUris: string[] = [];
-      
-      Array.from(files).forEach((file) => {
-        if (!file.type.startsWith('image/')) return;
+  const resizeImage = (file: File): Promise<string> => {
+    return new Promise((resolve) => {
         const reader = new FileReader();
-        reader.onloadend = () => {
-          const result = reader.result as string;
-          newPreviews.push(result);
-          newDataUris.push(result);
+        reader.onload = (e) => {
+            const img = document.createElement('img');
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let { width, height } = img;
 
-          if (newPreviews.length === Array.from(files).filter(f => f.type.startsWith('image/')).length) {
-            setImagePreviews(prev => [...prev, ...newPreviews]);
-            setImageDataUris(prev => [...prev, ...newDataUris]);
-          }
+                if (width > height) {
+                    if (width > MAX_IMAGE_SIZE_PX) {
+                        height *= MAX_IMAGE_SIZE_PX / width;
+                        width = MAX_IMAGE_SIZE_PX;
+                    }
+                } else {
+                    if (height > MAX_IMAGE_SIZE_PX) {
+                        width *= MAX_IMAGE_SIZE_PX / height;
+                        height = MAX_IMAGE_SIZE_PX;
+                    }
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL(file.type));
+            };
+            img.src = e.target?.result as string;
         };
         reader.readAsDataURL(file);
-      });
+    });
+  };
+
+  const handleFiles = async (files: FileList | File[]) => {
+      const fileArray = Array.from(files).filter(f => f.type.startsWith('image/'));
+      if (fileArray.length === 0) return;
+
+      toast({ title: 'Processing images...', description: 'Resizing images before upload.' });
+      
+      const newPreviews: string[] = [];
+      const newDataUris: string[] = [];
+
+      for (const file of fileArray) {
+          const resizedDataUri = await resizeImage(file);
+          newPreviews.push(resizedDataUri);
+          newDataUris.push(resizedDataUri);
+      }
+      
+      setImagePreviews(prev => [...prev, ...newPreviews]);
+      setImageDataUris(prev => [...prev, ...newDataUris]);
+      
+      toast({ title: 'Images added!', description: 'The resized images have been added.' });
   }
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -93,7 +127,7 @@ export default function AiProductUploaderPage() {
       handleFiles(files);
     }
   };
-
+  
   const handlePaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
       const items = event.clipboardData?.items;
       if (!items) return;
@@ -110,10 +144,9 @@ export default function AiProductUploaderPage() {
       if(files.length > 0) {
         event.preventDefault();
         handleFiles(files);
-        toast({ title: 'Image(s) Pasted!', description: 'The image has been added to your product.' });
       }
   };
-
+  
   const handleDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     const files = event.dataTransfer.files;
