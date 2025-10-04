@@ -29,6 +29,7 @@ export function middleware(request: NextRequest) {
     '/logistics-secure/login', 
     '/logistics-secure/signup', 
     '/seller',
+    '/guest-fulfillment',
   ];
 
   // Allow access to public paths, API routes, and static files
