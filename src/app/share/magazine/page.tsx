@@ -73,7 +73,7 @@ export default function ShareMagazinePage() {
         }
 
         const baseUrl = window.location.origin;
-        // Pass only the IDs, not the full product objects
+        // CORRECT: Pass only the IDs, not the full product objects
         const productsParam = encodeURIComponent(selectedProductIds.join(','));
         const link = `${baseUrl}/smart-magazine?products=${productsParam}`;
         

@@ -33,26 +33,31 @@ function SmartMagazineContent() {
                 return;
             }
 
-            const fetchedProducts: DisplayProduct[] = [];
+            try {
+                const fetchedProducts: DisplayProduct[] = [];
 
-            const [sellerProducts, productDrops] = await Promise.all([
-                getCollection<SellerProduct>('seller_products'),
-                getCollection<ProductDrop>('product_drops')
-            ]);
-            
-            for (const id of productIds) {
-                const sellerProduct = sellerProducts.find(p => p.id === id);
-                if (sellerProduct) {
-                    fetchedProducts.push(sellerProduct);
-                    continue;
+                // Fetch from both possible collections
+                const [sellerProducts, productDrops] = await Promise.all([
+                    getCollection<SellerProduct>('seller_products'),
+                    getCollection<ProductDrop>('product_drops')
+                ]);
+                
+                const productMap = new Map<string, DisplayProduct>();
+                sellerProducts.forEach(p => productMap.set(p.id, p));
+                productDrops.forEach(p => productMap.set(p.id, p));
+
+                for (const id of productIds) {
+                    const product = productMap.get(id);
+                    if (product) {
+                        fetchedProducts.push(product);
+                    }
                 }
-                const productDrop = productDrops.find(p => p.id === id);
-                if (productDrop) {
-                    fetchedProducts.push(productDrop);
-                }
+                setProducts(fetchedProducts);
+            } catch (error) {
+                console.error("Failed to fetch products for magazine:", error);
+            } finally {
+                setIsLoading(false);
             }
-            setProducts(fetchedProducts);
-            setIsLoading(false);
         }
         fetchProducts();
     }, [searchParams]);
@@ -63,7 +68,7 @@ function SmartMagazineContent() {
         params.set('id', product.id);
         params.set('title', product.title);
         params.set('description', product.description);
-        const price = product.price ?? (product as ProductDrop).costPrice;
+        const price = (product as SellerProduct).price ?? (product as ProductDrop).costPrice;
         params.set('price', price.toString());
         params.set('image', product.imageDataUris[0]); 
 
@@ -100,13 +105,15 @@ function SmartMagazineContent() {
         )
     }
 
+    const firstProductSeller = (products[0] as SellerProduct)?.sellerName || (products[0] as ProductDrop)?.vendorName || 'Snazzify';
+
     return (
         <div className="min-h-screen bg-gray-50 p-4 sm:p-8">
             <div className="max-w-6xl mx-auto">
                  <Card className="mb-8 text-center shadow-lg">
                     <CardHeader>
                         <CardTitle className="text-3xl font-bold">Our Latest Collection</CardTitle>
-                        <CardDescription>Curated just for you by {products[0]?.sellerName || (products[0] as ProductDrop)?.vendorName || 'Snazzify'}</CardDescription>
+                        <CardDescription>Curated just for you by {firstProductSeller}</CardDescription>
                     </CardHeader>
                 </Card>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -124,7 +131,7 @@ function SmartMagazineContent() {
                              <CardContent className="p-4 flex-grow">
                                 <CardTitle className="text-base font-semibold mb-1 line-clamp-2">{product.title}</CardTitle>
                                 <div className="text-lg font-bold">
-                                    ₹{(product.price || (product as ProductDrop).costPrice).toFixed(2)}
+                                    ₹{((product as SellerProduct).price || (product as ProductDrop).costPrice).toFixed(2)}
                                 </div>
                             </CardContent>
                             <CardFooter className="p-2">
