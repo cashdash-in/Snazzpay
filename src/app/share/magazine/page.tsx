@@ -15,6 +15,7 @@ import { getCollection } from '@/services/firestore';
 import { getCookie } from 'cookies-next';
 import { Label } from '@/components/ui/label';
 import type { ProductDrop } from '@/app/vendor/product-drops/page';
+import { Input } from '@/components/ui/input';
 
 
 export default function ShareMagazinePage() {
@@ -24,6 +25,7 @@ export default function ShareMagazinePage() {
     const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [magazineLink, setMagazineLink] = useState('');
+    const [magazineTitle, setMagazineTitle] = useState('Our Latest Collection');
 
     useEffect(() => {
         async function loadProducts() {
@@ -73,9 +75,8 @@ export default function ShareMagazinePage() {
         }
 
         const baseUrl = window.location.origin;
-        // CORRECT: Pass only the IDs, not the full product objects
         const productsParam = encodeURIComponent(selectedProductIds.join(','));
-        const link = `${baseUrl}/smart-magazine?products=${productsParam}`;
+        const link = `${baseUrl}/smart-magazine?products=${productsParam}&title=${encodeURIComponent(magazineTitle)}`;
         
         setMagazineLink(link);
         
@@ -91,7 +92,7 @@ export default function ShareMagazinePage() {
     const handleShareOnWhatsApp = () => {
         if (!magazineLink) return;
         const companyName = user?.displayName || 'Snazzify';
-        const message = `Welcome to ${companyName}!\n\nCheck out our new collection:\n${magazineLink}`;
+        const message = `Welcome to ${companyName}!\n\nCheck out our new collection: *${magazineTitle}*\n${magazineLink}`;
         const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
         window.open(whatsappUrl, '_blank');
     };
@@ -135,9 +136,18 @@ export default function ShareMagazinePage() {
                     <Card className="sticky top-24">
                         <CardHeader>
                             <CardTitle>Generate & Share</CardTitle>
-                            <CardDescription>Once you've selected your products, generate a shareable link.</CardDescription>
+                            <CardDescription>Give your collection a title, then generate a shareable link.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="magazine-title">Magazine Title</Label>
+                                <Input 
+                                    id="magazine-title" 
+                                    value={magazineTitle} 
+                                    onChange={(e) => setMagazineTitle(e.target.value)}
+                                    placeholder="e.g., Summer Collection"
+                                />
+                            </div>
                             <p className="font-medium">{selectedProductIds.length} product(s) selected.</p>
                              <Button onClick={handleGenerateLink} className="w-full" disabled={selectedProductIds.length === 0}>
                                 <Share2 className="mr-2 h-4 w-4" />

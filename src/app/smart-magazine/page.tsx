@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
@@ -16,11 +17,18 @@ function SmartMagazineContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const [products, setProducts] = useState<DisplayProduct[]>([]);
+    const [magazineTitle, setMagazineTitle] = useState('Our Latest Collection');
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         async function fetchProducts() {
             const productIdsStr = searchParams.get('products');
+            const title = searchParams.get('title');
+
+            if (title) {
+                setMagazineTitle(decodeURIComponent(title));
+            }
+
             if (!productIdsStr) {
                 setIsLoading(false);
                 return;
@@ -98,7 +106,7 @@ function SmartMagazineContent() {
             <div className="max-w-6xl mx-auto">
                  <Card className="mb-8 text-center shadow-lg">
                     <CardHeader>
-                        <CardTitle className="text-3xl font-bold">Our Latest Collection</CardTitle>
+                        <CardTitle className="text-3xl font-bold">{magazineTitle}</CardTitle>
                         <CardDescription>Curated just for you by {firstProductSeller}</CardDescription>
                     </CardHeader>
                 </Card>
