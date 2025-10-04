@@ -98,6 +98,7 @@ function SecureCodPaymentForm() {
         const image = searchParams.get('image');
 
         setOrderDetails({ productName: name, amount, orderId: id, sellerId, sellerName });
+        setTotalPrice(amount); // Initialize total price
         setIsSellerFlow(!!(sellerId && sellerId !== 'YOUR_UNIQUE_SELLER_ID'));
         if (image) setProductImage(image);
         
@@ -112,21 +113,25 @@ function SecureCodPaymentForm() {
         getRazorpayKeyId().then(key => { setLoading(false); setRazorpayKeyId(key); });
     }, [searchParams]);
 
-    useEffect(() => {
-        const newTotal = orderDetails.amount * quantity;
-        setTotalPrice(newTotal);
-    }, [quantity, orderDetails.amount]);
-
+    const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const newQuantity = parseInt(e.target.value, 10) || 1;
+        setQuantity(newQuantity);
+        setTotalPrice(orderDetails.amount * newQuantity);
+    };
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
+
+        // Direct calculation as a workaround
+        const finalQuantity = quantity;
+        const finalTotalPrice = orderDetails.amount * finalQuantity;
         
         const { name, email, contact, address, pincode } = customerDetails;
         if (!name || !contact || !address || !pincode) {
             toast({ variant: 'destructive', title: "Missing Details", description: "Please fill out your name, contact, address, and pincode." });
             return;
         }
-        if (totalPrice <= 0) {
+        if (finalTotalPrice <= 0) {
             toast({ variant: 'destructive', title: "Invalid Amount", description: "Order total must be greater than zero." });
             return;
         }
@@ -135,7 +140,7 @@ function SecureCodPaymentForm() {
 
         const orderData: Omit<EditableOrder, 'id' | 'paymentStatus' | 'source'> = {
             orderId: orderDetails.orderId, customerName: name, customerEmail: email, contactNo: contact, customerAddress: address, pincode,
-            productOrdered: orderDetails.productName, quantity: quantity, price: totalPrice.toString(), date: new Date().toISOString(),
+            productOrdered: orderDetails.productName, quantity: finalQuantity, price: finalTotalPrice.toString(), date: new Date().toISOString(),
             sellerId: orderDetails.sellerId, sellerName: orderDetails.sellerName, paymentMethod
         };
         
@@ -171,13 +176,13 @@ function SecureCodPaymentForm() {
 
                         const authResponse = await fetch('/api/create-mandate-order', {
                             method: 'POST', headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ amount: totalPrice, productName: orderDetails.productName, isAuthorization: true, name, email, contact, address, pincode })
+                            body: JSON.stringify({ amount: finalTotalPrice, productName: orderDetails.productName, isAuthorization: true, name, email, contact, address, pincode })
                         });
                         const authResult = await authResponse.json();
                         if (authResult.error) throw new Error(authResult.error);
 
                         new (window as any).Razorpay({
-                            key: razorpayKeyId, order_id: authResult.order_id, name: "Authorize Secure COD Payment", description: `Securely authorize ₹${totalPrice.toFixed(2)} for your order`,
+                            key: razorpayKeyId, order_id: authResult.order_id, name: "Authorize Secure COD Payment", description: `Securely authorize ₹${finalTotalPrice.toFixed(2)} for your order`,
                             handler: async (authResponse: any) => {
                                 const finalOrder: EditableOrder = { ...orderData, id: authResult.internal_order_id, paymentStatus: 'Authorized', source: 'Shopify' };
                                 await saveDocument('payment_info', { paymentId: authResponse.razorpay_payment_id, orderId: authResult.internal_order_id, razorpayOrderId: authResponse.razorpay_order_id, signature: authResponse.razorpay_signature, status: 'authorized', authorizedAt: new Date().toISOString() }, authResult.internal_order_id);
@@ -269,7 +274,7 @@ function SecureCodPaymentForm() {
                                         id="quantity"
                                         type="number"
                                         value={quantity}
-                                        onChange={e => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                                        onChange={handleQuantityChange}
                                         className="h-8 w-20"
                                         min={1}
                                     />
@@ -347,3 +352,5 @@ function Page() {
 }
 
 export default Page;
+
+    
