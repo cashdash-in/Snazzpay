@@ -148,7 +148,7 @@ export default function LeadsPage() {
                   <TableHead>Customer</TableHead>
                   <TableHead>Product(s)</TableHead>
                   <TableHead>Value</TableHead>
-                  <TableHead>Seller / Vendor</TableHead>
+                  <TableHead>Actors</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-center">Actions</TableHead>
                 </TableRow>
@@ -166,9 +166,13 @@ export default function LeadsPage() {
                     <TableCell>₹{lead.price}</TableCell>
                      <TableCell>
                       <div className="space-y-1">
-                          {lead.vendorName && (
+                          {lead.vendorName ? (
                               <div className="text-xs text-muted-foreground flex items-center gap-1">
                                 <Factory className="h-3 w-3" /> {lead.vendorName}
+                              </div>
+                          ) : (
+                              <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                <Store className="h-3 w-3" /> Snazzify
                               </div>
                           )}
                           {lead.sellerName && (
@@ -176,9 +180,6 @@ export default function LeadsPage() {
                                 <Store className="h-3 w-3" /> {lead.sellerName}
                               </div>
                           )}
-                           {!lead.vendorName && !lead.sellerName && (
-                                <span className="text-xs text-muted-foreground">N/A</span>
-                           )}
                       </div>
                     </TableCell>
                     <TableCell>{lead.paymentStatus}</TableCell>

@@ -182,7 +182,7 @@ export default function DeliveryTrackingPage() {
                     <TableHead>Order ID</TableHead>
                     <TableHead>Customer</TableHead>
                     <TableHead>Contact / Email</TableHead>
-                    <TableHead>Source / Actors</TableHead>
+                    <TableHead>Actors</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-center w-[550px]">Actions</TableHead>
                   </TableRow>
@@ -222,9 +222,13 @@ export default function DeliveryTrackingPage() {
                        <TableCell>
                          <div className="space-y-1">
                            <span className="text-xs text-muted-foreground">{order.source || 'N/A'}</span>
-                            {order.vendorName && (
+                            {order.vendorName ? (
                                 <div className="text-xs text-muted-foreground flex items-center gap-1">
                                   <Factory className="h-3 w-3" /> {order.vendorName}
+                                </div>
+                            ) : (
+                                <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                  <Store className="h-3 w-3" /> Snazzify
                                 </div>
                             )}
                             {order.sellerName && (

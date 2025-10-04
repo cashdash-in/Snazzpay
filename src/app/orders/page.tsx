@@ -291,9 +291,13 @@ export default function OrdersPage() {
                              <TableCell>
                                 <Badge variant={order.source === 'Shopify' ? 'secondary' : 'outline'}>{order.source || 'Manual'}</Badge>
                                 <div className="space-y-1 mt-1">
-                                    {order.vendorName && (
+                                    {order.vendorName ? (
                                         <div className="text-xs text-muted-foreground flex items-center gap-1">
                                           <Factory className="h-3 w-3" /> {order.vendorName}
+                                        </div>
+                                    ) : order.source !== 'Seller' && (
+                                        <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                          <Store className="h-3 w-3" /> Snazzify
                                         </div>
                                     )}
                                     {order.sellerName && (
