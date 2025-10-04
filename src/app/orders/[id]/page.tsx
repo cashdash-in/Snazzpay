@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -168,6 +169,7 @@ function OrderDetailContent() {
             customerContact: order.contactNo,
             customerAddress: order.customerAddress,
             customerPincode: order.pincode,
+            image: order.imageDataUris?.[0] || ''
         });
         return `${baseUrl}/secure-cod?${params.toString()}`;
     };
@@ -328,6 +330,7 @@ function OrderDetailContent() {
     
     const showChargeButton = order.paymentStatus === 'Authorized' && paymentInfo;
     const showCancellationFeeCard = order.paymentStatus === 'Voided' && paymentInfo;
+    const imageUrl = order.imageDataUris?.[0];
 
 
     return (
@@ -450,6 +453,17 @@ function OrderDetailContent() {
                         <CardTitle>Core Information</CardTitle>
                     </CardHeader>
                     <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {imageUrl && (
+                            <div className="md:col-span-3 flex justify-center">
+                                <Image 
+                                    src={imageUrl} 
+                                    alt={order.productOrdered} 
+                                    width={150} 
+                                    height={150}
+                                    className="rounded-lg object-contain bg-muted p-2"
+                                />
+                            </div>
+                        )}
                         <div className="space-y-2">
                             <Label htmlFor="orderId">Order ID</Label>
                             <Input id="orderId" value={order.orderId} onChange={(e) => handleInputChange('orderId', e.target.value)} />

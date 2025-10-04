@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { NextResponse } from 'next/server'
@@ -12,6 +13,7 @@ export function middleware(request: NextRequest) {
   const publicPaths = [
     '/auth/login', 
     '/seller/login',
+    '/vendor/login',
     '/auth/signup', 
     '/secure-cod', 
     '/secure-cod-info', 
@@ -27,6 +29,7 @@ export function middleware(request: NextRequest) {
     '/logistics-secure/login', 
     '/logistics-secure/signup', 
     '/seller',
+    '/guest-fulfillment',
   ];
 
   // Allow access to public paths, API routes, and static files
@@ -39,28 +42,15 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // If there's no auth token, redirect to the appropriate login page
+  // If there's no auth token, redirect to the default login page
   if (!token) {
-    // Default to admin login if no specific context is known
     const loginUrl = new URL('/auth/login', request.url);
     loginUrl.searchParams.set('redirectedFrom', pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  // If a token exists, enforce role-based access for non-public pages
-  const isSellerPath = pathname.startsWith('/seller/');
-  const isAdminPath = !isSellerPath;
-
-  if (role === 'seller' && isAdminPath && pathname !== '/') {
-     console.log(`Redirecting seller from admin path: ${pathname}`);
-     return NextResponse.redirect(new URL('/seller/dashboard', request.url));
-  }
-
-  if (role === 'admin' && isSellerPath) {
-     console.log(`Redirecting admin from seller path: ${pathname}`);
-     return NextResponse.redirect(new URL('/', request.url));
-  }
-
+  // If a token exists, let the request through.
+  // Role-based redirection will be handled on the client-side in the AppShell.
   return NextResponse.next();
 }
 

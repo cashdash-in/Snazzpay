@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, Suspense, FormEvent } from 'react';
@@ -19,6 +20,7 @@ import { CancellationForm } from '@/components/cancellation-form';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import Image from 'next/image';
 
 type CustomerDetails = {
     name: string;
@@ -54,6 +56,7 @@ function SecureCodPaymentForm() {
         quantity: 1,
         size: '',
         color: '',
+        imageUrl: '',
     });
     
     const [razorpayKeyId, setRazorpayKeyId] = useState<string | null>(null);
@@ -115,6 +118,7 @@ function SecureCodPaymentForm() {
         const quantity = parseInt(searchParams.get('quantity') || '1', 10);
         const size = searchParams.get('size') || '';
         const color = searchParams.get('color') || '';
+        const imageUrl = searchParams.get('image') || '';
 
         // Pre-fill customer details if they exist in the URL
         setCustomerDetails({
@@ -127,7 +131,7 @@ function SecureCodPaymentForm() {
 
         setIsSellerFlow(!!(sellerId && sellerId !== 'YOUR_UNIQUE_SELLER_ID'));
         
-        setOrderDetails({ productName: name, amount, orderId, sellerId, sellerName, quantity, size, color });
+        setOrderDetails({ productName: name, amount, orderId, sellerId, sellerName, quantity, size, color, imageUrl });
         
         getRazorpayKeyId().then(key => {
             setRazorpayKeyId(key);
@@ -165,6 +169,7 @@ function SecureCodPaymentForm() {
                 paymentStatus: 'Lead',
                 source: orderDetails.sellerId ? 'Seller' : 'Catalogue',
                 sellerId: orderDetails.sellerId,
+                imageDataUris: orderDetails.imageUrl ? [orderDetails.imageUrl] : [],
             };
             await saveDocument('leads', newLead, leadId);
             setStep('complete');
@@ -217,7 +222,7 @@ function SecureCodPaymentForm() {
                 handler: async (response: any) => {
                     // Create a Lead record after successful ₹1 payment
                     const newLead: EditableOrder = { 
-                        id: intentInternalOrderId, orderId: intentInternalOrderId, customerName: name, customerEmail: email, contactNo: contact, customerAddress: address, pincode, productOrdered: orderDetails.productName, quantity: orderDetails.quantity, size: orderDetails.size, color: orderDetails.color, price: orderDetails.amount.toString(), date: new Date().toISOString(), paymentStatus: 'Intent Verified', source: 'Shopify', sellerId: orderDetails.sellerId
+                        id: intentInternalOrderId, orderId: intentInternalOrderId, customerName: name, customerEmail: email, contactNo: contact, customerAddress: address, pincode, productOrdered: orderDetails.productName, quantity: orderDetails.quantity, size: orderDetails.size, color: orderDetails.color, price: orderDetails.amount.toString(), date: new Date().toISOString(), paymentStatus: 'Intent Verified', source: 'Shopify', sellerId: orderDetails.sellerId, imageDataUris: orderDetails.imageUrl ? [orderDetails.imageUrl] : [],
                     };
                     await saveDocument('leads', newLead, intentInternalOrderId);
                     
@@ -372,6 +377,17 @@ function SecureCodPaymentForm() {
                     </CardHeader>
                     <CardContent className="space-y-6">
                         <div className="border rounded-lg p-4 space-y-2 text-sm bg-muted/30">
+                            {orderDetails.imageUrl && (
+                                <div className="flex justify-center mb-4">
+                                     <Image 
+                                        src={orderDetails.imageUrl}
+                                        alt={orderDetails.productName}
+                                        width={100}
+                                        height={100}
+                                        className="rounded-lg object-contain"
+                                    />
+                                </div>
+                            )}
                             <div className="flex justify-between"><span className="text-muted-foreground">Product:</span><span className="font-medium text-right">{orderDetails.productName}</span></div>
                             <div className="flex justify-between"><span className="text-muted-foreground">Quantity:</span><span className="font-medium text-right">{orderDetails.quantity}</span></div>
                             {orderDetails.size && <div className="flex justify-between"><span className="text-muted-foreground">Size:</span><span className="font-medium text-right">{orderDetails.size}</span></div>}

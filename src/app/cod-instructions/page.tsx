@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -46,6 +47,7 @@ document.addEventListener('DOMContentLoaded', function() {
       // They should work on most Shopify themes out-of-the-box.
       var productName = '{{ product.title | url_encode }}';
       var productPrice = {{ product.price | money_without_currency | replace: ',', '' }};
+      var productImage = '{{ product.featured_image | img_url: "large" }}';
       
       // ** CRITICAL FIX: **
       // Generate a new, unique Order ID on the client-side for every transaction.
@@ -58,7 +60,7 @@ document.addEventListener('DOMContentLoaded', function() {
       
       var baseUrl = '${origin}/secure-cod';
 
-      var finalUrl = baseUrl + '?amount=' + encodeURIComponent(productPrice) + '&name=' + productName + '&order_id=' + uniqueId + '&seller_id=' + encodeURIComponent(sellerId) + '&seller_name=' + encodeURIComponent(sellerName);
+      var finalUrl = baseUrl + '?amount=' + encodeURIComponent(productPrice) + '&name=' + productName + '&order_id=' + uniqueId + '&seller_id=' + encodeURIComponent(sellerId) + '&seller_name=' + encodeURIComponent(sellerName) + '&image=' + encodeURIComponent(productImage);
       secureCodLink.href = finalUrl;
     } catch (e) {
         console.error("Secure COD Liquid Error: ", e);
