@@ -31,7 +31,7 @@ export default function CodInstructionsPage() {
         <a href="https://<your-app-url>/secure-cod-info" target="_blank" style="color: #5a31f4; text-decoration: underline;">What is this?</a>
     </div>
 </div>`;
-        setEmbedCode(code);
+        setEmbedCode(code.replace(/<your-app-url>/g, origin));
     }, []);
     
 
@@ -45,14 +45,14 @@ export default function CodInstructionsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <Alert>
+           <Alert variant="destructive">
             <Terminal className="h-4 w-4" />
-            <AlertTitle>Important: Server Environment Variable</AlertTitle>
+            <AlertTitle>Important Update</AlertTitle>
             <AlertDescription>
-                <p>For server-side features like sending email links to work correctly, you must set your live application URL as an environment variable.</p>
-                <p className="mt-2">In your hosting provider's settings (e.g., Vercel), add a variable named <span className="font-mono bg-muted p-1 rounded-md">NEXT_PUBLIC_APP_URL</span> and set its value to <strong className="font-mono">{appUrl || 'your-live-app-url.com'}</strong>.</p>
+                <p>Due to security restrictions on some platforms, the dynamic script has been replaced with a simpler, more reliable button. This version will take customers to the payment page where they will need to manually enter the product name and price.</p>
             </AlertDescription>
           </Alert>
+
           <div className="space-y-2">
             <h3 className="text-lg font-semibold">Step 1: Go to your Theme Editor</h3>
             <p className="text-muted-foreground">
@@ -63,17 +63,11 @@ export default function CodInstructionsPage() {
           <div className="space-y-2">
             <h3 className="text-lg font-semibold">Step 2: Copy and Paste the Code</h3>
             <p className="text-muted-foreground">
-              This simplified code creates a direct link to the payment page. The customer will need to enter the product details manually. Make sure to replace both instances of {'`<your-app-url>`'} with your actual live application URL.
+              This simplified code creates a direct link to the payment page. The customer will need to enter the product details manually. Make sure to replace both instances of {'`<your-app-url>`'} with your actual live application URL ({appUrl}).
             </p>
             <CodeBlock code={embedCode} />
           </div>
 
-          <div className="space-y-2">
-            <h3 className="text-lg font-semibold">How it works</h3>
-            <p className="text-muted-foreground">
-              The button now acts as a simple link to the Secure COD page, avoiding any browser blocking issues. Customers will fill in their order details on the next page.
-            </p>
-          </div>
         </CardContent>
       </Card>
     </AppShell>

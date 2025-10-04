@@ -336,31 +336,6 @@ function SecureCodPaymentForm() {
         )
     }
     
-    const customerDetailsForm = (
-         <div className="space-y-4">
-            <div className="space-y-2">
-                 <Label htmlFor="name">Full Name</Label>
-                 <div className="relative"><User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="name" required value={customerDetails.name} onChange={e => setCustomerDetails({...customerDetails, name: e.target.value})} className="pl-9" /></div>
-            </div>
-             <div className="space-y-2">
-                 <Label htmlFor="contact">Contact Number</Label>
-                 <div className="relative"><Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="contact" type="tel" required value={customerDetails.contact} onChange={e => setCustomerDetails({...customerDetails, contact: e.target.value})} className="pl-9" /></div>
-            </div>
-             <div className="space-y-2">
-                 <Label htmlFor="email">Email Address</Label>
-                 <div className="relative"><MailIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="email" type="email" required value={customerDetails.email} onChange={e => setCustomerDetails({...customerDetails, email: e.target.value})} className="pl-9" /></div>
-            </div>
-             <div className="space-y-2">
-                 <Label htmlFor="address">Full Delivery Address</Label>
-                 <div className="relative"><Home className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="address" required value={customerDetails.address} onChange={e => setCustomerDetails({...customerDetails, address: e.target.value})} className="pl-9" /></div>
-            </div>
-             <div className="space-y-2">
-                 <Label htmlFor="pincode">Pincode</Label>
-                 <div className="relative"><MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="pincode" required value={customerDetails.pincode} onChange={e => setCustomerDetails({...customerDetails, pincode: e.target.value})} className="pl-9" /></div>
-            </div>
-        </div>
-    );
-    
     const handleSubmit = (e: FormEvent) => {
         e.preventDefault();
         if (isSellerFlow) {
@@ -369,6 +344,9 @@ function SecureCodPaymentForm() {
             handleAdminFlowSubmit();
         }
     };
+
+    const isOrderDetailsMissing = orderDetails.amount === 0 || orderDetails.productName === 'Your Product';
+
 
     return (
         <div className="flex items-center justify-center min-h-screen bg-transparent p-4">
@@ -391,7 +369,7 @@ function SecureCodPaymentForm() {
                             <CardHeader className="p-4">
                                <div className="flex justify-between items-center">
                                  <CardTitle className="text-lg">Order Summary</CardTitle>
-                                 {orderDetails.amount === 0 && (
+                                 {isOrderDetailsMissing && (
                                      <Button variant="ghost" size="icon" onClick={() => setOrderDetails(d => ({ ...d, amount: NaN }))}>
                                         <Pencil className="h-4 w-4 text-muted-foreground" />
                                     </Button>
@@ -410,18 +388,48 @@ function SecureCodPaymentForm() {
                                         />
                                     </div>
                                 )}
-                                <div className="space-y-2">
-                                    <Label htmlFor="productName">Product Name</Label>
-                                    <Input id="productName" value={orderDetails.productName} onChange={(e) => setOrderDetails(d => ({...d, productName: e.target.value}))} />
-                                </div>
-                                 <div className="space-y-2">
-                                    <Label htmlFor="amount">Order Total (INR)</Label>
-                                    <Input id="amount" type="number" value={isNaN(orderDetails.amount) ? '' : orderDetails.amount} onChange={(e) => setOrderDetails(d => ({...d, amount: parseFloat(e.target.value) || 0}))} placeholder="Enter order total"/>
-                                </div>
+                                {isOrderDetailsMissing ? (
+                                    <>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="productName">Product Name</Label>
+                                            <Input id="productName" value={orderDetails.productName === 'Your Product' ? '' : orderDetails.productName} onChange={(e) => setOrderDetails(d => ({...d, productName: e.target.value}))} placeholder="e.g., Blue Cotton Shirt" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="amount">Order Total (INR)</Label>
+                                            <Input id="amount" type="number" value={isNaN(orderDetails.amount) || orderDetails.amount === 0 ? '' : orderDetails.amount} onChange={(e) => setOrderDetails(d => ({...d, amount: parseFloat(e.target.value) || 0}))} placeholder="Enter order total"/>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="flex justify-between"><span className="text-muted-foreground">Product:</span><span className="font-medium text-right">{orderDetails.productName}</span></div>
+                                        <div className="flex justify-between font-bold text-lg"><span className="text-muted-foreground">Amount:</span><span>₹{orderDetails.amount.toFixed(2)}</span></div>
+                                    </>
+                                )}
                             </CardContent>
                         </Card>
 
-                        {customerDetailsForm}
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="name">Full Name</Label>
+                                <div className="relative"><User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="name" required value={customerDetails.name} onChange={e => setCustomerDetails({...customerDetails, name: e.target.value})} className="pl-9" /></div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="contact">Contact Number</Label>
+                                <div className="relative"><Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="contact" type="tel" required value={customerDetails.contact} onChange={e => setCustomerDetails({...customerDetails, contact: e.target.value})} className="pl-9" /></div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="email">Email Address</Label>
+                                <div className="relative"><MailIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="email" type="email" required value={customerDetails.email} onChange={e => setCustomerDetails({...customerDetails, email: e.target.value})} className="pl-9" /></div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="address">Full Delivery Address</Label>
+                                <div className="relative"><Home className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="address" required value={customerDetails.address} onChange={e => setCustomerDetails({...customerDetails, address: e.target.value})} className="pl-9" /></div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="pincode">Pincode</Label>
+                                <div className="relative"><MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="pincode" required value={customerDetails.pincode} onChange={e => setCustomerDetails({...customerDetails, pincode: e.target.value})} className="pl-9" /></div>
+                            </div>
+                        </div>
 
                         {isSellerFlow && (
                             <div className="space-y-3">
@@ -466,4 +474,5 @@ function Page() {
 }
 
 export default Page;
+
 
