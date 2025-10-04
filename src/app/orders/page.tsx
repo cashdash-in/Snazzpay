@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { format } from "date-fns";
+import { format, subDays } from "date-fns";
 import { useState, useEffect, useCallback } from "react";
 import { Loader2, PlusCircle, Trash2, Save, MessageSquare, CreditCard, Ban, CircleDollarSign, Factory, Store } from "lucide-react";
 import Link from "next/link";
@@ -75,28 +75,7 @@ export default function OrdersPage() {
     setLoading(true);
     try {
         const allOrders = await getCollection<EditableOrder>('orders');
-        const testOrderExists = allOrders.some(order => order.orderId === TEST_ORDER_ID);
-
-        if (!testOrderExists) {
-            const testOrder: EditableOrder = {
-                id: uuidv4(),
-                orderId: TEST_ORDER_ID,
-                customerName: 'Test Customer',
-                customerEmail: 'test@example.com',
-                customerAddress: '123 Test Street, Testville',
-                pincode: '12345',
-                contactNo: '9876543210',
-                productOrdered: 'Sample Product for Testing',
-                quantity: 1,
-                price: '499.00',
-                paymentStatus: 'Pending',
-                date: format(new Date(), 'yyyy-MM-dd'),
-                source: 'Manual',
-            };
-            await saveDocument('orders', testOrder, testOrder.id);
-            allOrders.push(testOrder);
-        }
-
+        
         const sortedOrders = allOrders
             .filter(o => o.paymentStatus !== 'Intent Verified')
             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());

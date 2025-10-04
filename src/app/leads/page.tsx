@@ -26,7 +26,6 @@ export default function LeadsPage() {
     setLoading(true);
     try {
         const loadedLeads = await getCollection<EditableOrder>('leads');
-        // Now also includes 'Lead' status from seller flow
         const filteredLeads = loadedLeads.filter(lead => ['Intent Verified', 'Lead'].includes(lead.paymentStatus));
 
         const sortedLeads = filteredLeads.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
