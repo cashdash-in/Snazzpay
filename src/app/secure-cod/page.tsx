@@ -277,6 +277,8 @@ function SecureCodPaymentForm() {
                                 ...newLead, // Carry over all customer details
                                 id: finalInternalOrderId, 
                                 orderId: finalInternalOrderId,
+                                price: totalPrice.toString(), // Ensure total price is saved
+                                quantity: orderDetails.quantity, // Ensure quantity is saved
                                 paymentStatus: 'Authorized',
                             };
                             await saveDocument('orders', finalOrder, finalInternalOrderId);
@@ -487,3 +489,4 @@ function Page() {
 }
 
 export default Page;
+
