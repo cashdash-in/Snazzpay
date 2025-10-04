@@ -12,9 +12,13 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { saveDocument } from '@/services/firestore';
+import { saveDocument, getDocument } from '@/services/firestore';
 import type { EditableOrder } from '@/app/orders/page';
 import { v4 as uuidv4 } from 'uuid';
+import type { SellerProduct } from '../seller/ai-product-uploader/page';
+import type { ProductDrop } from '../vendor/product-drops/page';
+
+type DisplayProduct = (SellerProduct | ProductDrop) & { price: number; sellerName: string; sellerId: string; };
 
 type CustomerDetails = {
     name: string;
@@ -29,17 +33,8 @@ function CatalogueOrderPageContent() {
     const router = useRouter();
     const { toast } = useToast();
 
-    const [product, setProduct] = useState({
-        id: '',
-        title: 'Product',
-        description: 'No description available.',
-        price: 0,
-        image: 'https://placehold.co/600x400',
-        sellerName: 'Snazzify',
-        sellerId: '',
-        sizes: [] as string[],
-        colors: [] as string[],
-    });
+    const [product, setProduct] = useState<DisplayProduct | null>(null);
+    const [isLoadingProduct, setIsLoadingProduct] = useState(true);
 
     const [customerDetails, setCustomerDetails] = useState<CustomerDetails>({
         name: '', email: '', contact: '', address: '', pincode: ''
@@ -53,27 +48,54 @@ function CatalogueOrderPageContent() {
 
 
     useEffect(() => {
-        const productData = {
-            id: searchParams.get('id') || '',
-            title: searchParams.get('title') || 'Product',
-            description: searchParams.get('description') || 'No description available.',
-            price: parseFloat(searchParams.get('price') || '0'),
-            image: searchParams.get('image') || 'https://placehold.co/600x400',
-            sellerName: searchParams.get('sellerName') || 'Snazzify',
-            sellerId: searchParams.get('sellerId') || '',
-            sizes: searchParams.get('sizes')?.split(',') || [],
-            colors: searchParams.get('colors')?.split(',') || [],
-        };
-        setProduct(productData);
-        setTotalPrice(productData.price);
-    }, [searchParams]);
+        async function fetchProduct() {
+            const productId = searchParams.get('id');
+            if (!productId) {
+                setIsLoadingProduct(false);
+                toast({ variant: 'destructive', title: "Product not found", description: "The product ID is missing from the link." });
+                return;
+            }
+
+            try {
+                let fetchedProduct: SellerProduct | ProductDrop | null = await getDocument<SellerProduct>('seller_products', productId);
+                if (!fetchedProduct) {
+                    fetchedProduct = await getDocument<ProductDrop>('product_drops', productId);
+                }
+
+                if (fetchedProduct) {
+                    const displayProduct: DisplayProduct = {
+                        ...fetchedProduct,
+                        price: (fetchedProduct as SellerProduct).price ?? (fetchedProduct as ProductDrop).costPrice,
+                        sellerName: (fetchedProduct as SellerProduct).sellerName ?? (fetchedProduct as ProductDrop).vendorName,
+                        sellerId: (fetchedProduct as SellerProduct).sellerId ?? (fetchedProduct as ProductDrop).vendorId,
+                    };
+                    setProduct(displayProduct);
+                    setTotalPrice(displayProduct.price);
+                    if (displayProduct.sizes && displayProduct.sizes.length > 0) setSelectedSize(displayProduct.sizes[0]);
+                    if (displayProduct.colors && displayProduct.colors.length > 0) setSelectedColor(displayProduct.colors[0]);
+                } else {
+                    toast({ variant: 'destructive', title: "Product not found", description: "We couldn't find details for this product." });
+                }
+            } catch (e) {
+                console.error("Error fetching product:", e);
+                toast({ variant: 'destructive', title: "Error", description: "There was a problem loading the product." });
+            } finally {
+                setIsLoadingProduct(false);
+            }
+        }
+        fetchProduct();
+    }, [searchParams, toast]);
 
     useEffect(() => {
-        setTotalPrice(product.price * quantity);
-    }, [quantity, product.price]);
+        if (product) {
+            setTotalPrice(product.price * quantity);
+        }
+    }, [quantity, product]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!product) return;
+
         const { name, contact, address, pincode } = customerDetails;
         
         if (!name || !contact || !address || !pincode) {
@@ -110,13 +132,33 @@ function CatalogueOrderPageContent() {
                 title: 'Order Request Sent!',
                 description: `The seller, ${product.sellerName}, has received your request and will contact you shortly to confirm.`,
             });
-            router.push('/customer/login'); // Redirect to a confirmation or login page
+            router.push('/customer/login');
         } catch (error: any) {
             toast({ variant: 'destructive', title: 'Submission Failed', description: error.message });
             setIsSubmitting(false);
         }
     };
 
+
+    if (isLoadingProduct) {
+        return <div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+    }
+    
+    if (!product) {
+         return (
+             <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
+                <Card className="w-full max-w-2xl shadow-lg text-center">
+                    <CardHeader>
+                        <CardTitle>Product Not Available</CardTitle>
+                        <CardDescription>The product you are looking for is no longer available or the link is invalid.</CardDescription>
+                    </CardHeader>
+                </Card>
+            </div>
+        )
+    }
+
+    const availableSizes = (product as SellerProduct).sizes || [];
+    const availableColors = (product as SellerProduct).colors || [];
 
     return (
         <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
@@ -129,7 +171,7 @@ function CatalogueOrderPageContent() {
                     <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
                         <div className="space-y-4">
                              <Image
-                                src={product.image}
+                                src={product.imageDataUris[0]}
                                 alt={product.title}
                                 width={500}
                                 height={500}
@@ -173,16 +215,16 @@ function CatalogueOrderPageContent() {
                                         <Label htmlFor="quantity">Quantity</Label>
                                         <Input id="quantity" type="number" value={quantity} onChange={e => setQuantity(Math.max(1, parseInt(e.target.value, 10) || 1))} min="1"/>
                                     </div>
-                                    {product.sizes.length > 0 && (
+                                    {availableSizes.length > 0 && (
                                          <div className="space-y-2">
                                             <Label htmlFor="size">Size</Label>
-                                            <Select onValueChange={setSelectedSize} value={selectedSize}><SelectTrigger><SelectValue placeholder="Select size" /></SelectTrigger><SelectContent>{product.sizes.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select>
+                                            <Select onValueChange={setSelectedSize} value={selectedSize}><SelectTrigger><SelectValue placeholder="Select size" /></SelectTrigger><SelectContent>{availableSizes.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select>
                                         </div>
                                     )}
-                                     {product.colors.length > 0 && (
+                                     {availableColors.length > 0 && (
                                         <div className="space-y-2">
                                             <Label htmlFor="color">Color</Label>
-                                            <Select onValueChange={setSelectedColor} value={selectedColor}><SelectTrigger><SelectValue placeholder="Select color" /></SelectTrigger><SelectContent>{product.colors.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select>
+                                            <Select onValueChange={setSelectedColor} value={selectedColor}><SelectTrigger><SelectValue placeholder="Select color" /></SelectTrigger><SelectContent>{availableColors.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select>
                                         </div>
                                     )}
                                 </div>

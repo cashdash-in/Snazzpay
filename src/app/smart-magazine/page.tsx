@@ -35,8 +35,6 @@ function SmartMagazineContent() {
 
             try {
                 const fetchedProducts: DisplayProduct[] = [];
-
-                // Fetch from both possible collections
                 const [sellerProducts, productDrops] = await Promise.all([
                     getCollection<SellerProduct>('seller_products'),
                     getCollection<ProductDrop>('product_drops')
@@ -64,27 +62,8 @@ function SmartMagazineContent() {
     
     const handleOrderClick = (product: DisplayProduct) => {
         const params = new URLSearchParams();
-        
+        // CORRECT: Only pass the ID. The catalogue page will fetch the rest.
         params.set('id', product.id);
-        params.set('title', product.title);
-        params.set('description', product.description);
-        const price = (product as SellerProduct).price ?? (product as ProductDrop).costPrice;
-        params.set('price', price.toString());
-        params.set('image', product.imageDataUris[0]); 
-
-        const sellerName = (product as SellerProduct).sellerName || (product as ProductDrop).vendorName || 'Snazzify';
-        params.set('sellerName', sellerName);
-        
-        const sellerId = (product as SellerProduct).sellerId || (product as ProductDrop).vendorId || '';
-        params.set('sellerId', sellerId);
-        
-        if ((product as SellerProduct).sizes?.length) {
-            params.set('sizes', (product as SellerProduct).sizes.join(','));
-        }
-        if ((product as SellerProduct).colors?.length) {
-            params.set('colors', (product as SellerProduct).colors.join(','));
-        }
-        
         router.push(`/catalogue?${params.toString()}`);
     };
 
