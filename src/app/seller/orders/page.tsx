@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, PlusCircle, Trash2, MessageSquare, Send } from "lucide-react";
+import { Loader2, PlusCircle, Trash2, MessageSquare, Send, Mail } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/hooks/use-auth';
@@ -18,6 +18,7 @@ import { getCollection, saveDocument, deleteDocument } from "@/services/firestor
 export default function SellerOrdersPage() {
   const [orders, setOrders] = useState<EditableOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [processingId, setProcessingId] = useState<string | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -98,33 +99,59 @@ export default function SellerOrdersPage() {
     }
   };
 
-  const handleShareOnWhatsApp = (order: EditableOrder) => {
-    if (!order.contactNo) {
-        toast({
-            variant: 'destructive',
-            title: 'Customer Contact Missing',
-            description: 'Cannot share on WhatsApp without a customer phone number.'
-        });
-        return;
-    }
-    
-    const isCOD = (order as any).paymentMethod === 'Cash on Delivery';
-
-    if (isCOD) {
-        toast({
-            title: 'COD Order',
-            description: 'This is a Cash on Delivery order. No payment link is needed.',
-        });
-        return;
-    }
-    
+  const handleSendPaymentLink = (order: EditableOrder, method: 'whatsapp' | 'email') => {
     const baseUrl = `${window.location.origin}/payment`;
     const finalUrl = `${baseUrl}?amount=${encodeURIComponent(order.price)}&name=${encodeURIComponent(order.productOrdered)}&order_id=${encodeURIComponent(order.id)}&seller_id=${user?.uid}&prepaid=true`;
-    
     const message = `Hi ${order.customerName}, your order for "${order.productOrdered}" (₹${order.price}) is ready. Please complete your payment securely using this link: ${finalUrl}`;
-    const whatsappUrl = `https://wa.me/${sanitizePhoneNumber(order.contactNo)}?text=${encodeURIComponent(message)}`;
-    window.open(whatsappUrl, '_blank');
+      
+    if (method === 'whatsapp') {
+      if (!order.contactNo) {
+        toast({ variant: 'destructive', title: 'Customer Contact Missing' });
+        return;
+      }
+      const whatsappUrl = `https://wa.me/${sanitizePhoneNumber(order.contactNo)}?text=${encodeURIComponent(message)}`;
+      window.open(whatsappUrl, '_blank');
+    } else { // email
+      if (!order.customerEmail) {
+        toast({ variant: 'destructive', title: 'Customer Email Missing' });
+        return;
+      }
+      handleSendEmail(order);
+    }
   };
+
+  const handleSendEmail = async (order: EditableOrder) => {
+    setProcessingId(order.id);
+    try {
+      const response = await fetch('/api/create-payment-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: order.price,
+          customerName: order.customerName,
+          customerContact: order.contactNo,
+          customerEmail: order.customerEmail,
+          orderId: order.orderId,
+          productName: order.productOrdered
+        })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error);
+      toast({
+        title: "Email Sent!",
+        description: result.message
+      });
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: "Failed to Send Email",
+        description: error.message
+      });
+    } finally {
+      setProcessingId(null);
+    }
+  }
+
 
   return (
     <AppShell title="My Orders">
@@ -198,9 +225,16 @@ export default function SellerOrdersPage() {
                                       <Send className="mr-2 h-4 w-4" /> {order.paymentStatus === 'Pushed to Vendor' ? 'Pushed' : 'Push to Vendor'}
                                   </Button>
                               )}
-                            <Button variant="secondary" size="sm" onClick={() => handleShareOnWhatsApp(order)}>
-                              <MessageSquare className="mr-2 h-4 w-4" /> Share
-                            </Button>
+                              {!isCOD && (
+                                <>
+                                  <Button variant="secondary" size="sm" onClick={() => handleSendPaymentLink(order, 'whatsapp')}>
+                                    <MessageSquare className="mr-2 h-4 w-4" /> WhatsApp
+                                  </Button>
+                                  <Button variant="outline" size="sm" onClick={() => handleSendEmail(order)} disabled={!order.customerEmail || processingId === order.id}>
+                                    {processingId === order.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />} Email
+                                  </Button>
+                                </>
+                              )}
                             <Button variant="destructive" size="icon" onClick={() => handleRemoveOrder(order.id)}>
                               <Trash2 className="h-4 w-4" />
                             </Button>

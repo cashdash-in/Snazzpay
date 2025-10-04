@@ -61,8 +61,10 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
 
         const params = new URLSearchParams();
         params.set('id', product.id);
+        
+        // The catalogue page will fetch all details by ID, so we don't need to pass them all.
+        // We only pass what's needed for a rich preview.
         params.set('title', product.title);
-        params.set('description', product.description);
         params.set('price', productPrice.toString());
         params.set('image', product.imageDataUris[0]); 
         
@@ -106,6 +108,7 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
             
             const params = new URLSearchParams();
             params.set('id', product.id);
+            // Rebuild the link with the new description included
             params.set('title', product.title);
             params.set('description', newDescription); // Use new description
             params.set('price', productPrice.toString());
@@ -219,8 +222,8 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
                     <Button variant="outline">Cancel</Button>
                 </DialogClose>
                 <div className='flex gap-2'>
-                    <Button onClick={handleShareMobile} className="hidden sm:inline-flex" disabled={!isPriceValid}>Share on Mobile</Button>
-                    <Button onClick={handleShareWeb} disabled={!isPriceValid}>Share on WhatsApp Web</Button>
+                    <Button onClick={handleShareMobile} disabled={!isPriceValid}>Share (Mobile)</Button>
+                    <Button onClick={handleShareWeb} disabled={!isPriceValid}>Share (Web)</Button>
                 </div>
             </DialogFooter>
         </DialogContent>

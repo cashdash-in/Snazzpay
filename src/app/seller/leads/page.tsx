@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, Trash2, Send, Loader2 as ButtonLoader, ArrowRight } from "lucide-react";
+import { Loader2, Trash2, Send, Loader2 as ButtonLoader, ArrowRight, Mail } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { EditableOrder } from '@/app/orders/page';
 import { useAuth } from "@/hooks/use-auth";
@@ -21,6 +21,7 @@ export default function SellerLeadsPage() {
   const { user } = useAuth();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
+  const [processingId, setProcessingId] = useState<string | null>(null);
   const { toast } = useToast();
   const router = useRouter();
 
@@ -62,7 +63,7 @@ export default function SellerLeadsPage() {
     }
   };
 
-  const handleSendPaymentLink = (lead: Lead) => {
+  const handleSendWhatsAppLink = (lead: Lead) => {
       const baseUrl = `${window.location.origin}/payment`;
       const finalUrl = `${baseUrl}?amount=${encodeURIComponent(lead.price)}&name=${encodeURIComponent(lead.productOrdered)}&order_id=${encodeURIComponent(lead.id)}&prepaid=true`;
       
@@ -70,6 +71,31 @@ export default function SellerLeadsPage() {
       const whatsappUrl = `https://wa.me/${sanitizePhoneNumber(lead.contactNo)}?text=${encodeURIComponent(message)}`;
       
       window.open(whatsappUrl, '_blank');
+  };
+
+  const handleSendEmailLink = async (lead: EditableOrder) => {
+    setProcessingId(lead.id);
+    try {
+        const response = await fetch('/api/send-auth-link', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ order: lead, method: 'email' }),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error);
+        toast({
+            title: "Email Sent Successfully!",
+            description: result.message,
+        });
+    } catch (error: any) {
+         toast({
+            variant: 'destructive',
+            title: `Error Sending Email`,
+            description: error.message,
+        });
+    } finally {
+        setProcessingId(null);
+    }
   };
 
   const handleConvertToOrder = async (lead: Lead) => {
@@ -147,9 +173,14 @@ export default function SellerLeadsPage() {
                     </TableCell>
                     <TableCell className="text-center space-x-2">
                         {lead.paymentMethod !== 'Cash on Delivery' && (
-                            <Button variant="secondary" size="sm" onClick={() => handleSendPaymentLink(lead)}>
-                                <Send className="mr-2 h-4 w-4" /> Send Link
-                            </Button>
+                            <>
+                                <Button variant="secondary" size="sm" onClick={() => handleSendWhatsAppLink(lead)}>
+                                    <Send className="mr-2 h-4 w-4" /> WhatsApp Link
+                                </Button>
+                                <Button variant="outline" size="sm" onClick={() => handleSendEmailLink(lead)} disabled={processingId === lead.id || !lead.customerEmail}>
+                                    {processingId === lead.id ? <ButtonLoader className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />} Email Link
+                                </Button>
+                            </>
                         )}
                         <Button 
                             variant="default" 
