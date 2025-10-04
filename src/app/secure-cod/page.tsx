@@ -59,6 +59,7 @@ function SecureCodPaymentForm() {
         imageUrl: '',
     });
     
+    const [totalPrice, setTotalPrice] = useState(0);
     const [razorpayKeyId, setRazorpayKeyId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -140,6 +141,14 @@ function SecureCodPaymentForm() {
 
     }, [searchParams]);
 
+     useEffect(() => {
+        if (orderDetails.amount > 0) {
+            setTotalPrice(orderDetails.amount * orderDetails.quantity);
+        } else {
+            setTotalPrice(0);
+        }
+    }, [orderDetails.amount, orderDetails.quantity]);
+
     const handleSellerFlowSubmit = async () => {
         setIsSubmitting(true);
         const { name, email, contact, address, pincode } = customerDetails;
@@ -164,7 +173,7 @@ function SecureCodPaymentForm() {
                 quantity: orderDetails.quantity,
                 size: orderDetails.size,
                 color: orderDetails.color,
-                price: orderDetails.amount.toString(),
+                price: totalPrice.toString(),
                 date: new Date().toISOString(),
                 paymentStatus: 'Lead',
                 source: orderDetails.sellerId ? 'Seller' : 'Catalogue',
@@ -189,8 +198,8 @@ function SecureCodPaymentForm() {
              setIsSubmitting(false);
              return;
         }
-        if (orderDetails.amount <= 0) {
-            toast({ variant: 'destructive', title: "Invalid Amount", description: "Please enter the order total." });
+        if (totalPrice <= 0) {
+            toast({ variant: 'destructive', title: "Invalid Amount", description: "Please enter the order total and quantity." });
             setIsSubmitting(false);
             return;
         }
@@ -226,7 +235,7 @@ function SecureCodPaymentForm() {
                 handler: async (response: any) => {
                     // Create a Lead record after successful ₹1 payment
                     const newLead: EditableOrder = { 
-                        id: intentInternalOrderId, orderId: intentInternalOrderId, customerName: name, customerEmail: email, contactNo: contact, customerAddress: address, pincode, productOrdered: orderDetails.productName, quantity: orderDetails.quantity, size: orderDetails.size, color: orderDetails.color, price: orderDetails.amount.toString(), date: new Date().toISOString(), paymentStatus: 'Intent Verified', source: 'Shopify', sellerId: orderDetails.sellerId, imageDataUris: orderDetails.imageUrl ? [orderDetails.imageUrl] : [],
+                        id: intentInternalOrderId, orderId: intentInternalOrderId, customerName: name, customerEmail: email, contactNo: contact, customerAddress: address, pincode, productOrdered: orderDetails.productName, quantity: orderDetails.quantity, size: orderDetails.size, color: orderDetails.color, price: totalPrice.toString(), date: new Date().toISOString(), paymentStatus: 'Intent Verified', source: 'Shopify', sellerId: orderDetails.sellerId, imageDataUris: orderDetails.imageUrl ? [orderDetails.imageUrl] : [],
                     };
                     await saveDocument('leads', newLead, intentInternalOrderId);
                     
@@ -237,7 +246,7 @@ function SecureCodPaymentForm() {
                          method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ 
-                            amount: orderDetails.amount, 
+                            amount: totalPrice, 
                             productName: orderDetails.productName,
                             isAuthorization: true, // This is an authorization (payment_capture: 0)
                             name, email, contact, address, pincode
@@ -251,7 +260,7 @@ function SecureCodPaymentForm() {
                         key: razorpayKeyId,
                         order_id: authResult.order_id,
                         name: "Authorize Secure COD Payment",
-                        description: `Securely authorize ₹${orderDetails.amount} for ${orderDetails.productName}`,
+                        description: `Securely authorize ₹${totalPrice} for ${orderDetails.productName}`,
                         handler: async (authResponse: any) => {
                             // Authorization successful, save payment info and create final order
                             const paymentData: PaymentInfo = {
@@ -376,7 +385,7 @@ function SecureCodPaymentForm() {
                                  )}
                                </div>
                             </CardHeader>
-                            <CardContent className="p-4 pt-0 space-y-2 text-sm">
+                            <CardContent className="p-4 pt-0 space-y-4 text-sm">
                                 {orderDetails.imageUrl && (
                                     <div className="flex justify-center mb-4">
                                          <Image 
@@ -395,16 +404,20 @@ function SecureCodPaymentForm() {
                                             <Input id="productName" value={orderDetails.productName === 'Your Product' ? '' : orderDetails.productName} onChange={(e) => setOrderDetails(d => ({...d, productName: e.target.value}))} placeholder="e.g., Blue Cotton Shirt" />
                                         </div>
                                         <div className="space-y-2">
-                                            <Label htmlFor="amount">Order Total (INR)</Label>
-                                            <Input id="amount" type="number" value={isNaN(orderDetails.amount) || orderDetails.amount === 0 ? '' : orderDetails.amount} onChange={(e) => setOrderDetails(d => ({...d, amount: parseFloat(e.target.value) || 0}))} placeholder="Enter order total"/>
+                                            <Label htmlFor="amount">Price per item (INR)</Label>
+                                            <Input id="amount" type="number" value={isNaN(orderDetails.amount) || orderDetails.amount === 0 ? '' : orderDetails.amount} onChange={(e) => setOrderDetails(d => ({...d, amount: parseFloat(e.target.value) || 0}))} placeholder="Enter price per item"/>
                                         </div>
                                     </>
                                 ) : (
-                                    <>
-                                        <div className="flex justify-between"><span className="text-muted-foreground">Product:</span><span className="font-medium text-right">{orderDetails.productName}</span></div>
-                                        <div className="flex justify-between font-bold text-lg"><span className="text-muted-foreground">Amount:</span><span>₹{orderDetails.amount.toFixed(2)}</span></div>
-                                    </>
+                                    <div className="flex justify-between"><span className="text-muted-foreground">Product:</span><span className="font-medium text-right">{orderDetails.productName}</span></div>
                                 )}
+                                <div className="grid grid-cols-2 gap-4 items-center">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="quantity">Quantity</Label>
+                                        <Input id="quantity" type="number" min="1" value={orderDetails.quantity} onChange={(e) => setOrderDetails(d => ({...d, quantity: parseInt(e.target.value, 10) || 1}))} />
+                                    </div>
+                                    <div className="flex justify-between font-bold text-lg pt-6"><span className="text-muted-foreground">Total:</span><span>₹{totalPrice.toFixed(2)}</span></div>
+                                </div>
                             </CardContent>
                         </Card>
 
@@ -446,7 +459,7 @@ function SecureCodPaymentForm() {
                     <CardFooter className="flex-col gap-2">
                          <Button type="submit" className="w-full" disabled={isSubmitting || loading}>
                             {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                            {isSellerFlow ? "Submit Order Request" : "Proceed to Secure Payment"}
+                            {isSellerFlow ? "Submit Order Request" : `Proceed to Pay ₹${totalPrice.toFixed(2)}`}
                         </Button>
                         {!isSellerFlow && <p className="text-xs text-muted-foreground text-center">You will first be charged ₹1 to verify your card. The full amount will be authorized next.</p>}
                         <div className="flex items-center justify-center space-x-4 text-sm mt-2">
