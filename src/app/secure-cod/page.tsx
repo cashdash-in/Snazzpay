@@ -99,8 +99,6 @@ function SecureCodPaymentForm() {
         const image = searchParams.get('image');
 
         setOrderDetails({ productName: name, amount, orderId: id, sellerId, sellerName });
-        setTotalPrice(amount); // Initialize total price
-        setIsSellerFlow(!!(sellerId && sellerId !== 'YOUR_UNIQUE_SELLER_ID'));
         if (image) setProductImage(image);
         
         setCustomerDetails({
@@ -121,9 +119,10 @@ function SecureCodPaymentForm() {
     };
 
     const handleConfirmAmount = () => {
-        setTotalPrice(orderDetails.amount * quantity);
+        const newTotal = orderDetails.amount * quantity;
+        setTotalPrice(newTotal);
         setIsAmountConfirmed(true);
-        toast({ title: "Amount Confirmed", description: `Total amount is set to ₹${(orderDetails.amount * quantity).toFixed(2)}` });
+        toast({ title: "Amount Confirmed", description: `Total amount is set to ₹${newTotal.toFixed(2)}` });
     };
 
     const handleSubmit = async (e: FormEvent) => {
@@ -349,10 +348,10 @@ function SecureCodPaymentForm() {
                             </Button>
                              <Button type="submit" className="w-full" disabled={isSubmitting || loading || !isAmountConfirmed}>
                                 {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                {isSellerFlow ? "Submit Order Request" : `Pay ₹${totalPrice.toFixed(2)}`}
+                                {isSellerFlow ? "Submit Order Request" : `Proceed to Secure Payment`}
                             </Button>
                          </div>
-                        {!isSellerFlow && <p className="text-xs text-muted-foreground text-center">Your card will be authorized for the full amount. Funds are only captured upon dispatch.</p>}
+                        {!isSellerFlow && <p className="text-xs text-muted-foreground text-center">Your card will be authorized for the total amount. Funds are only captured upon dispatch.</p>}
                         <div className="flex items-center justify-center space-x-4 text-sm mt-2">
                             <Link href="/customer/login" passHref><span className="text-primary hover:underline cursor-pointer inline-flex items-center gap-1">Customer Login</span></Link>
                             <Link href="/faq" passHref><span className="text-primary hover:underline cursor-pointer inline-flex items-center gap-1"><HelpCircle className="h-4 w-4" />How this works</span></Link>
@@ -378,4 +377,3 @@ function Page() {
 }
 
 export default Page;
-
