@@ -54,6 +54,7 @@ function SecureCodPaymentForm() {
     const [orderId, setOrderId] = useState('');
     const [sellerDetails, setSellerDetails] = useState({ id: '', name: '' });
     const [isSellerFlow, setIsSellerFlow] = useState(false);
+    const [productImage, setProductImage] = useState<string | null>(null);
 
     const [razorpayKeyId, setRazorpayKeyId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
@@ -95,12 +96,16 @@ function SecureCodPaymentForm() {
         const id = searchParams.get('order_id') || `LEGACY-${uuidv4().substring(0, 4)}`.toUpperCase();
         const sellerId = searchParams.get('sellerId') || '';
         const sellerName = searchParams.get('sellerName') || '';
+        const image = searchParams.get('image');
 
         const initialLineItems = name && amount > 0 ? [{ id: uuidv4(), name: name, price: amount }] : [];
         setLineItems(initialLineItems);
         setOrderId(id);
         setSellerDetails({ id: sellerId, name: sellerName });
         setIsSellerFlow(!!(sellerId && sellerId !== 'YOUR_UNIQUE_SELLER_ID'));
+        if (image) {
+            setProductImage(image);
+        }
         
         setCustomerDetails({
             name: searchParams.get('customerName') || '',
@@ -165,6 +170,7 @@ function SecureCodPaymentForm() {
                 setStep('complete');
             } catch (error: any) {
                  toast({ variant: 'destructive', title: 'Submission Failed', description: error.message });
+                 setIsSubmitting(false);
             }
         } else {
             // Admin/Direct Flow
@@ -263,6 +269,17 @@ function SecureCodPaymentForm() {
                                  <Button type="button" size="sm" variant="ghost" onClick={addLineItem}><PlusCircle className="mr-2 h-4 w-4"/>Add Item</Button>
                             </CardHeader>
                             <CardContent className="p-4 pt-0 space-y-3">
+                                 {productImage && lineItems.length === 1 && (
+                                    <div className="mb-4 flex justify-center">
+                                        <Image
+                                            src={productImage}
+                                            alt={lineItems[0].name}
+                                            width={100}
+                                            height={100}
+                                            className="rounded-lg object-contain"
+                                        />
+                                    </div>
+                                 )}
                                 {lineItems.map((item, index) => (
                                     <div key={item.id} className="flex items-end gap-2">
                                         <div className="flex-grow space-y-1">
@@ -349,3 +366,5 @@ function Page() {
 }
 
 export default Page;
+
+    
