@@ -158,7 +158,7 @@ export default function LeadsPage() {
               </TableHeader>
               <TableBody>
                 {leads.map((lead) => {
-                    const imageUrl = lead.packageImageUrls?.[0] || lead.imageDataUris?.[0];
+                    const imageUrl = lead.imageDataUris?.[0];
                     return (
                   <TableRow key={lead.id}>
                     <TableCell>{lead.date ? format(new Date(lead.date), 'PP') : 'N/A'}</TableCell>
@@ -179,22 +179,19 @@ export default function LeadsPage() {
                     <TableCell>₹{lead.price}</TableCell>
                      <TableCell>
                       <div className="space-y-1">
-                          {lead.sellerName || lead.vendorName ? (
-                              <>
-                                {lead.vendorName && (
-                                    <div className="text-xs text-muted-foreground flex items-center gap-1">
-                                      <Factory className="h-3 w-3" /> {lead.vendorName}
-                                    </div>
-                                )}
-                                 {lead.sellerName && (
-                                    <div className="text-xs text-muted-foreground flex items-center gap-1">
-                                        <Store className="h-3 w-3" /> {lead.sellerName}
-                                    </div>
-                                )}
-                              </>
-                          ) : (
+                          {lead.vendorName && (
                               <div className="text-xs text-muted-foreground flex items-center gap-1">
-                                <Store className="h-3 w-3" /> Snazzify
+                                <Factory className="h-3 w-3" /> {lead.vendorName}
+                              </div>
+                          )}
+                           {lead.sellerName && (
+                              <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                  <Store className="h-3 w-3" /> {lead.sellerName}
+                              </div>
+                          )}
+                          {!lead.sellerName && !lead.vendorName && (
+                               <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                  <Store className="h-3 w-3" /> Snazzify
                               </div>
                           )}
                       </div>

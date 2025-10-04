@@ -112,7 +112,7 @@ export default function VendorOrdersPage() {
                                 <TableBody>
                                     {orders.length > 0 ? (
                                         orders.map((order) => {
-                                            const imageUrl = order.packageImageUrls?.[0] || order.imageDataUris?.[0];
+                                            const imageUrl = order.imageDataUris?.[0];
                                             return (
                                             <TableRow key={order.id}>
                                                 <TableCell>

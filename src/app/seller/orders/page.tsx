@@ -196,7 +196,7 @@ export default function SellerOrdersPage() {
                     orders.map((order) => {
                       const isCOD = (order as any).paymentMethod === 'Cash on Delivery';
                       const canPush = (order.paymentStatus === 'Paid' || order.paymentStatus === 'Authorized' || isCOD);
-                      const imageUrl = order.packageImageUrls?.[0] || order.imageDataUris?.[0];
+                      const imageUrl = order.imageDataUris?.[0];
 
                       return (
                         <TableRow key={order.id}>

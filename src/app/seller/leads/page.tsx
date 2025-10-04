@@ -174,7 +174,7 @@ export default function SellerLeadsPage() {
               </TableHeader>
               <TableBody>
                 {leads.length > 0 ? leads.map((lead) => {
-                    const imageUrl = lead.packageImageUrls?.[0] || lead.imageDataUris?.[0];
+                    const imageUrl = lead.imageDataUris?.[0];
                     return (
                   <TableRow key={lead.id}>
                     <TableCell>{new Date(lead.date).toLocaleDateString()}</TableCell>

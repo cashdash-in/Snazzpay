@@ -133,7 +133,7 @@ function GuestFulfillmentPageContent() {
         )
     }
     
-    const imageUrl = order?.packageImageUrls?.[0] || order?.imageDataUris?.[0];
+    const imageUrl = order?.imageDataUris?.[0];
 
     return (
         <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">

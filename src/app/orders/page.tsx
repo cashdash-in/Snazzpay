@@ -255,7 +255,7 @@ export default function OrdersPage() {
                 {orders.map((order) => {
                     const isAuthorized = order.paymentStatus === 'Authorized';
                     const isProcessing = processingChargeId === order.id;
-                    const imageUrl = order.packageImageUrls?.[0] || order.imageDataUris?.[0];
+                    const imageUrl = order.imageDataUris?.[0];
 
                     return (
                         <TableRow key={order.id}>
@@ -313,22 +313,19 @@ export default function OrdersPage() {
                             </TableCell>
                             <TableCell>
                                 <div className="space-y-1">
-                                    {order.sellerName || order.vendorName ? (
-                                        <>
-                                            {order.vendorName && (
-                                                <div className="text-xs text-muted-foreground flex items-center gap-1">
-                                                <Factory className="h-3 w-3" /> {order.vendorName}
-                                                </div>
-                                            )}
-                                            {order.sellerName && (
-                                                <div className="text-xs text-muted-foreground flex items-center gap-1">
-                                                    <Store className="h-3 w-3" /> {order.sellerName}
-                                                </div>
-                                            )}
-                                        </>
-                                    ) : (
+                                    {order.vendorName && (
                                         <div className="text-xs text-muted-foreground flex items-center gap-1">
-                                            <Store className="h-3 w-3" /> {order.source === 'Manual' ? 'Snazzify (Manual)' : 'Snazzify'}
+                                            <Factory className="h-3 w-3" /> {order.vendorName}
+                                        </div>
+                                    )}
+                                    {order.sellerName && (
+                                        <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                            <Store className="h-3 w-3" /> {order.sellerName}
+                                        </div>
+                                    )}
+                                    {!order.sellerName && !order.vendorName && (
+                                         <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                            <Store className="h-3 w-3" /> Snazzify
                                         </div>
                                     )}
                                 </div>
