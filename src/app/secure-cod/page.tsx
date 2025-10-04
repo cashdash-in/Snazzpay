@@ -6,7 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, HelpCircle, ShieldCheck, CheckCircle, User, Phone, Mail as MailIcon, Home, MapPin, ShoppingCart } from "lucide-react";
+import { Loader2, HelpCircle, ShieldCheck, CheckCircle, User, Phone, Mail as MailIcon, Home, MapPin, ShoppingCart, ArrowRight } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
 import type { EditableOrder } from '@/app/orders/page';
@@ -63,9 +63,9 @@ function SecureCodPaymentForm() {
     });
     const [paymentMethod, setPaymentMethod] = useState<'Prepaid' | 'Secure Charge on Delivery' | 'Cash on Delivery'>('Secure Charge on Delivery');
     const [newlyCreatedCard, setNewlyCreatedCard] = useState<ShaktiCardData | null>(null);
-
-    // This is the key change: Calculate totalPrice directly on each render.
-    const totalPrice = orderDetails.amount * quantity;
+    
+    const [totalPrice, setTotalPrice] = useState(0);
+    const [isAmountConfirmed, setIsAmountConfirmed] = useState(false);
 
     const getOrCreateShaktiCard = async (order: EditableOrder): Promise<ShaktiCardData | null> => {
         if (!order.contactNo || !order.customerEmail) return null;
@@ -99,6 +99,7 @@ function SecureCodPaymentForm() {
         const image = searchParams.get('image');
 
         setOrderDetails({ productName: name, amount, orderId: id, sellerId, sellerName });
+        setTotalPrice(amount); // Initialize total price
         setIsSellerFlow(!!(sellerId && sellerId !== 'YOUR_UNIQUE_SELLER_ID'));
         if (image) setProductImage(image);
         
@@ -113,6 +114,17 @@ function SecureCodPaymentForm() {
         getRazorpayKeyId().then(key => { setLoading(false); setRazorpayKeyId(key); });
     }, [searchParams]);
 
+    const handleQuantityChange = (newQuantity: number) => {
+        const q = Math.max(1, newQuantity || 1);
+        setQuantity(q);
+        setIsAmountConfirmed(false); // Force re-confirmation when quantity changes
+    };
+
+    const handleConfirmAmount = () => {
+        setTotalPrice(orderDetails.amount * quantity);
+        setIsAmountConfirmed(true);
+        toast({ title: "Amount Confirmed", description: `Total amount is set to ₹${(orderDetails.amount * quantity).toFixed(2)}` });
+    };
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
@@ -184,7 +196,7 @@ function SecureCodPaymentForm() {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        amount: totalPrice, // Use the calculated total price
+                        amount: totalPrice,
                         productName: orderDetails.productName,
                         isAuthorization: true,
                         name, email, contact, address, pincode
@@ -197,7 +209,7 @@ function SecureCodPaymentForm() {
                 const razorpayOptions = {
                     key: razorpayKeyId,
                     order_id: authResult.order_id,
-                    amount: totalPrice * 100, // Use the calculated total price
+                    amount: totalPrice * 100,
                     name: "Authorize Secure COD Payment",
                     description: `Securely authorize ₹${totalPrice.toFixed(2)} for your order`,
                     handler: (response: any) => handleRazorpaySuccess(response, authResult),
@@ -274,7 +286,7 @@ function SecureCodPaymentForm() {
                                     <span className="font-medium text-right">{orderDetails.productName}</span>
                                 </div>
                                 <div className="flex justify-between items-center text-sm">
-                                    <span className="text-muted-foreground">Price:</span>
+                                    <span className="text-muted-foreground">Price per item:</span>
                                     <span>₹{orderDetails.amount.toFixed(2)}</span>
                                 </div>
                                 <div className="flex justify-between items-center text-sm">
@@ -283,12 +295,12 @@ function SecureCodPaymentForm() {
                                         id="quantity"
                                         type="number"
                                         value={quantity}
-                                        onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                                        onChange={(e) => handleQuantityChange(parseInt(e.target.value, 10))}
                                         className="h-8 w-20"
                                         min={1}
                                     />
                                 </div>
-                                <div className="flex justify-between items-center font-bold text-lg pt-2 border-t"><span className="text-muted-foreground">Total Order Amount:</span><span>₹{totalPrice.toFixed(2)}</span></div>
+                                <div className="flex justify-between items-center font-bold text-lg pt-2 border-t"><span className="text-muted-foreground">Total Order Amount:</span><span>₹{(orderDetails.amount * quantity).toFixed(2)}</span></div>
                             </CardContent>
                         </Card>
 
@@ -331,10 +343,15 @@ function SecureCodPaymentForm() {
                         
                     </CardContent>
                     <CardFooter className="flex-col gap-2">
-                         <Button type="submit" className="w-full" disabled={isSubmitting || loading}>
-                            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                            {isSellerFlow ? "Submit Order Request" : `Proceed to Pay ₹${totalPrice.toFixed(2)}`}
-                        </Button>
+                         <div className="w-full flex gap-2">
+                            <Button type="button" variant="outline" className="w-full" onClick={handleConfirmAmount}>
+                                Confirm Amount
+                            </Button>
+                             <Button type="submit" className="w-full" disabled={isSubmitting || loading || !isAmountConfirmed}>
+                                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                {isSellerFlow ? "Submit Order Request" : `Pay ₹${totalPrice.toFixed(2)}`}
+                            </Button>
+                         </div>
                         {!isSellerFlow && <p className="text-xs text-muted-foreground text-center">Your card will be authorized for the full amount. Funds are only captured upon dispatch.</p>}
                         <div className="flex items-center justify-center space-x-4 text-sm mt-2">
                             <Link href="/customer/login" passHref><span className="text-primary hover:underline cursor-pointer inline-flex items-center gap-1">Customer Login</span></Link>
@@ -362,4 +379,3 @@ function Page() {
 
 export default Page;
 
-    
