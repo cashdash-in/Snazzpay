@@ -14,12 +14,14 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { FirebaseError } from 'firebase/app';
 import { Checkbox } from '@/components/ui/checkbox';
+import { getCollection } from '@/services/firestore';
+import type { Vendor } from '../page';
 
 
 export default function VendorLoginPage() {
     const { toast } = useToast();
     const router = useRouter();
-    const [email, setEmail] = useState('');
+    const [loginId, setLoginId] = useState('');
     const [password, setPassword] = useState('');
     const [agreed, setAgreed] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -27,8 +29,8 @@ export default function VendorLoginPage() {
     const handleLogin = async () => {
         setIsLoading(true);
 
-        if (!email || !password) {
-            toast({ variant: 'destructive', title: "Login Failed", description: "Please enter your email and password." });
+        if (!loginId || !password) {
+            toast({ variant: 'destructive', title: "Login Failed", description: "Please enter your credentials and password." });
             setIsLoading(false);
             return;
         }
@@ -40,7 +42,19 @@ export default function VendorLoginPage() {
         }
 
         try {
-            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            let userEmail = loginId;
+
+            if (!loginId.includes('@')) {
+                const vendors = await getCollection<Vendor>('vendors');
+                const vendor = vendors.find(v => v.phone === loginId);
+                if (vendor) {
+                    userEmail = vendor.email;
+                } else {
+                    throw new Error("No account found with this mobile number.");
+                }
+            }
+
+            const userCredential = await signInWithEmailAndPassword(auth, userEmail, password);
             const idToken = await userCredential.user.getIdToken();
 
             const response = await fetch('/api/auth/session', {
@@ -62,8 +76,10 @@ export default function VendorLoginPage() {
             let errorMessage = 'An unexpected error occurred. Please check your credentials or sign up.';
             if (error instanceof FirebaseError) {
                 if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
-                    errorMessage = 'Invalid credentials. Please check your email and password, or sign up if you are a new vendor.';
+                    errorMessage = 'Invalid credentials. Please check your email/mobile and password, or sign up if you are a new vendor.';
                 }
+            } else {
+                errorMessage = error.message;
             }
             toast({ variant: 'destructive', title: "Vendor Login Error", description: errorMessage, duration: 8000 });
         } finally {
@@ -81,15 +97,14 @@ export default function VendorLoginPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="email">Email</Label>
+                        <Label htmlFor="loginId">Email or Mobile Number</Label>
                         <div className="relative">
                             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input 
-                                id="email" 
-                                type="email" 
-                                placeholder="Your registered email" 
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
+                                id="loginId" 
+                                placeholder="Your registered email or mobile" 
+                                value={loginId}
+                                onChange={(e) => setLoginId(e.target.value)}
                                 className="pl-9" 
                             />
                         </div>

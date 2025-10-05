@@ -14,11 +14,13 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { FirebaseError } from 'firebase/app';
 import { Checkbox } from '@/components/ui/checkbox';
+import { getCollection } from '@/services/firestore';
+import type { SellerUser } from '@/app/seller-accounts/page';
 
 export default function SellerLoginPage() {
     const { toast } = useToast();
     const router = useRouter();
-    const [email, setEmail] = useState('');
+    const [loginId, setLoginId] = useState('');
     const [password, setPassword] = useState('');
     const [agreed, setAgreed] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -26,8 +28,8 @@ export default function SellerLoginPage() {
     const handleLogin = async () => {
         setIsLoading(true);
 
-        if (!email || !password) {
-            toast({ variant: 'destructive', title: "Login Failed", description: "Please enter your email and password." });
+        if (!loginId || !password) {
+            toast({ variant: 'destructive', title: "Login Failed", description: "Please enter your credentials and password." });
             setIsLoading(false);
             return;
         }
@@ -39,7 +41,20 @@ export default function SellerLoginPage() {
         }
 
         try {
-            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            let userEmail = loginId;
+
+            // Check if loginId is a phone number and try to find the corresponding email
+            if (!loginId.includes('@')) {
+                const sellers = await getCollection<SellerUser>('seller_users');
+                const seller = sellers.find(s => s.phone === loginId);
+                if (seller) {
+                    userEmail = seller.email;
+                } else {
+                    throw new Error("No account found with this mobile number.");
+                }
+            }
+
+            const userCredential = await signInWithEmailAndPassword(auth, userEmail, password);
             const idToken = await userCredential.user.getIdToken();
 
             const response = await fetch('/api/auth/session', {
@@ -61,8 +76,10 @@ export default function SellerLoginPage() {
              let errorMessage = 'An unexpected error occurred during login.';
             if (error instanceof FirebaseError) {
                 if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
-                     errorMessage = 'Invalid credentials. Please check your email and password, or sign up if you are a new seller.';
+                     errorMessage = 'Invalid credentials. Please check your email/mobile and password, or sign up if you are a new seller.';
                 }
+            } else {
+                errorMessage = error.message;
             }
             toast({ variant: 'destructive', title: "Seller Login Error", description: errorMessage, duration: 8000 });
         } finally {
@@ -80,15 +97,14 @@ export default function SellerLoginPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                      <div className="space-y-2">
-                        <Label htmlFor="email">Email</Label>
+                        <Label htmlFor="loginId">Email or Mobile Number</Label>
                         <div className="relative">
                             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input 
-                                id="email" 
-                                type="email" 
-                                placeholder="you@example.com" 
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
+                                id="loginId" 
+                                placeholder="you@example.com or mobile" 
+                                value={loginId}
+                                onChange={(e) => setLoginId(e.target.value)}
                                 className="pl-9" 
                             />
                         </div>
