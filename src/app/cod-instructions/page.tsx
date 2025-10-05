@@ -1,3 +1,4 @@
+
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -38,7 +39,7 @@ export default function CodInstructionsPage() {
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     try {
-        const productVendor = '{{ product.vendor }}';
+        const productVendor = {{ product.vendor | json }};
         const deniedVendors = ['Dropdash', 'itzjqv-uw'];
 
         if (deniedVendors.includes(productVendor)) {
@@ -56,9 +57,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
         function updateForm() {
             // Use the currently selected variant or fall back to the main product.
-            var currentVariant = {{ product.selected_or_first_available_variant | json }};
-            var productTitle = '{{ product.title | url_encode }}';
-            var featuredImage = '{{ product.featured_image | img_url: "large" }}';
+            const currentVariant = {{ product.selected_or_first_available_variant | json }};
+            const productTitle = {{ product.title | json }};
+            const featuredImage = {{ product.featured_image | img_url: "large" | json }};
 
             nameInput.value = productTitle + (currentVariant.title !== 'Default Title' ? ' - ' + currentVariant.title : '');
             amountInput.value = (currentVariant.price / 100).toFixed(2);
@@ -66,14 +67,11 @@ document.addEventListener('DOMContentLoaded', function() {
             orderIdInput.value = 'SNZ-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5).toUpperCase();
 
             // Capture all available sizes and colors for the product
-            const allSizes = {{ product.options_by_name['Size']?.values | json }};
-            const allColors = {{ product.options_by_name['Color']?.values | json }};
-            if (allSizes) {
-                sizeInput.value = allSizes.join(',');
-            }
-             if (allColors) {
-                colorInput.value = allColors.join(',');
-            }
+            const allSizes = {{ product.options_by_name['Size']?.values | json }} || [];
+            const allColors = {{ product.options_by_name['Color']?.values | json }} || [];
+            
+            sizeInput.value = allSizes.join(',');
+            colorInput.value = allColors.join(',');
         }
 
         // Initial update on page load
@@ -81,7 +79,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Listen for Shopify's variant change event
         document.addEventListener('variant:change', function(event) {
-            var variant = event.detail.variant;
+            const variant = event.detail.variant;
             if (variant) {
                 amountInput.value = (variant.price / 100).toFixed(2);
                 if (variant.featured_image) {
