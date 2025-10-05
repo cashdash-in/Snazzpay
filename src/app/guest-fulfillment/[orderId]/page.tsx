@@ -32,7 +32,7 @@ function GuestFulfillmentPageContent() {
     const [trackingNumber, setTrackingNumber] = useState('');
     const [courierCompany, setCourierCompany] = useState('');
     const [packageImage, setPackageImage] = useState<string | null>(null);
-    const [customerContact, setCustomerContact] = useState('');
+    const [vendorContact, setVendorContact] = useState('');
     const [vendorPaymentReceived, setVendorPaymentReceived] = useState<'Yes' | 'No' | ''>('');
 
 
@@ -51,7 +51,7 @@ function GuestFulfillmentPageContent() {
                 setError("Invalid or expired fulfillment link.");
             } else {
                 setOrder(fetchedOrder);
-                setCustomerContact(fetchedOrder.contactNo || '');
+                setVendorContact(fetchedOrder.vendorContactNo || '');
             }
             setIsLoading(false);
         }
@@ -72,8 +72,8 @@ function GuestFulfillmentPageContent() {
     
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
-        if (!order || !trackingNumber || !courierCompany || !packageImage || !customerContact || !vendorPaymentReceived) {
-            toast({ variant: 'destructive', title: "Missing Information", description: "Please provide all details, including a package image, contact number, and payment status."});
+        if (!order || !trackingNumber || !courierCompany || !packageImage || !vendorContact || !vendorPaymentReceived) {
+            toast({ variant: 'destructive', title: "Missing Information", description: "Please provide all details, including a package image, your contact number, and payment status."});
             return;
         }
         setIsSubmitting(true);
@@ -84,7 +84,7 @@ function GuestFulfillmentPageContent() {
                 packageImageUrls: [packageImage],
                 deliveryStatus: 'dispatched',
                 readyForDispatchDate: new Date().toISOString().split('T')[0], // Set dispatch date to today
-                contactNo: customerContact,
+                vendorContactNo: vendorContact,
                 vendorPaymentReceived: vendorPaymentReceived as 'Yes' | 'No',
             };
 
@@ -187,10 +187,10 @@ function GuestFulfillmentPageContent() {
                         </Card>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                              <div className="space-y-2">
-                                <Label htmlFor="customerContact">Customer Contact No.</Label>
+                                <Label htmlFor="vendorContact">Vendor Contact No.</Label>
                                 <div className="relative">
                                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                    <Input id="customerContact" placeholder="Customer's phone number" value={customerContact} onChange={e => setCustomerContact(e.target.value)} required className="pl-9"/>
+                                    <Input id="vendorContact" placeholder="Your contact number" value={vendorContact} onChange={e => setVendorContact(e.target.value)} required className="pl-9"/>
                                 </div>
                             </div>
                              <div className="space-y-2">

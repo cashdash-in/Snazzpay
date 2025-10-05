@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -26,6 +27,7 @@ export type EditableOrder = {
   customerAddress: string;
   pincode: string;
   contactNo: string;
+  vendorContactNo?: string;
   productOrdered: string;
   quantity: number;
   size?: string;
