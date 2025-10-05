@@ -129,7 +129,7 @@ export default function SellerProductsPage() {
                                 <TableCell className="text-right space-x-1">
                                     <Dialog>
                                         <DialogTrigger asChild>
-                                             <Button className="w-full" variant="secondary" size="sm">
+                                             <Button variant="secondary" size="sm">
                                                 <MessageSquare className="mr-2 h-4 w-4" />
                                                 Share
                                             </Button>

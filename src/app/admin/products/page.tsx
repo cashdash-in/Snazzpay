@@ -44,7 +44,7 @@ export default function AdminProductsPage() {
                 setProducts(adminDrops.sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
 
             } catch (error) {
-                toast({ variant: 'destructive', title: "Error loading data", description: "Could not load products from local storage." });
+                toast({ variant: 'destructive', title: "Error loading data", description: "Could not load products from Firestore." });
             } finally {
                 setIsLoading(false);
             }
@@ -120,7 +120,7 @@ export default function AdminProductsPage() {
                                 <TableCell className="text-right space-x-1">
                                     <Dialog>
                                         <DialogTrigger asChild>
-                                             <Button className="w-full" variant="secondary" size="sm">
+                                             <Button variant="secondary" size="sm">
                                                 <MessageSquare className="mr-2 h-4 w-4" />
                                                 Share
                                             </Button>

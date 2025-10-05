@@ -40,12 +40,12 @@ export default function ShareMagazinePage() {
                 if (role === 'seller') {
                     const sellerProducts = await getCollection<SellerProduct>('seller_products');
                     productsCollection = sellerProducts.filter(p => p.sellerId === user.uid);
-                } else { // admin or vendor
+                } else if (role === 'vendor') {
                     const allDrops = await getCollection<ProductDrop>('product_drops');
-                     // For admin, show all. For vendor, filter by their ID.
-                    productsCollection = role === 'admin' 
-                        ? allDrops
-                        : allDrops.filter(p => p.vendorId === user.uid);
+                    productsCollection = allDrops.filter(p => p.vendorId === user.uid);
+                } else { // admin
+                    const allDrops = await getCollection<ProductDrop>('product_drops');
+                    productsCollection = allDrops;
                 }
 
                 setProducts(productsCollection.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
