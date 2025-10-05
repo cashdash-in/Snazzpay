@@ -108,7 +108,7 @@ export default function AdminProductDropsPage() {
         const newDrop: ProductDrop = {
             id: uuidv4(),
             vendorId: 'admin_snazzify', // Special ID for admin drops
-            vendorName: 'Snazzify Official',
+            vendorName: 'SnazzifyOfficial',
             title,
             description,
             costPrice: parseFloat(costPrice),

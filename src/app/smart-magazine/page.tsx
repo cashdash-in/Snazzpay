@@ -8,39 +8,50 @@ import { Button } from '@/components/ui/button';
 import { Loader2, ShoppingCart } from 'lucide-react';
 import Image from 'next/image';
 import type { SellerProduct } from '../seller/ai-product-uploader/page';
-import { getCollection } from '@/services/firestore';
+import { getCollection, getDocument } from '@/services/firestore';
 import type { ProductDrop } from '../vendor/product-drops/page';
 
 type DisplayProduct = SellerProduct | ProductDrop;
+
+type Magazine = {
+    id: string;
+    title: string;
+    productIds: string[];
+    creatorName: string;
+    createdAt: string;
+};
+
 
 function SmartMagazineContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const [products, setProducts] = useState<DisplayProduct[]>([]);
-    const [magazineTitle, setMagazineTitle] = useState('Our Latest Collection');
+    const [magazine, setMagazine] = useState<Magazine | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         async function fetchProducts() {
-            const productIdsStr = searchParams.get('products');
-            const title = searchParams.get('title');
+            const magazineId = searchParams.get('id');
 
-            if (title) {
-                setMagazineTitle(decodeURIComponent(title));
-            }
-
-            if (!productIdsStr) {
-                setIsLoading(false);
-                return;
-            }
-
-            const productIds = productIdsStr.split(',');
-            if (productIds.length === 0) {
+            if (!magazineId) {
                 setIsLoading(false);
                 return;
             }
 
             try {
+                const fetchedMagazine = await getDocument<Magazine>('smart_magazines', magazineId);
+                if (!fetchedMagazine) {
+                    setIsLoading(false);
+                    return;
+                }
+                setMagazine(fetchedMagazine);
+                
+                const productIds = fetchedMagazine.productIds;
+                if (productIds.length === 0) {
+                    setIsLoading(false);
+                    return;
+                }
+                
                 const fetchedProducts: DisplayProduct[] = [];
                 const [sellerProducts, productDrops] = await Promise.all([
                     getCollection<SellerProduct>('seller_products'),
@@ -71,12 +82,11 @@ function SmartMagazineContent() {
         const params = new URLSearchParams();
         params.set('id', product.id);
 
-        // Pass sizes and colors as comma-separated strings
-        if (product.sizes && product.sizes.length > 0) {
-            params.set('sizes', product.sizes.join(','));
+        if ((product as SellerProduct).sizes && (product as SellerProduct).sizes.length > 0) {
+            params.set('sizes', (product as SellerProduct).sizes.join(','));
         }
-        if (product.colors && product.colors.length > 0) {
-            params.set('colors', product.colors.join(','));
+        if ((product as SellerProduct).colors && (product as SellerProduct).colors.length > 0) {
+            params.set('colors', (product as SellerProduct).colors.join(','));
         }
 
         router.push(`/catalogue?${params.toString()}`);
@@ -86,28 +96,26 @@ function SmartMagazineContent() {
         return <div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
     }
 
-    if (products.length === 0) {
+    if (!magazine || products.length === 0) {
         return (
              <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
                 <Card className="w-full max-w-2xl shadow-lg text-center">
                     <CardHeader>
                         <CardTitle>Magazine Not Found</CardTitle>
-                        <CardDescription>The requested magazine is empty or the products could not be loaded.</CardDescription>
+                        <CardDescription>The requested magazine is empty or the link is invalid.</CardDescription>
                     </CardHeader>
                 </Card>
             </div>
         )
     }
 
-    const firstProductSeller = (products[0] as SellerProduct)?.sellerName || (products[0] as ProductDrop)?.vendorName || 'Snazzify';
-
     return (
         <div className="min-h-screen bg-gray-50 p-4 sm:p-8">
             <div className="max-w-6xl mx-auto">
                  <Card className="mb-8 text-center shadow-lg">
                     <CardHeader>
-                        <CardTitle className="text-3xl font-bold">{magazineTitle}</CardTitle>
-                        <CardDescription>Curated just for you by {firstProductSeller}</CardDescription>
+                        <CardTitle className="text-3xl font-bold">{magazine.title}</CardTitle>
+                        <CardDescription>Curated just for you by {magazine.creatorName}</CardDescription>
                     </CardHeader>
                 </Card>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">

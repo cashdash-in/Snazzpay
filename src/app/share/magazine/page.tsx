@@ -11,12 +11,12 @@ import { useAuth } from '@/hooks/use-auth';
 import type { SellerProduct } from '@/app/seller/ai-product-uploader/page';
 import Image from 'next/image';
 import { Loader2, Share2, Copy, MessageSquare } from 'lucide-react';
-import { getCollection } from '@/services/firestore';
+import { getCollection, saveDocument } from '@/services/firestore';
 import { getCookie } from 'cookies-next';
 import { Label } from '@/components/ui/label';
 import type { ProductDrop } from '@/app/vendor/product-drops/page';
 import { Input } from '@/components/ui/input';
-
+import { v4 as uuidv4 } from 'uuid';
 
 export default function ShareMagazinePage() {
     const { user } = useAuth();
@@ -68,19 +68,40 @@ export default function ShareMagazinePage() {
         setMagazineLink('');
     };
 
-    const handleGenerateLink = () => {
+    const handleGenerateLink = async () => {
         if (selectedProductIds.length === 0) {
             toast({ variant: 'destructive', title: 'No Products Selected', description: 'Please select at least one product to create a magazine.' });
             return;
         }
+        if (!user) {
+            toast({ variant: 'destructive', title: 'Authentication Error' });
+            return;
+        }
 
-        const baseUrl = window.location.origin;
-        const productsParam = encodeURIComponent(selectedProductIds.join(','));
-        const link = `${baseUrl}/smart-magazine?products=${productsParam}&title=${encodeURIComponent(magazineTitle)}`;
-        
-        setMagazineLink(link);
-        
-        toast({ title: 'Magazine Link Generated!', description: 'You can now copy the link below or share it on WhatsApp.' });
+        const role = getCookie('userRole');
+        const creatorName = role === 'admin' ? 'SnazzifyOfficial' : user.displayName || 'Unknown Creator';
+
+        const magazineId = uuidv4();
+        const newMagazine = {
+            id: magazineId,
+            title: magazineTitle,
+            productIds: selectedProductIds,
+            creatorId: user.uid,
+            creatorName: creatorName,
+            createdAt: new Date().toISOString(),
+        };
+
+        try {
+            await saveDocument('smart_magazines', newMagazine, magazineId);
+            
+            const baseUrl = window.location.origin;
+            const link = `${baseUrl}/smart-magazine?id=${magazineId}`;
+            setMagazineLink(link);
+            
+            toast({ title: 'Magazine Created & Link Generated!', description: 'Your new magazine is saved and can be shared.' });
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Failed to Save Magazine' });
+        }
     };
 
     const handleCopyLink = () => {
@@ -91,8 +112,7 @@ export default function ShareMagazinePage() {
 
     const handleShareOnWhatsApp = () => {
         if (!magazineLink) return;
-        const companyName = user?.displayName || 'Snazzify';
-        const message = `Welcome to ${companyName}!\n\nCheck out our new collection: *${magazineTitle}*\n${magazineLink}`;
+        const message = `Check out our new collection: *${magazineTitle}*\n${magazineLink}`;
         const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
         window.open(whatsappUrl, '_blank');
     };
@@ -151,7 +171,7 @@ export default function ShareMagazinePage() {
                             <p className="font-medium">{selectedProductIds.length} product(s) selected.</p>
                              <Button onClick={handleGenerateLink} className="w-full" disabled={selectedProductIds.length === 0}>
                                 <Share2 className="mr-2 h-4 w-4" />
-                                Generate Magazine Link
+                                Save Magazine & Generate Link
                             </Button>
                             {magazineLink && (
                                 <div className="space-y-2 pt-4 border-t">

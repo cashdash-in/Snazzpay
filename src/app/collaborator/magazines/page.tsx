@@ -8,15 +8,15 @@ import { Loader2, BookOpen, MessageSquare, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
-import { getCollection } from '@/services/firestore';
+import { getCollection, getDocument } from '@/services/firestore';
 import { v4 as uuidv4 } from 'uuid';
 
 type Magazine = {
     id: string;
     title: string;
     productIds: string[];
+    creatorId: string;
     creatorName: string;
-    userId: string;
     createdAt: string;
 };
 
@@ -29,9 +29,8 @@ export default function CollaboratorMagazinesPage() {
     useEffect(() => {
         async function loadMagazines() {
             try {
-                // In a real app, you would filter this by the collaborator's linked accounts (admin, vendor, seller)
-                // For this prototype, we will show all magazines created by anyone.
-                const allMagazines = await getCollection<Omit<Magazine, 'id'>>('smart_magazines');
+                // Now shows all magazines from all users
+                const allMagazines = await getCollection<Magazine>('smart_magazines');
                 
                 const formattedMagazines = allMagazines.map(mag => ({
                     id: mag.id || uuidv4(),
@@ -51,8 +50,7 @@ export default function CollaboratorMagazinesPage() {
     
     const getShareLink = (mag: Magazine) => {
         const baseUrl = window.location.origin;
-        const productsParam = encodeURIComponent(mag.productIds.join(','));
-        return `${baseUrl}/smart-magazine?products=${productsParam}&title=${encodeURIComponent(mag.title)}`;
+        return `${baseUrl}/smart-magazine?id=${mag.id}`;
     };
 
     const handleCopy = (mag: Magazine) => {
