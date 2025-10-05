@@ -39,20 +39,6 @@ type PaymentInfo = {
 };
 
 function SecureCodPaymentForm() {
-    const [isClient, setIsClient] = useState(false);
-
-    useEffect(() => {
-        setIsClient(true);
-    }, []);
-
-    if (!isClient) {
-        return <div className="flex justify-center items-center h-screen"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
-    }
-
-    return <SecureCodPaymentFormContent />;
-}
-
-function SecureCodPaymentFormContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const { toast } = useToast();
@@ -66,8 +52,8 @@ function SecureCodPaymentFormContent() {
         productImage: ''
     });
     
-    const availableSizes = searchParams.get('sizes')?.split(',') || [];
-    const availableColors = searchParams.get('colors')?.split(',') || [];
+    const [availableSizes, setAvailableSizes] = useState<string[]>([]);
+    const [availableColors, setAvailableColors] = useState<string[]>([]);
 
     const [quantity, setQuantity] = useState(1);
     const [selectedSize, setSelectedSize] = useState('');
@@ -117,10 +103,15 @@ function SecureCodPaymentFormContent() {
         const sellerId = searchParams.get('sellerId') || '';
         const sellerName = searchParams.get('sellerName') || '';
         const image = searchParams.get('image') || '';
+        const sizes = searchParams.get('sizes')?.split(',') || [];
+        const colors = searchParams.get('colors')?.split(',') || [];
+        
+        setAvailableSizes(sizes);
+        setAvailableColors(colors);
 
         setOrderDetails({ productName: name, amount, orderId: id, sellerId, sellerName, productImage: image });
-        if (availableSizes.length > 0) setSelectedSize(availableSizes[0]);
-        if (availableColors.length > 0) setSelectedColor(availableColors[0]);
+        if (sizes.length > 0) setSelectedSize(sizes[0]);
+        if (colors.length > 0) setSelectedColor(colors[0]);
         
         setCustomerDetails({
             name: searchParams.get('customerName') || '',
@@ -390,10 +381,16 @@ function SecureCodPaymentFormContent() {
 
 
 function Page() {
+    // This component will only render on the client side
+    const [isClient, setIsClient] = useState(false);
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
+
     return (
        <div className="relative min-h-screen w-full bg-gradient-to-br from-purple-50 via-white to-indigo-50">
             <Suspense fallback={<div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
-                <SecureCodPaymentForm />
+                {isClient ? <SecureCodPaymentForm /> : null}
             </Suspense>
             <Suspense>
                  <CancellationForm />
