@@ -19,6 +19,7 @@ import { CancellationForm } from '@/components/cancellation-form';
 import { Input } from '@/components/ui/input';
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Image from 'next/image';
 
 type CustomerDetails = {
@@ -50,7 +51,14 @@ function SecureCodPaymentForm() {
         sellerId: '',
         sellerName: ''
     });
+    
+    // Get sizes and colors from URL params
+    const availableSizes = searchParams.get('sizes')?.split(',') || [];
+    const availableColors = searchParams.get('colors')?.split(',') || [];
+
     const [quantity, setQuantity] = useState(1);
+    const [selectedSize, setSelectedSize] = useState('');
+    const [selectedColor, setSelectedColor] = useState('');
     const [isSellerFlow, setIsSellerFlow] = useState(false);
     const [productImage, setProductImage] = useState<string | null>(null);
 
@@ -100,6 +108,8 @@ function SecureCodPaymentForm() {
 
         setOrderDetails({ productName: name, amount, orderId: id, sellerId, sellerName });
         if (image) setProductImage(image);
+        if (availableSizes.length > 0) setSelectedSize(availableSizes[0]);
+        if (availableColors.length > 0) setSelectedColor(availableColors[0]);
         
         setCustomerDetails({
             name: searchParams.get('customerName') || '',
@@ -112,17 +122,14 @@ function SecureCodPaymentForm() {
         getRazorpayKeyId().then(key => { setLoading(false); setRazorpayKeyId(key); });
     }, [searchParams]);
 
-    const handleQuantityChange = (newQuantity: number) => {
-        const q = Math.max(1, newQuantity || 1);
-        setQuantity(q);
-        setIsAmountConfirmed(false); // Force re-confirmation when quantity changes
-    };
-
-    const handleConfirmAmount = () => {
+    useEffect(() => {
         const newTotal = orderDetails.amount * quantity;
         setTotalPrice(newTotal);
+    }, [quantity, orderDetails.amount]);
+
+    const handleConfirmAmount = () => {
         setIsAmountConfirmed(true);
-        toast({ title: "Amount Confirmed", description: `Total amount is set to ₹${newTotal.toFixed(2)}` });
+        toast({ title: "Amount Confirmed", description: `Total amount is set to ₹${totalPrice.toFixed(2)}` });
     };
 
     const handleSubmit = async (e: FormEvent) => {
@@ -143,101 +150,116 @@ function SecureCodPaymentForm() {
         const orderData: Omit<EditableOrder, 'id' | 'paymentStatus' | 'source'> = {
             orderId: orderDetails.orderId, customerName: name, customerEmail: email, contactNo: contact, customerAddress: address, pincode,
             productOrdered: orderDetails.productName, quantity: quantity, price: totalPrice.toString(), date: new Date().toISOString(),
-            sellerId: orderDetails.sellerId, sellerName: orderDetails.sellerName, paymentMethod
+            sellerId: orderDetails.sellerId, sellerName: orderDetails.sellerName, paymentMethod, size: selectedSize, color: selectedColor,
         };
         
-        if (isSellerFlow) {
-            try {
-                const leadId = uuidv4();
-                await saveDocument('leads', { ...orderData, id: leadId, paymentStatus: 'Lead', source: 'Seller' }, leadId);
+        // This is the direct Secure COD flow
+        if (!razorpayKeyId) {
+            toast({ variant: 'destructive', title: "Razorpay Not Configured" });
+            setIsSubmitting(false);
+            return;
+        }
+
+        try {
+            // Main payment success handler
+            const handleRazorpaySuccess = async (authResponse: any, orderId: string) => {
+                const finalOrder: EditableOrder = { ...orderData, id: orderId, paymentStatus: 'Authorized', source: 'Shopify' };
+                
+                await saveDocument('payment_info', {
+                    paymentId: authResponse.razorpay_payment_id,
+                    orderId: orderId,
+                    razorpayOrderId: authResponse.razorpay_order_id,
+                    signature: authResponse.razorpay_signature,
+                    status: 'authorized',
+                    authorizedAt: new Date().toISOString()
+                }, orderId);
+
+                await saveDocument('orders', finalOrder, orderId);
+                
+                const leadDoc = await getDocument('leads', orderId);
+                if (leadDoc) await deleteDocument('leads', orderId);
+                
+                const card = await getOrCreateShaktiCard(finalOrder);
+                if (card) setNewlyCreatedCard(card);
+                
+                toast({ title: "Authorization Successful!", description: `Order ${finalOrder.orderId} is confirmed.` });
                 setStep('complete');
-            } catch (error: any) {
-                 toast({ variant: 'destructive', title: 'Submission Failed', description: error.message });
-                 setIsSubmitting(false);
-            }
-        } else {
-            // Admin/Direct Flow
-            if (!razorpayKeyId) {
-                toast({ variant: 'destructive', title: "Razorpay Not Configured" });
-                setIsSubmitting(false);
-                return;
-            }
-            try {
-                // The main handler function for Razorpay
-                const handleRazorpaySuccess = async (authResponse: any, orderResult: any) => {
-                    const finalOrder: EditableOrder = { ...orderData, id: orderResult.internal_order_id, paymentStatus: 'Authorized', source: 'Shopify' };
-                    
-                    await saveDocument('payment_info', {
-                        paymentId: authResponse.razorpay_payment_id,
-                        orderId: orderResult.internal_order_id,
-                        razorpayOrderId: authResponse.razorpay_order_id,
-                        signature: authResponse.razorpay_signature,
-                        status: 'authorized',
-                        authorizedAt: new Date().toISOString()
-                    }, orderResult.internal_order_id);
+            };
 
-                    await saveDocument('orders', finalOrder, orderResult.internal_order_id);
-                    
-                    const leadDoc = await getDocument('leads', orderResult.internal_order_id);
-                    if (leadDoc) {
-                        await deleteDocument('leads', orderResult.internal_order_id);
-                    }
-                    
-                    const card = await getOrCreateShaktiCard(finalOrder);
-                    if (card) setNewlyCreatedCard(card);
-                    
-                    toast({ title: "Authorization Successful!", description: `Order ${finalOrder.orderId} is confirmed.` });
-                    setStep('complete');
-                };
-
-                // Create a single order for the final total price
-                const authResponse = await fetch('/api/create-mandate-order', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        amount: totalPrice,
-                        productName: orderDetails.productName,
-                        isAuthorization: true,
-                        name, email, contact, address, pincode
-                    })
-                });
-
-                const authResult = await authResponse.json();
-                if (authResult.error) throw new Error(authResult.error);
-
-                const razorpayOptions = {
+            // 1. Create ₹1 intent verification order
+            const intentResponse = await fetch('/api/create-mandate-order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ amount: 1, productName: `Verification for ${orderDetails.productName}`, isAuthorization: false, name, email, contact, address, pincode })
+            });
+            const intentResult = await intentResponse.json();
+            if (intentResult.error) throw new Error(`Intent Verification Failed: ${intentResult.error}`);
+            
+            const internalOrderId = intentResult.internal_order_id;
+            
+            // Open Razorpay for ₹1 payment
+            const intentRzpPromise = new Promise<void>((resolve, reject) => {
+                const intentOptions = {
                     key: razorpayKeyId,
-                    order_id: authResult.order_id,
-                    amount: totalPrice * 100,
-                    name: "Authorize Secure COD Payment",
-                    description: `Securely authorize ₹${totalPrice.toFixed(2)} for your order`,
-                    handler: (response: any) => handleRazorpaySuccess(response, authResult),
+                    order_id: intentResult.order_id,
+                    amount: 100,
+                    name: "Verify Your Order",
+                    description: "A ₹1 charge to confirm your payment method.",
+                    handler: async () => {
+                         await saveDocument('leads', { ...orderData, id: internalOrderId, paymentStatus: 'Intent Verified', source: 'Shopify' }, internalOrderId);
+                         resolve();
+                    },
+                    modal: { ondismiss: () => reject(new Error('Verification payment was closed.')) },
                     prefill: { name, email, contact },
-                    theme: { color: "#663399" },
-                    modal: { ondismiss: () => setIsSubmitting(false) }
+                    theme: { color: "#663399" }
                 };
+                const rzp1 = new (window as any).Razorpay(intentOptions);
+                rzp1.open();
+            });
 
-                const rzp = new (window as any).Razorpay(razorpayOptions);
-                rzp.open();
+            await intentRzpPromise; // Wait for the ₹1 payment to succeed
+            toast({ title: 'Verification Successful!', description: 'Now proceeding to final authorization.' });
 
-            } catch (error: any) {
-                toast({ variant: 'destructive', title: 'Error', description: error.message });
-                setIsSubmitting(false);
-            }
+
+            // 2. Create the full amount authorization order
+            const authResponse = await fetch('/api/create-mandate-order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ amount: totalPrice, productName: orderDetails.productName, isAuthorization: true, name, email, contact, address, pincode })
+            });
+            const authResult = await authResponse.json();
+            if (authResult.error) throw new Error(`Authorization Failed: ${authResult.error}`);
+            
+            const rzp2 = new (window as any).Razorpay({
+                key: razorpayKeyId,
+                order_id: authResult.order_id,
+                amount: totalPrice * 100,
+                name: "Authorize Secure COD Payment",
+                description: `Securely authorize ₹${totalPrice.toFixed(2)} for your order`,
+                handler: (response: any) => handleRazorpaySuccess(response, authResult.internal_order_id),
+                modal: { ondismiss: () => setIsSubmitting(false) },
+                prefill: { name, email, contact },
+                theme: { color: "#663399" }
+            });
+            rzp2.open();
+
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Error', description: error.message });
+            setIsSubmitting(false);
         }
     };
     
     if (loading) return <div className="flex justify-center items-center h-screen"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
     if (step === 'complete') {
-        const successMessage = isSellerFlow ? "Your order request has been sent. The seller will contact you shortly." : "Your payment has been authorized! Your order is confirmed.";
+        const successMessage = "Your payment has been authorized! Your order is confirmed.";
         return (
             <div className="flex items-center justify-center min-h-screen bg-transparent p-4">
                  <Card className="w-full max-w-md shadow-lg text-center">
                     <CardHeader>
                          <CheckCircle className="mx-auto h-12 w-12 text-green-500" />
                         <CardTitle>Thank You!</CardTitle>
-                        <CardDescription>{isSellerFlow ? "Request Submitted!" : "Payment Authorized!"}</CardDescription>
+                        <CardDescription>Payment Authorized!</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <p className="text-muted-foreground">{successMessage}</p>
@@ -260,8 +282,8 @@ function SecureCodPaymentForm() {
                 <form onSubmit={handleSubmit}>
                     <CardHeader className="text-center">
                         <ShieldCheck className="mx-auto h-12 w-12 text-primary" />
-                        <CardTitle>{isSellerFlow ? "Confirm Your Order" : "Secure Your Order"}</CardTitle>
-                        <CardDescription>{isSellerFlow ? `From ${orderDetails.sellerName}` : `Confirm details for order ${orderDetails.orderId}`}</CardDescription>
+                        <CardTitle>Secure Your Order</CardTitle>
+                        <CardDescription>Confirm details for order {orderDetails.orderId}</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
                         <Card className="bg-muted/30">
@@ -288,18 +310,27 @@ function SecureCodPaymentForm() {
                                     <span className="text-muted-foreground">Price per item:</span>
                                     <span>₹{orderDetails.amount.toFixed(2)}</span>
                                 </div>
-                                <div className="flex justify-between items-center text-sm">
-                                    <Label htmlFor='quantity' className="text-muted-foreground">Quantity:</Label>
-                                    <Input 
-                                        id="quantity"
-                                        type="number"
-                                        value={quantity}
-                                        onChange={(e) => handleQuantityChange(parseInt(e.target.value, 10))}
-                                        className="h-8 w-20"
-                                        min={1}
-                                    />
+                                <div className="grid grid-cols-2 gap-4 items-center">
+                                    <div className="space-y-1">
+                                        <Label htmlFor='quantity' className="text-xs text-muted-foreground">Quantity:</Label>
+                                        <Input id="quantity" type="number" value={quantity} onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))} className="h-8" min={1}/>
+                                    </div>
+                                     <div className="grid grid-cols-2 gap-2">
+                                        {availableSizes.length > 0 && (
+                                            <div className="space-y-1">
+                                                <Label htmlFor="size" className="text-xs text-muted-foreground">Size</Label>
+                                                <Select onValueChange={setSelectedSize} value={selectedSize}><SelectTrigger className="h-8"><SelectValue /></SelectTrigger><SelectContent>{availableSizes.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select>
+                                            </div>
+                                        )}
+                                        {availableColors.length > 0 && (
+                                            <div className="space-y-1">
+                                                <Label htmlFor="color" className="text-xs text-muted-foreground">Color</Label>
+                                                <Select onValueChange={setSelectedColor} value={selectedColor}><SelectTrigger className="h-8"><SelectValue /></SelectTrigger><SelectContent>{availableColors.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select>
+                                            </div>
+                                        )}
+                                     </div>
                                 </div>
-                                <div className="flex justify-between items-center font-bold text-lg pt-2 border-t"><span className="text-muted-foreground">Total Order Amount:</span><span>₹{(orderDetails.amount * quantity).toFixed(2)}</span></div>
+                                <div className="flex justify-between items-center font-bold text-lg pt-2 border-t"><span className="text-muted-foreground">Total Order Amount:</span><span>₹{totalPrice.toFixed(2)}</span></div>
                             </CardContent>
                         </Card>
 
@@ -329,17 +360,6 @@ function SecureCodPaymentForm() {
                             </div>
                         </div>
 
-                        {isSellerFlow && (
-                            <div className="space-y-3">
-                                <Label>Select Payment Method</Label>
-                                <RadioGroup defaultValue="Secure Charge on Delivery" onValueChange={(value: 'Prepaid' | 'Secure Charge on Delivery' | 'Cash on Delivery') => setPaymentMethod(value)} className="flex gap-4">
-                                    <div className="flex items-center space-x-2"><RadioGroupItem value="Prepaid" id="r1" /><Label htmlFor="r1">Prepaid</Label></div>
-                                    <div className="flex items-center space-x-2"><RadioGroupItem value="Secure Charge on Delivery" id="r2" /><Label htmlFor="r2">Secure COD</Label></div>
-                                    <div className="flex items-center space-x-2"><RadioGroupItem value="Cash on Delivery" id="r3" /><Label htmlFor="r3">Cash on Delivery</Label></div>
-                                </RadioGroup>
-                            </div>
-                        )}
-                        
                     </CardContent>
                     <CardFooter className="flex-col gap-2">
                          <div className="w-full flex gap-2">
@@ -348,10 +368,10 @@ function SecureCodPaymentForm() {
                             </Button>
                              <Button type="submit" className="w-full" disabled={isSubmitting || loading || !isAmountConfirmed}>
                                 {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                {isSellerFlow ? "Submit Order Request" : `Proceed to Secure Payment`}
+                                Proceed to Secure Payment
                             </Button>
                          </div>
-                        {!isSellerFlow && <p className="text-xs text-muted-foreground text-center">Your card will be authorized for the total amount. Funds are only captured upon dispatch.</p>}
+                        <p className="text-xs text-muted-foreground text-center">Your card will be authorized for the total amount. Funds are only captured upon dispatch.</p>
                         <div className="flex items-center justify-center space-x-4 text-sm mt-2">
                             <Link href="/customer/login" passHref><span className="text-primary hover:underline cursor-pointer inline-flex items-center gap-1">Customer Login</span></Link>
                             <Link href="/faq" passHref><span className="text-primary hover:underline cursor-pointer inline-flex items-center gap-1"><HelpCircle className="h-4 w-4" />How this works</span></Link>

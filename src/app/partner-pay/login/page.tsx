@@ -39,7 +39,7 @@ export default function PartnerPayLoginPage() {
 
         const approvedPartnersJSON = localStorage.getItem('payPartners');
         const approvedPartners: PartnerData[] = approvedPartnersJSON ? JSON.parse(approvedPartnersJSON) : [];
-        const partner = approvedPartners.find(p => (p.id === loginId || p.phone === loginId) && p.status === 'approved');
+        const partner = approvedPartners.find(p => (p.id === loginId || p.phone === loginId || p.email === loginId) && p.status === 'approved');
 
         setTimeout(() => {
             const isAdmin = loginId === 'partner-admin' && password === 'password';
