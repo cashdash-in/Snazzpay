@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState, FormEvent } from 'react';
+import { useEffect, useState, FormEvent, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
@@ -28,7 +28,7 @@ type CustomerDetails = {
     pincode: string;
 };
 
-export function SecureCodPaymentForm() {
+function SecureCodPaymentFormComponent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const { toast } = useToast();
@@ -42,12 +42,7 @@ export function SecureCodPaymentForm() {
         productImage: ''
     });
     
-    const [availableSizes, setAvailableSizes] = useState<string[]>([]);
-    const [availableColors, setAvailableColors] = useState<string[]>([]);
-
     const [quantity, setQuantity] = useState(1);
-    const [selectedSize, setSelectedSize] = useState('');
-    const [selectedColor, setSelectedColor] = useState('');
 
     const [razorpayKeyId, setRazorpayKeyId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
@@ -92,20 +87,11 @@ export function SecureCodPaymentForm() {
         const sellerName = searchParams.get('sellerName') || '';
         let image = searchParams.get('image') || '';
         
-        // Fix for protocol-relative URLs from Shopify
         if (image.startsWith('//')) {
             image = 'https:' + image;
         }
-
-        const sizes = searchParams.get('sizes')?.split(',').filter(s => s) || [];
-        const colors = searchParams.get('colors')?.split(',').filter(c => c) || [];
         
-        setAvailableSizes(sizes);
-        setAvailableColors(colors);
-
         setOrderDetails({ productName: name, amount, orderId: id, sellerId, sellerName, productImage: image });
-        if (sizes.length > 0) setSelectedSize(sizes[0]);
-        if (colors.length > 0) setSelectedColor(colors[0]);
         
         setCustomerDetails({
             name: searchParams.get('customerName') || '',
@@ -146,7 +132,7 @@ export function SecureCodPaymentForm() {
         const orderData: Omit<EditableOrder, 'id' | 'paymentStatus' | 'source'> = {
             orderId: orderDetails.orderId, customerName: name, customerEmail: email, contactNo: contact, customerAddress: address, pincode,
             productOrdered: orderDetails.productName, quantity: quantity, price: totalPrice.toString(), date: new Date().toISOString(),
-            sellerId: orderDetails.sellerId, sellerName: orderDetails.sellerName, paymentMethod: 'Secure Charge on Delivery', size: selectedSize, color: selectedColor,
+            sellerId: orderDetails.sellerId, sellerName: orderDetails.sellerName, paymentMethod: 'Secure Charge on Delivery'
         };
         
         if (!razorpayKeyId) {
@@ -302,25 +288,11 @@ export function SecureCodPaymentForm() {
                                     <span className="text-muted-foreground">Price per item:</span>
                                     <span>₹{orderDetails.amount.toFixed(2)}</span>
                                 </div>
-                                <div className="grid grid-cols-3 gap-4 items-center">
+                                <div className="grid grid-cols-1 gap-4 items-center">
                                     <div className="space-y-1 col-span-1">
                                         <Label htmlFor='quantity' className="text-xs text-muted-foreground">Quantity:</Label>
                                         <Input id="quantity" type="number" value={quantity} onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))} className="h-8" min={1}/>
                                     </div>
-                                     <div className="grid grid-cols-2 col-span-2 gap-2">
-                                        {availableSizes.length > 0 && (
-                                            <div className="space-y-1">
-                                                <Label htmlFor="size" className="text-xs text-muted-foreground">Size</Label>
-                                                <Select onValueChange={setSelectedSize} value={selectedSize}><SelectTrigger className="h-8"><SelectValue /></SelectTrigger><SelectContent>{availableSizes.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select>
-                                            </div>
-                                        )}
-                                        {availableColors.length > 0 && (
-                                            <div className="space-y-1">
-                                                <Label htmlFor="color" className="text-xs text-muted-foreground">Color</Label>
-                                                <Select onValueChange={setSelectedColor} value={selectedColor}><SelectTrigger className="h-8"><SelectValue /></SelectTrigger><SelectContent>{availableColors.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select>
-                                            </div>
-                                        )}
-                                     </div>
                                 </div>
                                 <div className="flex justify-between items-center font-bold text-lg pt-2 border-t"><span className="text-muted-foreground">Total Order Amount:</span><span>₹{totalPrice.toFixed(2)}</span></div>
                             </CardContent>
@@ -373,4 +345,12 @@ export function SecureCodPaymentForm() {
             </Card>
         </div>
     );
+}
+
+export function SecureCodPaymentForm() {
+    return (
+        <Suspense fallback={<div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
+            <SecureCodPaymentFormComponent />
+        </Suspense>
+    )
 }

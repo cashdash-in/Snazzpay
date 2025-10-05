@@ -19,8 +19,6 @@ export default function CodInstructionsPage() {
         <input type="hidden" name="amount" id="snazzpay-p-amount" />
         <input type="hidden" name="image" id="snazzpay-p-image" />
         <input type="hidden" name="order_id" id="snazzpay-p-order-id" />
-        <input type="hidden" name="sizes" id="snazzpay-p-size" />
-        <input type="hidden" name="colors" id="snazzpay-p-color" />
 
         <button 
             type="submit" 
@@ -42,9 +40,7 @@ export default function CodInstructionsPage() {
   "vendor": {{ product.vendor | json }},
   "title": {{ product.title | json }},
   "featuredImage": {{ product.featured_image | img_url: 'large' | json }},
-  "initialVariant": {{ product.selected_or_first_available_variant | json }},
-  "allSizes": {{ product.options_by_name['Size']?.values | json | default: '[]' }},
-  "allColors": {{ product.options_by_name['Color']?.values | json | default: '[]' }}
+  "initialVariant": {{ product.selected_or_first_available_variant | json }}
 }
 </script>
 
@@ -72,8 +68,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const amountInput = document.getElementById('snazzpay-p-amount');
         const imageInput = document.getElementById('snazzpay-p-image');
         const orderIdInput = document.getElementById('snazzpay-p-order-id');
-        const sizeInput = document.getElementById('snazzpay-p-size');
-        const colorInput = document.getElementById('snazzpay-p-color');
 
         function updateForm(variant) {
             const currentVariant = variant || productData.initialVariant;
@@ -87,9 +81,6 @@ document.addEventListener('DOMContentLoaded', function() {
             amountInput.value = (currentVariant.price / 100).toFixed(2);
             imageInput.value = currentVariant.featured_image ? currentVariant.featured_image.src : productData.featuredImage;
             orderIdInput.value = 'SNZ-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5).toUpperCase();
-            
-            sizeInput.value = productData.allSizes.join(',');
-            colorInput.value = productData.allColors.join(',');
         }
 
         // Initial update on page load
