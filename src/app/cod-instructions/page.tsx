@@ -29,10 +29,13 @@ export default function CodInstructionsPage() {
         const variantJsonScript = document.querySelector('script[type="application/json"][data-variant-json]');
         if (variantJsonScript) {
             const variantData = JSON.parse(variantJsonScript.textContent);
+            // Attempt to find the full product object if possible
+            // This structure can vary between themes
             productData = {
-                title: variantData.product.title,
+                title: variantData.product?.title || 'Product',
                 price: variantData.price,
-                featured_image: variantData.featured_image ? { path: variantData.featured_image.src } : { path: '' }
+                vendor: variantData.product?.vendor || 'Default Vendor',
+                featured_image: variantData.featured_image ? { path: variantData.featured_image.src } : null
             };
         }
       }
@@ -42,36 +45,46 @@ export default function CodInstructionsPage() {
     // --- END: Find Shopify Product Data ---
 
     if (productData) {
-      const container = document.getElementById('snazzpay-secure-cod-button-container');
+      // --- START: NEW VENDOR DENY LIST ---
+      // List of Shopify vendor names you want to EXCLUDE from showing the Secure COD button.
+      // Edit this list to add the names of vendors you want to block.
+      const deniedVendors = ['Vendor To Block A', 'Vendor To Block B'];
+
+      // Show the button only if the product's vendor is NOT in the deniedVendors list.
+      if (!deniedVendors.includes(productData.vendor)) {
+      // --- END: NEW VENDOR DENY LIST ---
       
-      const appUrl = 'https://snazzpay.netlify.app/secure-cod';
-      const orderId = 'SNZ-' + Date.now().toString(36) + Math.random().toString(36).substring(2, 7).toUpperCase();
+          const container = document.getElementById('snazzpay-secure-cod-button-container');
+          
+          const appUrl = '${process.env.NEXT_PUBLIC_APP_URL || 'https://your-app-url.com'}';
+          const orderId = 'SNZ-' + Date.now().toString(36) + Math.random().toString(36).substring(2, 7).toUpperCase();
 
-      const params = new URLSearchParams({
-        name: productData.title,
-        amount: (productData.price / 100).toString(), // Convert from paise to rupees
-        image: productData.featured_image ? \`https:\${productData.featured_image.path}\` : '',
-        order_id: orderId,
-      });
+          const params = new URLSearchParams({
+            name: productData.title,
+            amount: (productData.price / 100).toString(), // Convert from paise to rupees
+            image: productData.featured_image ? \`https:\${productData.featured_image.path}\` : '',
+            order_id: orderId,
+          });
 
-      const secureCodUrl = \`\${appUrl}?\${params.toString()}\`;
+          const secureCodUrl = \`\${appUrl}/secure-cod?\${params.toString()}\`;
 
-      // --- Button Styling (can be customized) ---
-      container.innerHTML = \`
-        <a href="\${secureCodUrl}" target="_blank" style="display: block; width: 100%; text-decoration: none;">
-          <button 
-            type="button" 
-            style="width: 100%; min-height: 45px; font-size: 16px; background-color: #5a31f4; color: white; border: none; border-radius: 5px; cursor: pointer; transition: background-color 0.2s;"
-            onmouseover="this.style.backgroundColor='#4a28c7'"
-            onmouseout="this.style.backgroundColor='#5a31f4'"
-          >
-            Buy with Secure COD
-          </button>
-        </a>
-        <div style="text-align: center; margin-top: 8px; font-size: 12px;">
-          <a href="https://snazzpay.netlify.app/secure-cod-info" target="_blank" style="color: #5a31f4; text-decoration: underline;">What is this?</a>
-        </div>
-      \`;
+          // --- Button Styling (can be customized) ---
+          container.innerHTML = \`
+            <a href="\${secureCodUrl}" target="_blank" style="display: block; width: 100%; text-decoration: none;">
+              <button 
+                type="button" 
+                style="width: 100%; min-height: 45px; font-size: 16px; background-color: #5a31f4; color: white; border: none; border-radius: 5px; cursor: pointer; transition: background-color 0.2s;"
+                onmouseover="this.style.backgroundColor='#4a28c7'"
+                onmouseout="this.style.backgroundColor='#5a31f4'"
+              >
+                Buy with Secure COD
+              </button>
+            </a>
+            <div style="text-align: center; margin-top: 8px; font-size: 12px;">
+              <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://your-app-url.com'}/secure-cod-info" target="_blank" style="color: #5a31f4; text-decoration: underline;">What is this?</a>
+            </div>
+          \`;
+        } // This closes the "if (!deniedVendors.includes...)" block
     }
   });
 <\/script>`;
@@ -91,9 +104,9 @@ export default function CodInstructionsPage() {
         <CardContent className="space-y-6">
            <Alert variant="destructive">
             <Terminal className="h-4 w-4" />
-            <AlertTitle>Important Note</AlertTitle>
+            <AlertTitle>Important Note for Shopify</AlertTitle>
             <AlertDescription>
-                <p>This dynamic script attempts to pass product details to the payment page automatically. However, some e-commerce platforms have strict security that may block this, causing a "popup blocked" error. If this happens, please let me know.</p>
+                <p>Due to how different Shopify themes are built, the script's ability to automatically detect product details (like vendor) may vary. If the button isn't showing/hiding correctly, the theme's structure may be non-standard. Please let me know if you encounter issues.</p>
             </AlertDescription>
           </Alert>
 
@@ -107,7 +120,7 @@ export default function CodInstructionsPage() {
           <div className="space-y-2">
             <h3 className="text-lg font-semibold">Step 2: Copy and Paste the Code</h3>
             <p className="text-muted-foreground">
-              Copy the code below and paste it directly underneath your existing "Add to Cart" or "Buy Now" button code in the theme editor. The script will automatically try to find your product's details and include them when the button is clicked.
+              Copy the code below and paste it directly underneath your existing "Add to Cart" or "Buy Now" button code in the theme editor. You can edit the `deniedVendors` list directly in the code to control which vendors do not see the button.
             </p>
             <CodeBlock code={embedCode} />
           </div>
