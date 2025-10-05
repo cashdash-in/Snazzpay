@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -62,7 +63,7 @@ export default function CollaboratorLoginPage() {
                             <Input 
                                 id="loginId" 
                                 type="text" 
-                                placeholder="Email or WhatsApp number" 
+                                placeholder="Your email or mobile number" 
                                 value={loginId}
                                 onChange={(e) => setLoginId(e.target.value)}
                                 className="pl-9" 

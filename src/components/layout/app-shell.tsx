@@ -62,6 +62,7 @@ import {
   Receipt,
   BookOpen,
   UserPlus,
+  Briefcase,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { getCookie } from 'cookies-next';
@@ -86,6 +87,7 @@ const adminGrowthMenuItems = [
     { href: '/seller-accounts', label: 'Seller Accounts', icon: UserCheckIcon },
     { href: '/vendors', label: 'Vendors', icon: Factory },
     { href: '/collaborators', label: 'Collaborators', icon: UserPlus },
+    { href: '/collaborator-billing', label: 'Collaborator Billing', icon: Briefcase },
     { href: '/partner-pay', label: 'Partner Pay', icon: Handshake },
     { href: '/settle', label: 'Settle Code', icon: SendToBack },
     { href: '/partner-cancellations', label: 'Partner Cancellations', icon: ShieldAlert },
@@ -110,6 +112,7 @@ const sellerMenuItems = [
     { href: '/seller/orders', label: 'My Orders', icon: ShoppingCart },
     { href: '/seller/logistics', label: 'Logistics Hub', icon: Truck },
     { href: '/seller/collaborators', label: 'My Collaborators', icon: UserPlus },
+    { href: '/collaborator-billing', label: 'Collaborator Billing', icon: Briefcase },
     { href: '/seller/earnings', label: 'Earnings', icon: DollarSign },
     { href: '/seller/reports', label: 'Reports', icon: FileSpreadsheet },
     { href: '/seller/settings', label: 'Settings', icon: Settings },
@@ -125,6 +128,7 @@ const vendorMenuItems = [
     { href: '/vendor/logistics', label: 'Logistics Hub', icon: Truck },
     { href: '/vendor/sellers', label: 'My Sellers', icon: Users },
     { href: '/vendor/collaborators', label: 'My Collaborators', icon: UserPlus },
+     { href: '/collaborator-billing', label: 'Collaborator Billing', icon: Briefcase },
     { href: '/vendor/earnings', label: 'Earnings', icon: DollarSign },
     { href: '/vendor/reports', label: 'Reports', icon: FileSpreadsheet },
     { href: '/vendor/settings', label: 'Settings', icon: Settings },
