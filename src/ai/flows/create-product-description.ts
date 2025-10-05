@@ -18,16 +18,14 @@ const ProductDescriptionInputSchema = z.object({
       "A list of photos of the product, each as a data URI. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
     ),
 });
+export type ProductDescriptionInput = z.infer<typeof ProductDescriptionInputSchema>;
+
 
 const ProductDescriptionOutputSchema = z.object({
   description: z.string().describe('A compelling, marketing-friendly product description. Use bullet points for features if appropriate.'),
 });
+export type ProductDescriptionOutput = z.infer<typeof ProductDescriptionOutputSchema>;
 
-export async function createProductDescription(
-  input: z.infer<typeof ProductDescriptionInputSchema>
-): Promise<z.infer<typeof ProductDescriptionOutputSchema>> {
-  return await createProductDescriptionFlow(input);
-}
 
 const prompt = ai.definePrompt({
   name: 'createProductDescriptionPrompt',
@@ -64,4 +62,9 @@ const createProductDescriptionFlow = ai.defineFlow(
   }
 );
 
-    
+
+export async function createProductDescription(
+  input: ProductDescriptionInput
+): Promise<ProductDescriptionOutput> {
+  return await createProductDescriptionFlow(input);
+}
