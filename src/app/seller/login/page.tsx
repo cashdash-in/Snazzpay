@@ -6,41 +6,40 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Store, Mail, Loader2, Phone } from "lucide-react";
+import { Store, Mail, Loader2, Lock } from "lucide-react";
 import Link from "next/link";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { FirebaseError } from 'firebase/app';
+import { Checkbox } from '@/components/ui/checkbox';
 
 export default function SellerLoginPage() {
     const { toast } = useToast();
     const router = useRouter();
-    const [loginId, setLoginId] = useState('');
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [agreed, setAgreed] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
     const handleLogin = async () => {
         setIsLoading(true);
-        // This is a simulation. In a real app, you would have a backend
-        // service to verify the loginId (email/phone) and send a login link/code.
-        // For now, we just check for a hardcoded value for demonstration.
-        
-        const MOCK_SELLER_EMAIL = "seller@example.com";
-        const MOCK_PASSWORD = "password";
 
-        if (loginId.toLowerCase() !== MOCK_SELLER_EMAIL) {
-            toast({
-                variant: 'destructive',
-                title: "Login Failed",
-                description: "This email is not registered as a seller. For this demo, please use 'seller@example.com'.",
-            });
+        if (!email || !password) {
+            toast({ variant: 'destructive', title: "Login Failed", description: "Please enter your email and password." });
+            setIsLoading(false);
+            return;
+        }
+
+        if (!agreed) {
+            toast({ variant: 'destructive', title: 'Agreement Required', description: 'You must accept the terms and conditions to log in.' });
             setIsLoading(false);
             return;
         }
 
         try {
-            const userCredential = await signInWithEmailAndPassword(auth, MOCK_SELLER_EMAIL, MOCK_PASSWORD);
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const idToken = await userCredential.user.getIdToken();
 
             const response = await fetch('/api/auth/session', {
@@ -59,10 +58,10 @@ export default function SellerLoginPage() {
             router.refresh();
 
         } catch (error: any) {
-             let errorMessage = 'An unexpected error occurred. For this demo, please ensure the user seller@example.com with password "password" exists in your Firebase Authentication.';
+             let errorMessage = 'An unexpected error occurred during login.';
             if (error instanceof FirebaseError) {
                 if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
-                    errorMessage = 'Demo user not found. Please create a user with email "seller@example.com" and password "password" in Firebase Auth.';
+                     errorMessage = 'Invalid credentials. Please check your email and password, or sign up if you are a new seller.';
                 }
             }
             toast({ variant: 'destructive', title: "Seller Login Error", description: errorMessage, duration: 8000 });
@@ -81,23 +80,43 @@ export default function SellerLoginPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                      <div className="space-y-2">
-                        <Label htmlFor="loginId">Email or Mobile Number</Label>
+                        <Label htmlFor="email">Email</Label>
                         <div className="relative">
                             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input 
-                                id="loginId" 
-                                type="text" 
-                                placeholder="you@example.com or 9876543210" 
-                                value={loginId}
-                                onChange={(e) => setLoginId(e.target.value)}
+                                id="email" 
+                                type="email" 
+                                placeholder="you@example.com" 
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
                                 className="pl-9" 
                             />
                         </div>
                     </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="password">Password</Label>
+                        <div className="relative">
+                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input 
+                                id="password" 
+                                type="password" 
+                                placeholder="Enter your password" 
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="pl-9" 
+                            />
+                        </div>
+                    </div>
+                     <div className="flex items-start space-x-2 pt-2">
+                        <Checkbox id="terms" checked={agreed} onCheckedChange={(checked) => setAgreed(checked as boolean)} className="mt-1" />
+                        <Label htmlFor="terms" className="text-sm text-muted-foreground">
+                            I agree to the <Link href="/terms/seller" target="_blank" className="underline text-primary">Seller Terms and Conditions</Link> for each login session.
+                        </Label>
+                    </div>
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4">
                     <Button className="w-full" onClick={handleLogin} disabled={isLoading}>
-                        {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending Login Link...</> : "Send Login Link"}
+                        {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Logging In...</> : "Login"}
                     </Button>
                     <p className="text-xs text-center text-muted-foreground">
                         Don't have an account?{" "}

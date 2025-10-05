@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -12,8 +13,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { FirebaseError } from 'firebase/app';
-
-const ADMIN_EMAIL = "admin@snazzpay.com";
+import { Checkbox } from '@/components/ui/checkbox';
 
 export default function AdminLoginPage() {
     const { toast } = useToast();
@@ -21,22 +21,32 @@ export default function AdminLoginPage() {
     const searchParams = useSearchParams();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [agreed, setAgreed] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
     const handleLogin = async () => {
         setIsLoading(true);
+
+         if (!email || !password) {
+            toast({ variant: 'destructive', title: "Login Failed", description: "Please enter your email and password." });
+            setIsLoading(false);
+            return;
+        }
+
+        if (!agreed) {
+            toast({ variant: 'destructive', title: 'Agreement Required', description: 'You must accept the terms and conditions to log in.' });
+            setIsLoading(false);
+            return;
+        }
         
         try {
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const idToken = await userCredential.user.getIdToken();
 
             let role = 'user'; // Default role
-            if (email.toLowerCase() === ADMIN_EMAIL) {
+            if (email.toLowerCase() === 'admin@snazzpay.com') {
                 role = 'admin';
             }
-            // In a real app you'd fetch the role from a database
-            // For now we assume non-admin emails could be sellers or vendors
-            // but the login logic will be the same.
 
             const response = await fetch('/api/auth/session', {
                 method: 'POST',
@@ -118,6 +128,12 @@ export default function AdminLoginPage() {
                                 className="pl-9"
                             />
                         </div>
+                    </div>
+                    <div className="flex items-start space-x-2 pt-2">
+                        <Checkbox id="terms" checked={agreed} onCheckedChange={(checked) => setAgreed(checked as boolean)} className="mt-1" />
+                        <Label htmlFor="terms" className="text-sm text-muted-foreground">
+                            I agree to the <Link href="/terms/seller" target="_blank" className="underline text-primary">Master Service Agreement</Link> for each login session.
+                        </Label>
                     </div>
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4">

@@ -13,32 +13,34 @@ import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { FirebaseError } from 'firebase/app';
+import { Checkbox } from '@/components/ui/checkbox';
 
 
 export default function VendorLoginPage() {
     const { toast } = useToast();
     const router = useRouter();
-    const [loginId, setLoginId] = useState('');
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [agreed, setAgreed] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    
-    const MOCK_VENDOR_EMAIL = "vendor@example.com";
-    const MOCK_PASSWORD = "password";
 
     const handleLogin = async () => {
         setIsLoading(true);
 
-         if (loginId.toLowerCase() !== MOCK_VENDOR_EMAIL) {
-            toast({
-                variant: 'destructive',
-                title: "Login Failed",
-                description: "This email is not registered as a vendor. For this demo, please use 'vendor@example.com'.",
-            });
+        if (!email || !password) {
+            toast({ variant: 'destructive', title: "Login Failed", description: "Please enter your email and password." });
+            setIsLoading(false);
+            return;
+        }
+
+        if (!agreed) {
+            toast({ variant: 'destructive', title: 'Agreement Required', description: 'You must accept the terms and conditions to log in.' });
             setIsLoading(false);
             return;
         }
 
         try {
-            const userCredential = await signInWithEmailAndPassword(auth, MOCK_VENDOR_EMAIL, MOCK_PASSWORD);
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const idToken = await userCredential.user.getIdToken();
 
             const response = await fetch('/api/auth/session', {
@@ -57,10 +59,10 @@ export default function VendorLoginPage() {
             router.refresh();
 
         } catch (error: any) {
-            let errorMessage = 'An unexpected error occurred. For this demo, please ensure the user vendor@example.com with password "password" exists in your Firebase Authentication.';
+            let errorMessage = 'An unexpected error occurred. Please check your credentials or sign up.';
             if (error instanceof FirebaseError) {
                 if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
-                    errorMessage = 'Demo user not found. Please create a user with email "vendor@example.com" and password "password" in Firebase Auth.';
+                    errorMessage = 'Invalid credentials. Please check your email and password, or sign up if you are a new vendor.';
                 }
             }
             toast({ variant: 'destructive', title: "Vendor Login Error", description: errorMessage, duration: 8000 });
@@ -79,23 +81,43 @@ export default function VendorLoginPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="loginId">Email or Mobile Number</Label>
+                        <Label htmlFor="email">Email</Label>
                         <div className="relative">
                             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input 
-                                id="loginId" 
-                                type="text" 
-                                placeholder="Your registered email or mobile" 
-                                value={loginId}
-                                onChange={(e) => setLoginId(e.target.value)}
+                                id="email" 
+                                type="email" 
+                                placeholder="Your registered email" 
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
                                 className="pl-9" 
                             />
                         </div>
                     </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="password">Password</Label>
+                        <div className="relative">
+                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input 
+                                id="password" 
+                                type="password" 
+                                placeholder="Enter your password" 
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="pl-9" 
+                            />
+                        </div>
+                    </div>
+                     <div className="flex items-start space-x-2 pt-2">
+                        <Checkbox id="terms" checked={agreed} onCheckedChange={(checked) => setAgreed(checked as boolean)} className="mt-1" />
+                        <Label htmlFor="terms" className="text-sm text-muted-foreground">
+                            I agree to the <Link href="/terms-and-conditions" target="_blank" className="underline text-primary">Platform Terms and Conditions</Link> for each login session.
+                        </Label>
+                    </div>
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4">
                     <Button className="w-full" onClick={handleLogin} disabled={isLoading}>
-                        {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending Login Link...</> : "Send Login Link"}
+                        {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Logging In...</> : "Login to Vendor Portal"}
                     </Button>
                     <p className="text-xs text-center text-muted-foreground">
                          New here?{" "}
