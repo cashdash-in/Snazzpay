@@ -60,7 +60,7 @@ export default function AdminProductDropsPage() {
         }
     };
 
-    const handlePaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
+    const handlePaste = (event: ClipboardEvent<HTMLTextAreaElement | HTMLInputElement>) => {
         const items = event.clipboardData?.items;
         if (!items) return;
         
@@ -150,6 +150,8 @@ export default function AdminProductDropsPage() {
         if (pastedText.trim().length < 10) return;
 
         // Prevent the image paste handler from also firing
+        if (e.clipboardData.files.length > 0) return;
+
         e.preventDefault();
         e.stopPropagation();
 

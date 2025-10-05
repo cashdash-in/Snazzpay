@@ -45,10 +45,13 @@ export function MainDashboard() {
                 const totalRefunds = allOrders
                     .filter(o => ['Refunded', 'Voided'].includes(o.paymentStatus))
                     .reduce((sum, o) => sum + parseFloat(o.price || '0'), 0);
+                
+                const activeLeads = leads.filter(l => l.paymentStatus !== 'Converted');
+
 
                 setStats({
                     totalSecuredValue,
-                    activeLeads: leads.length,
+                    activeLeads: activeLeads.length,
                     successfulCharges,
                     totalRefunds,
                 });
@@ -108,7 +111,7 @@ export function MainDashboard() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{stats.activeLeads}</div>
-                        <p className="text-xs text-muted-foreground">Customers who verified but haven't paid.</p>
+                        <p className="text-xs text-muted-foreground">Customers who submitted order requests.</p>
                     </CardContent>
                 </Card>
                  <Card>
