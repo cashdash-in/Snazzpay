@@ -6,7 +6,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Loader2, Check, X, Percent, User, Factory } from "lucide-react";
+import { Loader2, Check, X, Percent, User, Factory, History } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getCollection, saveDocument, getDocument } from '@/services/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -15,6 +15,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { SellerUser } from '@/app/seller-accounts/page';
 import type { Vendor } from '@/app/vendors/page';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import type { EditableOrder } from '../orders/page';
+import { format, parseISO } from 'date-fns';
 
 export type Collaborator = {
     id: string;
@@ -26,22 +29,32 @@ export type Collaborator = {
     linkedToName?: string;
 };
 
+type MonthlyCommission = {
+    month: string;
+    commission: number;
+};
+
 export default function CollaboratorsPage() {
     const { toast } = useToast();
     const [pendingCollaborators, setPendingCollaborators] = useState<Collaborator[]>([]);
     const [approvedCollaborators, setApprovedCollaborators] = useState<Collaborator[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [commissionRate, setCommissionRate] = useState<number>(5);
+    const [history, setHistory] = useState<MonthlyCommission[]>([]);
+    const [allOrders, setAllOrders] = useState<EditableOrder[]>([]);
 
     const loadData = async () => {
         setIsLoading(true);
         try {
-            const [allCollaborators, allSellers, allVendors] = await Promise.all([
+            const [allCollaborators, allSellers, allVendors, loadedOrders] = await Promise.all([
                 getCollection<Collaborator>('collaborators'),
                 getCollection<SellerUser>('seller_users'),
-                getCollection<Vendor>('vendors')
+                getCollection<Vendor>('vendors'),
+                getCollection<EditableOrder>('orders')
             ]);
             
+            setAllOrders(loadedOrders);
+
             const nameMap = new Map<string, string>();
             allSellers.forEach(s => nameMap.set(s.id, s.companyName));
             allVendors.forEach(v => nameMap.set(v.id, v.name));
@@ -96,6 +109,21 @@ export default function CollaboratorsPage() {
         } catch (error) {
             toast({ variant: 'destructive', title: 'Error Saving Commission' });
         }
+    };
+
+    const showHistory = (collaboratorId: string) => {
+        const collaboratorOrders = allOrders.filter(o => o.sellerId === collaboratorId && o.paymentStatus === 'Paid');
+        const monthlyCommissions: Record<string, number> = {};
+
+        collaboratorOrders.forEach(order => {
+            const month = format(parseISO(order.date), 'MMM yyyy');
+            const commission = parseFloat(order.price) * (commissionRate / 100);
+            monthlyCommissions[month] = (monthlyCommissions[month] || 0) + commission;
+        });
+        
+        const historyData = Object.entries(monthlyCommissions).map(([month, commission]) => ({ month, commission })).sort((a,b) => new Date(b.month).getTime() - new Date(a.month).getTime());
+
+        setHistory(historyData);
     };
 
     return (
@@ -171,6 +199,7 @@ export default function CollaboratorsPage() {
                                         <TableHead>Phone / Email</TableHead>
                                         <TableHead>Linked To</TableHead>
                                         <TableHead>Status</TableHead>
+                                        <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -188,10 +217,29 @@ export default function CollaboratorsPage() {
                                                 </div>
                                             </TableCell>
                                             <TableCell><Badge className="bg-green-100 text-green-800">{c.status}</Badge></TableCell>
+                                             <TableCell className="text-right">
+                                                 <Dialog>
+                                                    <DialogTrigger asChild>
+                                                        <Button size="sm" variant="outline" onClick={() => showHistory(c.id)}>
+                                                            <History className="mr-2 h-4 w-4" />History
+                                                        </Button>
+                                                    </DialogTrigger>
+                                                    <DialogContent>
+                                                        <DialogHeader><DialogTitle>Commission History for {c.name}</DialogTitle></DialogHeader>
+                                                        <Table>
+                                                            <TableHeader><TableRow><TableHead>Month</TableHead><TableHead className="text-right">Commission Earned</TableHead></TableRow></TableHeader>
+                                                            <TableBody>
+                                                                {history.map(h => <TableRow key={h.month}><TableCell>{h.month}</TableCell><TableCell className="text-right font-medium">₹{h.commission.toFixed(2)}</TableCell></TableRow>)}
+                                                                {history.length === 0 && <TableRow><TableCell colSpan={2} className="text-center">No commission history found.</TableCell></TableRow>}
+                                                            </TableBody>
+                                                        </Table>
+                                                    </DialogContent>
+                                                </Dialog>
+                                            </TableCell>
                                         </TableRow>
                                     )) : (
                                         <TableRow>
-                                            <TableCell colSpan={4} className="text-center h-24">No collaborators have been approved yet.</TableCell>
+                                            <TableCell colSpan={5} className="text-center h-24">No collaborators have been approved yet.</TableCell>
                                         </TableRow>
                                     )}
                                 </TableBody>
