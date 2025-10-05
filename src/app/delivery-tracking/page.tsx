@@ -220,10 +220,8 @@ export default function DeliveryTrackingPage() {
                 <TableBody>
                   {orders.map((order) => {
                       const imageUrl = order.imageDataUris?.[0];
-                      let sourceName = order.source || 'Snazzify';
+                      let sourceName = order.source || 'Manual';
                       if (sourceName === 'Catalogue') sourceName = 'Smart Magazine';
-                      if (sourceName === 'Manual' && !order.sellerName && !order.vendorName) sourceName = 'Snazzify';
-                      else if (sourceName === 'Manual' && order.sellerName) sourceName = 'Seller';
 
 
                       return (
@@ -265,6 +263,11 @@ export default function DeliveryTrackingPage() {
                             {order.sellerName && (
                                 <div className="text-muted-foreground flex items-center gap-1">
                                     <Store className="h-3 w-3" /> {order.sellerName}
+                                </div>
+                            )}
+                            {sourceName === 'Manual' && !order.sellerName && !order.vendorName && (
+                                <div className="text-muted-foreground flex items-center gap-1">
+                                    <Store className="h-3 w-3" /> Snazzify
                                 </div>
                             )}
                         </div>

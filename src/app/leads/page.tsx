@@ -7,7 +7,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect, useCallback, ClipboardEvent } from "react";
-import { Loader2, Trash2, Send, Loader2 as ButtonLoader, ArrowRight, Store, Factory } from "lucide-react";
+import { Loader2, Trash2, Send, Loader2 as ButtonLoader, ArrowRight, Store, Factory, ShoppingCart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { EditableOrder } from '../orders/page';
 import { format } from "date-fns";
@@ -183,6 +183,9 @@ export default function LeadsPage() {
               <TableBody>
                 {leads.map((lead) => {
                     const imageUrl = lead.imageDataUris?.[0];
+                    let sourceName = lead.source || 'Manual';
+                    if (sourceName === 'Catalogue') sourceName = 'Smart Magazine';
+                    
                     return (
                   <TableRow key={lead.id} onPaste={(e) => handleImagePaste(e, lead.id)}>
                     <TableCell>{lead.date ? format(new Date(lead.date), 'PP') : 'N/A'}</TableCell>
@@ -202,22 +205,26 @@ export default function LeadsPage() {
                     </TableCell>
                     <TableCell>₹{lead.price}</TableCell>
                      <TableCell>
-                      <div className="space-y-1">
-                          {lead.vendorName && (
-                              <div className="text-xs text-muted-foreground flex items-center gap-1">
-                                <Factory className="h-3 w-3" /> {lead.vendorName}
-                              </div>
-                          )}
-                           {lead.sellerName && (
-                              <div className="text-xs text-muted-foreground flex items-center gap-1">
-                                  <Store className="h-3 w-3" /> {lead.sellerName}
-                              </div>
-                          )}
-                          {!lead.sellerName && !lead.vendorName && (
-                               <div className="text-xs text-muted-foreground flex items-center gap-1">
-                                  <Store className="h-3 w-3" /> Snazzify
-                              </div>
-                          )}
+                      <div className="space-y-1 text-xs">
+                           <div className="flex items-center gap-1 font-medium">
+                                <ShoppingCart className="h-3 w-3" />
+                                {sourceName}
+                           </div>
+                           {lead.vendorName && (
+                                <div className="text-muted-foreground flex items-center gap-1">
+                                    <Factory className="h-3 w-3" /> {lead.vendorName}
+                                </div>
+                            )}
+                            {lead.sellerName && (
+                                <div className="text-muted-foreground flex items-center gap-1">
+                                    <Store className="h-3 w-3" /> {lead.sellerName}
+                                </div>
+                            )}
+                            {sourceName === 'Manual' && !lead.sellerName && !lead.vendorName && (
+                                <div className="text-muted-foreground flex items-center gap-1">
+                                    <Store className="h-3 w-3" /> Snazzify
+                                </div>
+                            )}
                       </div>
                     </TableCell>
                     <TableCell>{lead.paymentStatus}</TableCell>

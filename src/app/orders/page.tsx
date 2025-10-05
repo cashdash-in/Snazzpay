@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { format, subDays } from "date-fns";
 import { useState, useEffect, useCallback, ClipboardEvent } from "react";
-import { Loader2, PlusCircle, Trash2, Save, MessageSquare, CreditCard, Ban, CircleDollarSign, Factory, Store, ImagePlus } from "lucide-react";
+import { Loader2, PlusCircle, Trash2, Save, MessageSquare, CreditCard, Ban, CircleDollarSign, Factory, Store, ImagePlus, ShoppingCart } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { v4 as uuidv4 } from 'uuid';
@@ -281,6 +281,10 @@ export default function OrdersPage() {
                     const isAuthorized = order.paymentStatus === 'Authorized';
                     const isProcessing = processingChargeId === order.id;
                     const imageUrl = order.imageDataUris?.[0];
+                    
+                    let sourceName = order.source || 'Manual';
+                    if (sourceName === 'Catalogue') sourceName = 'Smart Magazine';
+
 
                     return (
                         <TableRow key={order.id} onPaste={(e) => handleImagePaste(e, order.id)}>
@@ -337,19 +341,23 @@ export default function OrdersPage() {
                                 />
                             </TableCell>
                             <TableCell>
-                                <div className="space-y-1">
-                                    {order.vendorName && (
-                                        <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                 <div className="space-y-1 text-xs">
+                                   <div className="flex items-center gap-1 font-medium">
+                                        <ShoppingCart className="h-3 w-3" />
+                                        {sourceName}
+                                   </div>
+                                   {order.vendorName && (
+                                        <div className="text-muted-foreground flex items-center gap-1">
                                             <Factory className="h-3 w-3" /> {order.vendorName}
                                         </div>
                                     )}
                                     {order.sellerName && (
-                                        <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                        <div className="text-muted-foreground flex items-center gap-1">
                                             <Store className="h-3 w-3" /> {order.sellerName}
                                         </div>
                                     )}
-                                    {!order.sellerName && !order.vendorName && (
-                                         <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                    {sourceName === 'Manual' && !order.sellerName && !order.vendorName && (
+                                        <div className="text-muted-foreground flex items-center gap-1">
                                             <Store className="h-3 w-3" /> Snazzify
                                         </div>
                                     )}
