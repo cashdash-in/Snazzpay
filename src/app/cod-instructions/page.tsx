@@ -1,4 +1,3 @@
-
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -66,9 +65,15 @@ document.addEventListener('DOMContentLoaded', function() {
             imageInput.value = currentVariant.featured_image ? currentVariant.featured_image.src : featuredImage;
             orderIdInput.value = 'SNZ-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5).toUpperCase();
 
-            // Capture size and color from variant options
-            sizeInput.value = currentVariant.option1 || '';
-            colorInput.value = currentVariant.option2 || '';
+            // Capture all available sizes and colors for the product
+            const allSizes = {{ product.options_by_name['Size']?.values | json }};
+            const allColors = {{ product.options_by_name['Color']?.values | json }};
+            if (allSizes) {
+                sizeInput.value = allSizes.join(',');
+            }
+             if (allColors) {
+                colorInput.value = allColors.join(',');
+            }
         }
 
         // Initial update on page load
@@ -82,8 +87,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (variant.featured_image) {
                   imageInput.value = variant.featured_image.src;
                 }
-                sizeInput.value = variant.option1 || '';
-                colorInput.value = variant.option2 || '';
             }
         });
         
