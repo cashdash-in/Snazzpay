@@ -49,7 +49,8 @@ function SecureCodPaymentForm() {
         amount: 0,
         orderId: '',
         sellerId: '',
-        sellerName: ''
+        sellerName: '',
+        productImage: ''
     });
     
     // Get sizes and colors from URL params
@@ -103,8 +104,9 @@ function SecureCodPaymentForm() {
         const id = searchParams.get('order_id') || `LEGACY-${uuidv4().substring(0, 4)}`.toUpperCase();
         const sellerId = searchParams.get('sellerId') || '';
         const sellerName = searchParams.get('sellerName') || '';
+        const image = searchParams.get('image') || '';
 
-        setOrderDetails({ productName: name, amount, orderId: id, sellerId, sellerName });
+        setOrderDetails({ productName: name, amount, orderId: id, sellerId, sellerName, productImage: image });
         if (availableSizes.length > 0) setSelectedSize(availableSizes[0]);
         if (availableColors.length > 0) setSelectedColor(availableColors[0]);
         
@@ -288,6 +290,17 @@ function SecureCodPaymentForm() {
                                  <CardTitle className="text-lg">Order Summary</CardTitle>
                             </CardHeader>
                             <CardContent className="p-4 pt-0 space-y-3">
+                                {orderDetails.productImage && (
+                                    <div className="my-4 flex justify-center">
+                                        <Image
+                                            src={orderDetails.productImage}
+                                            alt={orderDetails.productName}
+                                            width={150}
+                                            height={150}
+                                            className="rounded-lg object-contain bg-white"
+                                        />
+                                    </div>
+                                )}
                                 <div className="flex justify-between items-center text-sm">
                                     <span className="text-muted-foreground">Product:</span>
                                     <span className="font-medium text-right">{orderDetails.productName}</span>
