@@ -10,6 +10,8 @@ import { UserPlus, Loader2, Phone } from "lucide-react";
 import Link from "next/link";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
+import { getCollection } from '@/services/firestore';
+import type { Collaborator } from '@/app/collaborators/page';
 
 export default function CollaboratorLoginPage() {
     const { toast } = useToast();
@@ -17,26 +19,35 @@ export default function CollaboratorLoginPage() {
     const [mobileNumber, setMobileNumber] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
-    const handleLogin = () => {
+    const handleLogin = async () => {
         setIsLoading(true);
-        // This is a placeholder for actual authentication logic
-        setTimeout(() => {
-            if (mobileNumber === '1234567890') {
-                localStorage.setItem('loggedInCollaboratorMobile', mobileNumber);
-                toast({
-                    title: "Login Successful",
-                    description: "Redirecting you to your dashboard.",
-                });
-                router.push('/collaborator/dashboard');
-            } else {
-                 toast({
-                    variant: 'destructive',
-                    title: "Login Failed",
-                    description: "No collaborator account found with this number.",
-                });
-                setIsLoading(false);
+        try {
+            const allCollaborators = await getCollection<Collaborator>('collaborators');
+            const collaborator = allCollaborators.find(c => c.phone === mobileNumber);
+
+            if (!collaborator) {
+                throw new Error("No collaborator account found with this number.");
             }
-        }, 1000);
+            
+            if (collaborator.status !== 'approved' && collaborator.status !== 'active') {
+                throw new Error("Your account is pending approval or has been suspended. Please contact support.");
+            }
+
+            localStorage.setItem('loggedInCollaboratorMobile', mobileNumber);
+            toast({
+                title: "Login Successful",
+                description: "Redirecting you to your dashboard.",
+            });
+            router.push('/collaborator/dashboard');
+
+        } catch (error: any) {
+             toast({
+                variant: 'destructive',
+                title: "Login Failed",
+                description: error.message,
+            });
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -65,7 +76,7 @@ export default function CollaboratorLoginPage() {
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4">
                     <Button className="w-full" onClick={handleLogin} disabled={isLoading}>
-                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                        {isLoading ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Logging In...</> : null}
                         Login
                     </Button>
                     <p className="text-xs text-center text-muted-foreground">

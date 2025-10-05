@@ -10,6 +10,10 @@ import { UserPlus, Loader2, Phone, User, Mail } from "lucide-react";
 import Link from "next/link";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
+import { saveDocument } from '@/services/firestore';
+import { v4 as uuidv4 } from 'uuid';
+import type { Collaborator } from '@/app/collaborators/page';
+
 
 export default function CollaboratorSignupPage() {
     const { toast } = useToast();
@@ -17,7 +21,7 @@ export default function CollaboratorSignupPage() {
     const [formData, setFormData] = useState({ name: '', phone: '', email: '' });
     const [isLoading, setIsLoading] = useState(false);
 
-    const handleSignup = () => {
+    const handleSignup = async () => {
         setIsLoading(true);
         if (!formData.name || !formData.phone) {
             toast({ variant: 'destructive', title: "Missing Information", description: "Name and phone number are required." });
@@ -25,15 +29,30 @@ export default function CollaboratorSignupPage() {
             return;
         }
 
-        // Placeholder for signup logic
-        setTimeout(() => {
-            console.log("New Collaborator Signup:", formData);
+        const newCollaboratorRequest: Omit<Collaborator, 'id'> = {
+            name: formData.name,
+            phone: formData.phone,
+            email: formData.email,
+            status: 'pending',
+            linkedTo: 'admin' // Default link to admin
+        };
+
+        try {
+            await saveDocument('collaborators', newCollaboratorRequest, uuidv4());
             toast({
                 title: "Registration Successful!",
-                description: "You can now log in with your mobile number.",
+                description: "Your application has been submitted for approval. You will be notified once it's reviewed.",
             });
             router.push('/collaborator/login');
-        }, 1000);
+        } catch (error: any) {
+             toast({
+                variant: 'destructive',
+                title: "Registration Failed",
+                description: error.message || 'An error occurred while submitting your request.',
+            });
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -60,8 +79,7 @@ export default function CollaboratorSignupPage() {
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4">
                     <Button className="w-full" onClick={handleSignup} disabled={isLoading}>
-                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                        Sign Up
+                        {isLoading ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Submitting...</> : 'Submit for Approval'}
                     </Button>
                     <p className="text-xs text-center text-muted-foreground">
                         Already have an account?{" "}
