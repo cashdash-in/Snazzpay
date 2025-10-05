@@ -2,7 +2,6 @@
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { CodeBlock } from "@/components/code-block";
 import { useEffect, useState } from 'react';
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -12,7 +11,6 @@ export default function CodInstructionsPage() {
     const [embedCode, setEmbedCode] = useState('');
 
     useEffect(() => {
-        const appUrl = 'https://snazzpay.netlify.app/';
         const code = `
 <!-- SnazzPay Secure COD Button Start -->
 <div id="snazzpay-secure-cod-container">
