@@ -5,7 +5,7 @@ import { Suspense, useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, ShieldCheck, ShoppingCart, User, Phone, Mail as MailIcon, Home, MapPin } from 'lucide-react';
+import { Loader2, ShieldCheck, ShoppingCart, User, Phone, Mail as MailIcon, Home, MapPin, CheckCircle } from 'lucide-react';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
@@ -46,6 +46,7 @@ function CatalogueOrderPageContent() {
     const [selectedColor, setSelectedColor] = useState('');
     const [totalPrice, setTotalPrice] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isOrderComplete, setIsOrderComplete] = useState(false);
     
     // Get sizes and colors from URL params
     const availableSizes = searchParams.get('sizes')?.split(',') || [];
@@ -170,7 +171,7 @@ function CatalogueOrderPageContent() {
                 })
             });
 
-            router.push('/customer/login');
+            setIsOrderComplete(true);
         } catch (error: any) {
             toast({ variant: 'destructive', title: 'Submission Failed', description: error.message });
             setIsSubmitting(false);
@@ -180,6 +181,26 @@ function CatalogueOrderPageContent() {
 
     if (isLoadingProduct) {
         return <div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+    }
+
+    if (isOrderComplete) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
+                 <Card className="w-full max-w-md shadow-lg text-center">
+                    <CardHeader>
+                         <CheckCircle className="mx-auto h-12 w-12 text-green-500" />
+                        <CardTitle>Thank You!</CardTitle>
+                        <CardDescription>Your Order Request Has Been Sent</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <p className="text-muted-foreground">The seller has received your request and will contact you shortly via WhatsApp or phone to confirm the order and arrange payment.</p>
+                    </CardContent>
+                     <CardFooter>
+                         <a href="https://www.snazzify.co.in" className="w-full"><Button className="w-full" variant="outline">Continue Shopping</Button></a>
+                    </CardFooter>
+                 </Card>
+            </div>
+        )
     }
     
     if (!product) {
