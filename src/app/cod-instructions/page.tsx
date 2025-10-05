@@ -30,8 +30,6 @@ export default function CodInstructionsPage() {
         const variantJsonScript = document.querySelector('script[type="application/json"][data-variant-json]');
         if (variantJsonScript) {
             const variantData = JSON.parse(variantJsonScript.textContent);
-            // Attempt to find the full product object if possible
-            // This structure can vary between themes
             productData = {
                 title: variantData.product?.title || 'Product',
                 price: variantData.price,
@@ -46,48 +44,48 @@ export default function CodInstructionsPage() {
     // --- END: Find Shopify Product Data ---
 
     if (productData) {
-      // --- START: VENDOR DENY LIST ---
-      // List of Shopify vendor names you want to EXCLUDE from showing the Secure COD button.
-      const deniedVendors = ['Dropdash', 'itzjqv-uw'];
+      /*
+      // --- HOW TO HIDE BUTTON FOR SPECIFIC VENDORS (OPTIONAL) ---
+      // To hide the button for certain vendors, uncomment the code below and add your vendor names to the list.
       
-      // Get vendor name. Default to a value that is NOT in the deny list if vendor is not found.
+      const deniedVendors = ['Dropdash', 'itzjqv-uw']; 
       const productVendor = productData.vendor || 'snazzify_default_vendor';
 
-      // Show the button only if the product's vendor is NOT in the deniedVendors list.
-      if (!deniedVendors.includes(productVendor)) {
-      // --- END: VENDOR DENY LIST ---
+      if (deniedVendors.includes(productVendor)) {
+          return; // This will stop the script and hide the button for this vendor.
+      }
+      */
       
-          const container = document.getElementById('snazzpay-secure-cod-button-container');
-          
-          const appUrl = '${appUrl}';
-          const orderId = 'SNZ-' + Date.now().toString(36) + Math.random().toString(36).substring(2, 7).toUpperCase();
+      const container = document.getElementById('snazzpay-secure-cod-button-container');
+      
+      const appUrl = '${appUrl}';
+      const orderId = 'SNZ-' + Date.now().toString(36) + Math.random().toString(36).substring(2, 7).toUpperCase();
 
-          const params = new URLSearchParams({
-            name: productData.title,
-            amount: (productData.price / 100).toString(), // Convert from paise to rupees
-            image: productData.featured_image ? \`https:\${productData.featured_image.path}\` : '',
-            order_id: orderId,
-          });
+      const params = new URLSearchParams({
+        name: productData.title,
+        amount: (productData.price / 100).toString(), // Convert from paise to rupees
+        image: productData.featured_image ? \`https:\${productData.featured_image.path}\` : '',
+        order_id: orderId,
+      });
 
-          const secureCodUrl = \`\${appUrl}secure-cod?\${params.toString()}\`;
+      const secureCodUrl = \`\${appUrl}secure-cod?\${params.toString()}\`;
 
-          // --- Button Styling (can be customized) ---
-          container.innerHTML = \`
-            <a href="\${secureCodUrl}" target="_blank" style="display: block; width: 100%; text-decoration: none;">
-              <button 
-                type="button" 
-                style="width: 100%; min-height: 45px; font-size: 16px; background-color: #5a31f4; color: white; border: none; border-radius: 5px; cursor: pointer; transition: background-color 0.2s;"
-                onmouseover="this.style.backgroundColor='#4a28c7'"
-                onmouseout="this.style.backgroundColor='#5a31f4'"
-              >
-                Buy with Secure COD
-              </button>
-            </a>
-            <div style="text-align: center; margin-top: 8px; font-size: 12px;">
-              <a href="\${appUrl}secure-cod-info" target="_blank" style="color: #5a31f4; text-decoration: underline;">What is this?</a>
-            </div>
-          \`;
-        } // This closes the "if (!deniedVendors.includes...)" block
+      // --- Button Styling (can be customized) ---
+      container.innerHTML = \`
+        <a href="\${secureCodUrl}" target="_blank" style="display: block; width: 100%; text-decoration: none;">
+          <button 
+            type="button" 
+            style="width: 100%; min-height: 45px; font-size: 16px; background-color: #5a31f4; color: white; border: none; border-radius: 5px; cursor: pointer; transition: background-color 0.2s;"
+            onmouseover="this.style.backgroundColor='#4a28c7'"
+            onmouseout="this.style.backgroundColor='#5a31f4'"
+          >
+            Buy with Secure COD
+          </button>
+        </a>
+        <div style="text-align: center; margin-top: 8px; font-size: 12px;">
+          <a href="\${appUrl}secure-cod-info" target="_blank" style="color: #5a31f4; text-decoration: underline;">What is this?</a>
+        </div>
+      \`;
     }
   });
 <\/script>`;
@@ -123,7 +121,7 @@ export default function CodInstructionsPage() {
           <div className="space-y-2">
             <h3 className="text-lg font-semibold">Step 2: Copy and Paste the Code</h3>
             <p className="text-muted-foreground">
-              Copy the code below and paste it directly underneath your existing "Add to Cart" or "Buy Now" button code in the theme editor. You can edit the `deniedVendors` list directly in the code to control which vendors do not see the button.
+              Copy the code below and paste it directly underneath your existing "Add to Cart" or "Buy Now" button code in the theme editor. This code will now show the button for all vendors by default.
             </p>
             <CodeBlock code={embedCode} />
           </div>
