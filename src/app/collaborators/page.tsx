@@ -6,13 +6,15 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Loader2, Check, X, Percent } from "lucide-react";
+import { Loader2, Check, X, Percent, User, Factory } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getCollection, saveDocument, getDocument } from '@/services/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import type { SellerUser } from '@/app/seller-accounts/page';
+import type { Vendor } from '@/app/vendors/page';
 
 export type Collaborator = {
     id: string;
@@ -21,6 +23,7 @@ export type Collaborator = {
     email: string;
     status: 'pending' | 'approved' | 'rejected' | 'active' | 'inactive';
     linkedTo: string; // ID of seller, vendor, or 'admin'
+    linkedToName?: string;
 };
 
 export default function CollaboratorsPage() {
@@ -30,25 +33,41 @@ export default function CollaboratorsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [commissionRate, setCommissionRate] = useState<number>(5);
 
-    useEffect(() => {
-        async function loadData() {
-            setIsLoading(true);
-            try {
-                const allCollaborators = await getCollection<Collaborator>('collaborators');
-                setPendingCollaborators(allCollaborators.filter(c => c.status === 'pending'));
-                setApprovedCollaborators(allCollaborators.filter(c => c.status === 'approved' || c.status === 'active'));
-                
-                const adminSettings = await getDocument<{commissionRate?: number}>('commission_settings', 'admin');
-                if (adminSettings?.commissionRate) {
-                    setCommissionRate(adminSettings.commissionRate);
-                }
+    const loadData = async () => {
+        setIsLoading(true);
+        try {
+            const [allCollaborators, allSellers, allVendors] = await Promise.all([
+                getCollection<Collaborator>('collaborators'),
+                getCollection<SellerUser>('seller_users'),
+                getCollection<Vendor>('vendors')
+            ]);
+            
+            const nameMap = new Map<string, string>();
+            allSellers.forEach(s => nameMap.set(s.id, s.companyName));
+            allVendors.forEach(v => nameMap.set(v.id, v.name));
+            nameMap.set('admin', 'Snazzify Admin');
 
-            } catch (error) {
-                toast({ variant: 'destructive', title: "Error loading data", description: "Could not load collaborator data from Firestore." });
-            } finally {
-                setIsLoading(false);
+            const collaboratorsWithNames = allCollaborators.map(c => ({
+                ...c,
+                linkedToName: nameMap.get(c.linkedTo) || 'Unknown'
+            }));
+
+            setPendingCollaborators(collaboratorsWithNames.filter(c => c.status === 'pending'));
+            setApprovedCollaborators(collaboratorsWithNames.filter(c => c.status === 'approved' || c.status === 'active'));
+            
+            const adminSettings = await getDocument<{commissionRate?: number}>('commission_settings', 'admin');
+            if (adminSettings?.commissionRate) {
+                setCommissionRate(adminSettings.commissionRate);
             }
+
+        } catch (error) {
+            toast({ variant: 'destructive', title: "Error loading data", description: "Could not load collaborator data from Firestore." });
+        } finally {
+            setIsLoading(false);
         }
+    }
+
+    useEffect(() => {
         loadData();
     }, [toast]);
 
@@ -60,10 +79,7 @@ export default function CollaboratorsPage() {
         
         try {
             await saveDocument('collaborators', { ...collaborator, status: newStatus }, collaborator.id);
-            setPendingCollaborators(prev => prev.filter(c => c.id !== collaboratorId));
-            if (isApproved) {
-                setApprovedCollaborators(prev => [...prev, { ...collaborator, status: 'approved' }]);
-            }
+            await loadData(); // Reload all data
             toast({
                 title: `Collaborator Request ${isApproved ? 'Approved' : 'Rejected'}`,
                 description: `The account for ${collaborator.name} has been updated.`,
@@ -156,7 +172,12 @@ export default function CollaboratorsPage() {
                                             <TableCell className="font-medium">{c.name}</TableCell>
                                             <TableCell>{c.phone}</TableCell>
                                             <TableCell>{c.email}</TableCell>
-                                            <TableCell>{c.linkedTo}</TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center gap-1 text-sm">
+                                                    {c.linkedTo === 'admin' ? <User className="h-3 w-3" /> : <Factory className="h-3 w-3" />}
+                                                    {c.linkedToName}
+                                                </div>
+                                            </TableCell>
                                             <TableCell><Badge className="bg-green-100 text-green-800">{c.status}</Badge></TableCell>
                                         </TableRow>
                                     )) : (
