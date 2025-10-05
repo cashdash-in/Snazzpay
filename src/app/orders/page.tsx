@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -15,7 +16,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { sanitizePhoneNumber } from "@/lib/utils";
-import { getCollection, saveDocument, deleteDocument, getDocument } from "@/services/firestore";
+import { getCollection, saveDocument, deleteDocument, getDocument, batchUpdateDocuments } from "@/services/firestore";
 import Image from 'next/image';
 
 export type EditableOrder = {
@@ -59,6 +60,7 @@ export type EditableOrder = {
   packageImageUrls?: string[];
   imageDataUris?: string[]; // Added for compatibility
   vendorPaymentReceived?: 'Yes' | 'No';
+  isRead?: boolean;
 };
 
 type PaymentInfo = {
@@ -93,6 +95,12 @@ export default function OrdersPage() {
             });
             
         setOrders(sortedOrders);
+
+        // Mark as read
+        const unreadIds = sortedOrders.filter(o => o.isRead === false).map(o => o.id);
+        if (unreadIds.length > 0) {
+            await batchUpdateDocuments('orders', unreadIds, { isRead: true });
+        }
 
     } catch(error) {
         console.error("Failed to load orders:", error);

@@ -11,9 +11,10 @@ import { Loader2, Trash2, Send, Loader2 as ButtonLoader, ArrowRight, Store, Fact
 import { useToast } from "@/hooks/use-toast";
 import type { EditableOrder } from '../orders/page';
 import { format } from "date-fns";
-import { getCollection, deleteDocument, saveDocument } from "@/services/firestore";
+import { getCollection, deleteDocument, saveDocument, batchUpdateDocuments } from "@/services/firestore";
 import { useRouter } from "next/navigation";
 import Image from 'next/image';
+import { useAuth } from "@/hooks/use-auth";
 
 
 export default function LeadsPage() {
@@ -22,17 +23,28 @@ export default function LeadsPage() {
   const [sendingLinkId, setSendingLinkId] = useState<string | null>(null);
   const { toast } = useToast();
   const router = useRouter();
+  const { user } = useAuth();
 
 
   const fetchAndSetLeads = useCallback(async () => {
     setLoading(true);
     try {
         const loadedLeads = await getCollection<EditableOrder>('leads');
-        const filteredLeads = loadedLeads.filter(lead => ['Intent Verified', 'Lead'].includes(lead.paymentStatus));
+        let filteredLeads = loadedLeads.filter(lead => ['Intent Verified', 'Lead'].includes(lead.paymentStatus));
+
+        if (user && getCookie('userRole') === 'seller') {
+            filteredLeads = filteredLeads.filter(lead => lead.sellerId === user.uid);
+        }
 
         const sortedLeads = filteredLeads.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
         setLeads(sortedLeads);
+
+        // Mark as read
+        const unreadIds = sortedLeads.filter(l => l.isRead === false).map(l => l.id);
+        if (unreadIds.length > 0) {
+            await batchUpdateDocuments('leads', unreadIds, { isRead: true });
+        }
+        
     } catch (error) {
         console.error("Failed to load leads from Firestore:", error);
         toast({
@@ -42,7 +54,7 @@ export default function LeadsPage() {
         });
     }
     setLoading(false);
-  }, [toast]);
+  }, [toast, user]);
 
   useEffect(() => {
     fetchAndSetLeads();

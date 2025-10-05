@@ -52,6 +52,19 @@ export const addDocument = async (collectionName: string, data: DocumentData) =>
     return newDocRef.id;
 };
 
+export const batchUpdateDocuments = async (collectionName: string, docIds: string[], updateData: DocumentData) => {
+    if (!db) throw new Error("Firestore is not initialized.");
+    if (docIds.length === 0) return;
+
+    const batch = writeBatch(db);
+    docIds.forEach(id => {
+        const docRef = doc(db, collectionName, id);
+        batch.update(docRef, updateData);
+    });
+
+    await batch.commit();
+};
+
 
 export const updateDocument = async (collectionName: string, id: string, data: any) => {
     if (!db) throw new Error("Firestore is not initialized.");

@@ -129,6 +129,7 @@ function CatalogueOrderPageContent() {
             source: 'Catalogue',
             sellerId: product.sellerId,
             sellerName: product.sellerName,
+            isRead: false,
         };
 
         try {

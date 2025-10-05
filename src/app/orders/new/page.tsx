@@ -50,7 +50,8 @@ export default function NewOrderPage() {
         const newOrder: EditableOrder = {
             ...order,
             id,
-            source: 'Manual'
+            source: 'Manual',
+            isRead: false,
         };
         
         try {

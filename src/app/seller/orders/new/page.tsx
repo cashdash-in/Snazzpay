@@ -69,7 +69,8 @@ export default function NewSellerOrderPage() {
                 sellerId: user.uid,
                 vendorId: sellerDoc.vendorId, // Include vendor ID
                 paymentStatus: 'Pending',
-                source: 'Seller'
+                source: 'Seller',
+                isRead: false,
             };
         
             await saveDocument('orders', newOrder, id);

@@ -67,12 +67,15 @@ import {
 import { useAuth } from '@/hooks/use-auth';
 import { getCookie } from 'cookies-next';
 import { useEffect, useState } from 'react';
+import { Badge } from '../ui/badge';
+import { getCollection } from '@/services/firestore';
+import type { EditableOrder } from '@/app/orders/page';
 
 const adminCoreMenuItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/mandates', label: 'Mandates', icon: WalletCards },
-  { href: '/orders', label: 'Orders', icon: ShoppingCart },
-  { href: '/leads', label: 'Leads', icon: Users },
+  { href: '/orders', label: 'Orders', icon: ShoppingCart, notificationKey: 'orders' as const },
+  { href: '/leads', label: 'Leads', icon: Users, notificationKey: 'leads' as const },
   { href: '/delivery-tracking', label: 'Delivery Tracking', icon: Truck },
   { href: '/cancellations', label: 'Cancellations', icon: Ban },
   { href: '/refunds', label: 'Refunds', icon: CircleDollarSign },
@@ -104,12 +107,12 @@ const adminConfigMenuItems = [
 
 const sellerMenuItems = [
     { href: '/seller/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { href: '/seller/leads', label: 'Leads', icon: Users },
+    { href: '/seller/leads', label: 'Leads', icon: Users, notificationKey: 'leads' as const },
     { href: '/seller/product-drops', label: 'Product Drops', icon: Send },
     { href: '/seller/products', label: 'My Products', icon: Package },
     { href: '/share/magazine', label: 'Smart Magazine', icon: BookOpen },
     { href: '/seller/ai-product-uploader', label: 'AI Product Uploader', icon: Sparkles },
-    { href: '/seller/orders', label: 'My Orders', icon: ShoppingCart },
+    { href: '/seller/orders', label: 'My Orders', icon: ShoppingCart, notificationKey: 'orders' as const },
     { href: '/seller/logistics', label: 'Logistics Hub', icon: Truck },
     { href: '/seller/collaborators', label: 'My Collaborators', icon: UserPlus },
     { href: '/collaborator-billing', label: 'Collaborator Billing', icon: Briefcase },
@@ -141,11 +144,45 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
   const { user, signOut } = useAuth();
   
   const [role, setRole] = useState<string | undefined>(undefined);
+  const [notificationCounts, setNotificationCounts] = useState({ orders: 0, leads: 0 });
 
   useEffect(() => {
-    // This code runs only on the client, after the component mounts.
     setRole(getCookie('userRole'));
-  }, [pathname]); // Rerun on path change if needed
+    
+    const fetchCounts = async () => {
+        if (!user) return;
+
+        try {
+            const [allOrders, allLeads] = await Promise.all([
+                getCollection<EditableOrder>('orders'),
+                getCollection<EditableOrder>('leads')
+            ]);
+            
+            let newOrdersCount = 0;
+            let newLeadsCount = 0;
+
+            const currentRole = getCookie('userRole');
+
+            if (currentRole === 'admin') {
+                newOrdersCount = allOrders.filter(o => o.isRead === false).length;
+                newLeadsCount = allLeads.filter(l => l.isRead === false && ['Lead', 'Intent Verified'].includes(l.paymentStatus)).length;
+            } else if (currentRole === 'seller') {
+                 newOrdersCount = allOrders.filter(o => o.sellerId === user.uid && o.isRead === false).length;
+                 newLeadsCount = allLeads.filter(l => l.sellerId === user.uid && l.isRead === false && ['Lead', 'Intent Verified'].includes(l.paymentStatus)).length;
+            }
+
+            setNotificationCounts({ orders: newOrdersCount, leads: newLeadsCount });
+        } catch (error) {
+            console.error("Failed to fetch notification counts", error);
+        }
+    };
+
+    fetchCounts();
+    const interval = setInterval(fetchCounts, 30000); // Refresh every 30 seconds
+
+    return () => clearInterval(interval);
+
+  }, [pathname, user]);
 
   const getMenuItems = () => {
     switch (role) {
@@ -177,7 +214,9 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
         </SidebarHeader>
         <SidebarContent>
           <SidebarMenu>
-            {core.map((item) => (
+            {core.map((item) => {
+              const count = item.notificationKey ? notificationCounts[item.notificationKey] : 0;
+              return (
               <SidebarMenuItem key={item.label}>
                 <Link href={item.href}>
                   <SidebarMenuButton
@@ -185,11 +224,12 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
                     tooltip={item.label}
                   >
                     <item.icon />
-                    <span>{item.label}</span>
+                    <span className="flex-grow">{item.label}</span>
+                     {count > 0 && <Badge className="h-5">{count}</Badge>}
                   </SidebarMenuButton>
                 </Link>
               </SidebarMenuItem>
-            ))}
+            )})}
           </SidebarMenu>
 
           {growth.length > 0 && <SidebarSeparator />}
