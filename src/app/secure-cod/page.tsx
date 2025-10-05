@@ -39,6 +39,20 @@ type PaymentInfo = {
 };
 
 function SecureCodPaymentForm() {
+    const [isClient, setIsClient] = useState(false);
+
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
+
+    if (!isClient) {
+        return <div className="flex justify-center items-center h-screen"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+    }
+
+    return <SecureCodPaymentFormContent />;
+}
+
+function SecureCodPaymentFormContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const { toast } = useToast();
@@ -52,7 +66,6 @@ function SecureCodPaymentForm() {
         productImage: ''
     });
     
-    // Get sizes and colors from URL params
     const availableSizes = searchParams.get('sizes')?.split(',') || [];
     const availableColors = searchParams.get('colors')?.split(',') || [];
 
@@ -151,7 +164,6 @@ function SecureCodPaymentForm() {
             sellerId: orderDetails.sellerId, sellerName: orderDetails.sellerName, paymentMethod, size: selectedSize, color: selectedColor,
         };
         
-        // This is the direct Secure COD flow
         if (!razorpayKeyId) {
             toast({ variant: 'destructive', title: "Razorpay Not Configured" });
             setIsSubmitting(false);
@@ -159,7 +171,6 @@ function SecureCodPaymentForm() {
         }
 
         try {
-            // Main payment success handler
             const handleRazorpaySuccess = async (authResponse: any, orderId: string) => {
                 const finalOrder: EditableOrder = { ...orderData, id: orderId, paymentStatus: 'Authorized', source: 'Shopify' };
                 
@@ -184,7 +195,6 @@ function SecureCodPaymentForm() {
                 setStep('complete');
             };
 
-            // 1. Create ₹1 intent verification order
             const intentResponse = await fetch('/api/create-mandate-order', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -195,7 +205,6 @@ function SecureCodPaymentForm() {
             
             const internalOrderId = intentResult.internal_order_id;
             
-            // Open Razorpay for ₹1 payment
             const intentRzpPromise = new Promise<void>((resolve, reject) => {
                 const intentOptions = {
                     key: razorpayKeyId,
@@ -215,11 +224,9 @@ function SecureCodPaymentForm() {
                 rzp1.open();
             });
 
-            await intentRzpPromise; // Wait for the ₹1 payment to succeed
+            await intentRzpPromise;
             toast({ title: 'Verification Successful!', description: 'Now proceeding to final authorization.' });
 
-
-            // 2. Create the full amount authorization order
             const authResponse = await fetch('/api/create-mandate-order', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -381,6 +388,7 @@ function SecureCodPaymentForm() {
     );
 }
 
+
 function Page() {
     return (
        <div className="relative min-h-screen w-full bg-gradient-to-br from-purple-50 via-white to-indigo-50">
@@ -395,7 +403,3 @@ function Page() {
 }
 
 export default Page;
-
-    
-
-    
