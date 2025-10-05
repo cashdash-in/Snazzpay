@@ -61,6 +61,7 @@ import {
   PackagePlus,
   Receipt,
   BookOpen,
+  UserPlus,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { getCookie } from 'cookies-next';
@@ -276,6 +277,12 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
                   <DropdownMenuItem>
                     <Truck className="mr-2 h-4 w-4" />
                     <span>Logistics Login</span>
+                  </DropdownMenuItem>
+                </Link>
+                 <Link href="/collaborator/login" target="_blank">
+                  <DropdownMenuItem>
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    <span>Collaborator Login</span>
                   </DropdownMenuItem>
                 </Link>
                 <Link href="/customer/login" target="_blank">

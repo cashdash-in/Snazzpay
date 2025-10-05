@@ -27,7 +27,9 @@ export function middleware(request: NextRequest) {
     '/partner-pay/login', 
     '/partner-pay/signup', 
     '/logistics-secure/login', 
-    '/logistics-secure/signup', 
+    '/logistics-secure/signup',
+    '/collaborator/login',
+    '/collaborator/signup',
     '/seller',
     '/guest-fulfillment',
   ];
