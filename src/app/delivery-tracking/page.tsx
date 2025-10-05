@@ -220,6 +220,8 @@ export default function DeliveryTrackingPage() {
                 <TableBody>
                   {orders.map((order) => {
                       const imageUrl = order.imageDataUris?.[0];
+                      const sourceName = order.source === 'Catalogue' ? 'Smart Magazine' : order.source || 'Snazzify';
+
                       return (
                     <TableRow key={order.id} onPaste={(e) => handleImagePaste(e, order.id)}>
                       <TableCell>
@@ -249,7 +251,7 @@ export default function DeliveryTrackingPage() {
                          <div className="space-y-1 text-xs">
                            <div className="flex items-center gap-1 font-medium">
                                 <ShoppingCart className="h-3 w-3" />
-                                {order.source || 'Snazzify'}
+                                {sourceName}
                            </div>
                            {order.vendorName && (
                                 <div className="text-muted-foreground flex items-center gap-1">
