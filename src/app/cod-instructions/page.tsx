@@ -12,6 +12,7 @@ export default function CodInstructionsPage() {
     const [embedCode, setEmbedCode] = useState('');
 
     useEffect(() => {
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
         const code = `
 <div id="snazzpay-secure-cod-button-container"></div>
 
@@ -56,7 +57,7 @@ export default function CodInstructionsPage() {
       
           const container = document.getElementById('snazzpay-secure-cod-button-container');
           
-          const appUrl = '${process.env.NEXT_PUBLIC_APP_URL || 'https://your-app-url.com'}';
+          const appUrl = '${appUrl}';
           const orderId = 'SNZ-' + Date.now().toString(36) + Math.random().toString(36).substring(2, 7).toUpperCase();
 
           const params = new URLSearchParams({
@@ -81,7 +82,7 @@ export default function CodInstructionsPage() {
               </button>
             </a>
             <div style="text-align: center; margin-top: 8px; font-size: 12px;">
-              <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://your-app-url.com'}/secure-cod-info" target="_blank" style="color: #5a31f4; text-decoration: underline;">What is this?</a>
+              <a href="${appUrl}/secure-cod-info" target="_blank" style="color: #5a31f4; text-decoration: underline;">What is this?</a>
             </div>
           \`;
         } // This closes the "if (!deniedVendors.includes...)" block
