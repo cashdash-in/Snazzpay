@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, Suspense, FormEvent } from 'react';
@@ -5,7 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, HelpCircle, ShieldCheck, CheckCircle, User, Phone, Mail as MailIcon, Home, MapPin } from "lucide-react";
+import { Loader2, HelpCircle, ShieldCheck, CheckCircle, User, Phone, Mail as MailIcon, Home, MapPin, ShoppingCart, ArrowRight } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
 import type { EditableOrder } from '@/app/orders/page';
@@ -313,7 +314,7 @@ function SecureCodPaymentForm() {
                                      <div className="grid grid-cols-2 col-span-2 gap-2">
                                         {availableSizes.length > 0 && (
                                             <div className="space-y-1">
-                                                <Label htmlFor="size" className="text-xs text-muted-foreground">Size</Label>
+                                                <Label htmlFor="size" className="text-xs text-muted-foreground">Size</label>
                                                 <Select onValueChange={setSelectedSize} value={selectedSize}><SelectTrigger className="h-8"><SelectValue /></SelectTrigger><SelectContent>{availableSizes.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select>
                                             </div>
                                         )}
@@ -385,20 +386,10 @@ function Page() {
         setIsClient(true);
     }, []);
 
-    if (!isClient) {
-        return (
-            <div className="relative min-h-screen w-full bg-gradient-to-br from-purple-50 via-white to-indigo-50">
-                <div className="flex h-screen w-full items-center justify-center">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                </div>
-            </div>
-        );
-    }
-    
     return (
        <div className="relative min-h-screen w-full bg-gradient-to-br from-purple-50 via-white to-indigo-50">
             <Suspense fallback={<div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
-                <SecureCodPaymentForm />
+                {isClient ? <SecureCodPaymentForm /> : <div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}
             </Suspense>
             <Suspense>
                  <CancellationForm />
@@ -408,3 +399,5 @@ function Page() {
 }
 
 export default Page;
+
+    
