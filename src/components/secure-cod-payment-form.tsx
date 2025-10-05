@@ -84,8 +84,8 @@ export function SecureCodPaymentForm() {
         const name = searchParams.get('name') || 'Product';
         const amount = parseFloat(searchParams.get('amount') || '0');
         const id = searchParams.get('order_id') || `LEGACY-${uuidv4().substring(0, 4)}`.toUpperCase();
-        const sellerId = searchParams.get('sellerId') || ''; // Capture sellerId from URL
-        const sellerName = searchParams.get('sellerName') || ''; // Capture sellerName from URL
+        const sellerId = searchParams.get('sellerId') || '';
+        const sellerName = searchParams.get('sellerName') || '';
         let image = searchParams.get('image') || '';
         
         if (image && !image.startsWith('http')) {
