@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useEffect, useCallback, ClipboardEvent } from "react";
-import { Trash2, PlusCircle, Save, Loader2 as ButtonLoader, Mail, Copy, MessageSquare, Facebook, Instagram, Store, Factory } from "lucide-react";
+import { Trash2, PlusCircle, Save, Loader2 as ButtonLoader, Mail, Copy, MessageSquare, Facebook, Instagram, Store, Factory, ShoppingCart } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
@@ -246,20 +246,19 @@ export default function DeliveryTrackingPage() {
                         />
                       </TableCell>
                        <TableCell>
-                         <div className="space-y-1">
-                            {order.vendorName && (
-                                <div className="text-xs text-muted-foreground flex items-center gap-1">
+                         <div className="space-y-1 text-xs">
+                           <div className="flex items-center gap-1 font-medium">
+                                <ShoppingCart className="h-3 w-3" />
+                                {order.source || 'Snazzify'}
+                           </div>
+                           {order.vendorName && (
+                                <div className="text-muted-foreground flex items-center gap-1">
                                     <Factory className="h-3 w-3" /> {order.vendorName}
                                 </div>
                             )}
                             {order.sellerName && (
-                                <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                <div className="text-muted-foreground flex items-center gap-1">
                                     <Store className="h-3 w-3" /> {order.sellerName}
-                                </div>
-                            )}
-                             {!order.sellerName && !order.vendorName && (
-                                 <div className="text-xs text-muted-foreground flex items-center gap-1">
-                                    <Store className="h-3 w-3" /> Snazzify
                                 </div>
                             )}
                         </div>
