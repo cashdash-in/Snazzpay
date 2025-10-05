@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { ShieldCheck, Mail, Lock, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useToast } from '@/hooks/use-toast';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { FirebaseError } from 'firebase/app';
@@ -18,26 +18,30 @@ const ADMIN_EMAIL = "admin@snazzpay.com";
 export default function AdminLoginPage() {
     const { toast } = useToast();
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
     const handleLogin = async () => {
         setIsLoading(true);
-        if (email.toLowerCase() !== ADMIN_EMAIL) {
-            toast({ variant: 'destructive', title: "Access Denied", description: "This login is for administrators only." });
-            setIsLoading(false);
-            return;
-        }
-
+        
         try {
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const idToken = await userCredential.user.getIdToken();
 
+            let role = 'user'; // Default role
+            if (email.toLowerCase() === ADMIN_EMAIL) {
+                role = 'admin';
+            }
+            // In a real app you'd fetch the role from a database
+            // For now we assume non-admin emails could be sellers or vendors
+            // but the login logic will be the same.
+
             const response = await fetch('/api/auth/session', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ idToken, role: 'admin' }),
+                body: JSON.stringify({ idToken, role }),
             });
 
             if (!response.ok) {
@@ -45,13 +49,19 @@ export default function AdminLoginPage() {
                 throw new Error(errorResult.error);
             }
 
-            toast({ title: "Admin Login Successful", description: "Redirecting to admin dashboard." });
-            router.push('/');
+            toast({ title: "Login Successful", description: "Redirecting to your dashboard." });
+            
+            const redirectedFrom = searchParams.get('redirectedFrom');
+            if (redirectedFrom) {
+                 router.push(redirectedFrom);
+            } else {
+                 router.push('/');
+            }
             router.refresh();
 
         } catch (error: any) {
-            console.error("Admin Login Error:", error);
-            let errorMessage = 'An unexpected error occurred during admin login.';
+            console.error("Login Error:", error);
+            let errorMessage = 'An unexpected error occurred during login.';
             if (error instanceof FirebaseError) {
                 if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found') {
                     errorMessage = 'Invalid credentials. Please check your email and password.';
@@ -59,7 +69,7 @@ export default function AdminLoginPage() {
                     errorMessage = error.message;
                 }
             }
-            toast({ variant: 'destructive', title: "Admin Login Error", description: errorMessage });
+            toast({ variant: 'destructive', title: "Login Error", description: errorMessage });
         } finally {
             setIsLoading(false);
         }
@@ -75,13 +85,13 @@ export default function AdminLoginPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="email">Admin Email Address</Label>
+                        <Label htmlFor="email">Email Address</Label>
                         <div className="relative">
                             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input 
                                 id="email" 
                                 type="email" 
-                                placeholder="admin@snazzpay.com" 
+                                placeholder="Enter your email" 
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 className="pl-9" 
@@ -112,16 +122,11 @@ export default function AdminLoginPage() {
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4">
                     <Button className="w-full" onClick={handleLogin} disabled={isLoading}>
-                        {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Logging In...</> : "Login as Admin"}
+                        {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Logging In...</> : "Login"}
                     </Button>
                     <p className="text-xs text-center text-muted-foreground">
-                        Are you a seller?{" "}
-                        <Link href="/seller/login" className="text-primary hover:underline">
-                            Login Here
-                        </Link>
-                         <span className="mx-1">|</span>
-                         New here?{" "}
-                         <Link href="/auth/signup" className="text-primary hover:underline">
+                        Are you a seller or vendor?{" "}
+                        <Link href="/auth/signup" className="text-primary hover:underline">
                             Sign Up
                         </Link>
                     </p>

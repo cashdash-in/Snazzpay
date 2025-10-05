@@ -19,14 +19,11 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { saveDocument, getCollection } from '@/services/firestore';
 import { v4 as uuidv4 } from 'uuid';
 
-
-const ADMIN_EMAIL = "admin@snazzpay.com";
-
 export default function SignupPage() {
     const { toast } = useToast();
     const router = useRouter();
     const [email, setEmail] = useState('');
-    const [password, setPassword] = useState(''); // Only for admin
+    const [password, setPassword] = useState('');
     const [companyName, setCompanyName] = useState('');
     const [phone, setPhone] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -52,44 +49,18 @@ export default function SignupPage() {
 
     const handleSignup = async () => {
         setIsLoading(true);
-        if (!email) {
-            toast({ variant: 'destructive', title: "Missing Field", description: "Please fill out your email address." });
+        if (!email || !password) {
+            toast({ variant: 'destructive', title: "Missing Field", description: "Please fill out your email and password." });
             setIsLoading(false);
             return;
         }
         
-        // Special case for creating the admin user
-        if (email.toLowerCase() === ADMIN_EMAIL) {
-            if (!password) {
-                 toast({ variant: 'destructive', title: "Missing Field", description: "Please enter a password for the admin account." });
-                 setIsLoading(false);
-                 return;
-            }
-            try {
-                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-                await updateProfile(userCredential.user, {
-                    displayName: "SnazzPay Admin",
-                });
-                toast({
-                    title: "Admin Account Created!",
-                    description: "You can now log in using these credentials on the Admin Login page.",
-                });
-                await auth.signOut();
-                router.push('/auth/login');
-            } catch (error: any) {
-                let description = "An unexpected error occurred during admin creation.";
-                if (error instanceof FirebaseError) {
-                    if (error.code === 'auth/email-already-in-use') description = 'The admin account already exists. Please proceed to login.';
-                    else if (error.code === 'auth/weak-password') description = 'The password is too weak. It must be at least 6 characters long.';
-                }
-                toast({ variant: 'destructive', title: "Admin Creation Failed", description });
-            } finally {
-                setIsLoading(false);
-            }
-            return;
+        if (password.length < 6) {
+             toast({ variant: 'destructive', title: "Weak Password", description: "Password must be at least 6 characters long." });
+             setIsLoading(false);
+             return;
         }
-
-        // Standard seller or vendor signup (passwordless)
+        
         if (!companyName || !phone) {
             toast({ variant: 'destructive', title: "Missing Fields", description: "Please fill out your company name and WhatsApp number." });
             setIsLoading(false);
@@ -103,11 +74,13 @@ export default function SignupPage() {
         }
         
         try {
-            // For passwordless flow, we create a user document in Firestore which will be used for verification.
-            const newUserId = uuidv4();
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            await updateProfile(userCredential.user, {
+                displayName: companyName,
+            });
+
             if (userType === 'seller') {
-                const newRequest = {
-                    id: newUserId,
+                const newRequest: Omit<SellerUser, 'id'> = {
                     companyName: companyName,
                     email: email,
                     phone: phone,
@@ -115,24 +88,30 @@ export default function SignupPage() {
                     vendorId: selectedVendor,
                     vendorName: approvedVendors.find(v => v.id === selectedVendor)?.name,
                 };
-                await saveDocument('seller_users', newRequest, newUserId);
+                await saveDocument('seller_users', newRequest, userCredential.user.uid);
                 toast({ title: "Registration Submitted!", description: "Your seller account is pending admin approval." });
+                await auth.signOut();
                 router.push('/seller/login');
             } else { // userType === 'vendor'
-                const newRequest = {
-                    id: newUserId,
+                const newRequest: Omit<Vendor, 'id'> = {
                     name: companyName,
                     contactPerson: companyName,
                     phone,
                     email,
                     status: 'pending' as const
                 };
-                await saveDocument('vendors', newRequest, newUserId);
+                await saveDocument('vendors', newRequest, userCredential.user.uid);
                 toast({ title: "Registration Submitted!", description: "Your vendor account is pending admin approval." });
+                 await auth.signOut();
                 router.push('/vendor/login');
             }
         } catch(error: any) {
              let description = "An unexpected error occurred during signup.";
+             if (error instanceof FirebaseError) {
+                if (error.code === 'auth/email-already-in-use') {
+                    description = 'This email is already in use. Please try logging in or use a different email.';
+                }
+             }
             console.error("Signup Error:", error);
             toast({ variant: 'destructive', title: "Signup Failed", description });
         } finally {
@@ -140,94 +119,83 @@ export default function SignupPage() {
         }
     };
 
-    const isNonAdminSignup = email.toLowerCase() !== ADMIN_EMAIL;
-
     return (
         <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
             <Card className="w-full max-w-md shadow-lg">
                 <CardHeader className="text-center">
                     <ShieldCheck className="mx-auto h-12 w-12 text-primary" />
                     <CardTitle>Create an Account</CardTitle>
-                    <CardDescription>Register as a Seller or Vendor, or create the Admin account.</CardDescription>
+                    <CardDescription>Register as a Seller or Vendor to get started.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                    <div className="space-y-3">
+                        <Label>What are you signing up as?</Label>
+                        <RadioGroup defaultValue="seller" onValueChange={(value: 'seller' | 'vendor') => setUserType(value)} className="flex gap-4">
+                            <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="seller" id="r1" />
+                                <Label htmlFor="r1" className="flex items-center gap-2"><Store className="h-4 w-4" /> Seller</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="vendor" id="r2" />
+                                <Label htmlFor="r2" className="flex items-center gap-2"><Factory className="h-4 w-4" /> Vendor</Label>
+                            </div>
+                        </RadioGroup>
+                    </div>
                      <div className="space-y-2">
                         <Label htmlFor="email">Email Address</Label>
                         <div className="relative">
                             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input id="email" type="email" placeholder="Use admin@snazzpay.com for Admin" value={email} onChange={(e) => setEmail(e.target.value)} className="pl-9" />
+                            <Input id="email" type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} className="pl-9" />
                         </div>
                     </div>
-
-                    {isNonAdminSignup && (
-                        <>
-                            <div className="space-y-3">
-                                <Label>What are you signing up as?</Label>
-                                <RadioGroup defaultValue="seller" onValueChange={(value: 'seller' | 'vendor') => setUserType(value)} className="flex gap-4">
-                                    <div className="flex items-center space-x-2">
-                                        <RadioGroupItem value="seller" id="r1" />
-                                        <Label htmlFor="r1" className="flex items-center gap-2"><Store className="h-4 w-4" /> Seller</Label>
-                                    </div>
-                                    <div className="flex items-center space-x-2">
-                                        <RadioGroupItem value="vendor" id="r2" />
-                                        <Label htmlFor="r2" className="flex items-center gap-2"><Factory className="h-4 w-4" /> Vendor</Label>
-                                    </div>
-                                </RadioGroup>
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor="companyName">{userType === 'seller' ? 'Seller Name' : 'Vendor/Company Name'}</Label>
-                                <div className="relative">
-                                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                    <Input id="companyName" type="text" placeholder="Your Company LLC" value={companyName} onChange={(e) => setCompanyName(e.target.value)} className="pl-9" />
-                                </div>
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="phone">WhatsApp Number</Label>
-                                <div className="relative">
-                                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                    <Input id="phone" type="tel" placeholder="e.g., 919876543210" value={phone} onChange={(e) => setPhone(e.target.value)} className="pl-9" />
-                                </div>
-                            </div>
-                             {userType === 'seller' && (
-                                <div className="space-y-2">
-                                    <Label htmlFor="vendor-select">Select Your Vendor</Label>
-                                    <Select onValueChange={setSelectedVendor} value={selectedVendor}>
-                                        <SelectTrigger className="w-full">
-                                            <SelectValue placeholder="Choose the vendor you work with..." />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {approvedVendors.map(vendor => (
-                                                <SelectItem key={vendor.id} value={vendor.id}>{vendor.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            )}
-                        </>
-                    )}
-                    
-                    {!isNonAdminSignup && (
+                    <div className="space-y-2">
+                        <Label htmlFor="password">Password</Label>
+                        <div className="relative">
+                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input id="password" type="password" placeholder="Must be at least 6 characters" value={password} onChange={(e) => setPassword(e.target.value)} className="pl-9" />
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="companyName">{userType === 'seller' ? 'Your Name / Store Name' : 'Vendor/Company Name'}</Label>
+                        <div className="relative">
+                            <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input id="companyName" type="text" placeholder="Your Company LLC" value={companyName} onChange={(e) => setCompanyName(e.target.value)} className="pl-9" />
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="phone">WhatsApp Number</Label>
+                        <div className="relative">
+                            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input id="phone" type="tel" placeholder="e.g., 919876543210" value={phone} onChange={(e) => setPhone(e.target.value)} className="pl-9" />
+                        </div>
+                    </div>
+                        {userType === 'seller' && (
                         <div className="space-y-2">
-                            <Label htmlFor="password">Admin Password</Label>
-                            <div className="relative">
-                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <Input id="password" type="password" placeholder="Must be at least 6 characters" value={password} onChange={(e) => setPassword(e.target.value)} className="pl-9" />
-                            </div>
+                            <Label htmlFor="vendor-select">Select Your Vendor</Label>
+                            <Select onValueChange={setSelectedVendor} value={selectedVendor}>
+                                <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Choose the vendor you work with..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {approvedVendors.map(vendor => (
+                                        <SelectItem key={vendor.id} value={vendor.id}>{vendor.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
                     )}
-
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4">
                     <Button className="w-full" onClick={handleSignup} disabled={isLoading}>
-                         {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing Up...</> : "Create Account / Submit for Approval"}
+                         {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing Up...</> : "Create Account & Submit for Approval"}
                     </Button>
                     <div className="text-xs text-center text-muted-foreground space-x-1">
-                        <span>Already have an account?</span>
-                        <Link href="/seller/login" className="text-primary hover:underline">Seller Login</Link>
-                        <Link href="/vendor/login" className="text-primary hover:underline">Vendor Login</Link>
-                         <span>|</span>
-                        <Link href="/auth/login" className="text-primary hover:underline">Admin Login</Link>
+                        <span>Already have an account? Login as</span>
+                        <Link href="/auth/login" className="text-primary hover:underline">Admin</Link>
+                         <span>/</span>
+                        <Link href="/seller/login" className="text-primary hover:underline">Seller</Link>
+                         <span>/</span>
+                        <Link href="/vendor/login" className="text-primary hover:underline">Vendor</Link>
                     </div>
                 </CardFooter>
             </Card>

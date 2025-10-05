@@ -13,8 +13,6 @@ import { sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { FirebaseError } from 'firebase/app';
 
-const ADMIN_EMAIL = "admin@snazzpay.com";
-
 export default function ForgotPasswordPage() {
     const { toast } = useToast();
     const router = useRouter();
@@ -23,12 +21,11 @@ export default function ForgotPasswordPage() {
     const [isSent, setIsSent] = useState(false);
 
     const handleResetPassword = async () => {
-        setIsLoading(true);
-        if (email.toLowerCase() !== ADMIN_EMAIL) {
-            toast({ variant: 'destructive', title: "Access Denied", description: "Password reset is for administrators only." });
-            setIsLoading(false);
+        if (!email) {
+            toast({ variant: 'destructive', title: "Email Required", description: "Please enter your email address." });
             return;
         }
+        setIsLoading(true);
 
         try {
             await sendPasswordResetEmail(auth, email);
@@ -39,7 +36,7 @@ export default function ForgotPasswordPage() {
             let errorMessage = 'An unexpected error occurred.';
             if (error instanceof FirebaseError) {
                 if (error.code === 'auth/user-not-found') {
-                    errorMessage = 'No administrator account found with this email address.';
+                    errorMessage = 'No account found with this email address.';
                 } else {
                     errorMessage = error.message;
                 }
@@ -55,8 +52,8 @@ export default function ForgotPasswordPage() {
             <Card className="w-full max-w-sm shadow-lg">
                 <CardHeader className="text-center">
                     <ShieldCheck className="mx-auto h-12 w-12 text-primary" />
-                    <CardTitle>Reset Admin Password</CardTitle>
-                    <CardDescription>Enter the admin email to receive a password reset link.</CardDescription>
+                    <CardTitle>Reset Password</CardTitle>
+                    <CardDescription>Enter your email to receive a password reset link.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     {isSent ? (
@@ -65,13 +62,13 @@ export default function ForgotPasswordPage() {
                         </div>
                     ) : (
                         <div className="space-y-2">
-                            <Label htmlFor="email">Admin Email Address</Label>
+                            <Label htmlFor="email">Email Address</Label>
                             <div className="relative">
                                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                 <Input 
                                     id="email" 
                                     type="email" 
-                                    placeholder="admin@snazzpay.com" 
+                                    placeholder="Enter your registered email" 
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     className="pl-9" 

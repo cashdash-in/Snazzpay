@@ -5,35 +5,57 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Factory, Lock, Loader2, User, Mail } from "lucide-react";
+import { Factory, Lock, Loader2, Mail } from "lucide-react";
 import Link from "next/link";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import { FirebaseError } from 'firebase/app';
+
 
 export default function VendorLoginPage() {
     const { toast } = useToast();
     const router = useRouter();
-    const [loginId, setLoginId] = useState('');
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
     const handleLogin = async () => {
         setIsLoading(true);
-        
-        if (!loginId) {
-            toast({ variant: 'destructive', title: "Invalid Input", description: "Please enter your email or WhatsApp number." });
+        try {
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            const idToken = await userCredential.user.getIdToken();
+
+            const response = await fetch('/api/auth/session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ idToken, role: 'vendor' }),
+            });
+
+            if (!response.ok) {
+                const errorResult = await response.json();
+                throw new Error(errorResult.error);
+            }
+
+            toast({ title: "Vendor Login Successful", description: "Redirecting to vendor dashboard." });
+            router.push('/vendor/dashboard');
+            router.refresh();
+
+        } catch (error: any) {
+            console.error("Vendor Login Error:", error);
+            let errorMessage = 'An unexpected error occurred during login.';
+            if (error instanceof FirebaseError) {
+                if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found') {
+                    errorMessage = 'Invalid credentials or account not yet approved.';
+                } else {
+                    errorMessage = error.message;
+                }
+            }
+            toast({ variant: 'destructive', title: "Vendor Login Error", description: errorMessage });
+        } finally {
             setIsLoading(false);
-            return;
         }
-
-        // In a real app, this would send a login link/code.
-        toast({
-            title: "Login Link Sent",
-            description: "A magic login link has been sent to your registered email/WhatsApp.",
-        });
-
-        setTimeout(() => {
-            setIsLoading(false);
-        }, 1000);
     };
 
     return (
@@ -42,34 +64,50 @@ export default function VendorLoginPage() {
                 <CardHeader className="text-center">
                     <Factory className="mx-auto h-12 w-12 text-primary" />
                     <CardTitle>SnazzPay Vendor Portal</CardTitle>
-                    <CardDescription>Login to your vendor dashboard with Email or WhatsApp.</CardDescription>
+                    <CardDescription>Login to your vendor dashboard.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="loginId">Email or WhatsApp Number</Label>
+                        <Label htmlFor="email">Email Address</Label>
                         <div className="relative">
                             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input 
-                                id="loginId" 
-                                type="text" 
-                                placeholder="Your registered email or WhatsApp number" 
-                                value={loginId}
-                                onChange={(e) => setLoginId(e.target.value)}
+                                id="email" 
+                                type="email" 
+                                placeholder="Your registered email" 
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
                                 className="pl-9" 
+                            />
+                        </div>
+                    </div>
+                     <div className="space-y-2">
+                         <div className="flex justify-between items-center">
+                            <Label htmlFor="password">Password</Label>
+                             <Link href="/auth/forgot-password" passHref>
+                                <span className="text-xs text-primary hover:underline cursor-pointer">
+                                    Forgot Password?
+                                </span>
+                            </Link>
+                        </div>
+                         <div className="relative">
+                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input 
+                                id="password" 
+                                type="password" 
+                                placeholder="Enter your password" 
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="pl-9"
                             />
                         </div>
                     </div>
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4">
                     <Button className="w-full" onClick={handleLogin} disabled={isLoading}>
-                        {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending Link...</> : "Send Login Link"}
+                        {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Logging In...</> : "Login as Vendor"}
                     </Button>
                     <p className="text-xs text-center text-muted-foreground">
-                        Are you a seller?{" "}
-                        <Link href="/seller/login" className="text-primary hover:underline">
-                            Login Here
-                        </Link>
-                         <span className="mx-1">|</span>
                          New here?{" "}
                          <Link href="/auth/signup" className="text-primary hover:underline">
                             Sign Up

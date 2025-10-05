@@ -5,38 +5,56 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Store, Mail, Lock, Loader2, Phone } from "lucide-react";
+import { Store, Mail, Lock, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import { FirebaseError } from 'firebase/app';
 
 export default function SellerLoginPage() {
     const { toast } = useToast();
     const router = useRouter();
-    const [loginId, setLoginId] = useState('');
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
     const handleLogin = async () => {
         setIsLoading(true);
-        
-        if (!loginId) {
-            toast({ variant: 'destructive', title: "Invalid Input", description: "Please enter your email or WhatsApp number." });
-            setIsLoading(false);
-            return;
-        }
+        try {
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            const idToken = await userCredential.user.getIdToken();
 
-        // In a real app, this would send a login link/code.
-        // For now, we simulate success for prototype purposes.
-        toast({
-            title: "Login Link Sent",
-            description: "A magic login link has been sent to your registered email/WhatsApp.",
-        });
-        
-        setTimeout(() => {
+            const response = await fetch('/api/auth/session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ idToken, role: 'seller' }),
+            });
+
+            if (!response.ok) {
+                const errorResult = await response.json();
+                throw new Error(errorResult.error);
+            }
+
+            toast({ title: "Seller Login Successful", description: "Redirecting to seller dashboard." });
+            router.push('/seller/dashboard');
+            router.refresh();
+
+        } catch (error: any) {
+            console.error("Seller Login Error:", error);
+            let errorMessage = 'An unexpected error occurred during login.';
+            if (error instanceof FirebaseError) {
+                if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found') {
+                    errorMessage = 'Invalid credentials or account not yet approved.';
+                } else {
+                    errorMessage = error.message;
+                }
+            }
+            toast({ variant: 'destructive', title: "Seller Login Error", description: errorMessage });
+        } finally {
             setIsLoading(false);
-            // In a real app, you'd wait for the user to click the link.
-            // For prototype, we could simulate a successful login check.
-        }, 1000);
+        }
     };
 
     return (
@@ -45,27 +63,48 @@ export default function SellerLoginPage() {
                 <CardHeader className="text-center">
                     <Store className="mx-auto h-12 w-12 text-primary" />
                     <CardTitle>SnazzPay Seller Central</CardTitle>
-                    <CardDescription>Login with your Email or WhatsApp number.</CardDescription>
+                    <CardDescription>Log in to manage your products and orders.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="loginId">Email or WhatsApp Number</Label>
+                     <div className="space-y-2">
+                        <Label htmlFor="email">Email Address</Label>
                         <div className="relative">
                             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input 
-                                id="loginId" 
-                                type="text" 
-                                placeholder="you@example.com or 9876543210" 
-                                value={loginId}
-                                onChange={(e) => setLoginId(e.target.value)}
+                                id="email" 
+                                type="email" 
+                                placeholder="you@example.com" 
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
                                 className="pl-9" 
+                            />
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                         <div className="flex justify-between items-center">
+                            <Label htmlFor="password">Password</Label>
+                             <Link href="/auth/forgot-password" passHref>
+                                <span className="text-xs text-primary hover:underline cursor-pointer">
+                                    Forgot Password?
+                                </span>
+                            </Link>
+                        </div>
+                         <div className="relative">
+                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input 
+                                id="password" 
+                                type="password" 
+                                placeholder="Enter your password" 
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="pl-9"
                             />
                         </div>
                     </div>
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4">
                     <Button className="w-full" onClick={handleLogin} disabled={isLoading}>
-                        {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending Link...</> : "Send Login Link"}
+                        {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Logging In...</> : "Login as Seller"}
                     </Button>
                     <p className="text-xs text-center text-muted-foreground">
                         Don't have an account?{" "}
