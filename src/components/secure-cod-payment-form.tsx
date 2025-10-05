@@ -356,5 +356,3 @@ export function SecureCodPaymentForm() {
         </div>
     );
 }
-
-    

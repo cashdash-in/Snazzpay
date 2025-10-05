@@ -96,7 +96,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            nameInput.value = productData.title + (currentVariant.title !== 'Default Title' ? ' - ' + currentVariant.title : '');
+            nameInput.value = productData.title;
             amountInput.value = (currentVariant.price / 100).toFixed(2);
             imageInput.value = currentVariant.featured_image ? currentVariant.featured_image.src : productData.featuredImage;
             orderIdInput.value = 'SNZ-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5).toUpperCase();
