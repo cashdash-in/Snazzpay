@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -10,12 +9,6 @@ import { Store, Mail, Lock, Loader2, Phone } from "lucide-react";
 import Link from "next/link";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
-import { FirebaseError } from 'firebase/app';
-import type { SellerUser } from '@/app/seller-accounts/page';
-import { getCollection } from '@/services/firestore';
-
 
 export default function SellerLoginPage() {
     const { toast } = useToast();

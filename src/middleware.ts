@@ -11,10 +11,11 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const publicPaths = [
-    '/auth/login', 
+    '/auth/login',
+    '/auth/signup',
+    '/auth/forgot-password', 
     '/seller/login',
     '/vendor/login',
-    '/auth/signup', 
     '/secure-cod', 
     '/secure-cod-info', 
     '/faq', 

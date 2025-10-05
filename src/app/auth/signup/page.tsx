@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -184,7 +183,7 @@ export default function SignupPage() {
                                 </div>
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="phone">WhatsApp Number (for Login)</Label>
+                                <Label htmlFor="phone">WhatsApp Number</Label>
                                 <div className="relative">
                                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                     <Input id="phone" type="tel" placeholder="e.g., 919876543210" value={phone} onChange={(e) => setPhone(e.target.value)} className="pl-9" />
