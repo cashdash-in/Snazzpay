@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, Suspense, FormEvent } from 'react';
@@ -5,7 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, HelpCircle, ShieldCheck, CheckCircle, User, Phone, Mail as MailIcon, Home, MapPin, ShoppingCart, ArrowRight } from "lucide-react";
+import { Loader2, HelpCircle, ShieldCheck, CheckCircle, User, Phone, Mail as MailIcon, Home, MapPin } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
 import type { EditableOrder } from '@/app/orders/page';
@@ -58,7 +59,6 @@ function SecureCodPaymentForm() {
     const [quantity, setQuantity] = useState(1);
     const [selectedSize, setSelectedSize] = useState('');
     const [selectedColor, setSelectedColor] = useState('');
-    const [isSellerFlow, setIsSellerFlow] = useState(false);
 
     const [razorpayKeyId, setRazorpayKeyId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
@@ -103,8 +103,8 @@ function SecureCodPaymentForm() {
         const sellerId = searchParams.get('sellerId') || '';
         const sellerName = searchParams.get('sellerName') || '';
         const image = searchParams.get('image') || '';
-        const sizes = searchParams.get('sizes')?.split(',') || [];
-        const colors = searchParams.get('colors')?.split(',') || [];
+        const sizes = searchParams.get('sizes')?.split(',').filter(s => s) || [];
+        const colors = searchParams.get('colors')?.split(',').filter(c => c) || [];
         
         setAvailableSizes(sizes);
         setAvailableColors(colors);
@@ -379,7 +379,6 @@ function SecureCodPaymentForm() {
     );
 }
 
-
 function Page() {
     // This component will only render on the client side
     const [isClient, setIsClient] = useState(false);
@@ -387,10 +386,20 @@ function Page() {
         setIsClient(true);
     }, []);
 
+    if (!isClient) {
+        return (
+            <div className="relative min-h-screen w-full bg-gradient-to-br from-purple-50 via-white to-indigo-50">
+                <div className="flex h-screen w-full items-center justify-center">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+            </div>
+        );
+    }
+    
     return (
        <div className="relative min-h-screen w-full bg-gradient-to-br from-purple-50 via-white to-indigo-50">
             <Suspense fallback={<div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
-                {isClient ? <SecureCodPaymentForm /> : null}
+                <SecureCodPaymentForm />
             </Suspense>
             <Suspense>
                  <CancellationForm />

@@ -11,8 +11,7 @@ export default function CodInstructionsPage() {
     const [embedCode, setEmbedCode] = useState('');
 
     useEffect(() => {
-        const code = `
-<!-- SnazzPay Secure COD Button Start -->
+        const code = `<!-- SnazzPay Secure COD Button Start -->
 <div id="snazzpay-secure-cod-container">
     <form id="snazzpay-secure-cod-form" action="https://snazzpay.netlify.app/secure-cod" method="GET" target="_blank" style="margin-top: 15px; width: 100%;">
         <!-- Hidden fields for product data -->
@@ -59,7 +58,7 @@ document.addEventListener('DOMContentLoaded', function() {
         function updateForm() {
             // Use the currently selected variant or fall back to the main product.
             var currentVariant = {{ product.selected_or_first_available_variant | json }};
-            var productTitle = '{{ product.title | escape }}';
+            var productTitle = '{{ product.title | url_encode }}';
             var featuredImage = '{{ product.featured_image | img_url: "large" }}';
 
             nameInput.value = productTitle + (currentVariant.title !== 'Default Title' ? ' - ' + currentVariant.title : '');
@@ -115,7 +114,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <CardHeader>
           <CardTitle>Embed Secure COD on Your Shopify Store</CardTitle>
           <CardDescription>
-            Follow these steps to add the Secure COD button to your Shopify product page theme.
+            Follow these steps to add the Secure COD button to your Shopify product page theme. This code is more reliable and includes variant selection.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
