@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -10,25 +9,37 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/hooks/use-auth';
 import type { SellerProduct } from '@/app/seller/ai-product-uploader/page';
 import Image from 'next/image';
-import { Loader2, Share2, Copy, MessageSquare } from 'lucide-react';
+import { Loader2, Share2, Copy, MessageSquare, BookOpen } from 'lucide-react';
 import { getCollection, saveDocument } from '@/services/firestore';
 import { getCookie } from 'cookies-next';
 import { Label } from '@/components/ui/label';
 import type { ProductDrop } from '@/app/vendor/product-drops/page';
 import { Input } from '@/components/ui/input';
 import { v4 as uuidv4 } from 'uuid';
+import { formatDistanceToNow } from 'date-fns';
+
+
+type Magazine = {
+    id: string;
+    title: string;
+    productIds: string[];
+    creatorId: string;
+    creatorName: string;
+    createdAt: string;
+};
 
 export default function ShareMagazinePage() {
     const { user } = useAuth();
     const { toast } = useToast();
     const [products, setProducts] = useState<Array<SellerProduct | ProductDrop>>([]);
+    const [magazines, setMagazines] = useState<Magazine[]>([]);
     const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [magazineLink, setMagazineLink] = useState('');
     const [magazineTitle, setMagazineTitle] = useState('Our Latest Collection');
 
     useEffect(() => {
-        async function loadProducts() {
+        async function loadData() {
             if (!user) {
                 setIsLoading(false);
                 return;
@@ -49,13 +60,17 @@ export default function ShareMagazinePage() {
                 }
 
                 setProducts(productsCollection.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+
+                const allMagazines = await getCollection<Magazine>('smart_magazines');
+                setMagazines(allMagazines.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+
             } catch (error) {
-                toast({ variant: 'destructive', title: "Error loading products", description: "Could not load your products catalog." });
+                toast({ variant: 'destructive', title: "Error loading data", description: "Could not load your products or existing magazines." });
             } finally {
                 setIsLoading(false);
             }
         }
-        loadProducts();
+        loadData();
     }, [user, toast]);
 
     const handleProductSelect = (productId: string, checked: boolean) => {
@@ -64,7 +79,6 @@ export default function ShareMagazinePage() {
         } else {
             setSelectedProductIds(prev => prev.filter(id => id !== productId));
         }
-        // Clear the generated link when selection changes
         setMagazineLink('');
     };
 
@@ -82,7 +96,7 @@ export default function ShareMagazinePage() {
         const creatorName = role === 'admin' ? 'SnazzifyOfficial' : user.displayName || 'Unknown Creator';
 
         const magazineId = uuidv4();
-        const newMagazine = {
+        const newMagazine: Magazine = {
             id: magazineId,
             title: magazineTitle,
             productIds: selectedProductIds,
@@ -93,6 +107,7 @@ export default function ShareMagazinePage() {
 
         try {
             await saveDocument('smart_magazines', newMagazine, magazineId);
+            setMagazines(prev => [newMagazine, ...prev]); // Add to the list
             
             const baseUrl = window.location.origin;
             const link = `${baseUrl}/smart-magazine?id=${magazineId}`;
@@ -103,22 +118,25 @@ export default function ShareMagazinePage() {
             toast({ variant: 'destructive', title: 'Failed to Save Magazine' });
         }
     };
+    
+    const getShareLink = (mag: Magazine) => {
+        const baseUrl = window.location.origin;
+        return `${baseUrl}/smart-magazine?id=${mag.id}`;
+    };
 
-    const handleCopyLink = () => {
-        if(!magazineLink) return;
-        navigator.clipboard.writeText(magazineLink);
+    const handleCopyLink = (link: string) => {
+        navigator.clipboard.writeText(link);
         toast({ title: 'Link Copied!' });
     };
 
-    const handleShareOnWhatsApp = () => {
-        if (!magazineLink) return;
-        const message = `Check out our new collection: *${magazineTitle}*\n${magazineLink}`;
+    const handleShareOnWhatsApp = (title: string, link: string) => {
+        const message = `Check out our new collection: *${title}*\n${link}`;
         const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
         window.open(whatsappUrl, '_blank');
     };
 
     return (
-        <AppShell title="Create Smart Magazine">
+        <AppShell title="Smart Magazine Hub">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2">
                     <Card>
@@ -139,7 +157,7 @@ export default function ShareMagazinePage() {
                                                 checked={selectedProductIds.includes(product.id)}
                                             />
                                             <label htmlFor={`product-${product.id}`} className="flex items-center gap-4 cursor-pointer w-full">
-                                                <Image src={product.imageDataUris[0]} alt={product.title} width={90} height={90} className="rounded-md object-contain aspect-square bg-muted" />
+                                                <Image src={product.imageDataUris[0]} alt={product.title} width={60} height={60} className="rounded-md object-contain aspect-square bg-muted" />
                                                 <div className="flex-grow">
                                                     <p className="font-semibold">{product.title}</p>
                                                     <p className="text-sm text-muted-foreground">Price: ₹{((product as SellerProduct).price || (product as ProductDrop).costPrice).toFixed(2)}</p>
@@ -152,7 +170,7 @@ export default function ShareMagazinePage() {
                         </CardContent>
                     </Card>
                 </div>
-                <div className="lg:col-span-1">
+                <div className="lg:col-span-1 space-y-8">
                     <Card className="sticky top-24">
                         <CardHeader>
                             <CardTitle>Generate & Share</CardTitle>
@@ -177,15 +195,46 @@ export default function ShareMagazinePage() {
                                 <div className="space-y-2 pt-4 border-t">
                                     <Label htmlFor="magazine-link">Your Sharable Link</Label>
                                     <div className="flex gap-2">
-                                        <input id="magazine-link" readOnly value={magazineLink} className="w-full text-xs p-2 border rounded-md bg-muted" />
-                                        <Button size="icon" variant="outline" onClick={handleCopyLink}><Copy className="h-4 w-4"/></Button>
+                                        <Input id="magazine-link" readOnly value={magazineLink} className="w-full text-xs p-2 border rounded-md bg-muted" />
+                                        <Button size="icon" variant="outline" onClick={() => handleCopyLink(magazineLink)}><Copy className="h-4 w-4"/></Button>
                                     </div>
-                                    <Button onClick={handleShareOnWhatsApp} className="w-full" variant="secondary">
+                                    <Button onClick={() => handleShareOnWhatsApp(magazineTitle, magazineLink)} className="w-full" variant="secondary">
                                         <MessageSquare className="mr-2 h-4 w-4"/>
                                         Share on WhatsApp
                                     </Button>
                                     <p className="text-xs text-muted-foreground">Share this link on WhatsApp, Instagram, or anywhere else!</p>
                                 </div>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Existing Magazines</CardTitle>
+                            <CardDescription>View and re-share previously created magazines.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="max-h-[50vh] overflow-y-auto space-y-3">
+                             {magazines.length > 0 ? magazines.map(mag => {
+                                const link = getShareLink(mag);
+                                return (
+                                    <div key={mag.id} className="p-3 border rounded-lg">
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <p className="font-semibold flex items-center gap-2"><BookOpen className="h-4 w-4 text-primary"/>{mag.title}</p>
+                                                <p className="text-xs text-muted-foreground">
+                                                    by {mag.creatorName} &bull; {formatDistanceToNow(new Date(mag.createdAt), { addSuffix: true })}
+                                                </p>
+                                            </div>
+                                            <a href={link} target="_blank" className="text-xs text-primary hover:underline">View</a>
+                                        </div>
+                                        <div className="flex justify-end gap-2 mt-2">
+                                            <Button size="sm" variant="outline" onClick={() => handleCopyLink(link)}><Copy className="mr-2 h-3 w-3"/>Copy</Button>
+                                            <Button size="sm" variant="outline" onClick={() => handleShareOnWhatsApp(mag.title, link)}><MessageSquare className="mr-2 h-3 w-3"/>Share</Button>
+                                        </div>
+                                    </div>
+                                );
+                            }) : (
+                                <p className="text-sm text-muted-foreground text-center py-4">No magazines created yet.</p>
                             )}
                         </CardContent>
                     </Card>
