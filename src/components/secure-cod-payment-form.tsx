@@ -33,7 +33,6 @@ export function SecureCodPaymentForm() {
     const router = useRouter();
     const { toast } = useToast();
     
-    const [isClient, setIsClient] = useState(false);
     const [orderDetails, setOrderDetails] = useState({
         productName: '',
         amount: 0,
@@ -61,10 +60,6 @@ export function SecureCodPaymentForm() {
     
     const [totalPrice, setTotalPrice] = useState(0);
     const [isAmountConfirmed, setIsAmountConfirmed] = useState(false);
-
-    useEffect(() => {
-        setIsClient(true);
-    }, []);
 
     const getOrCreateShaktiCard = async (order: EditableOrder): Promise<ShaktiCardData | null> => {
         if (!order.contactNo || !order.customerEmail) return null;
@@ -244,7 +239,7 @@ export function SecureCodPaymentForm() {
         }
     };
     
-    if (!isClient || loading) {
+    if (loading) {
         return <div className="flex justify-center items-center h-screen"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
     }
 

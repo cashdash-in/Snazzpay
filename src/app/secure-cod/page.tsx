@@ -1,9 +1,15 @@
 
-'use client';
-
+import dynamic from 'next/dynamic';
 import { Suspense } from 'react';
 import { Loader2 } from 'lucide-react';
-import { SecureCodPaymentForm } from '@/components/secure-cod-payment-form';
+
+const SecureCodPaymentForm = dynamic(
+  () => import('@/components/secure-cod-payment-form').then((mod) => mod.SecureCodPaymentForm),
+  { 
+    ssr: false,
+    loading: () => <div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+  }
+);
 
 function Page() {
     return (
