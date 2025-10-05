@@ -57,6 +57,7 @@ export type EditableOrder = {
   guestFulfillmentToken?: string;
   packageImageUrls?: string[];
   imageDataUris?: string[]; // Added for compatibility
+  vendorPaymentReceived?: 'Yes' | 'No';
 };
 
 type PaymentInfo = {
@@ -308,7 +309,7 @@ export default function OrdersPage() {
                                 <Input 
                                     value={order.price} 
                                     onChange={(e) => handleFieldChange(order.id, 'price', e.target.value)} 
-                                    className="w-24 h-8"
+                                    className="w-24 h-8" 
                                 />
                             </TableCell>
                             <TableCell>

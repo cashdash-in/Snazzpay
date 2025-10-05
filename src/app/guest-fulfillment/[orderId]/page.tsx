@@ -8,11 +8,12 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Package, CheckCircle, AlertTriangle, UploadCloud } from 'lucide-react';
+import { Loader2, Package, CheckCircle, AlertTriangle, UploadCloud, Phone } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { EditableOrder } from '@/app/orders/page';
 import { getDocument, saveDocument } from '@/services/firestore';
 import Image from 'next/image';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 
 function GuestFulfillmentPageContent() {
     const params = useParams();
@@ -31,6 +32,9 @@ function GuestFulfillmentPageContent() {
     const [trackingNumber, setTrackingNumber] = useState('');
     const [courierCompany, setCourierCompany] = useState('');
     const [packageImage, setPackageImage] = useState<string | null>(null);
+    const [customerContact, setCustomerContact] = useState('');
+    const [vendorPaymentReceived, setVendorPaymentReceived] = useState<'Yes' | 'No' | ''>('');
+
 
     useEffect(() => {
         if (!orderId || !token) {
@@ -47,6 +51,7 @@ function GuestFulfillmentPageContent() {
                 setError("Invalid or expired fulfillment link.");
             } else {
                 setOrder(fetchedOrder);
+                setCustomerContact(fetchedOrder.contactNo || '');
             }
             setIsLoading(false);
         }
@@ -67,8 +72,8 @@ function GuestFulfillmentPageContent() {
     
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
-        if (!order || !trackingNumber || !courierCompany || !packageImage) {
-            toast({ variant: 'destructive', title: "Missing Information", description: "Please provide all details, including a package image."});
+        if (!order || !trackingNumber || !courierCompany || !packageImage || !customerContact || !vendorPaymentReceived) {
+            toast({ variant: 'destructive', title: "Missing Information", description: "Please provide all details, including a package image, contact number, and payment status."});
             return;
         }
         setIsSubmitting(true);
@@ -80,6 +85,8 @@ function GuestFulfillmentPageContent() {
                 deliveryStatus: 'dispatched',
                 readyForDispatchDate: new Date().toISOString().split('T')[0], // Set dispatch date to today
                 guestFulfillmentToken: '', // Invalidate the token after use
+                contactNo: customerContact,
+                vendorPaymentReceived: vendorPaymentReceived as 'Yes' | 'No',
             };
 
             await saveDocument('orders', updatedData, order.id);
@@ -180,6 +187,25 @@ function GuestFulfillmentPageContent() {
                             </CardContent>
                         </Card>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                             <div className="space-y-2">
+                                <Label htmlFor="customerContact">Customer Contact No.</Label>
+                                <div className="relative">
+                                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Input id="customerContact" placeholder="Customer's phone number" value={customerContact} onChange={e => setCustomerContact(e.target.value)} required className="pl-9"/>
+                                </div>
+                            </div>
+                             <div className="space-y-2">
+                                <Label htmlFor="paymentReceived">Payment Received?</Label>
+                                 <Select onValueChange={(value: 'Yes' | 'No') => setVendorPaymentReceived(value)} required>
+                                    <SelectTrigger id="paymentReceived">
+                                        <SelectValue placeholder="Select payment status..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Yes">Yes</SelectItem>
+                                        <SelectItem value="No">No</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                             <div className="space-y-2">
                                 <Label htmlFor="courierCompany">Courier Company</Label>
                                 <Input id="courierCompany" placeholder="e.g., Delhivery, BlueDart" value={courierCompany} onChange={e => setCourierCompany(e.target.value)} required />
