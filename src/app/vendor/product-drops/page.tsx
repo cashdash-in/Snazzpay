@@ -13,7 +13,7 @@ import { Loader2, PackagePlus, Lock, Wand2, ImagePlus } from 'lucide-react';
 import Image from 'next/image';
 import { useAuth } from '@/hooks/use-auth';
 import { v4 as uuidv4 } from 'uuid';
-import { Dialog, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogTrigger, DialogContent } from "@/components/ui/dialog";
 import { ShareComposerDialog } from '@/components/share-composer-dialog';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { getCollection, saveDocument, getDocument } from '@/services/firestore';
@@ -49,6 +49,8 @@ export default function VendorProductDropsPage() {
     const [usageCount, setUsageCount] = useState(0);
     const [limit, setLimit] = useState(PRODUCT_DROP_LIMIT);
     const [isLimitReached, setIsLimitReached] = useState(false);
+    const [showShareDialog, setShowShareDialog] = useState(false);
+    const [createdProduct, setCreatedProduct] = useState<ProductDrop | null>(null);
 
     const resizeImage = (file: File): Promise<string> => {
         return new Promise((resolve) => {
@@ -220,6 +222,9 @@ export default function VendorProductDropsPage() {
                 description: 'Your new product has been made available to all sellers in your network.',
             });
 
+            setCreatedProduct(newDrop);
+            setShowShareDialog(true);
+            
             // Reset form
             setTitle('');
             setDescription('');
@@ -350,20 +355,14 @@ export default function VendorProductDropsPage() {
                     </div>
                 </CardContent>
                 <CardFooter>
-                     <Dialog>
-                        <DialogTrigger asChild>
-                            <Button className="w-full" onClick={handleSendDrop} disabled={isLoading || isLimitReached || !title || !description || resizedImageDataUris.length === 0}>
-                                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : isLimitReached ? <Lock className="mr-2 h-4 w-4"/> : <PackagePlus className="mr-2 h-4 w-4"/>}
-                                {isLimitReached ? 'Limit Reached' : 'Create & Share Product Drop'}
-                            </Button>
-                        </DialogTrigger>
-                        <ShareComposerDialog product={{
-                            id: 'temp-vendor-drop',
-                            title,
-                            description,
-                            costPrice: parseFloat(costPrice),
-                            imageDataUris: resizedImageDataUris, // Use resized data for sharing
-                        }} />
+                     <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
+                        <Button className="w-full" onClick={handleSendDrop} disabled={isLoading || isLimitReached || !title || !description || resizedImageDataUris.length === 0}>
+                            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : isLimitReached ? <Lock className="mr-2 h-4 w-4"/> : <PackagePlus className="mr-2 h-4 w-4"/>}
+                            {isLimitReached ? 'Limit Reached' : 'Create & Share Product Drop'}
+                        </Button>
+                         {createdProduct && (
+                            <ShareComposerDialog product={createdProduct} />
+                        )}
                     </Dialog>
                 </CardFooter>
             </Card>
