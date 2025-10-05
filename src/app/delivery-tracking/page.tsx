@@ -220,7 +220,11 @@ export default function DeliveryTrackingPage() {
                 <TableBody>
                   {orders.map((order) => {
                       const imageUrl = order.imageDataUris?.[0];
-                      const sourceName = order.source === 'Catalogue' ? 'Smart Magazine' : order.source || 'Snazzify';
+                      let sourceName = order.source || 'Snazzify';
+                      if (sourceName === 'Catalogue') sourceName = 'Smart Magazine';
+                      if (sourceName === 'Manual' && !order.sellerName && !order.vendorName) sourceName = 'Snazzify';
+                      else if (sourceName === 'Manual' && order.sellerName) sourceName = 'Seller';
+
 
                       return (
                     <TableRow key={order.id} onPaste={(e) => handleImagePaste(e, order.id)}>
