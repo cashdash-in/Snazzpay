@@ -12,7 +12,7 @@ export default function CodInstructionsPage() {
     const [embedCode, setEmbedCode] = useState('');
 
     useEffect(() => {
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+        const appUrl = 'https://snazzpay.netlify.app/';
         const code = `
 <div id="snazzpay-secure-cod-button-container"></div>
 
@@ -49,7 +49,7 @@ export default function CodInstructionsPage() {
       // --- START: NEW VENDOR DENY LIST ---
       // List of Shopify vendor names you want to EXCLUDE from showing the Secure COD button.
       // Edit this list to add the names of vendors you want to block.
-      const deniedVendors = ['Vendor To Block A', 'Vendor To Block B'];
+      const deniedVendors = ['Dropdash', 'itzjqv-uw'];
 
       // Show the button only if the product's vendor is NOT in the deniedVendors list.
       if (!deniedVendors.includes(productData.vendor)) {
@@ -67,7 +67,7 @@ export default function CodInstructionsPage() {
             order_id: orderId,
           });
 
-          const secureCodUrl = \`\${appUrl}/secure-cod?\${params.toString()}\`;
+          const secureCodUrl = \`\${appUrl}secure-cod?\${params.toString()}\`;
 
           // --- Button Styling (can be customized) ---
           container.innerHTML = \`
@@ -82,7 +82,7 @@ export default function CodInstructionsPage() {
               </button>
             </a>
             <div style="text-align: center; margin-top: 8px; font-size: 12px;">
-              <a href="${appUrl}/secure-cod-info" target="_blank" style="color: #5a31f4; text-decoration: underline;">What is this?</a>
+              <a href="\${appUrl}secure-cod-info" target="_blank" style="color: #5a31f4; text-decoration: underline;">What is this?</a>
             </div>
           \`;
         } // This closes the "if (!deniedVendors.includes...)" block
