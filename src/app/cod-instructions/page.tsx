@@ -1,3 +1,4 @@
+
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -5,6 +6,7 @@ import { CodeBlock } from "@/components/code-block";
 import { useEffect, useState } from 'react';
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Terminal } from "lucide-react";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 
 export default function CodInstructionsPage() {
     const [embedCode, setEmbedCode] = useState('');
@@ -126,41 +128,41 @@ document.addEventListener('DOMContentLoaded', function() {
         setEmbedCode(code);
     }, []);
 
-  return (
-    <AppShell title="Embedding Instructions">
-      <Card>
-        <CardHeader>
-          <CardTitle>Embed Secure COD on Your Shopify Store</CardTitle>
-          <CardDescription>
-            Follow these steps to add the Secure COD button to your Shopify product page theme.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-           <Alert variant="destructive">
-            <Terminal className="h-4 w-4" />
-            <AlertTitle>For Shopify Themes Only</AlertTitle>
-            <AlertDescription>
-                <p>This code is specifically designed for Shopify and uses its Liquid templating language (`{{...}}`). It will not work on other platforms.</p>
-            </AlertDescription>
-          </Alert>
-
-          <div className="space-y-2">
-            <h3 className="text-lg font-semibold">Step 1: Go to your Theme Editor</h3>
-            <p className="text-muted-foreground">
-              In your Shopify admin, go to **Online Store > Themes**. Find your current theme, click the "..." button, and select **"Edit code"**. In the file browser on the left, find the template file that controls your product page. This is often called <span className="font-mono bg-muted p-1 rounded-md">product.liquid</span>, <span className="font-mono bg-muted p-1 rounded-md">main-product.liquid</span>, or similar.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <h3 className="text-lg font-semibold">Step 2: Copy and Paste the Code</h3>
-            <p className="text-muted-foreground">
-              Copy the code below and paste it where you want the button to appear, usually near the "Add to Cart" button.
-            </p>
-            <CodeBlock code={embedCode} />
-          </div>
-
-        </CardContent>
-      </Card>
-    </AppShell>
-  );
+    return (
+        <AppShell title="Embedding Instructions">
+          <Card>
+            <CardHeader>
+              <CardTitle>Embed Secure COD on Your Shopify Store</CardTitle>
+              <CardDescription>
+                Follow these steps to add the Secure COD button to your Shopify product page theme.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <Alert variant="destructive">
+                <Terminal className="h-4 w-4" />
+                <AlertTitle>For Shopify Themes Only</AlertTitle>
+                <AlertDescription>
+                    <p>This code is specifically designed for Shopify and uses its Liquid templating language (`{{...}}`). It will not work on other platforms.</p>
+                </AlertDescription>
+              </Alert>
+    
+              <div className="space-y-2">
+                <h3 className="text-lg font-semibold">Step 1: Go to your Theme Editor</h3>
+                <p className="text-muted-foreground">
+                  In your Shopify admin, go to **Online Store > Themes**. Find your current theme, click the "..." button, and select **"Edit code"**. In the file browser on the left, find the template file that controls your product page. This is often called <span className="font-mono bg-muted p-1 rounded-md">product.liquid</span>, <span className="font-mono bg-muted p-1 rounded-md">main-product.liquid</span>, or similar.
+                </p>
+              </div>
+    
+              <div className="space-y-2">
+                <h3 className="text-lg font-semibold">Step 2: Copy and Paste the Code</h3>
+                <p className="text-muted-foreground">
+                  Copy the code below and paste it where you want the button to appear, usually near the "Add to Cart" button.
+                </p>
+                <CodeBlock code={embedCode} />
+              </div>
+    
+            </CardContent>
+          </Card>
+        </AppShell>
+    );
 }
