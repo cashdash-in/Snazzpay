@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, Suspense, FormEvent } from 'react';
@@ -158,15 +157,21 @@ function GuestFulfillmentPageContent() {
                     <CardContent className="space-y-6">
                         <Card className="bg-muted/50">
                             <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
-                                <div className="sm:col-span-2">
-                                    <h4 className="font-semibold">Shipping To:</h4>
-                                    <p>{order?.customerName}</p>
-                                    <p>{order?.customerAddress}</p>
-                                    <p>{order?.pincode}</p>
+                                <div className="sm:col-span-2 space-y-2">
+                                    <div>
+                                        <h4 className="font-semibold">Shipping To:</h4>
+                                        <p>{order?.customerName}</p>
+                                        <p>{order?.customerAddress}</p>
+                                        <p>{order?.pincode}</p>
+                                    </div>
                                     <hr className="my-2"/>
-                                    <h4 className="font-semibold">Product Details:</h4>
-                                    <p>{order?.productOrdered}</p>
-                                    <p>Quantity: {order?.quantity}</p>
+                                    <div>
+                                        <h4 className="font-semibold">Product Details:</h4>
+                                        <p>{order?.productOrdered}</p>
+                                        <p><strong>Quantity:</strong> {order?.quantity}</p>
+                                        {order?.size && <p><strong>Size:</strong> {order.size}</p>}
+                                        {order?.color && <p><strong>Color:</strong> {order.color}</p>}
+                                    </div>
                                 </div>
                                 <div className="flex items-center justify-center">
                                     {imageUrl ? (
