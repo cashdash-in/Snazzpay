@@ -39,7 +39,7 @@ export default function LogisticsLoginPage() {
         
         const allPartnersJSON = localStorage.getItem('logisticsPartners');
         const allPartners: LogisticsPartnerData[] = allPartnersJSON ? JSON.parse(allPartnersJSON) : [];
-        const partner = allPartners.find(p => (p.id === loginId || p.phone === loginId) && p.status === 'approved');
+        const partner = allPartners.find(p => (p.id === loginId || p.phone === loginId || p.email === loginId) && p.status === 'approved');
         
         const isAdmin = loginId === 'partner-admin' && password === 'password';
         const isValidPartner = partner && password === 'password'; // Simplified password check
