@@ -11,46 +11,44 @@ import { useToast } from "@/hooks/use-toast";
 import { getCollection, saveDocument, getDocument } from '@/services/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/hooks/use-auth';
+import type { Collaborator } from '@/app/collaborators/page';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-export type Collaborator = {
-    id: string;
-    name: string;
-    phone: string;
-    email: string;
-    status: 'pending' | 'approved' | 'rejected' | 'active' | 'inactive';
-    linkedTo: string; // ID of seller, vendor, or 'admin'
-};
-
-export default function CollaboratorsPage() {
+export default function VendorCollaboratorsPage() {
+    const { user } = useAuth();
     const { toast } = useToast();
     const [pendingCollaborators, setPendingCollaborators] = useState<Collaborator[]>([]);
     const [approvedCollaborators, setApprovedCollaborators] = useState<Collaborator[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [commissionRate, setCommissionRate] = useState<number>(5);
 
-    useEffect(() => {
-        async function loadData() {
-            setIsLoading(true);
-            try {
-                const allCollaborators = await getCollection<Collaborator>('collaborators');
-                setPendingCollaborators(allCollaborators.filter(c => c.status === 'pending'));
-                setApprovedCollaborators(allCollaborators.filter(c => c.status === 'approved' || c.status === 'active'));
-                
-                const adminSettings = await getDocument<{commissionRate?: number}>('commission_settings', 'admin');
-                if (adminSettings?.commissionRate) {
-                    setCommissionRate(adminSettings.commissionRate);
-                }
-
-            } catch (error) {
-                toast({ variant: 'destructive', title: "Error loading data", description: "Could not load collaborator data from Firestore." });
-            } finally {
-                setIsLoading(false);
+    const loadCollaborators = async () => {
+        if (!user) return;
+        setIsLoading(true);
+        try {
+            const allCollaborators = await getCollection<Collaborator>('collaborators');
+            const myCollaborators = allCollaborators.filter(c => c.linkedTo === user.uid);
+            
+            setPendingCollaborators(myCollaborators.filter(c => c.status === 'pending'));
+            setApprovedCollaborators(myCollaborators.filter(c => c.status === 'approved' || c.status === 'active'));
+            
+            const vendorSettings = await getDocument<{commissionRate?: number}>('commission_settings', user.uid);
+            if (vendorSettings?.commissionRate) {
+                setCommissionRate(vendorSettings.commissionRate);
             }
+
+        } catch (error) {
+            toast({ variant: 'destructive', title: "Error loading data", description: "Could not load collaborator data from Firestore." });
+        } finally {
+            setIsLoading(false);
         }
-        loadData();
-    }, [toast]);
+    };
+
+    useEffect(() => {
+        loadCollaborators();
+    }, [user, toast]);
 
     const handleCollaboratorRequest = async (collaboratorId: string, isApproved: boolean) => {
         const collaborator = pendingCollaborators.find(c => c.id === collaboratorId);
@@ -60,10 +58,8 @@ export default function CollaboratorsPage() {
         
         try {
             await saveDocument('collaborators', { ...collaborator, status: newStatus }, collaborator.id);
-            setPendingCollaborators(prev => prev.filter(c => c.id !== collaboratorId));
-            if (isApproved) {
-                setApprovedCollaborators(prev => [...prev, { ...collaborator, status: 'approved' }]);
-            }
+            await loadCollaborators();
+            
             toast({
                 title: `Collaborator Request ${isApproved ? 'Approved' : 'Rejected'}`,
                 description: `The account for ${collaborator.name} has been updated.`,
@@ -74,8 +70,9 @@ export default function CollaboratorsPage() {
     };
     
     const handleSaveCommission = async () => {
+        if (!user) return;
         try {
-            await saveDocument('commission_settings', { commissionRate }, 'admin');
+            await saveDocument('commission_settings', { commissionRate }, user.uid);
             toast({ title: 'Commission Rate Saved', description: `Default commission for your collaborators is now ${commissionRate}%.` });
         } catch (error) {
             toast({ variant: 'destructive', title: 'Error Saving Commission' });
@@ -83,11 +80,11 @@ export default function CollaboratorsPage() {
     };
 
     return (
-        <AppShell title="All Collaborators">
+        <AppShell title="My Collaborators">
             <Tabs defaultValue="requests">
                  <TabsList className="grid w-full grid-cols-3 max-w-xl">
                     <TabsTrigger value="requests">Signup Requests <Badge className="ml-2">{pendingCollaborators.length}</Badge></TabsTrigger>
-                    <TabsTrigger value="approved">Approved Collaborators</TabsTrigger>
+                    <TabsTrigger value="approved">My Collaborators</TabsTrigger>
                     <TabsTrigger value="settings">Commission Settings</TabsTrigger>
                 </TabsList>
 
@@ -131,8 +128,8 @@ export default function CollaboratorsPage() {
                  <TabsContent value="approved" className="mt-4">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Collaborator Network</CardTitle>
-                            <CardDescription>View all guest collaborators across the entire platform.</CardDescription>
+                            <CardTitle>My Collaborator Network</CardTitle>
+                            <CardDescription>View all guest collaborators linked to you.</CardDescription>
                         </CardHeader>
                         <CardContent>
                             {isLoading ? (
@@ -146,7 +143,6 @@ export default function CollaboratorsPage() {
                                         <TableHead>Name</TableHead>
                                         <TableHead>Phone</TableHead>
                                         <TableHead>Email</TableHead>
-                                        <TableHead>Linked To</TableHead>
                                         <TableHead>Status</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -156,12 +152,11 @@ export default function CollaboratorsPage() {
                                             <TableCell className="font-medium">{c.name}</TableCell>
                                             <TableCell>{c.phone}</TableCell>
                                             <TableCell>{c.email}</TableCell>
-                                            <TableCell>{c.linkedTo}</TableCell>
                                             <TableCell><Badge className="bg-green-100 text-green-800">{c.status}</Badge></TableCell>
                                         </TableRow>
                                     )) : (
                                         <TableRow>
-                                            <TableCell colSpan={5} className="text-center h-24">No collaborators have been approved yet.</TableCell>
+                                            <TableCell colSpan={4} className="text-center h-24">No collaborators have been approved yet.</TableCell>
                                         </TableRow>
                                     )}
                                 </TableBody>
@@ -174,7 +169,7 @@ export default function CollaboratorsPage() {
                      <Card className="max-w-xl">
                          <CardHeader>
                             <CardTitle>Collaborator Commission Settings</CardTitle>
-                            <CardDescription>Set the default commission percentage for your direct collaborators. This can be overridden by individual vendors or sellers for their collaborators.</CardDescription>
+                            <CardDescription>Set the default commission percentage for your collaborators.</CardDescription>
                          </CardHeader>
                          <CardContent className="space-y-4">
                              <div className="space-y-2">

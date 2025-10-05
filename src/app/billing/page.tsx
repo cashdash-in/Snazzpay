@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, Sparkles, Send, Settings, Save, History, Check } from "lucide-react";
+import { Loader2, Sparkles, Send, Settings, Save, History, Check, Briefcase } from "lucide-react";
 import { getCollection, saveDocument, getDocument } from "@/services/firestore";
 import type { SellerUser } from "@/app/seller-accounts/page";
 import type { Vendor } from "@/app/vendors/page";
@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { format, parseISO } from "date-fns";
 import { Badge } from "@/components/ui/badge";
+import { CollaboratorBillingPage } from "@/components/collaborator-billing";
 
 type UsageStat = {
     id: string;
@@ -169,10 +170,11 @@ export default function BillingPage() {
     return (
         <AppShell title="Billing & Usage Management">
             <Tabs defaultValue="sellers">
-                <TabsList className="grid w-full grid-cols-3 max-w-2xl">
+                <TabsList className="grid w-full grid-cols-4 max-w-2xl">
                     <TabsTrigger value="sellers">Seller Usage</TabsTrigger>
                     <TabsTrigger value="vendors">Vendor Usage</TabsTrigger>
-                    <TabsTrigger value="requests">Limit Increase Requests <Badge className="ml-2">{limitRequests.filter(r=> r.status === 'Pending Approval').length}</Badge></TabsTrigger>
+                    <TabsTrigger value="collaborators">Collaborator Billing</TabsTrigger>
+                    <TabsTrigger value="requests">Limit Requests <Badge className="ml-2">{limitRequests.filter(r=> r.status === 'Pending Approval').length}</Badge></TabsTrigger>
                 </TabsList>
                 <TabsContent value="sellers" className="mt-4">
                     <Card>
@@ -295,6 +297,9 @@ export default function BillingPage() {
                            </Table>
                         </CardContent>
                     </Card>
+                </TabsContent>
+                <TabsContent value="collaborators" className="mt-4">
+                    <CollaboratorBillingPage />
                 </TabsContent>
                 <TabsContent value="requests" className="mt-4">
                     <Card>

@@ -62,6 +62,7 @@ import {
   Receipt,
   BookOpen,
   UserPlus,
+  Briefcase,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { getCookie } from 'cookies-next';
