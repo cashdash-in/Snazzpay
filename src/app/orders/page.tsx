@@ -74,6 +74,8 @@ type PaymentInfo = {
 
 
 const TEST_ORDER_ID = '#TEST-1001';
+const MAX_IMAGE_SIZE_PX = 800; // Max width/height for resizing
+
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<EditableOrder[]>([]);
@@ -122,28 +124,56 @@ export default function OrdersPage() {
         order.id === orderId ? { ...order, [field]: value } : order
     ));
   };
+  
+    const resizeImage = (file: File): Promise<string> => {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = document.createElement('img');
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let { width, height } = img;
+
+                    if (width > height) {
+                        if (width > MAX_IMAGE_SIZE_PX) {
+                            height *= MAX_IMAGE_SIZE_PX / width;
+                            width = MAX_IMAGE_SIZE_PX;
+                        }
+                    } else {
+                        if (height > MAX_IMAGE_SIZE_PX) {
+                            width *= MAX_IMAGE_SIZE_PX / height;
+                            height = MAX_IMAGE_SIZE_PX;
+                        }
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx?.drawImage(img, 0, 0, width, height);
+                    resolve(canvas.toDataURL('image/jpeg', 0.7)); // Compress to JPEG
+                };
+                img.src = e.target?.result as string;
+            };
+            reader.readAsDataURL(file);
+        });
+    };
 
   const handleImagePaste = async (e: ClipboardEvent, orderId: string) => {
-        const items = e.clipboardData?.items;
-        if (!items) return;
-        
-        for (let i = 0; i < items.length; i++) {
-            if (items[i].type.indexOf('image') !== -1) {
-                const file = items[i].getAsFile();
-                if (file) {
-                    e.preventDefault();
-                    const reader = new FileReader();
-                    reader.onloadend = () => {
-                        const result = reader.result as string;
-                        setOrders(prevOrders => prevOrders.map(order =>
-                            order.id === orderId ? { ...order, imageDataUris: [result] } : order
-                        ));
-                         toast({ title: "Image Pasted!", description: "Image added to the order. Remember to save." });
-                    };
-                    reader.readAsDataURL(file);
-                }
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    
+    for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+            const file = items[i].getAsFile();
+            if (file) {
+                e.preventDefault();
+                const resizedDataUri = await resizeImage(file);
+                setOrders(prevOrders => prevOrders.map(order =>
+                    order.id === orderId ? { ...order, imageDataUris: [resizedDataUri] } : order
+                ));
+                toast({ title: "Image Pasted & Resized!", description: "Image added to the order. Remember to save." });
             }
         }
+    }
   };
   
   const handleSaveOrder = async (orderId: string) => {

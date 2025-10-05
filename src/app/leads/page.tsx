@@ -16,6 +16,8 @@ import { useRouter } from "next/navigation";
 import Image from 'next/image';
 import { useAuth } from "@/hooks/use-auth";
 
+const MAX_IMAGE_SIZE_PX = 800; // Max width/height for resizing
+
 
 export default function LeadsPage() {
   const [leads, setLeads] = useState<EditableOrder[]>([]);
@@ -114,27 +116,55 @@ export default function LeadsPage() {
     }
   };
 
-  const handleImagePaste = async (e: ClipboardEvent, leadId: string) => {
-        const items = e.clipboardData?.items;
-        if (!items) return;
-        
-        for (let i = 0; i < items.length; i++) {
-            if (items[i].type.indexOf('image') !== -1) {
-                const file = items[i].getAsFile();
-                if (file) {
-                    e.preventDefault();
-                    const reader = new FileReader();
-                    reader.onloadend = () => {
-                        const result = reader.result as string;
-                        setLeads(prevLeads => prevLeads.map(lead =>
-                            lead.id === leadId ? { ...lead, imageDataUris: [result] } : lead
-                        ));
-                         toast({ title: "Image Pasted!", description: "Image added to the lead. Remember to save if needed." });
-                    };
-                    reader.readAsDataURL(file);
+  const resizeImage = (file: File): Promise<string> => {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = document.createElement('img');
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let { width, height } = img;
+
+                if (width > height) {
+                    if (width > MAX_IMAGE_SIZE_PX) {
+                        height *= MAX_IMAGE_SIZE_PX / width;
+                        width = MAX_IMAGE_SIZE_PX;
+                    }
+                } else {
+                    if (height > MAX_IMAGE_SIZE_PX) {
+                        width *= MAX_IMAGE_SIZE_PX / height;
+                        height = MAX_IMAGE_SIZE_PX;
+                    }
                 }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', 0.7)); // Compress to JPEG
+            };
+            img.src = e.target?.result as string;
+        };
+        reader.readAsDataURL(file);
+    });
+  };
+
+  const handleImagePaste = async (e: ClipboardEvent, leadId: string) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    
+    for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+            const file = items[i].getAsFile();
+            if (file) {
+                e.preventDefault();
+                const resizedDataUri = await resizeImage(file);
+                setLeads(prevLeads => prevLeads.map(lead =>
+                    lead.id === leadId ? { ...lead, imageDataUris: [resizedDataUri] } : lead
+                ));
+                toast({ title: "Image Pasted & Resized!", description: "Image added to the lead. Remember to save if needed." });
             }
         }
+    }
   };
 
   const handleConvertToOrder = async (lead: EditableOrder) => {

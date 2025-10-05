@@ -114,7 +114,7 @@ export default function VendorProductDropsPage() {
         }
     };
     
-    const handlePaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
+    const handlePaste = (event: ClipboardEvent<HTMLTextAreaElement | HTMLInputElement>) => {
         const pastedText = event.clipboardData?.getData('text');
       // If clipboard contains files, let the image handler take it.
       if (event.clipboardData.files.length > 0) {

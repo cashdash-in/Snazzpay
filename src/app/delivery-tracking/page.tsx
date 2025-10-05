@@ -19,6 +19,8 @@ import { getCollection, saveDocument, deleteDocument } from "@/services/firestor
 import Image from 'next/image';
 
 type OrderStatus = 'pending' | 'dispatched' | 'out-for-delivery' | 'delivered' | 'failed';
+const MAX_IMAGE_SIZE_PX = 800; // Max width/height for resizing
+
 
 export default function DeliveryTrackingPage() {
     const [orders, setOrders] = useState<EditableOrder[]>([]);
@@ -58,6 +60,38 @@ export default function DeliveryTrackingPage() {
         setOrders(updatedOrders);
     };
 
+    const resizeImage = (file: File): Promise<string> => {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = document.createElement('img');
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let { width, height } = img;
+
+                    if (width > height) {
+                        if (width > MAX_IMAGE_SIZE_PX) {
+                            height *= MAX_IMAGE_SIZE_PX / width;
+                            width = MAX_IMAGE_SIZE_PX;
+                        }
+                    } else {
+                        if (height > MAX_IMAGE_SIZE_PX) {
+                            width *= MAX_IMAGE_SIZE_PX / height;
+                            height = MAX_IMAGE_SIZE_PX;
+                        }
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx?.drawImage(img, 0, 0, width, height);
+                    resolve(canvas.toDataURL('image/jpeg', 0.7)); // Compress to JPEG
+                };
+                img.src = e.target?.result as string;
+            };
+            reader.readAsDataURL(file);
+        });
+    };
+
     const handleImagePaste = async (e: ClipboardEvent, orderId: string) => {
         const items = e.clipboardData?.items;
         if (!items) return;
@@ -67,15 +101,11 @@ export default function DeliveryTrackingPage() {
                 const file = items[i].getAsFile();
                 if (file) {
                     e.preventDefault();
-                    const reader = new FileReader();
-                    reader.onloadend = () => {
-                        const result = reader.result as string;
-                        setOrders(prevOrders => prevOrders.map(order =>
-                            order.id === orderId ? { ...order, imageDataUris: [result] } : order
-                        ));
-                         toast({ title: "Image Pasted!", description: "Image added. Click save to persist." });
-                    };
-                    reader.readAsDataURL(file);
+                    const resizedDataUri = await resizeImage(file);
+                    setOrders(prevOrders => prevOrders.map(order =>
+                        order.id === orderId ? { ...order, imageDataUris: [resizedDataUri] } : order
+                    ));
+                    toast({ title: "Image Pasted & Resized!", description: "Image added. Click save to persist." });
                 }
             }
         }
