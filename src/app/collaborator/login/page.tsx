@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { UserPlus, Loader2, Phone, Mail } from "lucide-react";
+import { UserPlus, Loader2, Mail } from "lucide-react";
 import Link from "next/link";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -21,8 +21,6 @@ export default function CollaboratorLoginPage() {
 
     const handleLogin = async () => {
         setIsLoading(true);
-        // In a real app, this would trigger sending a login link/code
-        // to the user's email or WhatsApp.
         const allCollaborators = await getCollection<Collaborator>('collaborators');
         const collaborator = allCollaborators.find(c => (c.phone === loginId || c.email === loginId));
 
@@ -41,8 +39,8 @@ export default function CollaboratorLoginPage() {
         // For prototype purposes, we simulate success and log the user in directly.
         localStorage.setItem('loggedInCollaboratorMobile', collaborator.phone);
         toast({
-            title: "Login Link Sent!",
-            description: "A magic login link has been sent to your registered email/WhatsApp.",
+            title: "Login Successful!",
+            description: "Redirecting to your dashboard.",
         });
         router.push('/collaborator/dashboard');
     };
@@ -53,11 +51,11 @@ export default function CollaboratorLoginPage() {
                 <CardHeader className="text-center">
                     <UserPlus className="mx-auto h-12 w-12 text-primary" />
                     <CardTitle>Guest Collaborator Portal</CardTitle>
-                    <CardDescription>Login with your registered Email or WhatsApp number.</CardDescription>
+                    <CardDescription>Login with your registered Email or Mobile number.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="loginId">Enter Your Email or WhatsApp Number</Label>
+                        <Label htmlFor="loginId">Enter Your Email or Mobile Number</Label>
                         <div className="relative">
                             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input 
@@ -73,7 +71,7 @@ export default function CollaboratorLoginPage() {
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4">
                     <Button className="w-full" onClick={handleLogin} disabled={isLoading}>
-                        {isLoading ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Sending Link...</> : "Send Login Link"}
+                        {isLoading ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Logging In...</> : "Login"}
                     </Button>
                     <p className="text-xs text-center text-muted-foreground">
                         Don't have an account?{" "}

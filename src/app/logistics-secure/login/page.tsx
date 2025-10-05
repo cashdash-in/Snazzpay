@@ -74,16 +74,16 @@ export default function LogisticsLoginPage() {
                 <CardHeader className="text-center">
                     <Truck className="mx-auto h-12 w-12 text-primary" />
                     <CardTitle>Logistics Partner Portal</CardTitle>
-                    <CardDescription>Login to manage secure cash pickups and deliveries. (Hint: Use 'password' as the password)</CardDescription>
+                    <CardDescription>Login to manage secure cash pickups and deliveries.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="loginId">Partner ID / Email / Mobile</Label>
+                        <Label htmlFor="loginId">Email or Mobile Number</Label>
                         <div className="relative">
                             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input 
                                 id="loginId" 
-                                placeholder="Your ID, email, or mobile" 
+                                placeholder="Your email or mobile" 
                                 value={loginId}
                                 onChange={(e) => setLoginId(e.target.value)}
                                 className="pl-9" 
