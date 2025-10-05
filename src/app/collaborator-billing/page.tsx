@@ -24,6 +24,8 @@ type Commission = {
     collaboratorId: string;
     collaboratorName: string;
     status: string;
+    leadCount?: number;
+    orderCount?: number;
 };
 
 export default function CollaboratorBillingPage() {
@@ -41,20 +43,37 @@ export default function CollaboratorBillingPage() {
 
         try {
             const role = getCookie('userRole');
-            const allOrders = await getCollection<EditableOrder>('orders');
-            const allCollaborators = await getCollection<Collaborator>('collaborators');
+            const [allOrders, allCollaborators, allLeads, commissionSettings] = await Promise.all([
+                getCollection<EditableOrder>('orders'),
+                getCollection<Collaborator>('collaborators'),
+                getCollection<EditableOrder>('leads'),
+                getCollection<{commissionRate: number}>('commission_settings'),
+            ]);
+            
+            const settingsMap = new Map(commissionSettings.map(s => [s.id, s.commissionRate]));
+            const adminCommission = settingsMap.get('admin') || 5;
+
             const collaboratorMap = new Map(allCollaborators.map(c => [c.id, c]));
+
+            const leadCounts = allLeads.reduce((acc, lead) => {
+                if (lead.sellerId) {
+                    acc[lead.sellerId] = (acc[lead.sellerId] || 0) + 1;
+                }
+                return acc;
+            }, {} as Record<string, number>);
+
+             const orderCounts = allOrders.reduce((acc, order) => {
+                if (order.sellerId && order.paymentStatus === 'Paid') {
+                    acc[order.sellerId] = (acc[order.sellerId] || 0) + 1;
+                }
+                return acc;
+            }, {} as Record<string, number>);
             
             let relevantOrders: EditableOrder[] = [];
-
+            
             if (role === 'admin') {
                 relevantOrders = allOrders;
-            } else if (role === 'vendor') {
-                // Find collaborators linked to this vendor
-                const myCollaboratorIds = allCollaborators.filter(c => c.linkedTo === user.uid).map(c => c.id);
-                relevantOrders = allOrders.filter(o => o.sellerId && myCollaboratorIds.includes(o.sellerId));
-            } else if (role === 'seller') {
-                 // Find collaborators linked to this seller
+            } else if (role === 'vendor' || role === 'seller') {
                 const myCollaboratorIds = allCollaborators.filter(c => c.linkedTo === user.uid).map(c => c.id);
                 relevantOrders = allOrders.filter(o => o.sellerId && myCollaboratorIds.includes(o.sellerId));
             }
@@ -63,16 +82,21 @@ export default function CollaboratorBillingPage() {
             
             const calculatedCommissions = successfulOrders.map(order => {
                 const collaborator = collaboratorMap.get(order.sellerId!);
+                const ownerId = collaborator?.linkedTo || 'admin';
+                const commissionRate = (settingsMap.get(ownerId) || adminCommission) / 100;
+                
                 return {
                     id: order.id,
                     orderId: order.orderId,
                     orderDate: format(parseISO(order.date), 'PP'),
                     product: order.productOrdered,
                     orderValue: parseFloat(order.price),
-                    commissionEarned: parseFloat(order.price) * 0.05, // Assuming 5% commission
+                    commissionEarned: parseFloat(order.price) * commissionRate,
                     collaboratorId: order.sellerId!,
                     collaboratorName: collaborator?.name || 'Unknown',
-                    status: order.paymentStatus
+                    status: order.paymentStatus,
+                    leadCount: leadCounts[order.sellerId!] || 0,
+                    orderCount: orderCounts[order.sellerId!] || 0,
                 };
             });
 
@@ -109,10 +133,10 @@ export default function CollaboratorBillingPage() {
                                 <TableRow>
                                     <TableHead>Collaborator</TableHead>
                                     <TableHead>Order ID</TableHead>
-                                    <TableHead>Order Date</TableHead>
-                                    <TableHead>Product</TableHead>
+                                    <TableHead>Leads</TableHead>
+                                    <TableHead>Orders</TableHead>
                                     <TableHead className="text-right">Order Value</TableHead>
-                                    <TableHead className="text-right">Commission (5%)</TableHead>
+                                    <TableHead className="text-right">Commission Earned</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -120,8 +144,8 @@ export default function CollaboratorBillingPage() {
                                     <TableRow key={c.id}>
                                         <TableCell className="font-medium">{c.collaboratorName}</TableCell>
                                         <TableCell>{c.orderId}</TableCell>
-                                        <TableCell>{c.orderDate}</TableCell>
-                                        <TableCell>{c.product}</TableCell>
+                                        <TableCell>{c.leadCount}</TableCell>
+                                        <TableCell>{c.orderCount}</TableCell>
                                         <TableCell className="text-right">₹{c.orderValue.toFixed(2)}</TableCell>
                                         <TableCell className="text-right font-semibold text-green-600">+ ₹{c.commissionEarned.toFixed(2)}</TableCell>
                                     </TableRow>
@@ -138,3 +162,4 @@ export default function CollaboratorBillingPage() {
         </AppShell>
     );
 }
+```

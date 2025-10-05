@@ -1,3 +1,4 @@
+
 'use client';
 import type {FC, PropsWithChildren} from 'react';
 import {
@@ -136,6 +137,15 @@ const vendorMenuItems = [
     { href: '/vendor/settings', label: 'Settings', icon: Settings },
 ];
 
+const collaboratorMenuItems = [
+    { href: '/collaborator/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/collaborator/magazines', label: 'Magazines', icon: BookOpen },
+    { href: '/collaborator/orders', label: 'My Order Requests', icon: Package },
+    { href: '/collaborator/leads', label: 'My Leads', icon: Users },
+    { href: '/collaborator/commissions', label: 'My Commissions', icon: DollarSign },
+    { href: '/collaborator/reports', label: 'My Reports', icon: FileSpreadsheet },
+];
+
 
 export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, title }) => {
   const pathname = usePathname();
@@ -189,6 +199,8 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
         return { core: sellerMenuItems, growth: [], config: [] };
       case 'vendor':
         return { core: vendorMenuItems, growth: [], config: [] };
+      case 'collaborator':
+        return { core: collaboratorMenuItems, growth: [], config: [] };
       default: // Admin view
         return {
             core: adminCoreMenuItems,
@@ -352,3 +364,4 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
     </SidebarProvider>
   );
 };
+```
