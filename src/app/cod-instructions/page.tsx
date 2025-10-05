@@ -1,4 +1,3 @@
-
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -12,62 +11,99 @@ export default function CodInstructionsPage() {
 
     useEffect(() => {
         const code = `<!-- SnazzPay Secure COD Button Start -->
-<form id="secure-cod-form" action="https://snazzpay.netlify.app/secure-cod" method="GET" target="_blank" style="margin-top: 15px; width: 100%;">
-  <!-- Hidden fields to carry product data -->
-  <input type="hidden" id="cod-p-name" name="name" value="" />
-  <input type="hidden" id="cod-p-amount" name="amount" value="" />
-  <input type="hidden" id="cod-p-image" name="image" value="" />
-  <input type="hidden" id="cod-p-order-id" name="order_id" value="" />
-  <!-- New fields for size and color -->
-  <input type="hidden" id="cod-p-size" name="sizes" value="" />
-  <input type="hidden" id="cod-p-color" name="colors" value="" />
+<div id="snazzpay-secure-cod-container">
+    <form id="snazzpay-secure-cod-form" action="https://snazzpay.netlify.app/secure-cod" method="GET" target="_blank" style="margin-top: 15px; width: 100%;">
+        <!-- Hidden fields for product data -->
+        <input type="hidden" name="name" id="snazzpay-p-name" />
+        <input type="hidden" name="amount" id="snazzpay-p-amount" />
+        <input type="hidden" name="image" id="snazzpay-p-image" />
+        <input type="hidden" name="order_id" id="snazzpay-p-order-id" />
+        <input type="hidden" name="sizes" id="snazzpay-p-size" />
+        <input type="hidden" name="colors" id="snazzpay-p-color" />
 
-  <button 
-    type="submit" 
-    style="width: 100%; min-height: 45px; font-size: 16px; background-color: #5a31f4; color: white; border: none; border-radius: 5px; cursor: pointer;"
-    onmouseover="this.style.backgroundColor='#4a28c7'"
-    onmouseout="this.style.backgroundColor='#5a31f4'"
-  >
-    Buy now with Secure COD
-  </button>
-  <div style="text-align: center; margin-top: 8px; font-size: 12px;">
-    <a href="https://snazzpay.netlify.app/secure-cod-info" target="_blank" style="color: #5a31f4; text-decoration: underline;">What is this?</a>
-  </div>
-</form>
+        <button 
+            type="submit" 
+            style="width: 100%; min-height: 45px; font-size: 16px; background-color: #5a31f4; color: white; border: none; border-radius: 5px; cursor: pointer; transition: background-color 0.2s;"
+            onmouseover="this.style.backgroundColor='#4a28c7'"
+            onmouseout="this.style.backgroundColor='#5a31f4'"
+        >
+            Buy with Secure COD
+        </button>
+        <div style="text-align: center; margin-top: 8px; font-size: 12px;">
+            <a href="https://snazzpay.netlify.app/secure-cod-info" target="_blank" style="color: #5a31f4; text-decoration: underline;">What is this?</a>
+        </div>
+    </form>
+</div>
+
+<!-- Data script to safely pass Liquid variables to JavaScript -->
+<script id="snazzpay-product-data" type="application/json">
+{
+  "vendor": {{ product.vendor | json }},
+  "title": {{ product.title | json }},
+  "featuredImage": {{ product.featured_image | img_url: 'large' | json }},
+  "initialVariant": {{ product.selected_or_first_available_variant | json }},
+  "allSizes": {{ product.options_by_name['Size']?.values | json | default: '[]' }},
+  "allColors": {{ product.options_by_name['Color']?.values | json | default: '[]' }}
+}
+</script>
+
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    var secureCodForm = document.getElementById('secure-cod-form');
-    if (secureCodForm) {
-        secureCodForm.addEventListener('submit', function(event) {
-            try {
-                // Get the currently selected variant
-                var currentVariant = {{ product.selected_or_first_available_variant | json }};
+    try {
+        const dataScript = document.getElementById('snazzpay-product-data');
+        if (!dataScript || !dataScript.textContent) {
+          console.error("SnazzPay Error: Data script not found or empty.");
+          return;
+        }
 
-                var productName = {{ product.title | json }};
-                var productPrice = currentVariant.price / 100;
-                var productImage = currentVariant.featured_image ? currentVariant.featured_image.src : {{ product.featured_image | img_url: "large" | json }};
-                var uniqueId = 'SNZ-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5).toUpperCase();
-                
-                // Get size and color from the variant's options
-                var selectedSize = currentVariant.option1 || '';
-                var selectedColor = currentVariant.option2 || '';
-                
-                // Set the values of the hidden input fields just before submitting
-                document.getElementById('cod-p-name').value = productName + (currentVariant.title !== 'Default Title' ? ' - ' + currentVariant.title : '');
-                document.getElementById('cod-p-amount').value = productPrice;
-                document.getElementById('cod-p-image').value = productImage;
-                document.getElementById('cod-p-order-id').value = uniqueId;
-                document.getElementById('cod-p-size').value = selectedSize;
-                document.getElementById('cod-p-color').value = selectedColor;
+        const productData = JSON.parse(dataScript.textContent);
 
-            } catch (e) {
-                console.error("Secure COD Liquid Error: ", e);
-                // Prevent form submission if there is an error
-                event.preventDefault();
-                alert("Could not process product details. Please try again.");
+        const deniedVendors = ['Dropdash', 'itzjqv-uw'];
+        if (deniedVendors.includes(productData.vendor)) {
+            document.getElementById('snazzpay-secure-cod-container').style.display = 'none';
+            return; // Stop the script if the vendor is denied
+        }
+
+        const form = document.getElementById('snazzpay-secure-cod-form');
+        const nameInput = document.getElementById('snazzpay-p-name');
+        const amountInput = document.getElementById('snazzpay-p-amount');
+        const imageInput = document.getElementById('snazzpay-p-image');
+        const orderIdInput = document.getElementById('snazzpay-p-order-id');
+        const sizeInput = document.getElementById('snazzpay-p-size');
+        const colorInput = document.getElementById('snazzpay-p-color');
+
+        function updateForm(variant) {
+            const currentVariant = variant || productData.initialVariant;
+            
+            if (!currentVariant) {
+                console.error("SnazzPay Error: Could not determine product variant.");
+                return;
+            }
+
+            nameInput.value = productData.title + (currentVariant.title !== 'Default Title' ? ' - ' + currentVariant.title : '');
+            amountInput.value = (currentVariant.price / 100).toFixed(2);
+            imageInput.value = currentVariant.featured_image ? currentVariant.featured_image.src : productData.featuredImage;
+            orderIdInput.value = 'SNZ-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5).toUpperCase();
+            
+            sizeInput.value = productData.allSizes.join(',');
+            colorInput.value = productData.allColors.join(',');
+        }
+
+        // Initial update on page load
+        updateForm();
+
+        // Listen for Shopify's variant change event, which is the most reliable method.
+        document.addEventListener('variant:change', function(event) {
+            if (event.detail.variant) {
+                updateForm(event.detail.variant);
             }
         });
+
+    } catch (e) {
+        console.error("SnazzPay Script Error:", e);
+        const container = document.getElementById('snazzpay-secure-cod-container');
+        if (container) container.style.display = 'none';
     }
 });
 </script>

@@ -314,7 +314,7 @@ function SecureCodPaymentForm() {
                                      <div className="grid grid-cols-2 col-span-2 gap-2">
                                         {availableSizes.length > 0 && (
                                             <div className="space-y-1">
-                                                <Label htmlFor="size" className="text-xs text-muted-foreground">Size</label>
+                                                <Label htmlFor="size" className="text-xs text-muted-foreground">Size</Label>
                                                 <Select onValueChange={setSelectedSize} value={selectedSize}><SelectTrigger className="h-8"><SelectValue /></SelectTrigger><SelectContent>{availableSizes.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select>
                                             </div>
                                         )}
@@ -386,10 +386,14 @@ function Page() {
         setIsClient(true);
     }, []);
 
+    if (!isClient) {
+        return <div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+    }
+
     return (
        <div className="relative min-h-screen w-full bg-gradient-to-br from-purple-50 via-white to-indigo-50">
             <Suspense fallback={<div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
-                {isClient ? <SecureCodPaymentForm /> : <div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}
+                <SecureCodPaymentForm />
             </Suspense>
             <Suspense>
                  <CancellationForm />
@@ -399,5 +403,3 @@ function Page() {
 }
 
 export default Page;
-
-    
