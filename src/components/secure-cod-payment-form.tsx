@@ -90,7 +90,13 @@ export function SecureCodPaymentForm() {
         const id = searchParams.get('order_id') || `LEGACY-${uuidv4().substring(0, 4)}`.toUpperCase();
         const sellerId = searchParams.get('sellerId') || '';
         const sellerName = searchParams.get('sellerName') || '';
-        const image = searchParams.get('image') || '';
+        let image = searchParams.get('image') || '';
+        
+        // Fix for protocol-relative URLs from Shopify
+        if (image.startsWith('//')) {
+            image = 'https:' + image;
+        }
+
         const sizes = searchParams.get('sizes')?.split(',').filter(s => s) || [];
         const colors = searchParams.get('colors')?.split(',').filter(c => c) || [];
         
