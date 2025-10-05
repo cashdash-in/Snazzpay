@@ -19,6 +19,8 @@ export default function CodInstructionsPage() {
         <input type="hidden" name="amount" id="snazzpay-p-amount" />
         <input type="hidden" name="image" id="snazzpay-p-image" />
         <input type="hidden" name="order_id" id="snazzpay-p-order-id" />
+        <input type="hidden" name="sellerName" id="snazzpay-p-sellerName" />
+        <input type="hidden" name="sellerId" id="snazzpay-p-sellerId" />
 
         <button 
             type="submit" 
@@ -48,26 +50,43 @@ export default function CodInstructionsPage() {
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     try {
+        const container = document.getElementById('snazzpay-secure-cod-container');
+        if (!container) return;
+
         const dataScript = document.getElementById('snazzpay-product-data');
         if (!dataScript || !dataScript.textContent) {
           console.error("SnazzPay Error: Data script not found or empty.");
-          document.getElementById('snazzpay-secure-cod-container').style.display = 'none';
+          container.style.display = 'none';
           return;
         }
 
         const productData = JSON.parse(dataScript.textContent);
+        const vendor = productData.vendor;
 
-        const deniedVendors = ['Dropdash', 'itzjqv-uw'];
-        if (deniedVendors.includes(productData.vendor)) {
-            document.getElementById('snazzpay-secure-cod-container').style.display = 'none';
-            return; // Stop the script if the vendor is denied
+        // --- Vendor Visibility Logic ---
+        // Only show the button if the vendor is in this list OR if the vendor field is empty/null.
+        const allowedVendors = [
+            'Ashish', 'Deep Sarees', 'Elite', 'Haryana Garments', 'Indie Glam', 
+            'Lace Collections', 'Luv Kush creations', 'Sakshi Indiedrop', 'Shipera', 
+            'Snazzify AI', 'Snazzify RC', 'snazzify.co.in', 'Snazzify.co.in', 
+            'sneaker room', 'SR', 'Taufiq Khan', 'Wukusy'
+        ];
+        
+        // Show if vendor is null/empty OR is in the allowed list. Hide for all others.
+        if (vendor && !allowedVendors.includes(vendor)) {
+            container.style.display = 'none';
+            return; 
         }
+        // --- End of Vendor Logic ---
 
         const form = document.getElementById('snazzpay-secure-cod-form');
         const nameInput = document.getElementById('snazzpay-p-name');
         const amountInput = document.getElementById('snazzpay-p-amount');
         const imageInput = document.getElementById('snazzpay-p-image');
         const orderIdInput = document.getElementById('snazzpay-p-order-id');
+        const sellerNameInput = document.getElementById('snazzpay-p-sellerName');
+        const sellerIdInput = document.getElementById('snazzpay-p-sellerId');
+
 
         function updateForm(variant) {
             const currentVariant = variant || productData.initialVariant;
@@ -81,12 +100,16 @@ document.addEventListener('DOMContentLoaded', function() {
             amountInput.value = (currentVariant.price / 100).toFixed(2);
             imageInput.value = currentVariant.featured_image ? currentVariant.featured_image.src : productData.featuredImage;
             orderIdInput.value = 'SNZ-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5).toUpperCase();
+            
+            // Pass along vendor info
+            sellerNameInput.value = productData.vendor || '';
+            sellerIdInput.value = productData.vendor || '';
         }
 
         // Initial update on page load
         updateForm();
 
-        // Listen for Shopify's variant change event, which is the most reliable method.
+        // Listen for Shopify's variant change event.
         document.addEventListener('variant:change', function(event) {
             if (event.detail.variant) {
                 updateForm(event.detail.variant);
