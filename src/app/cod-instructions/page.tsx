@@ -1,17 +1,13 @@
+
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
 import { CodeBlock } from "@/components/code-block";
-import { useEffect, useState } from 'react';
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Terminal } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 
-export default function CodInstructionsPage() {
-    const [embedCode, setEmbedCode] = useState('');
-
-    useEffect(() => {
-        const code = `<!-- SnazzPay Secure COD Button Start -->
+const embedCode = `<!-- SnazzPay Secure COD Button Start -->
 <div id="snazzpay-secure-cod-container">
     <form id="snazzpay-secure-cod-form" action="https://snazzpay.netlify.app/secure-cod" method="GET" target="_blank" style="margin-top: 15px; width: 100%;">
         <!-- Hidden fields for product data -->
@@ -21,6 +17,8 @@ export default function CodInstructionsPage() {
         <input type="hidden" name="order_id" id="snazzpay-p-order-id" />
         <input type="hidden" name="sellerName" id="snazzpay-p-sellerName" />
         <input type="hidden" name="sellerId" id="snazzpay-p-sellerId" />
+        <input type="hidden" name="sizes" id="snazzpay-p-sizes" />
+        <input type="hidden" name="colors" id="snazzpay-p-colors" />
 
         <button 
             type="submit" 
@@ -42,7 +40,8 @@ export default function CodInstructionsPage() {
   "vendor": {{ product.vendor | json }},
   "title": {{ product.title | json }},
   "featuredImage": {{ product.featured_image | img_url: 'large' | json }},
-  "initialVariant": {{ product.selected_or_first_available_variant | json }}
+  "initialVariant": {{ product.selected_or_first_available_variant | json }},
+  "options_with_values": {{ product.options_with_values | json }}
 }
 <\/script>
 
@@ -64,7 +63,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const vendor = productData.vendor;
 
         // --- Vendor Visibility Logic ---
-        // Only show the button if the vendor is in this list OR if the vendor field is empty/null.
         const allowedVendors = [
             'Ashish', 'Deep Sarees', 'Elite', 'Haryana Garments', 'Indie Glam', 
             'Lace Collections', 'Luv Kush creations', 'Sakshi Indiedrop', 'Shipera', 
@@ -72,7 +70,6 @@ document.addEventListener('DOMContentLoaded', function() {
             'sneaker room', 'SR', 'Taufiq Khan', 'Wukusy'
         ];
         
-        // Show if vendor is null/empty OR is in the allowed list. Hide for all others.
         if (vendor && !allowedVendors.includes(vendor)) {
             container.style.display = 'none';
             return; 
@@ -86,11 +83,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const orderIdInput = document.getElementById('snazzpay-p-order-id');
         const sellerNameInput = document.getElementById('snazzpay-p-sellerName');
         const sellerIdInput = document.getElementById('snazzpay-p-sellerId');
-
+        const sizesInput = document.getElementById('snazzpay-p-sizes');
+        const colorsInput = document.getElementById('snazzpay-p-colors');
 
         function updateForm(variant) {
             const currentVariant = variant || productData.initialVariant;
-            
             if (!currentVariant) {
                 console.error("SnazzPay Error: Could not determine product variant.");
                 return;
@@ -100,16 +97,18 @@ document.addEventListener('DOMContentLoaded', function() {
             amountInput.value = (currentVariant.price / 100).toFixed(2);
             imageInput.value = currentVariant.featured_image ? currentVariant.featured_image.src : productData.featuredImage;
             orderIdInput.value = 'SNZ-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5).toUpperCase();
-            
-            // Pass along vendor info
             sellerNameInput.value = productData.vendor || '';
             sellerIdInput.value = productData.vendor || '';
+
+            const sizes = productData.options_with_values.find(opt => opt.name.toLowerCase() === 'size')?.values || [];
+            const colors = productData.options_with_values.find(opt => opt.name.toLowerCase() === 'color')?.values || [];
+            
+            if (sizesInput) sizesInput.value = sizes.join(',');
+            if (colorsInput) colorsInput.value = colors.join(',');
         }
 
-        // Initial update on page load
         updateForm();
 
-        // Listen for Shopify's variant change event.
         document.addEventListener('variant:change', function(event) {
             if (event.detail.variant) {
                 updateForm(event.detail.variant);
@@ -124,9 +123,8 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 <\/script>
 <!-- SnazzPay Secure COD Button End -->`;
-        setEmbedCode(code);
-    }, []);
 
+export default function CodInstructionsPage() {
     return (
         <AppShell title="Embedding Instructions">
           <Card>
