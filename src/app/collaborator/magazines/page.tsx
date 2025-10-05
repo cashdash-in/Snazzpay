@@ -8,34 +8,62 @@ import { Loader2, BookOpen, MessageSquare, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
+import { getCollection } from '@/services/firestore';
+import { v4 as uuidv4 } from 'uuid';
 
-// This would be a shared type or fetched data
 type Magazine = {
     id: string;
     title: string;
-    productCount: number;
-    creator: string;
-    shareLink: string;
+    productIds: string[];
+    creatorName: string;
+    userId: string;
+    createdAt: string;
 };
-
-// Dummy data for magazines
-const magazines: Magazine[] = [
-    { id: 'mag-01', title: 'Summer Sizzlers', productCount: 12, creator: 'Admin', shareLink: 'https://snazzify.co.in/smart-magazine?id=summersale' },
-    { id: 'mag-02', title: 'Ethnic Elegance', productCount: 8, creator: 'Global Textiles', shareLink: 'https://snazzify.co.in/smart-magazine?id=ethnic' },
-    { id: 'mag-03', title: 'Daily Deals by FabFashions', productCount: 5, creator: 'FabFashions Seller', shareLink: 'https://snazzify.co.in/smart-magazine?id=dailydeals' },
-];
 
 export default function CollaboratorMagazinesPage() {
     const router = useRouter();
     const { toast } = useToast();
+    const [magazines, setMagazines] = useState<Magazine[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
 
-    const handleCopy = (link: string) => {
+    useEffect(() => {
+        async function loadMagazines() {
+            try {
+                // In a real app, you would filter this by the collaborator's linked accounts (admin, vendor, seller)
+                // For this prototype, we will show all magazines created by anyone.
+                const allMagazines = await getCollection<Omit<Magazine, 'id'>>('smart_magazines');
+                
+                const formattedMagazines = allMagazines.map(mag => ({
+                    id: mag.id || uuidv4(),
+                    ...mag,
+                })).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+                setMagazines(formattedMagazines);
+            } catch (error) {
+                console.error("Failed to load magazines:", error);
+                toast({ variant: 'destructive', title: "Could not load magazines." });
+            } finally {
+                setIsLoading(false);
+            }
+        }
+        loadMagazines();
+    }, [toast]);
+    
+    const getShareLink = (mag: Magazine) => {
+        const baseUrl = window.location.origin;
+        const productsParam = encodeURIComponent(mag.productIds.join(','));
+        return `${baseUrl}/smart-magazine?products=${productsParam}&title=${encodeURIComponent(mag.title)}`;
+    };
+
+    const handleCopy = (mag: Magazine) => {
+        const link = getShareLink(mag);
         navigator.clipboard.writeText(link);
         toast({ title: "Link Copied!" });
     };
 
-    const handleShare = (link: string, title: string) => {
-        const message = `Check out this amazing collection: *${title}*\n\n${link}`;
+    const handleShare = (mag: Magazine) => {
+        const link = getShareLink(mag);
+        const message = `Check out this amazing collection: *${mag.title}*\n\n${link}`;
         const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
         window.open(whatsappUrl, '_blank');
     };
@@ -53,29 +81,45 @@ export default function CollaboratorMagazinesPage() {
                     </div>
                 </header>
 
-                <div className="space-y-6">
-                    {magazines.map(mag => (
-                         <Card key={mag.id} className="shadow-sm hover:shadow-md transition-shadow">
-                            <CardHeader>
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <CardTitle className="flex items-center gap-2"><BookOpen className="h-5 w-5 text-primary"/>{mag.title}</CardTitle>
-                                        <CardDescription>
-                                            {mag.productCount} products curated by {mag.creator}
-                                        </CardDescription>
+                {isLoading ? (
+                    <div className="flex justify-center items-center h-64">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                ) : magazines.length === 0 ? (
+                    <Card className="text-center py-16">
+                        <CardContent>
+                             <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4"/>
+                            <h3 className="text-xl font-semibold">No Magazines Found</h3>
+                            <p className="text-muted-foreground mt-2">No smart magazines have been created yet.</p>
+                        </CardContent>
+                    </Card>
+                ) : (
+                    <div className="space-y-6">
+                        {magazines.map(mag => {
+                            const shareLink = getShareLink(mag);
+                            return (
+                             <Card key={mag.id} className="shadow-sm hover:shadow-md transition-shadow">
+                                <CardHeader>
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <CardTitle className="flex items-center gap-2"><BookOpen className="h-5 w-5 text-primary"/>{mag.title}</CardTitle>
+                                            <CardDescription>
+                                                {mag.productIds.length} products curated by {mag.creatorName}
+                                            </CardDescription>
+                                        </div>
+                                         <Button variant="ghost" asChild>
+                                            <a href={shareLink} target="_blank">View</a>
+                                         </Button>
                                     </div>
-                                     <Button variant="ghost" asChild>
-                                        <a href={mag.shareLink} target="_blank">View</a>
-                                     </Button>
-                                </div>
-                            </CardHeader>
-                             <CardFooter className="flex justify-end gap-2">
-                                <Button variant="secondary" onClick={() => handleCopy(mag.shareLink)}><Copy className="mr-2 h-4 w-4"/>Copy Link</Button>
-                                <Button onClick={() => handleShare(mag.shareLink, mag.title)}><MessageSquare className="mr-2 h-4 w-4"/>Share on WhatsApp</Button>
-                            </CardFooter>
-                        </Card>
-                    ))}
-                </div>
+                                </CardHeader>
+                                 <CardFooter className="flex justify-end gap-2">
+                                    <Button variant="secondary" onClick={() => handleCopy(mag)}><Copy className="mr-2 h-4 w-4"/>Copy Link</Button>
+                                    <Button onClick={() => handleShare(mag)}><MessageSquare className="mr-2 h-4 w-4"/>Share on WhatsApp</Button>
+                                </CardFooter>
+                            </Card>
+                        )})}
+                    </div>
+                )}
             </div>
         </div>
     );

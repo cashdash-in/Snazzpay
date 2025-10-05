@@ -296,12 +296,12 @@ function SecureCodPaymentForm() {
                                     <span className="text-muted-foreground">Price per item:</span>
                                     <span>₹{orderDetails.amount.toFixed(2)}</span>
                                 </div>
-                                <div className="grid grid-cols-2 gap-4 items-center">
-                                    <div className="space-y-1">
+                                <div className="grid grid-cols-3 gap-4 items-center">
+                                    <div className="space-y-1 col-span-1">
                                         <Label htmlFor='quantity' className="text-xs text-muted-foreground">Quantity:</Label>
                                         <Input id="quantity" type="number" value={quantity} onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))} className="h-8" min={1}/>
                                     </div>
-                                     <div className="grid grid-cols-2 gap-2">
+                                     <div className="grid grid-cols-2 col-span-2 gap-2">
                                         {availableSizes.length > 0 && (
                                             <div className="space-y-1">
                                                 <Label htmlFor="size" className="text-xs text-muted-foreground">Size</Label>
@@ -348,7 +348,7 @@ function SecureCodPaymentForm() {
 
                     </CardContent>
                     <CardFooter className="flex-col gap-2">
-                         <div className="w-full flex gap-2">
+                         <div className="w-full flex flex-col gap-2">
                             <Button type="button" variant="outline" className="w-full" onClick={handleConfirmAmount}>
                                 Confirm Amount
                             </Button>
