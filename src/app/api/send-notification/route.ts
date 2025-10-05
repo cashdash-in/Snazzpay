@@ -79,16 +79,34 @@ export async function POST(request: Request) {
     }
     
     try {
-        const { order, type }: { order: EditableOrder, type: string } = await request.json();
-
-        if (!order || !type || !order.customerEmail) {
-             return new NextResponse(
-                JSON.stringify({ error: "Missing order data, notification type, or customer email." }),
-                { status: 400, headers: { 'Content-Type': 'application/json' } }
-            );
-        }
+        const { order, type, recipientEmail, subject: internalSubject, body: internalBody }: { order?: EditableOrder, type: string, recipientEmail?: string, subject?: string, body?: string } = await request.json();
         
-        const { subject, html } = getEmailContent(type, order);
+        let subject = '';
+        let html = '';
+        let recipient: string | undefined;
+
+        if (type === 'internal_alert') {
+            if (!recipientEmail || !internalSubject || !internalBody) {
+                 return new NextResponse(
+                    JSON.stringify({ error: "Missing recipient, subject, or body for internal alert." }),
+                    { status: 400, headers: { 'Content-Type': 'application/json' } }
+                );
+            }
+            subject = internalSubject;
+            html = internalBody;
+            recipient = recipientEmail;
+        } else {
+             if (!order || !order.customerEmail) {
+                 return new NextResponse(
+                    JSON.stringify({ error: "Missing order data or customer email for customer notification." }),
+                    { status: 400, headers: { 'Content-Type': 'application/json' } }
+                );
+            }
+            const content = getEmailContent(type, order);
+            subject = content.subject;
+            html = content.html;
+            recipient = order.customerEmail;
+        }
 
         const transporter = nodemailer.createTransport({
             service: 'gmail',
@@ -100,13 +118,13 @@ export async function POST(request: Request) {
 
         const mailOptions = {
             from: `"Snazzify" <${GMAIL_EMAIL}>`,
-            to: order.customerEmail,
+            to: recipient,
             subject: subject,
             html: html,
         };
 
         await transporter.sendMail(mailOptions);
-        return NextResponse.json({ success: true, message: `A '${type}' notification email has been sent to ${order.customerEmail}.` });
+        return NextResponse.json({ success: true, message: `A '${type}' notification email has been sent to ${recipient}.` });
 
     } catch (error: any) {
         console.error("Nodemailer error:", error);

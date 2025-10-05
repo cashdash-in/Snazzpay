@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState } from 'react';
@@ -19,6 +18,7 @@ import { saveDocument, getDocument } from '@/services/firestore';
 import type { EditableOrder } from '../page';
 import { useAuth } from '@/hooks/use-auth';
 import type { SellerUser } from '@/app/seller-accounts/page';
+import type { Vendor } from '@/app/vendors/page';
 
 
 export default function NewSellerOrderPage() {
@@ -77,6 +77,33 @@ export default function NewSellerOrderPage() {
                 title: "Order Created",
                 description: "The new order has been saved and is ready to be pushed to your vendor.",
             });
+
+            // Send notification to vendor
+            const vendor = await getDocument<Vendor>('vendors', sellerDoc.vendorId);
+            if(vendor?.email) {
+                await fetch('/api/send-notification', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        type: 'internal_alert',
+                        recipientEmail: vendor.email,
+                        subject: `New Order from ${sellerDoc.companyName}`,
+                        body: `
+                            <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+                                <h2>New Order Alert!</h2>
+                                <p>Your seller, ${sellerDoc.companyName}, has created a new manual order for you to fulfill.</p>
+                                <ul>
+                                    <li><strong>Customer:</strong> ${newOrder.customerName}</li>
+                                    <li><strong>Product:</strong> ${newOrder.productOrdered}</li>
+                                    <li><strong>Value:</strong> ₹${newOrder.price}</li>
+                                </ul>
+                                <p>Please log in to your dashboard to view the full order details in the "Orders from Sellers" section.</p>
+                            </div>
+                        `
+                    })
+                });
+            }
+
             router.push('/seller/orders');
         } catch (error: any) {
              toast({

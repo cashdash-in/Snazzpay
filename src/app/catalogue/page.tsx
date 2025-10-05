@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Suspense, useState, useEffect, useCallback } from 'react';
@@ -16,6 +17,7 @@ import type { EditableOrder } from '@/app/orders/page';
 import { v4 as uuidv4 } from 'uuid';
 import type { SellerProduct } from '../seller/ai-product-uploader/page';
 import type { ProductDrop } from '../vendor/product-drops/page';
+import type { SellerUser } from '../seller-accounts/page';
 
 type DisplayProduct = (SellerProduct | ProductDrop) & { price: number; sellerName: string; sellerId: string; };
 
@@ -135,6 +137,38 @@ function CatalogueOrderPageContent() {
                 title: 'Order Request Sent!',
                 description: `The seller, ${product.sellerName}, has received your request and will contact you shortly to confirm.`,
             });
+            
+            // Send internal notification
+            let recipientEmail = 'customer.service@snazzify.co.in'; // Admin fallback
+            if (product.sellerId) {
+                const seller = await getDocument<SellerUser>('seller_users', product.sellerId);
+                if (seller?.email) {
+                    recipientEmail = seller.email;
+                }
+            }
+            
+            await fetch('/api/send-notification', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type: 'internal_alert',
+                    recipientEmail: recipientEmail,
+                    subject: `New Lead from ${name} for ${product.title}`,
+                    body: `
+                        <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+                            <h2>New Lead Alert!</h2>
+                            <p>You have a new order request from your Smart Magazine.</p>
+                            <ul>
+                                <li><strong>Customer:</strong> ${name}</li>
+                                <li><strong>Product:</strong> ${product.title}</li>
+                                <li><strong>Value:</strong> ₹${totalPrice.toFixed(2)}</li>
+                            </ul>
+                            <p>Please log in to your dashboard to view the lead and take action.</p>
+                        </div>
+                    `
+                })
+            });
+
             router.push('/customer/login');
         } catch (error: any) {
             toast({ variant: 'destructive', title: 'Submission Failed', description: error.message });
