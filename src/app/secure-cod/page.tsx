@@ -60,7 +60,6 @@ function SecureCodPaymentForm() {
     const [selectedSize, setSelectedSize] = useState('');
     const [selectedColor, setSelectedColor] = useState('');
     const [isSellerFlow, setIsSellerFlow] = useState(false);
-    const [productImage, setProductImage] = useState<string | null>(null);
 
     const [razorpayKeyId, setRazorpayKeyId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
@@ -104,10 +103,8 @@ function SecureCodPaymentForm() {
         const id = searchParams.get('order_id') || `LEGACY-${uuidv4().substring(0, 4)}`.toUpperCase();
         const sellerId = searchParams.get('sellerId') || '';
         const sellerName = searchParams.get('sellerName') || '';
-        const image = searchParams.get('image');
 
         setOrderDetails({ productName: name, amount, orderId: id, sellerId, sellerName });
-        if (image) setProductImage(image);
         if (availableSizes.length > 0) setSelectedSize(availableSizes[0]);
         if (availableColors.length > 0) setSelectedColor(availableColors[0]);
         
@@ -291,17 +288,6 @@ function SecureCodPaymentForm() {
                                  <CardTitle className="text-lg">Order Summary</CardTitle>
                             </CardHeader>
                             <CardContent className="p-4 pt-0 space-y-3">
-                                 {productImage && (
-                                    <div className="mb-4 flex justify-center">
-                                        <Image
-                                            src={productImage}
-                                            alt={orderDetails.productName}
-                                            width={100}
-                                            height={100}
-                                            className="rounded-lg object-contain"
-                                        />
-                                    </div>
-                                 )}
                                 <div className="flex justify-between items-center text-sm">
                                     <span className="text-muted-foreground">Product:</span>
                                     <span className="font-medium text-right">{orderDetails.productName}</span>
