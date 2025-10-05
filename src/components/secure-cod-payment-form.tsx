@@ -57,6 +57,11 @@ function SecureCodPaymentFormComponent() {
     
     const [totalPrice, setTotalPrice] = useState(0);
     const [isAmountConfirmed, setIsAmountConfirmed] = useState(false);
+    const [isClient, setIsClient] = useState(false);
+
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
 
     const getOrCreateShaktiCard = async (order: EditableOrder): Promise<ShaktiCardData | null> => {
         if (!order.contactNo || !order.customerEmail) return null;
@@ -89,8 +94,13 @@ function SecureCodPaymentFormComponent() {
         const sellerName = searchParams.get('sellerName') || '';
         let image = searchParams.get('image') || '';
         
-        if (image.startsWith('//')) {
-            image = 'https:' + image;
+        // Defensively handle image URL to ensure it has a protocol
+        if (image && !image.startsWith('http')) {
+             if (image.startsWith('//')) {
+                image = 'https:' + image;
+            } else {
+                 image = 'https://' + image;
+            }
         }
         
         setOrderDetails({ productName: name, amount, orderId: id, sellerId, sellerName, productImage: image });
@@ -228,7 +238,7 @@ function SecureCodPaymentFormComponent() {
         }
     };
     
-    if (loading) {
+    if (!isClient || loading) {
         return <div className="flex justify-center items-center h-screen"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
     }
 
@@ -365,3 +375,5 @@ export function SecureCodPaymentForm() {
         </Suspense>
     )
 }
+
+    
