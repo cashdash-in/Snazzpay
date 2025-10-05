@@ -11,7 +11,6 @@ import { useToast } from "@/hooks/use-toast";
 import type { EditableOrder } from '@/app/orders/page';
 import { format } from "date-fns";
 import { getCollection, saveDocument, deleteDocument, getDocument } from "@/services/firestore";
-import Image from 'next/image';
 import { Badge } from "@/components/ui/badge";
 import type { Collaborator } from '@/app/collaborators/page';
 import type { SellerUser } from "@/app/seller-accounts/page";
@@ -69,24 +68,28 @@ export default function CollaboratorOrdersPage() {
     setProcessingId(lead.id);
 
     try {
-        // Find the original product to get the actual seller/vendor ID
-        let originalProductId: string | undefined;
-        const sellerProduct = await getDocument<SellerProduct>('seller_products', lead.id);
-        if (sellerProduct) {
-            originalProductId = sellerProduct.sellerId;
+        let originalSellerId: string | undefined;
+
+        // The product ID is stored on the lead itself (as lead.id)
+        // We need to find if this came from a seller_product or product_drop
+        const sellerProduct = await getDocument<any>('seller_products', lead.id);
+        if (sellerProduct && sellerProduct.sellerId) {
+            originalSellerId = sellerProduct.sellerId;
         } else {
             const productDrop = await getDocument<ProductDrop>('product_drops', lead.id);
             if(productDrop) {
-                 originalProductId = productDrop.vendorId;
+                // If it's a drop, it could be from admin or a vendor
+                // We need to find who is selling it. For now, we will assume it's pushed to admin if no seller.
+                 originalSellerId = productDrop.vendorId; // or a default if it's an admin drop.
             }
         }
         
-        if (!originalProductId) {
+        if (!originalSellerId) {
              throw new Error("Could not find the original seller for this product.");
         }
 
       // Re-assign the lead to the actual seller/vendor and mark it as 'Pushed to Seller'
-      const updatedLead = { ...lead, sellerId: originalProductId, paymentStatus: 'Pushed to Seller' };
+      const updatedLead = { ...lead, sellerId: originalSellerId, paymentStatus: 'Pushed to Seller' };
       await saveDocument('leads', updatedLead, lead.id);
 
       setLeads(prev => prev.filter(l => l.id !== lead.id));
@@ -163,5 +166,3 @@ export default function CollaboratorOrdersPage() {
     </AppShell>
   );
 }
-
-```

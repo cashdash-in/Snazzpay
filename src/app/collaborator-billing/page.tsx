@@ -116,50 +116,47 @@ export default function CollaboratorBillingPage() {
 
 
     return (
-        <AppShell title="Collaborator Billing">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Collaborator Commission Ledger</CardTitle>
-                    <CardDescription>
-                        A detailed history of commissions earned by your Guest Collaborators from successful sales.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    {isLoading ? (
-                        <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-                    ) : (
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Collaborator</TableHead>
-                                    <TableHead>Order ID</TableHead>
-                                    <TableHead>Leads</TableHead>
-                                    <TableHead>Orders</TableHead>
-                                    <TableHead className="text-right">Order Value</TableHead>
-                                    <TableHead className="text-right">Commission Earned</TableHead>
+        <Card>
+            <CardHeader>
+                <CardTitle>Collaborator Commission Ledger</CardTitle>
+                <CardDescription>
+                    A detailed history of commissions earned by your Guest Collaborators from successful sales.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                {isLoading ? (
+                    <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+                ) : (
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Collaborator</TableHead>
+                                <TableHead>Order ID</TableHead>
+                                <TableHead>Leads</TableHead>
+                                <TableHead>Orders</TableHead>
+                                <TableHead className="text-right">Order Value</TableHead>
+                                <TableHead className="text-right">Commission Earned</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {commissions.length > 0 ? commissions.map(c => (
+                                <TableRow key={c.id}>
+                                    <TableCell className="font-medium">{c.collaboratorName}</TableCell>
+                                    <TableCell>{c.orderId}</TableCell>
+                                    <TableCell>{c.leadCount}</TableCell>
+                                    <TableCell>{c.orderCount}</TableCell>
+                                    <TableCell className="text-right">₹{c.orderValue.toFixed(2)}</TableCell>
+                                    <TableCell className="text-right font-semibold text-green-600">+ ₹{c.commissionEarned.toFixed(2)}</TableCell>
                                 </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {commissions.length > 0 ? commissions.map(c => (
-                                    <TableRow key={c.id}>
-                                        <TableCell className="font-medium">{c.collaboratorName}</TableCell>
-                                        <TableCell>{c.orderId}</TableCell>
-                                        <TableCell>{c.leadCount}</TableCell>
-                                        <TableCell>{c.orderCount}</TableCell>
-                                        <TableCell className="text-right">₹{c.orderValue.toFixed(2)}</TableCell>
-                                        <TableCell className="text-right font-semibold text-green-600">+ ₹{c.commissionEarned.toFixed(2)}</TableCell>
-                                    </TableRow>
-                                )) : (
-                                    <TableRow>
-                                        <TableCell colSpan={6} className="text-center h-24">No commission data available for your collaborators yet.</TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    )}
-                </CardContent>
-            </Card>
-        </AppShell>
+                            )) : (
+                                <TableRow>
+                                    <TableCell colSpan={6} className="text-center h-24">No commission data available for your collaborators yet.</TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                )}
+            </CardContent>
+        </Card>
     );
 }
-```

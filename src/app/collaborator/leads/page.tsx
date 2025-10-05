@@ -11,7 +11,6 @@ import { useToast } from "@/hooks/use-toast";
 import type { EditableOrder } from '@/app/orders/page';
 import { format } from "date-fns";
 import { getCollection, deleteDocument, saveDocument } from "@/services/firestore";
-import Image from 'next/image';
 import { Badge } from "@/components/ui/badge";
 import type { Collaborator } from '@/app/collaborators/page';
 
@@ -35,6 +34,7 @@ export default function CollaboratorLeadsPage() {
       if (collaborator) {
         setCollaboratorId(collaborator.id);
       } else {
+        toast({ variant: 'destructive', title: "Collaborator not found" });
         setLoading(false);
       }
     }
@@ -110,5 +110,3 @@ export default function CollaboratorLeadsPage() {
     </AppShell>
   );
 }
-
-```
