@@ -28,7 +28,7 @@ export default function SignupPage() {
     const { toast } = useToast();
     const router = useRouter();
     const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
+    const [password, setPassword] = useState(''); // Only for admin
     const [companyName, setCompanyName] = useState('');
     const [phone, setPhone] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -54,14 +54,19 @@ export default function SignupPage() {
 
     const handleSignup = async () => {
         setIsLoading(true);
-        if (!email || !password) {
-            toast({ variant: 'destructive', title: "Missing Fields", description: "Please fill out email and password." });
+        if (!email) {
+            toast({ variant: 'destructive', title: "Missing Field", description: "Please fill out your email address." });
             setIsLoading(false);
             return;
         }
         
         // Special case for creating the admin user
         if (email.toLowerCase() === ADMIN_EMAIL) {
+            if (!password) {
+                 toast({ variant: 'destructive', title: "Missing Field", description: "Please enter a password for the admin account." });
+                 setIsLoading(false);
+                 return;
+            }
             try {
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                 await updateProfile(userCredential.user, {
@@ -86,7 +91,7 @@ export default function SignupPage() {
             return;
         }
 
-        // Standard seller or vendor signup
+        // Standard seller or vendor signup (passwordless)
         if (!companyName || !phone) {
             toast({ variant: 'destructive', title: "Missing Fields", description: "Please fill out your company name and phone number." });
             setIsLoading(false);
@@ -100,14 +105,12 @@ export default function SignupPage() {
         }
         
         try {
-            // We create the user in Firebase Auth first
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            const user = userCredential.user;
-
-            await updateProfile(user, { displayName: companyName });
-
+            // For passwordless OTP flow, we don't create an auth user here.
+            // We create a user document in Firestore which will be used to verify the phone number during OTP login.
+            const newUserId = uuidv4();
             if (userType === 'seller') {
                 const newRequest = {
+                    id: newUserId,
                     companyName: companyName,
                     email: email,
                     phone: phone,
@@ -115,29 +118,24 @@ export default function SignupPage() {
                     vendorId: selectedVendor,
                     vendorName: approvedVendors.find(v => v.id === selectedVendor)?.name,
                 };
-                await saveDocument('seller_users', newRequest, user.uid);
+                await saveDocument('seller_users', newRequest, newUserId);
                 toast({ title: "Registration Submitted!", description: "Your seller account is pending admin approval." });
-                await auth.signOut();
                 router.push('/seller/login');
             } else { // userType === 'vendor'
                 const newRequest = {
+                    id: newUserId,
                     name: companyName,
                     contactPerson: companyName,
                     phone,
                     email,
                     status: 'pending' as const
                 };
-                await saveDocument('vendors', newRequest, user.uid);
+                await saveDocument('vendors', newRequest, newUserId);
                 toast({ title: "Registration Submitted!", description: "Your vendor account is pending admin approval." });
-                await auth.signOut();
                 router.push('/vendor/login');
             }
         } catch(error: any) {
              let description = "An unexpected error occurred during signup.";
-            if (error instanceof FirebaseError) {
-                if (error.code === 'auth/email-already-in-use') description = 'This email is already registered. Please log in or use a different email.';
-                else if (error.code === 'auth/weak-password') description = 'The password is too weak. It must be at least 6 characters long.';
-            }
             console.error("Signup Error:", error);
             toast({ variant: 'destructive', title: "Signup Failed", description });
         } finally {
@@ -188,7 +186,7 @@ export default function SignupPage() {
                                 </div>
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="phone">Phone Number (for WhatsApp)</Label>
+                                <Label htmlFor="phone">Phone Number (for OTP Login)</Label>
                                 <div className="relative">
                                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                     <Input id="phone" type="tel" placeholder="e.g., 919876543210" value={phone} onChange={(e) => setPhone(e.target.value)} className="pl-9" />
@@ -212,13 +210,16 @@ export default function SignupPage() {
                         </>
                     )}
                     
-                    <div className="space-y-2">
-                        <Label htmlFor="password">Password</Label>
-                         <div className="relative">
-                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input id="password" type="password" placeholder="Must be at least 6 characters" value={password} onChange={(e) => setPassword(e.target.value)} className="pl-9" />
+                    {!isNonAdminSignup && (
+                        <div className="space-y-2">
+                            <Label htmlFor="password">Admin Password</Label>
+                            <div className="relative">
+                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input id="password" type="password" placeholder="Must be at least 6 characters" value={password} onChange={(e) => setPassword(e.target.value)} className="pl-9" />
+                            </div>
                         </div>
-                    </div>
+                    )}
+
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4">
                     <Button className="w-full" onClick={handleSignup} disabled={isLoading}>

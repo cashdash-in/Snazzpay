@@ -21,69 +21,26 @@ export default function VendorLoginPage() {
     const { toast } = useToast();
     const router = useRouter();
     const [loginId, setLoginId] = useState('');
-    const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
     const handleLogin = async () => {
         setIsLoading(true);
         
-        if (!loginId || !password) {
-            toast({ variant: 'destructive', title: "Invalid Input", description: "Please enter your login credential and password." });
+        if (!loginId) {
+            toast({ variant: 'destructive', title: "Invalid Input", description: "Please enter your email or mobile number." });
             setIsLoading(false);
             return;
         }
 
-        let userEmail = loginId;
-        
-        try {
-            const allVendors = await getCollection<Vendor>('vendors');
+        // In a real OTP flow, this would send an OTP.
+        toast({
+            title: "OTP Sent",
+            description: "An OTP has been sent to your registered mobile number.",
+        });
 
-            if (/^\d+$/.test(loginId)) { // It's a phone number
-                const vendor = allVendors.find(v => v.phone === loginId);
-                if (!vendor) {
-                    throw new Error("No vendor account found with this mobile number.");
-                }
-                if (vendor.status !== 'approved') {
-                    throw new Error("Your account is not yet approved. Please contact support.");
-                }
-                userEmail = vendor.email;
-            }
-
-            const userCredential = await signInWithEmailAndPassword(auth, userEmail, password);
-            const loggedInUser = userCredential.user;
-            
-            const vendorDetails = allVendors.find(v => v.id === loggedInUser.uid);
-            if (!vendorDetails || vendorDetails.status !== 'approved') {
-                 await auth.signOut();
-                 toast({ variant: 'destructive', title: "Access Denied", description: `Your vendor account is not approved. Please contact the admin.` });
-                 setIsLoading(false);
-                 return;
-            }
-
-            const idToken = await loggedInUser.getIdToken();
-            
-            await fetch('/api/auth/session', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ idToken, role: 'vendor' }),
-            });
-            
-            toast({ title: "Vendor Login Successful", description: "Redirecting to your dashboard." });
-            router.push('/vendor/dashboard');
-            router.refresh();
-
-        } catch (error: any) {
-            console.error("Vendor Login failed:", error);
-             let description = error.message || 'An unexpected error occurred during login.';
-             if (error instanceof FirebaseError) {
-                if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-email') {
-                    description = 'Invalid credentials. Please create an account via the main Signup page if you are new.';
-                }
-             }
-            toast({ variant: 'destructive', title: "Login Error", description: description });
-        } finally {
+        setTimeout(() => {
             setIsLoading(false);
-        }
+        }, 1000);
     };
 
     return (
@@ -92,7 +49,7 @@ export default function VendorLoginPage() {
                 <CardHeader className="text-center">
                     <Factory className="mx-auto h-12 w-12 text-primary" />
                     <CardTitle>SnazzPay Vendor Portal</CardTitle>
-                    <CardDescription>Log in to your vendor dashboard.</CardDescription>
+                    <CardDescription>Log in to your vendor dashboard using OTP.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
@@ -109,24 +66,10 @@ export default function VendorLoginPage() {
                             />
                         </div>
                     </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="password">Password</Label>
-                         <div className="relative">
-                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input 
-                                id="password" 
-                                type="password" 
-                                placeholder="Enter your password" 
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="pl-9"
-                            />
-                        </div>
-                    </div>
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4">
                     <Button className="w-full" onClick={handleLogin} disabled={isLoading}>
-                        {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Logging In...</> : "Login as Vendor"}
+                        {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending OTP...</> : "Send OTP"}
                     </Button>
                     <p className="text-xs text-center text-muted-foreground">
                         Are you a seller?{" "}

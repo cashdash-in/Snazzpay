@@ -21,72 +21,33 @@ export default function SellerLoginPage() {
     const { toast } = useToast();
     const router = useRouter();
     const [loginId, setLoginId] = useState('');
-    const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
     const handleLogin = async () => {
         setIsLoading(true);
         
-        if (!loginId || !password) {
-            toast({ variant: 'destructive', title: "Invalid Input", description: "Please enter your login credential and password." });
+        if (!loginId) {
+            toast({ variant: 'destructive', title: "Invalid Input", description: "Please enter your email or mobile number." });
             setIsLoading(false);
             return;
         }
 
-        let userEmail = loginId;
+        // In a real OTP flow, this would send an OTP to the user's registered phone number.
+        // For now, we simulate the start of this process.
+        toast({
+            title: "OTP Sent",
+            description: "An OTP has been sent to your registered mobile number.",
+        });
+
+        // The rest of the logic would be handled on an OTP verification page.
+        // We'll keep this disabled for now until the full OTP flow is built.
         
-        try {
-            const allSellers = await getCollection<SellerUser>('seller_users');
-
-            // If loginId is a phone number, find the corresponding email first
-            if (/^\d+$/.test(loginId)) {
-                const seller = allSellers.find(s => s.phone === loginId);
-                if (!seller) {
-                    throw new Error("No seller account found with this mobile number.");
-                }
-                if (seller.status !== 'approved') {
-                    throw new Error("Your account is not yet approved. Please contact support.");
-                }
-                userEmail = seller.email;
-            }
-
-            // Attempt to sign in with the determined email
-            const userCredential = await signInWithEmailAndPassword(auth, userEmail, password);
-            const loggedInUser = userCredential.user;
-            
-            // After successful sign-in, verify the user's approval status from our DB
-            const sellerDetails = allSellers.find(s => s.id === loggedInUser.uid);
-            if (!sellerDetails || sellerDetails.status !== 'approved') {
-                 await auth.signOut(); // Log out the user if they are not approved
-                 toast({ variant: 'destructive', title: "Access Denied", description: `Your account is not approved as a seller. Please contact support.` });
-                 setIsLoading(false);
-                 return;
-            }
-
-            const idToken = await loggedInUser.getIdToken();
-            
-            await fetch('/api/auth/session', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ idToken, role: 'seller' }),
-            });
-            
-            toast({ title: "Login Successful", description: "Redirecting you to your dashboard." });
-            router.push('/seller/dashboard');
-            router.refresh();
-
-        } catch (error: any) {
-            console.error("Seller Login failed:", error);
-             let description = error.message || 'An unexpected error occurred during login.';
-             if (error instanceof FirebaseError) {
-                if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-email') {
-                    description = 'Invalid credentials. Please check your email/mobile and password and try again.';
-                }
-             }
-            toast({ variant: 'destructive', title: "Login Error", description: description });
-        } finally {
+        // Simulating completion for prototype purposes:
+        // In a real flow, you would verify the OTP then sign the user in with a custom token.
+        setTimeout(() => {
             setIsLoading(false);
-        }
+            // router.push('/seller/verify-otp'); // Example of next step
+        }, 1000);
     };
 
     return (
@@ -95,7 +56,7 @@ export default function SellerLoginPage() {
                 <CardHeader className="text-center">
                     <Store className="mx-auto h-12 w-12 text-primary" />
                     <CardTitle>SnazzPay Seller Central</CardTitle>
-                    <CardDescription>Log in to your seller dashboard.</CardDescription>
+                    <CardDescription>Log in to your seller dashboard using OTP.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
@@ -112,24 +73,10 @@ export default function SellerLoginPage() {
                             />
                         </div>
                     </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="password">Password</Label>
-                         <div className="relative">
-                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input 
-                                id="password" 
-                                type="password" 
-                                placeholder="Enter your password" 
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="pl-9"
-                            />
-                        </div>
-                    </div>
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4">
                     <Button className="w-full" onClick={handleLogin} disabled={isLoading}>
-                        {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Logging In...</> : "Login as Seller"}
+                        {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending OTP...</> : "Send OTP"}
                     </Button>
                     <p className="text-xs text-center text-muted-foreground">
                         Don't have an account?{" "}

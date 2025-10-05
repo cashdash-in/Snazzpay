@@ -22,6 +22,8 @@ export default function CollaboratorLoginPage() {
     const handleLogin = async () => {
         setIsLoading(true);
         try {
+            // Here you would trigger the OTP generation and sending process.
+            // For this prototype, we'll simulate a successful login check.
             const allCollaborators = await getCollection<Collaborator>('collaborators');
             const collaborator = allCollaborators.find(c => c.phone === mobileNumber);
 
@@ -33,6 +35,7 @@ export default function CollaboratorLoginPage() {
                 throw new Error("Your account is pending approval or has been suspended. Please contact support.");
             }
 
+            // In a real OTP flow, this would happen AFTER successful verification.
             localStorage.setItem('loggedInCollaboratorMobile', mobileNumber);
             toast({
                 title: "Login Successful",
@@ -56,7 +59,7 @@ export default function CollaboratorLoginPage() {
                 <CardHeader className="text-center">
                     <UserPlus className="mx-auto h-12 w-12 text-primary" />
                     <CardTitle>Guest Collaborator Portal</CardTitle>
-                    <CardDescription>Login to view your shared magazines and commissions.</CardDescription>
+                    <CardDescription>Login with your mobile number to get an OTP.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
@@ -76,8 +79,7 @@ export default function CollaboratorLoginPage() {
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4">
                     <Button className="w-full" onClick={handleLogin} disabled={isLoading}>
-                        {isLoading ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Logging In...</> : null}
-                        Login
+                        {isLoading ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Sending OTP...</> : "Send OTP"}
                     </Button>
                     <p className="text-xs text-center text-muted-foreground">
                         Don't have an account?{" "}
