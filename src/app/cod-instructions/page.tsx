@@ -46,14 +46,16 @@ export default function CodInstructionsPage() {
     // --- END: Find Shopify Product Data ---
 
     if (productData) {
-      // --- START: NEW VENDOR DENY LIST ---
+      // --- START: VENDOR DENY LIST ---
       // List of Shopify vendor names you want to EXCLUDE from showing the Secure COD button.
-      // Edit this list to add the names of vendors you want to block.
       const deniedVendors = ['Dropdash', 'itzjqv-uw'];
+      
+      // Get vendor name. Default to a value that is NOT in the deny list if vendor is not found.
+      const productVendor = productData.vendor || 'snazzify_default_vendor';
 
       // Show the button only if the product's vendor is NOT in the deniedVendors list.
-      if (!deniedVendors.includes(productData.vendor)) {
-      // --- END: NEW VENDOR DENY LIST ---
+      if (!deniedVendors.includes(productVendor)) {
+      // --- END: VENDOR DENY LIST ---
       
           const container = document.getElementById('snazzpay-secure-cod-button-container');
           
