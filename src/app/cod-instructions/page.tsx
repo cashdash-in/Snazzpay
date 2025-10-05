@@ -36,13 +36,32 @@ export default function CodInstructionsPage() {
     </form>
 </div>
 
+<!-- Data script to safely pass Liquid variables to JavaScript -->
+<script id="snazzpay-product-data" type="application/json">
+{
+  "vendor": {{ product.vendor | json }},
+  "title": {{ product.title | json }},
+  "featuredImage": {{ product.featured_image | img_url: 'large' | json }},
+  "initialVariant": {{ product.selected_or_first_available_variant | json }},
+  "allSizes": {{ product.options_by_name['Size']?.values | json | default: '[]' }},
+  "allColors": {{ product.options_by_name['Color']?.values | json | default: '[]' }}
+}
+</script>
+
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     try {
-        const productVendor = {{ product.vendor | json }};
-        const deniedVendors = ['Dropdash', 'itzjqv-uw'];
+        const dataScript = document.getElementById('snazzpay-product-data');
+        if (!dataScript) {
+          console.error("SnazzPay Error: Data script not found.");
+          return;
+        }
 
-        if (deniedVendors.includes(productVendor)) {
+        const productData = JSON.parse(dataScript.textContent);
+
+        const deniedVendors = ['Dropdash', 'itzjqv-uw'];
+        if (deniedVendors.includes(productData.vendor)) {
             document.getElementById('snazzpay-secure-cod-container').style.display = 'none';
             return; // Stop the script if the vendor is denied
         }
@@ -55,51 +74,32 @@ document.addEventListener('DOMContentLoaded', function() {
         const sizeInput = document.getElementById('snazzpay-p-size');
         const colorInput = document.getElementById('snazzpay-p-color');
 
-        function updateForm() {
-            // Use the currently selected variant or fall back to the main product.
-            const currentVariant = {{ product.selected_or_first_available_variant | json }};
-            const productTitle = {{ product.title | json }};
-            const featuredImage = {{ product.featured_image | img_url: "large" | json }};
+        function updateForm(variant) {
+            const currentVariant = variant || productData.initialVariant;
+            const productTitle = productData.title;
+            const featuredImage = productData.featuredImage;
 
             nameInput.value = productTitle + (currentVariant.title !== 'Default Title' ? ' - ' + currentVariant.title : '');
             amountInput.value = (currentVariant.price / 100).toFixed(2);
             imageInput.value = currentVariant.featured_image ? currentVariant.featured_image.src : featuredImage;
             orderIdInput.value = 'SNZ-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5).toUpperCase();
-
-            // Capture all available sizes and colors for the product
-            const allSizes = {{ product.options_by_name['Size']?.values | json }} || [];
-            const allColors = {{ product.options_by_name['Color']?.values | json }} || [];
             
-            sizeInput.value = allSizes.join(',');
-            colorInput.value = allColors.join(',');
+            sizeInput.value = productData.allSizes.join(',');
+            colorInput.value = productData.allColors.join(',');
         }
 
         // Initial update on page load
         updateForm();
 
-        // Listen for Shopify's variant change event
+        // Listen for Shopify's variant change event, which is the most reliable method.
         document.addEventListener('variant:change', function(event) {
-            const variant = event.detail.variant;
-            if (variant) {
-                amountInput.value = (variant.price / 100).toFixed(2);
-                if (variant.featured_image) {
-                  imageInput.value = variant.featured_image.src;
-                }
+            if (event.detail.variant) {
+                updateForm(event.detail.variant);
             }
-        });
-        
-        // Also add listeners to the form selectors as a fallback
-        const selectors = document.querySelectorAll('form[action="/cart/add"] [name="id"], form[action="/cart/add"] input[type="radio"], form[action="/cart/add"] select');
-        selectors.forEach(selector => {
-            selector.addEventListener('change', function() {
-                // Use a short timeout to allow Shopify's JS to update the variant data
-                setTimeout(updateForm, 50);
-            });
         });
 
     } catch (e) {
         console.error("SnazzPay Script Error:", e);
-        // Hide the button if there is a script error to avoid confusion
         const container = document.getElementById('snazzpay-secure-cod-container');
         if (container) container.style.display = 'none';
     }
