@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState, FormEvent, Suspense } from 'react';
+import { useEffect, useState, FormEvent } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
@@ -17,7 +17,6 @@ import { ShaktiCard, type ShaktiCardData } from '@/components/shakti-card';
 import { sanitizePhoneNumber } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Image from 'next/image';
 
 type CustomerDetails = {
@@ -28,7 +27,7 @@ type CustomerDetails = {
     pincode: string;
 };
 
-function SecureCodPaymentFormComponent() {
+export function SecureCodPaymentForm() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const { toast } = useToast();
@@ -57,11 +56,6 @@ function SecureCodPaymentFormComponent() {
     
     const [totalPrice, setTotalPrice] = useState(0);
     const [isAmountConfirmed, setIsAmountConfirmed] = useState(false);
-    const [isClient, setIsClient] = useState(false);
-
-    useEffect(() => {
-        setIsClient(true);
-    }, []);
 
     const getOrCreateShaktiCard = async (order: EditableOrder): Promise<ShaktiCardData | null> => {
         if (!order.contactNo || !order.customerEmail) return null;
@@ -90,12 +84,11 @@ function SecureCodPaymentFormComponent() {
         const name = searchParams.get('name') || 'Product';
         const amount = parseFloat(searchParams.get('amount') || '0');
         const id = searchParams.get('order_id') || `LEGACY-${uuidv4().substring(0, 4)}`.toUpperCase();
-        const sellerId = searchParams.get('sellerId') || '';
-        const sellerName = searchParams.get('sellerName') || '';
+        const sellerId = searchParams.get('sellerId') || ''; // Capture sellerId from URL
+        const sellerName = searchParams.get('sellerName') || ''; // Capture sellerName from URL
         let image = searchParams.get('image') || '';
         
-        // Defensively handle image URL to ensure it has a protocol
-        if (image && image.startsWith('//')) {
+        if (image && !image.startsWith('http')) {
             image = 'https:' + image;
         }
         
@@ -234,7 +227,7 @@ function SecureCodPaymentFormComponent() {
         }
     };
     
-    if (!isClient || loading) {
+    if (loading) {
         return <div className="flex justify-center items-center h-screen"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
     }
 
@@ -286,6 +279,7 @@ function SecureCodPaymentFormComponent() {
                                             width={150}
                                             height={150}
                                             className="rounded-lg object-contain bg-white"
+                                            unoptimized
                                         />
                                     </div>
                                 )}
@@ -362,12 +356,4 @@ function SecureCodPaymentFormComponent() {
             </Card>
         </div>
     );
-}
-
-export function SecureCodPaymentForm() {
-    return (
-        <Suspense fallback={<div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
-            <SecureCodPaymentFormComponent />
-        </Suspense>
-    )
 }
