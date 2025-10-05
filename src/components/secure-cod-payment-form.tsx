@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState, FormEvent, Suspense } from 'react';
@@ -43,6 +42,8 @@ function SecureCodPaymentFormComponent() {
     });
     
     const [quantity, setQuantity] = useState(1);
+    const [selectedSize, setSelectedSize] = useState('');
+    const [selectedColor, setSelectedColor] = useState('');
 
     const [razorpayKeyId, setRazorpayKeyId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
@@ -132,7 +133,8 @@ function SecureCodPaymentFormComponent() {
         const orderData: Omit<EditableOrder, 'id' | 'paymentStatus' | 'source'> = {
             orderId: orderDetails.orderId, customerName: name, customerEmail: email, contactNo: contact, customerAddress: address, pincode,
             productOrdered: orderDetails.productName, quantity: quantity, price: totalPrice.toString(), date: new Date().toISOString(),
-            sellerId: orderDetails.sellerId, sellerName: orderDetails.sellerName, paymentMethod: 'Secure Charge on Delivery'
+            sellerId: orderDetails.sellerId, sellerName: orderDetails.sellerName, paymentMethod: 'Secure Charge on Delivery',
+            size: selectedSize, color: selectedColor,
         };
         
         if (!razorpayKeyId) {
@@ -288,10 +290,18 @@ function SecureCodPaymentFormComponent() {
                                     <span className="text-muted-foreground">Price per item:</span>
                                     <span>₹{orderDetails.amount.toFixed(2)}</span>
                                 </div>
-                                <div className="grid grid-cols-1 gap-4 items-center">
-                                    <div className="space-y-1 col-span-1">
+                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                                    <div className="space-y-1">
                                         <Label htmlFor='quantity' className="text-xs text-muted-foreground">Quantity:</Label>
                                         <Input id="quantity" type="number" value={quantity} onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))} className="h-8" min={1}/>
+                                    </div>
+                                     <div className="space-y-1">
+                                        <Label htmlFor='size' className="text-xs text-muted-foreground">Size (Optional):</Label>
+                                        <Input id="size" value={selectedSize} onChange={(e) => setSelectedSize(e.target.value)} className="h-8" placeholder="e.g., M, 42"/>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label htmlFor='color' className="text-xs text-muted-foreground">Color (Optional):</Label>
+                                        <Input id="color" value={selectedColor} onChange={(e) => setSelectedColor(e.target.value)} className="h-8" placeholder="e.g., Blue"/>
                                     </div>
                                 </div>
                                 <div className="flex justify-between items-center font-bold text-lg pt-2 border-t"><span className="text-muted-foreground">Total Order Amount:</span><span>₹{totalPrice.toFixed(2)}</span></div>
