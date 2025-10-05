@@ -15,6 +15,7 @@ import { getCollection, deleteDocument, saveDocument, batchUpdateDocuments } fro
 import { useRouter } from "next/navigation";
 import Image from 'next/image';
 import { useAuth } from "@/hooks/use-auth";
+import { getCookie } from "cookies-next";
 
 
 export default function LeadsPage() {
@@ -31,18 +32,22 @@ export default function LeadsPage() {
     try {
         const loadedLeads = await getCollection<EditableOrder>('leads');
         let filteredLeads = loadedLeads.filter(lead => ['Intent Verified', 'Lead'].includes(lead.paymentStatus));
+        
+        const userRole = getCookie('userRole');
 
-        if (user && getCookie('userRole') === 'seller') {
+        if (user && userRole === 'seller') {
             filteredLeads = filteredLeads.filter(lead => lead.sellerId === user.uid);
         }
 
         const sortedLeads = filteredLeads.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         setLeads(sortedLeads);
 
-        // Mark as read
-        const unreadIds = sortedLeads.filter(l => l.isRead === false).map(l => l.id);
-        if (unreadIds.length > 0) {
-            await batchUpdateDocuments('leads', unreadIds, { isRead: true });
+        // Mark as read only if it's not the seller, to avoid sellers marking admin's leads as read
+        if (userRole === 'admin') {
+            const unreadIds = sortedLeads.filter(l => l.isRead === false).map(l => l.id);
+            if (unreadIds.length > 0) {
+                await batchUpdateDocuments('leads', unreadIds, { isRead: true });
+            }
         }
         
     } catch (error) {
