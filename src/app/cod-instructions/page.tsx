@@ -55,6 +55,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const dataScript = document.getElementById('snazzpay-product-data');
         if (!dataScript || !dataScript.textContent) {
           console.error("SnazzPay Error: Data script not found or empty.");
+          document.getElementById('snazzpay-secure-cod-container').style.display = 'none';
           return;
         }
 
