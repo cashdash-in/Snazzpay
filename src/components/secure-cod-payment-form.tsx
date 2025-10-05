@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, FormEvent } from 'react';
@@ -55,6 +56,13 @@ export function SecureCodPaymentForm() {
     
     const [totalPrice, setTotalPrice] = useState(0);
     const [isAmountConfirmed, setIsAmountConfirmed] = useState(false);
+
+    useEffect(() => {
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.async = true;
+        document.body.appendChild(script);
+    }, []);
 
     const getOrCreateShaktiCard = async (order: EditableOrder): Promise<ShaktiCardData | null> => {
         if (!order.contactNo || !order.customerEmail) return null;
