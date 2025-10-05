@@ -7,7 +7,8 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Terminal } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 
-const embedCode = `<!-- SnazzPay Secure COD Button Start -->
+export default function CodInstructionsPage() {
+    const embedCode = `<!-- SnazzPay Secure COD Button Start -->
 <div id="snazzpay-secure-cod-container">
     <form id="snazzpay-secure-cod-form" action="https://snazzpay.netlify.app/secure-cod" method="GET" target="_blank" style="margin-top: 15px; width: 100%;">
         <!-- Hidden fields for product data -->
@@ -124,7 +125,6 @@ document.addEventListener('DOMContentLoaded', function() {
 <\/script>
 <!-- SnazzPay Secure COD Button End -->`;
 
-export default function CodInstructionsPage() {
     return (
         <AppShell title="Embedding Instructions">
           <Card>
@@ -139,7 +139,7 @@ export default function CodInstructionsPage() {
                 <Terminal className="h-4 w-4" />
                 <AlertTitle>For Shopify Themes Only</AlertTitle>
                 <AlertDescription>
-                    <p>This code is specifically designed for Shopify and uses its Liquid templating language (`{{...}}`). It will not work on other platforms.</p>
+                    <p>This code is specifically designed for Shopify and uses its Liquid templating language ({`{{...}}`}). It will not work on other platforms.</p>
                 </AlertDescription>
               </Alert>
     
