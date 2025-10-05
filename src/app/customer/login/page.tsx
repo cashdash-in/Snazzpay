@@ -50,10 +50,13 @@ export default function CustomerLoginPage() {
             if (representativeOrder && representativeOrder.contactNo) {
                  localStorage.setItem('loggedInUserMobile', representativeOrder.contactNo);
                  toast({
-                    title: "Login Successful",
-                    description: "Redirecting you to your customer dashboard.",
+                    title: "Login Link Sent!",
+                    description: "A login link has been sent to your registered contact method.",
                 });
-                router.push('/customer/dashboard');
+                // Simulate waiting for user to click link
+                setTimeout(() => {
+                    router.push('/customer/dashboard');
+                }, 1500)
             } else {
                  throw new Error("Could not determine a primary mobile number for your account.");
             }
@@ -99,7 +102,7 @@ export default function CustomerLoginPage() {
                 <CardFooter className="flex flex-col gap-4">
                     <Button className="w-full" onClick={handleLogin} disabled={isLoading || !loginId}>
                         {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                        Login
+                        Send Login Link
                     </Button>
                     <Link href="/secure-cod" className="text-sm text-primary hover:underline cursor-pointer">
                         Back to Main Page

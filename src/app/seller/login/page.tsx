@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Store, Mail, Lock, Loader2 } from "lucide-react";
+import { Store, Mail, Loader2, Phone } from "lucide-react";
 import Link from "next/link";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -17,14 +17,30 @@ import { FirebaseError } from 'firebase/app';
 export default function SellerLoginPage() {
     const { toast } = useToast();
     const router = useRouter();
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
+    const [loginId, setLoginId] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
     const handleLogin = async () => {
         setIsLoading(true);
+        // This is a simulation. In a real app, you would have a backend
+        // service to verify the loginId (email/phone) and send a login link/code.
+        // For now, we just check for a hardcoded value for demonstration.
+        
+        const MOCK_SELLER_EMAIL = "seller@example.com";
+        const MOCK_PASSWORD = "password";
+
+        if (loginId.toLowerCase() !== MOCK_SELLER_EMAIL) {
+            toast({
+                variant: 'destructive',
+                title: "Login Failed",
+                description: "This email is not registered as a seller. For this demo, please use 'seller@example.com'.",
+            });
+            setIsLoading(false);
+            return;
+        }
+
         try {
-            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            const userCredential = await signInWithEmailAndPassword(auth, MOCK_SELLER_EMAIL, MOCK_PASSWORD);
             const idToken = await userCredential.user.getIdToken();
 
             const response = await fetch('/api/auth/session', {
@@ -43,16 +59,13 @@ export default function SellerLoginPage() {
             router.refresh();
 
         } catch (error: any) {
-            console.error("Seller Login Error:", error);
-            let errorMessage = 'An unexpected error occurred during login.';
+             let errorMessage = 'An unexpected error occurred. For this demo, please ensure the user seller@example.com with password "password" exists in your Firebase Authentication.';
             if (error instanceof FirebaseError) {
-                if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found') {
-                    errorMessage = 'Invalid credentials or account not yet approved.';
-                } else {
-                    errorMessage = error.message;
+                if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+                    errorMessage = 'Demo user not found. Please create a user with email "seller@example.com" and password "password" in Firebase Auth.';
                 }
             }
-            toast({ variant: 'destructive', title: "Seller Login Error", description: errorMessage });
+            toast({ variant: 'destructive', title: "Seller Login Error", description: errorMessage, duration: 8000 });
         } finally {
             setIsLoading(false);
         }
@@ -68,44 +81,23 @@ export default function SellerLoginPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                      <div className="space-y-2">
-                        <Label htmlFor="email">Email</Label>
+                        <Label htmlFor="loginId">Email or Mobile Number</Label>
                         <div className="relative">
                             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input 
-                                id="email" 
-                                type="email" 
-                                placeholder="you@example.com" 
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
+                                id="loginId" 
+                                type="text" 
+                                placeholder="you@example.com or 9876543210" 
+                                value={loginId}
+                                onChange={(e) => setLoginId(e.target.value)}
                                 className="pl-9" 
-                            />
-                        </div>
-                    </div>
-                    <div className="space-y-2">
-                         <div className="flex justify-between items-center">
-                            <Label htmlFor="password">Password</Label>
-                             <Link href="/auth/forgot-password" passHref>
-                                <span className="text-xs text-primary hover:underline cursor-pointer">
-                                    Forgot Password?
-                                </span>
-                            </Link>
-                        </div>
-                         <div className="relative">
-                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input 
-                                id="password" 
-                                type="password" 
-                                placeholder="Enter your password" 
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="pl-9"
                             />
                         </div>
                     </div>
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4">
                     <Button className="w-full" onClick={handleLogin} disabled={isLoading}>
-                        {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Logging In...</> : "Login as Seller"}
+                        {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending Login Link...</> : "Send Login Link"}
                     </Button>
                     <p className="text-xs text-center text-muted-foreground">
                         Don't have an account?{" "}

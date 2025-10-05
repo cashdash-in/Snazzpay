@@ -18,14 +18,27 @@ import { FirebaseError } from 'firebase/app';
 export default function VendorLoginPage() {
     const { toast } = useToast();
     const router = useRouter();
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
+    const [loginId, setLoginId] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    
+    const MOCK_VENDOR_EMAIL = "vendor@example.com";
+    const MOCK_PASSWORD = "password";
 
     const handleLogin = async () => {
         setIsLoading(true);
+
+         if (loginId.toLowerCase() !== MOCK_VENDOR_EMAIL) {
+            toast({
+                variant: 'destructive',
+                title: "Login Failed",
+                description: "This email is not registered as a vendor. For this demo, please use 'vendor@example.com'.",
+            });
+            setIsLoading(false);
+            return;
+        }
+
         try {
-            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            const userCredential = await signInWithEmailAndPassword(auth, MOCK_VENDOR_EMAIL, MOCK_PASSWORD);
             const idToken = await userCredential.user.getIdToken();
 
             const response = await fetch('/api/auth/session', {
@@ -44,16 +57,13 @@ export default function VendorLoginPage() {
             router.refresh();
 
         } catch (error: any) {
-            console.error("Vendor Login Error:", error);
-            let errorMessage = 'An unexpected error occurred during login.';
+            let errorMessage = 'An unexpected error occurred. For this demo, please ensure the user vendor@example.com with password "password" exists in your Firebase Authentication.';
             if (error instanceof FirebaseError) {
-                if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found') {
-                    errorMessage = 'Invalid credentials or account not yet approved.';
-                } else {
-                    errorMessage = error.message;
+                if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+                    errorMessage = 'Demo user not found. Please create a user with email "vendor@example.com" and password "password" in Firebase Auth.';
                 }
             }
-            toast({ variant: 'destructive', title: "Vendor Login Error", description: errorMessage });
+            toast({ variant: 'destructive', title: "Vendor Login Error", description: errorMessage, duration: 8000 });
         } finally {
             setIsLoading(false);
         }
@@ -69,44 +79,23 @@ export default function VendorLoginPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="email">Email</Label>
+                        <Label htmlFor="loginId">Email or Mobile Number</Label>
                         <div className="relative">
                             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input 
-                                id="email" 
-                                type="email" 
-                                placeholder="Your registered email" 
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
+                                id="loginId" 
+                                type="text" 
+                                placeholder="Your registered email or mobile" 
+                                value={loginId}
+                                onChange={(e) => setLoginId(e.target.value)}
                                 className="pl-9" 
-                            />
-                        </div>
-                    </div>
-                     <div className="space-y-2">
-                         <div className="flex justify-between items-center">
-                            <Label htmlFor="password">Password</Label>
-                             <Link href="/auth/forgot-password" passHref>
-                                <span className="text-xs text-primary hover:underline cursor-pointer">
-                                    Forgot Password?
-                                </span>
-                            </Link>
-                        </div>
-                         <div className="relative">
-                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input 
-                                id="password" 
-                                type="password" 
-                                placeholder="Enter your password" 
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="pl-9"
                             />
                         </div>
                     </div>
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4">
                     <Button className="w-full" onClick={handleLogin} disabled={isLoading}>
-                        {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Logging In...</> : "Login as Vendor"}
+                        {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending Login Link...</> : "Send Login Link"}
                     </Button>
                     <p className="text-xs text-center text-muted-foreground">
                          New here?{" "}

@@ -21,6 +21,12 @@ export default function CollaboratorLoginPage() {
 
     const handleLogin = async () => {
         setIsLoading(true);
+        if (!loginId) {
+            toast({ variant: 'destructive', title: "Login ID required", description: "Please enter your email or mobile number." });
+            setIsLoading(false);
+            return;
+        }
+
         const allCollaborators = await getCollection<Collaborator>('collaborators');
         const collaborator = allCollaborators.find(c => (c.phone === loginId || c.email === loginId));
 
@@ -39,10 +45,14 @@ export default function CollaboratorLoginPage() {
         // For prototype purposes, we simulate success and log the user in directly.
         localStorage.setItem('loggedInCollaboratorMobile', collaborator.phone);
         toast({
-            title: "Login Successful!",
-            description: "Redirecting to your dashboard.",
+            title: "Login Link Sent!",
+            description: "A magic login link has been sent to your registered contact method. Please check and click it to log in.",
         });
-        router.push('/collaborator/dashboard');
+        // In a real app, you would wait for the user to click the link.
+        // For this demo, we'll redirect immediately.
+        setTimeout(() => {
+            router.push('/collaborator/dashboard');
+        }, 1500)
     };
 
     return (
@@ -71,7 +81,7 @@ export default function CollaboratorLoginPage() {
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4">
                     <Button className="w-full" onClick={handleLogin} disabled={isLoading}>
-                        {isLoading ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Logging In...</> : "Login"}
+                        {isLoading ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Sending Link...</> : "Send Login Link"}
                     </Button>
                     <p className="text-xs text-center text-muted-foreground">
                         Don't have an account?{" "}
