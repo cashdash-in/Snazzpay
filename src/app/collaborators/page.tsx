@@ -118,8 +118,8 @@ export default function CollaboratorsPage() {
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Name</TableHead>
-                                        <TableHead>Phone</TableHead>
-                                        <TableHead>Email</TableHead>
+                                        <TableHead>Phone / Email</TableHead>
+                                        <TableHead>Applying For</TableHead>
                                         <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -128,8 +128,16 @@ export default function CollaboratorsPage() {
                                    pendingCollaborators.length > 0 ? pendingCollaborators.map(req => (
                                         <TableRow key={req.id}>
                                             <TableCell className="font-medium">{req.name}</TableCell>
-                                            <TableCell>{req.phone}</TableCell>
-                                            <TableCell>{req.email}</TableCell>
+                                            <TableCell>
+                                                <div>{req.phone}</div>
+                                                <div className="text-xs text-muted-foreground">{req.email}</div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center gap-1 text-sm">
+                                                    {req.linkedTo === 'admin' ? <User className="h-3 w-3" /> : <Factory className="h-3 w-3" />}
+                                                    {req.linkedToName}
+                                                </div>
+                                            </TableCell>
                                             <TableCell className="text-right space-x-2">
                                                 <Button size="sm" variant="outline" className="text-green-600 border-green-600 hover:bg-green-50 hover:text-green-700" onClick={() => handleCollaboratorRequest(req.id, true)}><Check className="mr-2 h-4 w-4" />Approve</Button>
                                                 <Button size="sm" variant="destructive" onClick={() => handleCollaboratorRequest(req.id, false)}><X className="mr-2 h-4 w-4" />Reject</Button>
@@ -160,8 +168,7 @@ export default function CollaboratorsPage() {
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Name</TableHead>
-                                        <TableHead>Phone</TableHead>
-                                        <TableHead>Email</TableHead>
+                                        <TableHead>Phone / Email</TableHead>
                                         <TableHead>Linked To</TableHead>
                                         <TableHead>Status</TableHead>
                                     </TableRow>
@@ -170,8 +177,10 @@ export default function CollaboratorsPage() {
                                     {approvedCollaborators.length > 0 ? approvedCollaborators.map(c => (
                                         <TableRow key={c.id}>
                                             <TableCell className="font-medium">{c.name}</TableCell>
-                                            <TableCell>{c.phone}</TableCell>
-                                            <TableCell>{c.email}</TableCell>
+                                            <TableCell>
+                                                <div>{c.phone}</div>
+                                                <div className="text-xs text-muted-foreground">{c.email}</div>
+                                            </TableCell>
                                             <TableCell>
                                                 <div className="flex items-center gap-1 text-sm">
                                                     {c.linkedTo === 'admin' ? <User className="h-3 w-3" /> : <Factory className="h-3 w-3" />}
@@ -182,7 +191,7 @@ export default function CollaboratorsPage() {
                                         </TableRow>
                                     )) : (
                                         <TableRow>
-                                            <TableCell colSpan={5} className="text-center h-24">No collaborators have been approved yet.</TableCell>
+                                            <TableCell colSpan={4} className="text-center h-24">No collaborators have been approved yet.</TableCell>
                                         </TableRow>
                                     )}
                                 </TableBody>
