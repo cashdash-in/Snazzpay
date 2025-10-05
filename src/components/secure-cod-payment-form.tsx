@@ -95,10 +95,8 @@ function SecureCodPaymentFormComponent() {
         let image = searchParams.get('image') || '';
         
         // Defensively handle image URL to ensure it has a protocol
-        if (image && !image.startsWith('http')) {
-             if (image.startsWith('//')) {
-                image = 'https:' + image;
-            }
+        if (image && image.startsWith('//')) {
+            image = 'https:' + image;
         }
         
         setOrderDetails({ productName: name, amount, orderId: id, sellerId, sellerName, productImage: image });
@@ -288,7 +286,6 @@ function SecureCodPaymentFormComponent() {
                                             width={150}
                                             height={150}
                                             className="rounded-lg object-contain bg-white"
-                                            unoptimized // Disables Next.js image optimization for external URLs
                                         />
                                     </div>
                                 )}
