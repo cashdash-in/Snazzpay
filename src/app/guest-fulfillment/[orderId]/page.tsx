@@ -84,7 +84,6 @@ function GuestFulfillmentPageContent() {
                 packageImageUrls: [packageImage],
                 deliveryStatus: 'dispatched',
                 readyForDispatchDate: new Date().toISOString().split('T')[0], // Set dispatch date to today
-                guestFulfillmentToken: '', // Invalidate the token after use
                 contactNo: customerContact,
                 vendorPaymentReceived: vendorPaymentReceived as 'Yes' | 'No',
             };
