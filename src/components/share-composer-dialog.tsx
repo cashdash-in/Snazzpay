@@ -1,7 +1,6 @@
-
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -52,7 +51,7 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
     const [appUrl, setAppUrl] = useState('');
     const [shareText, setShareText] = useState('');
 
-    const productPrice = product.price || product.costPrice || 0;
+    const productPrice = useMemo(() => product.price || product.costPrice || 0, [product]);
     const isPriceValid = productPrice > 0;
 
     useEffect(() => {
@@ -66,7 +65,9 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
         // We only pass what's needed for a rich preview.
         params.set('title', product.title);
         params.set('price', productPrice.toString());
-        params.set('image', product.imageDataUris[0]); 
+        if(product.imageDataUris.length > 0) {
+            params.set('image', product.imageDataUris[0]); 
+        }
         
         const role = getCookie('userRole');
         if (role === 'seller' && user) {
@@ -90,7 +91,7 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
         setShareText(
             `Check out this new product!\n\n*${product.title}*\n\n*Price:* ₹${(productPrice).toFixed(2)}\n\nClick here to view & order: ${catalogueLink}`
         );
-    }, [product, user, productPrice]);
+    }, [product, user, productPrice, appUrl]);
         
     const handleImageSelection = (imageUri: string) => {
         setSelectedImages(prev => 
@@ -110,9 +111,12 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
             params.set('id', product.id);
             // Rebuild the link with the new description included
             params.set('title', product.title);
-            params.set('description', newDescription); // Use new description
+            // The description is not passed in the URL, the catalogue page fetches it.
+            // But we update the share text
             params.set('price', productPrice.toString());
-            params.set('image', product.imageDataUris[0]);
+            if(product.imageDataUris.length > 0) {
+                 params.set('image', product.imageDataUris[0]);
+            }
 
             const catalogueLink = `${appUrl}/catalogue?${params.toString()}`;
 

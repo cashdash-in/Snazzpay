@@ -31,8 +31,14 @@ export function middleware(request: NextRequest) {
     '/logistics-secure/signup',
     '/collaborator/login',
     '/collaborator/signup',
+    '/collaborator/dashboard',
+    '/collaborator/magazines',
+    '/collaborator/commissions',
+    '/collaborator/orders',
     '/seller',
     '/guest-fulfillment',
+    '/catalogue',
+    '/smart-magazine',
   ];
 
   // Allow access to public paths, API routes, and static files

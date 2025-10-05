@@ -50,13 +50,17 @@ export default function CollaboratorDashboardPage() {
                     </Card>
                      <Card>
                         <CardHeader className="flex flex-row items-center justify-between">
-                            <CardTitle>Orders Generated</CardTitle>
+                            <CardTitle>My Order Requests</CardTitle>
                             <ShoppingCart className="h-6 w-6 text-blue-500" />
                         </CardHeader>
                         <CardContent>
-                            <p className="text-4xl font-bold">15</p>
-                            <p className="text-xs text-muted-foreground">Total successful orders from your links.</p>
+                             <p className="text-muted-foreground">View orders you've generated and push them to sellers.</p>
                         </CardContent>
+                         <CardFooter>
+                            <Link href="/collaborator/orders" className="w-full">
+                                <Button className="w-full" variant="secondary">View My Orders</Button>
+                            </Link>
+                        </CardFooter>
                     </Card>
                      <Card className="md:col-span-2">
                         <CardHeader>
