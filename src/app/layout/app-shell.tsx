@@ -61,6 +61,7 @@ import {
   PackagePlus,
   Receipt,
   BookOpen,
+  UserPlus,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { getCookie } from 'cookies-next';
@@ -84,6 +85,7 @@ const adminGrowthMenuItems = [
     { href: '/share/magazine', label: 'Smart Magazine', icon: BookOpen },
     { href: '/seller-accounts', label: 'Seller Accounts', icon: UserCheckIcon },
     { href: '/vendors', label: 'Vendors', icon: Factory },
+    { href: '/collaborators', label: 'Collaborators', icon: UserPlus },
     { href: '/partner-pay', label: 'Partner Pay', icon: Handshake },
     { href: '/settle', label: 'Settle Code', icon: SendToBack },
     { href: '/partner-cancellations', label: 'Partner Cancellations', icon: ShieldAlert },
@@ -107,7 +109,7 @@ const sellerMenuItems = [
     { href: '/seller/ai-product-uploader', label: 'AI Product Uploader', icon: Sparkles },
     { href: '/seller/orders', label: 'My Orders', icon: ShoppingCart },
     { href: '/seller/logistics', label: 'Logistics Hub', icon: Truck },
-    { href: '/seller/resellers', label: 'My Resellers', icon: Users },
+    { href: '/seller/collaborators', label: 'My Collaborators', icon: UserPlus },
     { href: '/seller/earnings', label: 'Earnings', icon: DollarSign },
     { href: '/seller/reports', label: 'Reports', icon: FileSpreadsheet },
     { href: '/seller/settings', label: 'Settings', icon: Settings },
@@ -122,6 +124,7 @@ const vendorMenuItems = [
     { href: '/vendor/orders', label: 'Orders from Sellers', icon: ShoppingCart },
     { href: '/vendor/logistics', label: 'Logistics Hub', icon: Truck },
     { href: '/vendor/sellers', label: 'My Sellers', icon: Users },
+    { href: '/vendor/collaborators', label: 'My Collaborators', icon: UserPlus },
     { href: '/vendor/earnings', label: 'Earnings', icon: DollarSign },
     { href: '/vendor/reports', label: 'Reports', icon: FileSpreadsheet },
     { href: '/vendor/settings', label: 'Settings', icon: Settings },
@@ -276,6 +279,12 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
                   <DropdownMenuItem>
                     <Truck className="mr-2 h-4 w-4" />
                     <span>Logistics Login</span>
+                  </DropdownMenuItem>
+                </Link>
+                 <Link href="/collaborator/login" target="_blank">
+                  <DropdownMenuItem>
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    <span>Collaborator Login</span>
                   </DropdownMenuItem>
                 </Link>
                 <Link href="/customer/login" target="_blank">
