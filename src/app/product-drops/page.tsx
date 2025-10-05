@@ -17,6 +17,7 @@ import type { ProductDrop } from '@/app/vendor/product-drops/page';
 import { Dialog, DialogTrigger, DialogContent } from '@/components/ui/dialog';
 import { ShareComposerDialog } from '@/components/share-composer-dialog';
 import { createProductFromText } from '@/ai/flows/create-product-from-text';
+import { saveDocument } from '@/services/firestore';
 
 
 export default function AdminProductDropsPage() {
@@ -88,7 +89,7 @@ export default function AdminProductDropsPage() {
         }
     };
     
-    const handleSendDrop = () => {
+    const handleSendDrop = async () => {
         if (!title || !description || !costPrice || imageDataUris.length === 0) {
             toast({
                 variant: 'destructive',
@@ -116,8 +117,7 @@ export default function AdminProductDropsPage() {
         };
 
         try {
-            const existingDrops = JSON.parse(localStorage.getItem('product_drops') || '[]');
-            localStorage.setItem('product_drops', JSON.stringify([newDrop, ...existingDrops]));
+            await saveDocument('product_drops', newDrop, newDrop.id);
             
             toast({
                 title: 'Product Drop Sent!',

@@ -29,6 +29,9 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import { createProductFromText } from '@/ai/flows/create-product-from-text';
+import { saveDocument } from '@/services/firestore';
+import { v4 as uuidv4 } from 'uuid';
+import type { ProductDrop } from '@/app/vendor/product-drops/page';
 
 const MAX_IMAGE_SIZE_PX = 800; // Max width/height for resizing
 
@@ -168,10 +171,27 @@ export default function AiProductUploaderPage() {
         cost: parseFloat(cost),
         margin: parseFloat(margin),
       });
+
+      const newProductDrop: ProductDrop = {
+        id: uuidv4(),
+        vendorId: 'admin_snazzify',
+        vendorName: 'Snazzify Official',
+        title: result.title,
+        description: result.description,
+        costPrice: result.price,
+        imageDataUris: resizedImageDataUris,
+        createdAt: new Date().toISOString(),
+        category: result.category,
+        sizes: result.sizes,
+        colors: result.colors,
+      };
+
+      await saveDocument('product_drops', newProductDrop, newProductDrop.id);
+
       setGeneratedListing(result);
       toast({
-        title: 'Listing Generated!',
-        description: 'Review the AI-generated details below.',
+        title: 'Listing Generated & Saved!',
+        description: 'Review the details below. This product is now in your "My Products" catalog.',
       });
     } catch (error: any) {
       console.error("AI Generation Error:", error);
@@ -376,7 +396,7 @@ export default function AiProductUploaderPage() {
               ) : (
                 <Wand2 className="mr-2 h-4 w-4" />
               )}
-              Generate Listing with AI
+              Generate & Save Listing with AI
             </Button>
           </CardFooter>
         </Card>
@@ -508,4 +528,3 @@ export default function AiProductUploaderPage() {
     </AppShell>
   );
 }
-
