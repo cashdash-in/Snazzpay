@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,8 +14,10 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { FirebaseError } from 'firebase/app';
 import { Checkbox } from '@/components/ui/checkbox';
+import type { SellerUser } from '@/app/seller-accounts/page';
+import { getCollection } from '@/services/firestore';
 
-export default function AdminLoginPage() {
+function LoginForm() {
     const { toast } = useToast();
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -40,13 +42,21 @@ export default function AdminLoginPage() {
         }
         
         try {
-            const userCredential = await signInWithEmailAndPassword(auth, email, password);
-            const idToken = await userCredential.user.getIdToken();
-
+            let loginEmail = email;
             let role = 'user'; // Default role
+
+            // Check if it's the hardcoded admin
             if (email.toLowerCase() === 'admin@snazzpay.com') {
                 role = 'admin';
+            } else {
+                 // For non-admin, this could be an email or mobile.
+                 // We will just use the email directly for Firebase auth.
+                 // In a real scenario with mobile, we'd need a different auth method or a lookup.
             }
+            
+            const userCredential = await signInWithEmailAndPassword(auth, loginEmail, password);
+            const idToken = await userCredential.user.getIdToken();
+
 
             const response = await fetch('/api/auth/session', {
                 method: 'POST',
@@ -95,7 +105,7 @@ export default function AdminLoginPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="email">Email Address</Label>
+                        <Label htmlFor="email">Email</Label>
                         <div className="relative">
                             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input 
@@ -149,5 +159,13 @@ export default function AdminLoginPage() {
                 </CardFooter>
             </Card>
         </div>
+    );
+}
+
+export default function AdminLoginPage() {
+    return (
+        <Suspense fallback={<div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
+            <LoginForm />
+        </Suspense>
     );
 }
