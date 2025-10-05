@@ -141,7 +141,20 @@ export default function DeliveryTrackingPage() {
 
     const getSecureUrl = (order: EditableOrder) => {
         const baseUrl = window.location.origin;
-        return `${baseUrl}/secure-cod?amount=${encodeURIComponent(order.price)}&name=${encodeURIComponent(order.productOrdered)}&order_id=${encodeURIComponent(order.orderId)}`;
+        const params = new URLSearchParams({
+            amount: order.price,
+            name: order.productOrdered,
+            order_id: order.orderId,
+        });
+
+        if (order.size) {
+            params.set('sizes', order.size);
+        }
+        if (order.color) {
+            params.set('colors', order.color);
+        }
+        
+        return `${baseUrl}/secure-cod?${params.toString()}`;
     };
 
     const copyAuthLink = (order: EditableOrder) => {

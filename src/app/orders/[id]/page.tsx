@@ -171,6 +171,14 @@ function OrderDetailContent() {
             customerPincode: order.pincode,
             image: order.imageDataUris?.[0] || ''
         });
+
+        if (order.size) {
+            params.set('sizes', order.size);
+        }
+        if (order.color) {
+            params.set('colors', order.color);
+        }
+
         return `${baseUrl}/secure-cod?${params.toString()}`;
     };
     
