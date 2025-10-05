@@ -109,13 +109,15 @@ export default function SellerLeadsPage() {
         if (!sellerDoc || !sellerDoc.vendorId) {
             throw new Error("Your account is not associated with a vendor. Please contact support.");
         }
-
+        
+        const { isRead, ...orderData } = lead;
         const newOrder: EditableOrder = {
-            ...lead,
+            ...orderData,
             sellerId: user.uid,
-            vendorId: sellerDoc.vendorId, // Add vendorId
+            vendorId: sellerDoc.vendorId, // Add vendor ID
             paymentStatus: lead.paymentMethod === 'Cash on Delivery' ? 'Pending' : 'Pending Payment',
             source: 'Seller' as const,
+            isRead: false,
         };
         
         await saveDocument('orders', newOrder, newOrder.id);
