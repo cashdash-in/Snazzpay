@@ -296,11 +296,11 @@ export function SecureCodPaymentForm() {
                                         <Input id="quantity" type="number" value={quantity} onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))} className="h-8" min={1}/>
                                     </div>
                                     <div className="space-y-1">
-                                        <Label htmlFor='size' className="text-xs text-muted-foreground">Size (Optional):</Label>
+                                        <Label htmlFor='size' className="text-xs text-muted-foreground">Size:</Label>
                                         <Input id="size" value={selectedSize} onChange={(e) => setSelectedSize(e.target.value)} className="h-8" placeholder="e.g., M, 42"/>
                                     </div>
                                     <div className="space-y-1">
-                                        <Label htmlFor='color' className="text-xs text-muted-foreground">Color (Optional):</Label>
+                                        <Label htmlFor='color' className="text-xs text-muted-foreground">Color:</Label>
                                         <Input id="color" value={selectedColor} onChange={(e) => setSelectedColor(e.target.value)} className="h-8" placeholder="e.g., Blue"/>
                                     </div>
                                 </div>
@@ -356,3 +356,5 @@ export function SecureCodPaymentForm() {
         </div>
     );
 }
+
+    
