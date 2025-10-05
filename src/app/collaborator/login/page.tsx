@@ -6,53 +6,85 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { UserPlus, Loader2, Mail } from "lucide-react";
+import { UserPlus, Loader2, Mail, Lock } from "lucide-react";
 import Link from "next/link";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { getCollection } from '@/services/firestore';
+import { getCollection, saveDocument } from '@/services/firestore';
 import type { Collaborator } from '@/app/collaborators/page';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import { FirebaseError } from 'firebase/app';
+import { Checkbox } from '@/components/ui/checkbox';
 
 export default function CollaboratorLoginPage() {
     const { toast } = useToast();
     const router = useRouter();
     const [loginId, setLoginId] = useState('');
+    const [password, setPassword] = useState('');
+    const [agreed, setAgreed] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
     const handleLogin = async () => {
         setIsLoading(true);
-        if (!loginId) {
-            toast({ variant: 'destructive', title: "Login ID required", description: "Please enter your email or mobile number." });
+        if (!loginId || !password) {
+            toast({ variant: 'destructive', title: "Login ID and password required" });
+            setIsLoading(false);
+            return;
+        }
+        
+        if (!agreed) {
+            toast({ variant: 'destructive', title: 'Agreement Required', description: 'You must accept the terms and conditions.' });
             setIsLoading(false);
             return;
         }
 
-        const allCollaborators = await getCollection<Collaborator>('collaborators');
-        const collaborator = allCollaborators.find(c => (c.phone === loginId || c.email === loginId));
+        try {
+            let userEmail = loginId;
+            // In a real app with Firebase Auth, you need the email to sign in.
+            // If the user provides a mobile number, we first find their email.
+            if (!loginId.includes('@')) {
+                const allCollaborators = await getCollection<Collaborator>('collaborators');
+                const collaborator = allCollaborators.find(c => c.phone === loginId);
+                if (collaborator && collaborator.email) {
+                    userEmail = collaborator.email;
+                } else {
+                    throw new Error("No account found with this mobile number, or the account has no associated email.");
+                }
+            }
 
-        if (!collaborator) {
-            toast({ variant: 'destructive', title: "Account Not Found", description: "No collaborator account found with this email or phone number." });
-            setIsLoading(false);
-            return;
-        }
+            // For prototype purposes, we simulate success if the user exists and is approved.
+            // In a real app, this would use `signInWithEmailAndPassword`.
+            const allCollaborators = await getCollection<Collaborator>('collaborators');
+            const collaborator = allCollaborators.find(c => c.email === userEmail);
+            
+            if (!collaborator || collaborator.status !== 'approved') {
+                 throw new Error("Invalid credentials or account not approved.");
+            }
+            
+            // Simulate successful login and session creation
+            localStorage.setItem('loggedInCollaboratorMobile', collaborator.phone);
 
-        if (collaborator.status !== 'approved' && collaborator.status !== 'active') {
-            toast({ variant: 'destructive', title: "Account Not Approved", description: "Your account is pending approval or has been suspended. Please contact support." });
-            setIsLoading(false);
-            return;
-        }
-
-        // For prototype purposes, we simulate success and log the user in directly.
-        localStorage.setItem('loggedInCollaboratorMobile', collaborator.phone);
-        toast({
-            title: "Login Link Sent!",
-            description: "A magic login link has been sent to your registered contact method. Please check and click it to log in.",
-        });
-        // In a real app, you would wait for the user to click the link.
-        // For this demo, we'll redirect immediately.
-        setTimeout(() => {
+            toast({
+                title: "Login Successful!",
+                description: "Redirecting to your dashboard.",
+            });
             router.push('/collaborator/dashboard');
-        }, 1500)
+
+        } catch (error: any) {
+            console.error("Login error:", error);
+            let errorMessage = 'An unexpected error occurred during login.';
+             if (error instanceof FirebaseError) {
+                if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+                     errorMessage = 'Invalid credentials. Please check your email/mobile and password.';
+                }
+            } else {
+                 errorMessage = error.message;
+            }
+            toast({ variant: 'destructive', title: "Login Failed", description: errorMessage });
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -65,7 +97,7 @@ export default function CollaboratorLoginPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="loginId">Enter Your Email or Mobile Number</Label>
+                        <Label htmlFor="loginId">Email or Mobile Number</Label>
                         <div className="relative">
                             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input 
@@ -78,10 +110,37 @@ export default function CollaboratorLoginPage() {
                             />
                         </div>
                     </div>
+                     <div className="space-y-2">
+                         <div className="flex justify-between items-center">
+                            <Label htmlFor="password">Password</Label>
+                             <Link href="/auth/forgot-password" passHref>
+                                <span className="text-xs text-primary hover:underline cursor-pointer">
+                                    Forgot Password?
+                                </span>
+                            </Link>
+                        </div>
+                        <div className="relative">
+                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input 
+                                id="password" 
+                                type="password" 
+                                placeholder="Enter your password" 
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="pl-9"
+                            />
+                        </div>
+                    </div>
+                     <div className="flex items-start space-x-2 pt-2">
+                        <Checkbox id="terms" checked={agreed} onCheckedChange={(checked) => setAgreed(checked as boolean)} className="mt-1" />
+                        <Label htmlFor="terms" className="text-sm text-muted-foreground">
+                            I agree to the <Link href="/terms-and-conditions" target="_blank" className="underline text-primary">Collaborator Terms</Link>.
+                        </Label>
+                    </div>
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4">
                     <Button className="w-full" onClick={handleLogin} disabled={isLoading}>
-                        {isLoading ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Sending Link...</> : "Send Login Link"}
+                        {isLoading ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Logging In...</> : "Login"}
                     </Button>
                     <p className="text-xs text-center text-muted-foreground">
                         Don't have an account?{" "}
