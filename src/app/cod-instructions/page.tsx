@@ -44,7 +44,7 @@ export default function CodInstructionsPage() {
   "featuredImage": {{ product.featured_image | img_url: 'large' | json }},
   "initialVariant": {{ product.selected_or_first_available_variant | json }}
 }
-</script>
+<\/script>
 
 
 <script>
@@ -122,7 +122,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (container) container.style.display = 'none';
     }
 });
-</script>
+<\/script>
 <!-- SnazzPay Secure COD Button End -->`;
         setEmbedCode(code);
     }, []);
