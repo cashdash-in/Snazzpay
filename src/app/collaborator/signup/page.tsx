@@ -23,8 +23,8 @@ export default function CollaboratorSignupPage() {
 
     const handleSignup = async () => {
         setIsLoading(true);
-        if (!formData.name || !formData.phone) {
-            toast({ variant: 'destructive', title: "Missing Information", description: "Name and phone number are required." });
+        if (!formData.name || !formData.phone || !formData.email) {
+            toast({ variant: 'destructive', title: "Missing Information", description: "Name, WhatsApp number, and email are required." });
             setIsLoading(false);
             return;
         }
@@ -69,8 +69,8 @@ export default function CollaboratorSignupPage() {
                         <Input id="name" value={formData.name} onChange={(e) => setFormData(p => ({...p, name: e.target.value}))} placeholder="Your full name" />
                     </div>
                      <div className="space-y-2">
-                        <Label htmlFor="phone">Mobile Number</Label>
-                        <Input id="phone" type="tel" value={formData.phone} onChange={(e) => setFormData(p => ({...p, phone: e.target.value}))} placeholder="Your 10-digit mobile" />
+                        <Label htmlFor="phone">WhatsApp Number</Label>
+                        <Input id="phone" type="tel" value={formData.phone} onChange={(e) => setFormData(p => ({...p, phone: e.target.value}))} placeholder="Your 10-digit WhatsApp number" />
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="email">Email Address</Label>

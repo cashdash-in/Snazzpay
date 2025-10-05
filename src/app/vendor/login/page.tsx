@@ -27,15 +27,15 @@ export default function VendorLoginPage() {
         setIsLoading(true);
         
         if (!loginId) {
-            toast({ variant: 'destructive', title: "Invalid Input", description: "Please enter your email or mobile number." });
+            toast({ variant: 'destructive', title: "Invalid Input", description: "Please enter your email or WhatsApp number." });
             setIsLoading(false);
             return;
         }
 
-        // In a real OTP flow, this would send an OTP.
+        // In a real app, this would send a login link/code.
         toast({
-            title: "OTP Sent",
-            description: "An OTP has been sent to your registered mobile number.",
+            title: "Login Link Sent",
+            description: "A magic login link has been sent to your registered email/WhatsApp.",
         });
 
         setTimeout(() => {
@@ -49,17 +49,17 @@ export default function VendorLoginPage() {
                 <CardHeader className="text-center">
                     <Factory className="mx-auto h-12 w-12 text-primary" />
                     <CardTitle>SnazzPay Vendor Portal</CardTitle>
-                    <CardDescription>Log in to your vendor dashboard using OTP.</CardDescription>
+                    <CardDescription>Login to your vendor dashboard with Email or WhatsApp.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="loginId">Email or Mobile Number</Label>
+                        <Label htmlFor="loginId">Email or WhatsApp Number</Label>
                         <div className="relative">
                             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input 
                                 id="loginId" 
                                 type="text" 
-                                placeholder="Your registered email or mobile" 
+                                placeholder="Your registered email or WhatsApp number" 
                                 value={loginId}
                                 onChange={(e) => setLoginId(e.target.value)}
                                 className="pl-9" 
@@ -69,7 +69,7 @@ export default function VendorLoginPage() {
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4">
                     <Button className="w-full" onClick={handleLogin} disabled={isLoading}>
-                        {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending OTP...</> : "Send OTP"}
+                        {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending Link...</> : "Send Login Link"}
                     </Button>
                     <p className="text-xs text-center text-muted-foreground">
                         Are you a seller?{" "}

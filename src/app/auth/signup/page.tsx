@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -93,7 +92,7 @@ export default function SignupPage() {
 
         // Standard seller or vendor signup (passwordless)
         if (!companyName || !phone) {
-            toast({ variant: 'destructive', title: "Missing Fields", description: "Please fill out your company name and phone number." });
+            toast({ variant: 'destructive', title: "Missing Fields", description: "Please fill out your company name and WhatsApp number." });
             setIsLoading(false);
             return;
         }
@@ -105,8 +104,7 @@ export default function SignupPage() {
         }
         
         try {
-            // For passwordless OTP flow, we don't create an auth user here.
-            // We create a user document in Firestore which will be used to verify the phone number during OTP login.
+            // For passwordless flow, we create a user document in Firestore which will be used for verification.
             const newUserId = uuidv4();
             if (userType === 'seller') {
                 const newRequest = {
@@ -186,7 +184,7 @@ export default function SignupPage() {
                                 </div>
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="phone">Phone Number (for OTP Login)</Label>
+                                <Label htmlFor="phone">WhatsApp Number (for Login)</Label>
                                 <div className="relative">
                                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                     <Input id="phone" type="tel" placeholder="e.g., 919876543210" value={phone} onChange={(e) => setPhone(e.target.value)} className="pl-9" />

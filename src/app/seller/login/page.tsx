@@ -27,26 +27,22 @@ export default function SellerLoginPage() {
         setIsLoading(true);
         
         if (!loginId) {
-            toast({ variant: 'destructive', title: "Invalid Input", description: "Please enter your email or mobile number." });
+            toast({ variant: 'destructive', title: "Invalid Input", description: "Please enter your email or WhatsApp number." });
             setIsLoading(false);
             return;
         }
 
-        // In a real OTP flow, this would send an OTP to the user's registered phone number.
-        // For now, we simulate the start of this process.
+        // In a real app, this would send a login link/code.
+        // For now, we simulate success for prototype purposes.
         toast({
-            title: "OTP Sent",
-            description: "An OTP has been sent to your registered mobile number.",
+            title: "Login Link Sent",
+            description: "A magic login link has been sent to your registered email/WhatsApp.",
         });
-
-        // The rest of the logic would be handled on an OTP verification page.
-        // We'll keep this disabled for now until the full OTP flow is built.
         
-        // Simulating completion for prototype purposes:
-        // In a real flow, you would verify the OTP then sign the user in with a custom token.
         setTimeout(() => {
             setIsLoading(false);
-            // router.push('/seller/verify-otp'); // Example of next step
+            // In a real app, you'd wait for the user to click the link.
+            // For prototype, we could simulate a successful login check.
         }, 1000);
     };
 
@@ -56,11 +52,11 @@ export default function SellerLoginPage() {
                 <CardHeader className="text-center">
                     <Store className="mx-auto h-12 w-12 text-primary" />
                     <CardTitle>SnazzPay Seller Central</CardTitle>
-                    <CardDescription>Log in to your seller dashboard using OTP.</CardDescription>
+                    <CardDescription>Login with your Email or WhatsApp number.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="loginId">Email or Mobile Number</Label>
+                        <Label htmlFor="loginId">Email or WhatsApp Number</Label>
                         <div className="relative">
                             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input 
@@ -76,7 +72,7 @@ export default function SellerLoginPage() {
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4">
                     <Button className="w-full" onClick={handleLogin} disabled={isLoading}>
-                        {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending OTP...</> : "Send OTP"}
+                        {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending Link...</> : "Send Login Link"}
                     </Button>
                     <p className="text-xs text-center text-muted-foreground">
                         Don't have an account?{" "}
