@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useRef, ChangeEvent } from 'react';
@@ -17,16 +18,16 @@ import { useToast } from '@/hooks/use-toast';
 import {
   Loader2,
   Sparkles,
-  Upload,
   Rocket,
   Wand2,
-  CheckCircle,
   FileText,
   Percent,
 } from 'lucide-react';
-import Image from 'next/image';
 import { type ProductListingOutput } from '@/ai/schemas/product-listing';
 import { parseWhatsAppChat } from '@/ai/flows/whatsapp-product-parser';
+import { saveDocument } from '@/services/firestore';
+import { v4 as uuidv4 } from 'uuid';
+import type { ProductDrop } from '@/app/vendor/product-drops/page';
 
 type ParsedProduct = ProductListingOutput & {
     id: string; // Add a temporary client-side ID
@@ -98,7 +99,6 @@ export default function WhatsAppUploaderPage() {
 
     const updatedProducts = parsedProducts.map(p => {
         const newPrice = cost * (1 + (margin / 100));
-        // Simple rounding for now, e.g., to nearest integer.
         return { ...p, price: Math.round(newPrice) };
     });
     setParsedProducts(updatedProducts);
@@ -115,15 +115,29 @@ export default function WhatsAppUploaderPage() {
 
     for (const product of parsedProducts) {
         try {
+             // Save to Firestore "My Products" (product_drops)
+            const newProductDrop: ProductDrop = {
+                id: uuidv4(),
+                vendorId: 'admin_snazzify',
+                vendorName: 'SnazzifyOfficial',
+                title: product.title,
+                description: product.description,
+                costPrice: product.price,
+                imageDataUris: [], // No images in this flow
+                createdAt: new Date().toISOString(),
+                category: product.category,
+                sizes: product.sizes,
+                colors: product.colors,
+            };
+            await saveDocument('product_drops', newProductDrop, newProductDrop.id);
+
+            // Push to Shopify
              const productData = {
                 title: product.title,
                 body_html: product.description,
                 product_type: product.category,
-                vendor: 'Snazzify AI', // Or another identifier
+                vendor: 'Snazzify AI',
                 variants: [{ price: product.price }],
-                // Note: Shopify's API for adding images with a product is complex.
-                // This simplified version creates the product without images.
-                // A more advanced implementation would upload images first, get their IDs, then associate them.
             };
 
             const response = await fetch('/api/shopify/products/create', {
@@ -143,7 +157,7 @@ export default function WhatsAppUploaderPage() {
 
     toast({
         title: 'Shopify Push Complete!',
-        description: `${successCount} products pushed successfully. ${errorCount} failed. Check console for details.`,
+        description: `${successCount} products pushed successfully and saved to "My Products". ${errorCount} failed. Check console for details.`,
     });
     setParsedProducts([]);
     setIsPushing(false);

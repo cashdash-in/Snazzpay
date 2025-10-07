@@ -10,7 +10,7 @@ import { Loader2, Trash2, Package, MessageSquare, BookOpen } from "lucide-react"
 import { useToast } from "@/hooks/use-toast";
 import type { ProductDrop } from '@/app/vendor/product-drops/page';
 import Image from 'next/image';
-import { formatDistanceToNow, isBefore, subDays } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -94,7 +94,7 @@ export default function AdminProductsPage() {
                      <div className="text-center py-16">
                         <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4"/>
                         <h3 className="text-xl font-semibold">No Products Found</h3>
-                        <p className="text-muted-foreground mt-2">Use the "Product Drops" page to create products as an admin.</p>
+                        <p className="text-muted-foreground mt-2">Use the "Product Drops", "AI Product Uploader", or "WhatsApp Uploader" to create products as an admin.</p>
                     </div>
                 ) : (
                 <Table>

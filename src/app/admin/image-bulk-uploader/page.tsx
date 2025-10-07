@@ -19,7 +19,6 @@ import { useToast } from '@/hooks/use-toast';
 import {
   Loader2,
   Sparkles,
-  Upload,
   Rocket,
   Wand2,
   ImagePlus,
@@ -27,6 +26,9 @@ import {
 import Image from 'next/image';
 import { createProductDescription } from '@/ai/flows/create-product-description';
 import { type ProductListingOutput } from '@/ai/schemas/product-listing';
+import { v4 as uuidv4 } from 'uuid';
+import { saveDocument } from '@/services/firestore';
+import type { ProductDrop } from '@/app/vendor/product-drops/page';
 
 type GeneratedProduct = ProductListingOutput & {
   id: string;
@@ -141,7 +143,7 @@ export default function ImageBulkUploaderPage() {
       }
     });
 
-    const results = (await Promise.all(productPromises)).filter(Boolean) as (ProductListingOutput & {id: string, imageDataUri: string})[];
+    const results = (await Promise.all(productPromises)).filter(Boolean) as GeneratedProduct[];
     setGeneratedProducts(results);
     setIsProcessing(false);
     setImageFiles([]);
@@ -164,12 +166,33 @@ export default function ImageBulkUploaderPage() {
 
     for (const product of generatedProducts) {
         try {
+             // Save to Firestore "My Products" (product_drops)
+            const newProductDrop: ProductDrop = {
+                id: uuidv4(),
+                vendorId: 'admin_snazzify',
+                vendorName: 'SnazzifyOfficial',
+                title: product.title,
+                description: product.description,
+                costPrice: product.price,
+                imageDataUris: [product.imageDataUri],
+                createdAt: new Date().toISOString(),
+                category: product.category,
+                sizes: product.sizes,
+                colors: product.colors,
+            };
+            await saveDocument('product_drops', newProductDrop, newProductDrop.id);
+
+            // Push to Shopify
              const productData = {
                 title: product.title,
                 body_html: product.description,
                 product_type: product.category,
                 vendor: 'Snazzify AI',
-                variants: [{ price: product.price }],
+                variants: [{ price: product.price, option1: product.sizes[0] || 'Default', option2: product.colors[0] || 'Default' }],
+                options: [
+                    { name: "Size", values: product.sizes.length > 0 ? product.sizes : ["Default"] },
+                    { name: "Color", values: product.colors.length > 0 ? product.colors : ["Default"] },
+                ],
                 images: [{ attachment: product.imageDataUri.split(',')[1] }],
             };
 
@@ -191,7 +214,7 @@ export default function ImageBulkUploaderPage() {
 
     toast({
         title: 'Shopify Push Complete!',
-        description: `${successCount} products pushed successfully. ${errorCount} failed. Check console for details on failures.`,
+        description: `${successCount} products pushed successfully and saved to "My Products". ${errorCount} failed. Check console for details.`,
     });
     setGeneratedProducts([]);
     setIsPushing(false);
