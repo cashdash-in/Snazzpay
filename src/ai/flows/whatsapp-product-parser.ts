@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview An AI flow for parsing a WhatsApp chat export to extract product listings.
@@ -7,8 +8,8 @@ import { z } from 'zod';
 
 const WhatsAppChatInputSchema = z.object({
   chatText: z.string().describe('The full text content of a WhatsApp chat export.'),
-  cost: z.number().describe('The base cost of the products.'),
-  margin: z.number().describe('The desired profit margin percentage.'),
+  startDate: z.string().optional().describe('The optional start date (ISO format) to filter chat messages.'),
+  endDate: z.string().optional().describe('The optional end date (ISO format) to filter chat messages.'),
 });
 
 const SingleProductSchema = z.object({
@@ -28,7 +29,7 @@ const SingleProductSchema = z.object({
   price: z
     .number()
     .describe(
-      'The calculated selling price based on the cost and profit margin.'
+      'The selling price of the product as found in the text. Extract the numeric value only.'
     ),
   sizes: z
     .array(z.string())
@@ -49,19 +50,19 @@ const parseChatPrompt = ai.definePrompt({
   prompt: `You are an expert e-commerce merchandiser specializing in parsing unstructured text from WhatsApp chats into structured product data.
 
 Your task is to analyze the entire chat transcript provided in 'chatText'. The chat contains discussions about multiple products. Identify each distinct product and extract its details.
+{{#if startDate}}
+Only consider messages between {{startDate}} and {{endDate}}. Ignore all messages outside this date range.
+{{/if}}
 
 For each product you find, generate a complete product listing object with the following fields:
 - **title:** Create a concise, catchy, and SEO-friendly title (under 60 characters).
 - **description:** Write a compelling, well-formatted product description using Markdown. Start with an engaging sentence and use a bulleted list for features.
 - **category:** Suggest a standard Shopify product category (e.g., "Apparel & Accessories > Clothing > Shirts & Tops").
-- **price:** Calculate the final selling price using the formula: cost * (1 + (margin / 100)). Round the final price to a logical number (e.g., 499 instead of 498.75).
+- **price:** Extract the selling price from the text. This is a critical field. If a price is mentioned (e.g., "price 599", "Rs. 599", "599/-"), extract that numeric value. If no price is found for a product, set it to 0.
 - **sizes:** Extract all available sizes into an array of strings.
 - **colors:** Extract all available colors into an array of strings.
 
 Aggregate all the generated product objects into a single array under the 'products' key in the final output.
-
-Base Cost: {{{cost}}}
-Desired Margin: {{{margin}}}%
 
 Chat Transcript:
 ---
@@ -89,3 +90,5 @@ export async function parseWhatsAppChat(
 ): Promise<z.infer<typeof WhatsAppChatOutputSchema>> {
   return await parseWhatsAppChatFlow(input);
 }
+
+    

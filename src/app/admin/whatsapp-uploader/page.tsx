@@ -22,12 +22,17 @@ import {
   Wand2,
   FileText,
   Percent,
+  Calendar as CalendarIcon,
 } from 'lucide-react';
 import { type ProductListingOutput } from '@/ai/schemas/product-listing';
 import { parseWhatsAppChat } from '@/ai/flows/whatsapp-product-parser';
 import { saveDocument } from '@/services/firestore';
 import { v4 as uuidv4 } from 'uuid';
 import type { ProductDrop } from '@/app/vendor/product-drops/page';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import type { DateRange } from 'react-day-picker';
 
 type ParsedProduct = ProductListingOutput & {
     id: string; // Add a temporary client-side ID
@@ -39,9 +44,9 @@ export default function WhatsAppUploaderPage() {
   const [isPushing, setIsPushing] = useState(false);
   const [chatContent, setChatContent] = useState<string>('');
   const [parsedProducts, setParsedProducts] = useState<ParsedProduct[]>([]);
-  const [bulkMargin, setBulkMargin] = useState<string>('100');
-  const [costPrice, setCostPrice] = useState<string>('');
+  const [bulkMargin, setBulkMargin] = useState<string>('0');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -61,19 +66,19 @@ export default function WhatsAppUploaderPage() {
       toast({ variant: 'destructive', title: 'No Chat File', description: 'Please upload a WhatsApp chat .txt file first.' });
       return;
     }
-    if (!costPrice) {
-        toast({ variant: 'destructive', title: 'Missing Cost Price', description: 'Please enter a base cost price for the products.' });
-        return;
-    }
     setIsParsing(true);
     setParsedProducts([]);
     try {
-      const result = await parseWhatsAppChat({ chatText: chatContent, cost: parseFloat(costPrice), margin: parseFloat(bulkMargin) });
+      const result = await parseWhatsAppChat({ 
+          chatText: chatContent,
+          startDate: dateRange?.from?.toISOString(),
+          endDate: dateRange?.to?.toISOString(),
+      });
       const productsWithIds = result.products.map(p => ({...p, id: `temp-${Math.random()}`}));
       setParsedProducts(productsWithIds);
       toast({ title: 'Chat Parsed Successfully!', description: `${productsWithIds.length} products were identified. Review them below.` });
     } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Parsing Failed', description: error.message });
+      toast({ variant: 'destructive', title: 'Parsing Failed', description: error.message || 'An unexpected error occurred while parsing the chat.' });
     } finally {
       setIsParsing(false);
     }
@@ -86,19 +91,19 @@ export default function WhatsAppUploaderPage() {
   };
   
   const applyBulkMargin = () => {
-    if (parsedProducts.length === 0 || !costPrice) {
-        toast({ variant: 'destructive', title: 'No Products or Cost Price', description: 'Please parse products and set a base cost price first.' });
+    if (parsedProducts.length === 0) {
+        toast({ variant: 'destructive', title: 'No Products Parsed', description: 'Please parse products before applying a margin.' });
         return;
     }
-    const cost = parseFloat(costPrice);
     const margin = parseFloat(bulkMargin);
-    if (isNaN(cost) || isNaN(margin)) {
-        toast({ variant: 'destructive', title: 'Invalid Number', description: 'Cost price and margin must be valid numbers.' });
+    if (isNaN(margin)) {
+        toast({ variant: 'destructive', title: 'Invalid Margin', description: 'Margin must be a valid number.' });
         return;
     }
 
     const updatedProducts = parsedProducts.map(p => {
-        const newPrice = cost * (1 + (margin / 100));
+        const originalPrice = p.price;
+        const newPrice = originalPrice * (1 + (margin / 100));
         return { ...p, price: Math.round(newPrice) };
     });
     setParsedProducts(updatedProducts);
@@ -115,7 +120,6 @@ export default function WhatsAppUploaderPage() {
 
     for (const product of parsedProducts) {
         try {
-             // Save to Firestore "My Products" (product_drops)
             const newProductDrop: ProductDrop = {
                 id: uuidv4(),
                 vendorId: 'admin_snazzify',
@@ -123,7 +127,7 @@ export default function WhatsAppUploaderPage() {
                 title: product.title,
                 description: product.description,
                 costPrice: product.price,
-                imageDataUris: [], // No images in this flow
+                imageDataUris: [],
                 createdAt: new Date().toISOString(),
                 category: product.category,
                 sizes: product.sizes,
@@ -131,8 +135,7 @@ export default function WhatsAppUploaderPage() {
             };
             await saveDocument('product_drops', newProductDrop, newProductDrop.id);
 
-            // Push to Shopify
-             const productData = {
+            const productData = {
                 title: product.title,
                 body_html: product.description,
                 product_type: product.category,
@@ -170,7 +173,7 @@ export default function WhatsAppUploaderPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>1. Upload & Parse</CardTitle>
-                    <CardDescription>Upload your exported WhatsApp chat (.txt) file.</CardDescription>
+                    <CardDescription>Upload your exported WhatsApp chat (.txt) file. You can optionally filter by date.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
@@ -184,8 +187,37 @@ export default function WhatsAppUploaderPage() {
                         />
                     </div>
                      <div className="space-y-2">
-                        <Label htmlFor="cost-price">Base Cost Price (INR)</Label>
-                        <Input id="cost-price" type="number" placeholder="Enter base cost for all products" value={costPrice} onChange={e => setCostPrice(e.target.value)} />
+                        <Label htmlFor="date-range">Optional: Filter by Date Range</Label>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    id="date-range"
+                                    variant={"outline"}
+                                    className={"w-full justify-start text-left font-normal"}
+                                >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {dateRange?.from ? (
+                                        dateRange.to ? (
+                                            <>{format(dateRange.from, "LLL dd, y")} - {format(dateRange.to, "LLL dd, y")}</>
+                                        ) : (
+                                            format(dateRange.from, "LLL dd, y")
+                                        )
+                                    ) : (
+                                        <span>Pick a date range</span>
+                                    )}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                    initialFocus
+                                    mode="range"
+                                    defaultMonth={dateRange?.from}
+                                    selected={dateRange}
+                                    onSelect={setDateRange}
+                                    numberOfMonths={2}
+                                />
+                            </PopoverContent>
+                        </Popover>
                     </div>
                 </CardContent>
                 <CardFooter>
@@ -198,7 +230,7 @@ export default function WhatsAppUploaderPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>2. Bulk Pricing Control</CardTitle>
-                    <CardDescription>Apply a margin to all products at once.</CardDescription>
+                    <CardDescription>Apply a margin to all extracted product prices at once.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
@@ -207,7 +239,7 @@ export default function WhatsAppUploaderPage() {
                             <Input
                                 id="bulk-margin"
                                 type="number"
-                                placeholder="e.g., 100"
+                                placeholder="e.g., 100 for 100% margin"
                                 value={bulkMargin}
                                 onChange={(e) => setBulkMargin(e.target.value)}
                             />
@@ -281,3 +313,5 @@ export default function WhatsAppUploaderPage() {
     </AppShell>
   );
 }
+
+    
