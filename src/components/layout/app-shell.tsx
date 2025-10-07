@@ -84,6 +84,7 @@ const adminCoreMenuItems = [
 
 const adminGrowthMenuItems = [
     { href: '/ai-product-uploader', label: 'AI Product Uploader', icon: Wand2 },
+    { href: '/admin/whatsapp-uploader', label: 'WhatsApp Uploader', icon: MessageSquare },
     { href: '/product-drops', label: 'Product Drops', icon: Send },
     { href: '/admin/products', label: 'My Products', icon: Package },
     { href: '/share/magazine', label: 'Smart Magazine', icon: BookOpen },
