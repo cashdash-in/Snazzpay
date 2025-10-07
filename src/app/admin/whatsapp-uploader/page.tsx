@@ -209,59 +209,61 @@ export default function WhatsAppUploaderPage() {
             </Card>
         </div>
 
-        <Card className="mt-8">
-            <CardHeader>
-                 <CardTitle>3. Review, Edit & Push</CardTitle>
-                <CardDescription>Review the products parsed by the AI. You can edit the price for each item before pushing them all to Shopify.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                {isParsing ? (
-                    <div className="flex flex-col items-center justify-center p-8 gap-4 text-center">
-                        <Sparkles className="h-12 w-12 text-primary animate-pulse" />
-                        <h3 className="text-xl font-semibold">AI is analyzing the chat...</h3>
-                        <p className="text-muted-foreground">Identifying products and extracting details. This may take a moment.</p>
-                    </div>
-                ) : parsedProducts.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {parsedProducts.map((p) => (
-                            <Card key={p.id}>
-                                <CardHeader><CardTitle className="text-lg">{p.title}</CardTitle></CardHeader>
-                                <CardContent className="space-y-2 text-sm">
-                                    <p className="text-muted-foreground line-clamp-3">{p.description}</p>
-                                    <p><strong>Category:</strong> {p.category}</p>
-                                    <p><strong>Sizes:</strong> {p.sizes.join(', ')}</p>
-                                    <p><strong>Colors:</strong> {p.colors.join(', ')}</p>
-                                    <div className="space-y-1 pt-2">
-                                        <Label htmlFor={`price-${p.id}`}>Selling Price</Label>
-                                        <Input
-                                            id={`price-${p.id}`}
-                                            type="number"
-                                            value={p.price}
-                                            onChange={(e) => handlePriceChange(p.id, e.target.value)}
-                                        />
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="text-center text-muted-foreground p-8">
-                         <FileText className="h-12 w-12 mx-auto mb-4" />
-                        <h3 className="text-xl font-semibold">Generated Products Will Appear Here</h3>
-                        <p>Upload a chat file and click "Parse Chat with AI" to begin.</p>
-                    </div>
+        <div className="lg:col-span-2 mt-8 lg:mt-0">
+            <Card>
+                <CardHeader>
+                    <CardTitle>3. Review, Edit & Push</CardTitle>
+                    <CardDescription>Review the products parsed by the AI. You can edit the price for each item before pushing them all to Shopify.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    {isParsing ? (
+                        <div className="flex flex-col items-center justify-center p-8 gap-4 text-center">
+                            <Sparkles className="h-12 w-12 text-primary animate-pulse" />
+                            <h3 className="text-xl font-semibold">AI is analyzing the chat...</h3>
+                            <p className="text-muted-foreground">Identifying products and extracting details. This may take a moment.</p>
+                        </div>
+                    ) : parsedProducts.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {parsedProducts.map((p) => (
+                                <Card key={p.id}>
+                                    <CardHeader><CardTitle className="text-lg">{p.title}</CardTitle></CardHeader>
+                                    <CardContent className="space-y-2 text-sm">
+                                        <p className="text-muted-foreground line-clamp-3">{p.description}</p>
+                                        <p><strong>Category:</strong> {p.category}</p>
+                                        <p><strong>Sizes:</strong> {p.sizes.join(', ')}</p>
+                                        <p><strong>Colors:</strong> {p.colors.join(', ')}</p>
+                                        <div className="space-y-1 pt-2">
+                                            <Label htmlFor={`price-${p.id}`}>Selling Price</Label>
+                                            <Input
+                                                id={`price-${p.id}`}
+                                                type="number"
+                                                value={p.price}
+                                                onChange={(e) => handlePriceChange(p.id, e.target.value)}
+                                            />
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="text-center text-muted-foreground p-8">
+                            <FileText className="h-12 w-12 mx-auto mb-4" />
+                            <h3 className="text-xl font-semibold">Generated Products Will Appear Here</h3>
+                            <p>Upload a chat file and click "Parse Chat with AI" to begin.</p>
+                        </div>
+                    )}
+                </CardContent>
+                {parsedProducts.length > 0 && (
+                    <CardFooter>
+                        <Button onClick={handlePushToShopify} disabled={isPushing} size="lg">
+                            {isPushing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Rocket className="mr-2 h-4 w-4" />}
+                            Push All {parsedProducts.length} Products to Shopify
+                        </Button>
+                    </CardFooter>
                 )}
-            </CardContent>
-            {parsedProducts.length > 0 && (
-                <CardFooter>
-                    <Button onClick={handlePushToShopify} disabled={isPushing} size="lg">
-                        {isPushing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Rocket className="mr-2 h-4 w-4" />}
-                        Push All {parsedProducts.length} Products to Shopify
-                    </Button>
-                </CardFooter>
-            )}
-        </Card>
-
+            </Card>
+        </div>
+      </div>
     </AppShell>
   );
 }
