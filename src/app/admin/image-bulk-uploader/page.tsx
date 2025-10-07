@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, DragEvent, ChangeEvent } from 'react';
@@ -115,7 +116,7 @@ export default function ImageBulkUploaderPage() {
         const resizedDataUri = await resizeImage(file);
         const result = await createProductDescription({
           title: file.name.replace(/\.[^/.]+$/, ""), // Use filename as a basic title
-          imagesDataUri: [resizedDataUri],
+          imageDataUri: resizedDataUri,
         });
         
         const initialTitle = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ").substring(0,60);
@@ -148,7 +149,7 @@ export default function ImageBulkUploaderPage() {
     toast({ title: 'Processing Complete!', description: `${results.length} product listings generated.` });
   };
 
-  const handleProductChange = (id: string, field: keyof GeneratedProduct, value: string | number) => {
+  const handleProductChange = (id: string, field: keyof GeneratedProduct, value: string | number | string[]) => {
     setGeneratedProducts(prev =>
       prev.map(p => (p.id === id ? { ...p, [field]: value } : p))
     );
@@ -267,9 +268,23 @@ export default function ImageBulkUploaderPage() {
                                     <Label htmlFor={`desc-${p.id}`}>Description</Label>
                                     <Textarea id={`desc-${p.id}`} value={p.description} onChange={e => handleProductChange(p.id, 'description', e.target.value)} rows={4} />
                                 </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                     <div className="space-y-1">
+                                        <Label htmlFor={`price-${p.id}`}>Price</Label>
+                                        <Input id={`price-${p.id}`} type="number" value={p.price} onChange={e => handleProductChange(p.id, 'price', Number(e.target.value))} />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label htmlFor={`category-${p.id}`}>Category</Label>
+                                        <Input id={`category-${p.id}`} value={p.category} onChange={e => handleProductChange(p.id, 'category', e.target.value)} />
+                                    </div>
+                                </div>
                                 <div className="space-y-1">
-                                    <Label htmlFor={`price-${p.id}`}>Price</Label>
-                                    <Input id={`price-${p.id}`} type="number" value={p.price} onChange={e => handleProductChange(p.id, 'price', Number(e.target.value))} />
+                                    <Label htmlFor={`sizes-${p.id}`}>Sizes (comma-separated)</Label>
+                                    <Input id={`sizes-${p.id}`} value={p.sizes.join(', ')} onChange={e => handleProductChange(p.id, 'sizes', e.target.value.split(',').map(s=>s.trim()))} />
+                                </div>
+                                <div className="space-y-1">
+                                    <Label htmlFor={`colors-${p.id}`}>Colors (comma-separated)</Label>
+                                    <Input id={`colors-${p.id}`} value={p.colors.join(', ')} onChange={e => handleProductChange(p.id, 'colors', e.target.value.split(',').map(s=>s.trim()))} />
                                 </div>
                             </CardContent>
                         </Card>
