@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useRef, ChangeEvent } from 'react';
@@ -144,8 +143,9 @@ export default function WhatsAppUploaderPage() {
 
     toast({
         title: 'Shopify Push Complete!',
-        description: `${successCount} products pushed successfully. ${errorCount} failed.`,
+        description: `${successCount} products pushed successfully. ${errorCount} failed. Check console for details.`,
     });
+    setParsedProducts([]);
     setIsPushing(false);
   };
 

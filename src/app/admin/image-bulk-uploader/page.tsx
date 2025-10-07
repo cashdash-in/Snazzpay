@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, DragEvent, ChangeEvent } from 'react';
@@ -26,16 +25,11 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import { createProductDescription } from '@/ai/flows/create-product-description';
+import { type ProductListingOutput } from '@/ai/schemas/product-listing';
 
-type GeneratedProduct = {
+type GeneratedProduct = ProductListingOutput & {
   id: string;
   imageDataUri: string;
-  title: string;
-  description: string;
-  category: string;
-  cost: number;
-  margin: number;
-  price: number;
 };
 
 const MAX_IMAGE_SIZE_PX = 800; // Max width/height for resizing
@@ -123,15 +117,18 @@ export default function ImageBulkUploaderPage() {
           title: file.name.replace(/\.[^/.]+$/, ""), // Use filename as a basic title
           imagesDataUri: [resizedDataUri],
         });
+        
+        const initialTitle = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ").substring(0,60);
+
         return {
           id: `gen-${index}-${Date.now()}`,
           imageDataUri: resizedDataUri,
-          title: result.description.split('\n')[0].substring(0, 60), // Take first line as title
+          title: initialTitle,
           description: result.description,
           category: 'Default Category',
-          cost: 0,
-          margin: 100,
           price: 0,
+          sizes: [],
+          colors: [],
         };
       } catch (e: any) {
         toast({
@@ -143,28 +140,17 @@ export default function ImageBulkUploaderPage() {
       }
     });
 
-    const results = await Promise.all(productPromises);
-    setGeneratedProducts(results.filter(Boolean) as GeneratedProduct[]);
+    const results = (await Promise.all(productPromises)).filter(Boolean) as (ProductListingOutput & {id: string, imageDataUri: string})[];
+    setGeneratedProducts(results);
     setIsProcessing(false);
     setImageFiles([]);
     setImagePreviews([]);
-    toast({ title: 'Processing Complete!', description: `${results.filter(Boolean).length} product listings generated.` });
+    toast({ title: 'Processing Complete!', description: `${results.length} product listings generated.` });
   };
 
   const handleProductChange = (id: string, field: keyof GeneratedProduct, value: string | number) => {
     setGeneratedProducts(prev =>
-      prev.map(p => {
-        if (p.id === id) {
-          const updatedProduct = { ...p, [field]: value };
-          if (field === 'cost' || field === 'margin') {
-            const cost = field === 'cost' ? Number(value) : p.cost;
-            const margin = field === 'margin' ? Number(value) : p.margin;
-            updatedProduct.price = cost * (1 + (margin / 100));
-          }
-          return updatedProduct;
-        }
-        return p;
-      })
+      prev.map(p => (p.id === id ? { ...p, [field]: value } : p))
     );
   };
   
@@ -204,7 +190,7 @@ export default function ImageBulkUploaderPage() {
 
     toast({
         title: 'Shopify Push Complete!',
-        description: `${successCount} products pushed successfully. ${errorCount} failed.`,
+        description: `${successCount} products pushed successfully. ${errorCount} failed. Check console for details on failures.`,
     });
     setGeneratedProducts([]);
     setIsPushing(false);
@@ -281,19 +267,9 @@ export default function ImageBulkUploaderPage() {
                                     <Label htmlFor={`desc-${p.id}`}>Description</Label>
                                     <Textarea id={`desc-${p.id}`} value={p.description} onChange={e => handleProductChange(p.id, 'description', e.target.value)} rows={4} />
                                 </div>
-                                <div className="grid grid-cols-3 gap-2">
-                                     <div className="space-y-1">
-                                        <Label htmlFor={`cost-${p.id}`}>Cost</Label>
-                                        <Input id={`cost-${p.id}`} type="number" value={p.cost} onChange={e => handleProductChange(p.id, 'cost', e.target.value)} />
-                                    </div>
-                                     <div className="space-y-1">
-                                        <Label htmlFor={`margin-${p.id}`}>Margin %</Label>
-                                        <Input id={`margin-${p.id}`} type="number" value={p.margin} onChange={e => handleProductChange(p.id, 'margin', e.target.value)} />
-                                    </div>
-                                     <div className="space-y-1">
-                                        <Label htmlFor={`price-${p.id}`}>Price</Label>
-                                        <Input id={`price-${p.id}`} type="number" value={p.price} onChange={e => handleProductChange(p.id, 'price', e.target.value)} />
-                                    </div>
+                                <div className="space-y-1">
+                                    <Label htmlFor={`price-${p.id}`}>Price</Label>
+                                    <Input id={`price-${p.id}`} type="number" value={p.price} onChange={e => handleProductChange(p.id, 'price', Number(e.target.value))} />
                                 </div>
                             </CardContent>
                         </Card>

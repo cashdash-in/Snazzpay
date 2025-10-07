@@ -1,4 +1,3 @@
-
 import { NextResponse } from 'next/server';
 import { createProduct, type ShopifyProductInput } from '@/services/shopify';
 
