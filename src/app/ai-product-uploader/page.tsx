@@ -26,6 +26,7 @@ import {
   Wand2,
   CheckCircle,
   ImagePlus,
+  Factory,
 } from 'lucide-react';
 import Image from 'next/image';
 import { createProductFromText } from '@/ai/flows/create-product-from-text';
@@ -48,6 +49,7 @@ export default function AiProductUploaderPage() {
   const [margin, setMargin] = useState('100'); // Default 100% margin
   const [generatedListing, setGeneratedListing] =
     useState<ProductListingOutput | null>(null);
+  const [vendorName, setVendorName] = useState('Snazzify AI');
 
   const resizeImage = (file: File): Promise<string> => {
     return new Promise((resolve) => {
@@ -175,7 +177,7 @@ export default function AiProductUploaderPage() {
       const newProductDrop: ProductDrop = {
         id: uuidv4(),
         vendorId: 'admin_snazzify',
-        vendorName: 'Snazzify Official',
+        vendorName: vendorName || 'Snazzify Official',
         title: result.title,
         description: result.description,
         costPrice: result.price,
@@ -214,7 +216,7 @@ export default function AiProductUploaderPage() {
             title: generatedListing.title,
             body_html: generatedListing.description,
             product_type: generatedListing.category,
-            vendor: 'Snazzify AI',
+            vendor: vendorName || 'Snazzify AI',
             variants: [{ price: generatedListing.price }],
              images: resizedImageDataUris.map(uri => ({ // Use resized data
                 attachment: uri.split(',')[1] // Send base64 data only
@@ -383,6 +385,13 @@ export default function AiProductUploaderPage() {
                   onChange={(e) => setMargin(e.target.value)}
                 />
               </div>
+            </div>
+            <div className="space-y-2">
+                <Label htmlFor="vendorName">Vendor Name</Label>
+                 <div className="relative">
+                    <Factory className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input id="vendorName" value={vendorName} onChange={(e) => setVendorName(e.target.value)} placeholder="e.g., Snazzify Official" className="pl-9"/>
+                 </div>
             </div>
           </CardContent>
           <CardFooter>

@@ -1,7 +1,7 @@
 
 'use server';
 /**
- * @fileOverview An AI flow for generating a compelling product description.
+ * @fileOverview An AI flow for generating a compelling product description, title, and category from an image.
  *
  * - createProductDescription - A function that handles the description generation.
  */
@@ -10,7 +10,6 @@ import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 
 const ProductDescriptionInputSchema = z.object({
-  title: z.string().describe('The title of the product.'),
   imageDataUri: z
     .string()
     .describe(
@@ -21,7 +20,9 @@ export type ProductDescriptionInput = z.infer<typeof ProductDescriptionInputSche
 
 
 const ProductDescriptionOutputSchema = z.object({
+  title: z.string().describe('A catchy, SEO-friendly title for the product based on the image. Max 60 characters.'),
   description: z.string().describe('A compelling, marketing-friendly product description. Use bullet points for features if appropriate.'),
+  category: z.string().describe('A suitable Shopify product category (e.g., "Apparel & Accessories > Clothing > Shirts & Tops").'),
 });
 export type ProductDescriptionOutput = z.infer<typeof ProductDescriptionOutputSchema>;
 
@@ -30,16 +31,15 @@ const prompt = ai.definePrompt({
   name: 'createProductDescriptionPrompt',
   input: { schema: ProductDescriptionInputSchema },
   output: { schema: ProductDescriptionOutputSchema },
-  prompt: `You are an expert e-commerce copywriter. Your task is to write a compelling, customer-facing product description.
+  prompt: `You are an expert e-commerce copywriter. Your task is to write a compelling, customer-facing product listing based on the provided image.
 
-  Analyze the provided title and image to understand the product.
+  Analyze the provided image to understand the product.
 
-  - Write a short, engaging description that highlights the key features and benefits.
-  - Use a friendly and persuasive tone.
-  - Format the description for readability, using bullet points for features where it makes sense.
+  - **Title:** Create a concise and appealing title for the product.
+  - **Description:** Write a short, engaging description that highlights the key features and benefits. Format the description for readability, using bullet points for features where it makes sense.
+  - **Category:** Suggest a standard Shopify product category (e.g., "Apparel & Accessories > Clothing > Shirts & Tops").
 
   Here is the product information:
-  - **Product Title:** {{{title}}}
   - **Product Image:**
     {{media url=imageDataUri}}
   `,

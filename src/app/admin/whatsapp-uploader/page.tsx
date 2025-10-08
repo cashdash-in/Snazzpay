@@ -23,6 +23,8 @@ import {
   FileText,
   Percent,
   Calendar as CalendarIcon,
+  Factory,
+  Book,
 } from 'lucide-react';
 import { type ProductListingOutput } from '@/ai/schemas/product-listing';
 import { parseWhatsAppChat } from '@/ai/flows/whatsapp-product-parser';
@@ -36,6 +38,7 @@ import type { DateRange } from 'react-day-picker';
 
 type ParsedProduct = ProductListingOutput & {
     id: string; // Add a temporary client-side ID
+    vendorName?: string;
 };
 
 export default function WhatsAppUploaderPage() {
@@ -47,6 +50,8 @@ export default function WhatsAppUploaderPage() {
   const [bulkMargin, setBulkMargin] = useState<string>('0');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  const [defaultVendor, setDefaultVendor] = useState('');
+  const [defaultCategory, setDefaultCategory] = useState('');
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -74,7 +79,12 @@ export default function WhatsAppUploaderPage() {
           startDate: dateRange?.from?.toISOString(),
           endDate: dateRange?.to?.toISOString(),
       });
-      const productsWithIds = result.products.map(p => ({...p, id: `temp-${Math.random()}`}));
+      const productsWithIds = result.products.map(p => ({
+          ...p, 
+          id: `temp-${Math.random()}`,
+          vendorName: defaultVendor || 'Snazzify AI',
+          category: defaultCategory || p.category,
+        }));
       setParsedProducts(productsWithIds);
       toast({ title: 'Chat Parsed Successfully!', description: `${productsWithIds.length} products were identified. Review them below.` });
     } catch (error: any) {
@@ -84,9 +94,9 @@ export default function WhatsAppUploaderPage() {
     }
   };
 
-  const handlePriceChange = (id: string, newPrice: string) => {
-    setParsedProducts(prev => 
-      prev.map(p => p.id === id ? { ...p, price: parseFloat(newPrice) || 0 } : p)
+  const handleProductChange = (id: string, field: keyof ParsedProduct, value: string | number | string[]) => {
+    setParsedProducts(prev =>
+      prev.map(p => (p.id === id ? { ...p, [field]: value } : p))
     );
   };
   
@@ -123,11 +133,11 @@ export default function WhatsAppUploaderPage() {
             const newProductDrop: ProductDrop = {
                 id: uuidv4(),
                 vendorId: 'admin_snazzify',
-                vendorName: 'SnazzifyOfficial',
+                vendorName: product.vendorName || 'SnazzifyOfficial',
                 title: product.title,
                 description: product.description,
                 costPrice: product.price,
-                imageDataUris: [],
+                imageDataUris: [], // No images from chat parser
                 createdAt: new Date().toISOString(),
                 category: product.category,
                 sizes: product.sizes,
@@ -139,8 +149,12 @@ export default function WhatsAppUploaderPage() {
                 title: product.title,
                 body_html: product.description,
                 product_type: product.category,
-                vendor: 'Snazzify AI',
-                variants: [{ price: product.price }],
+                vendor: product.vendorName || 'Snazzify AI',
+                variants: [{ price: product.price, option1: product.sizes[0] || 'Default', option2: product.colors[0] || 'Default' }],
+                 options: [
+                    { name: "Size", values: product.sizes.length > 0 ? product.sizes : ["Default"] },
+                    { name: "Color", values: product.colors.length > 0 ? product.colors : ["Default"] },
+                ],
             };
 
             const response = await fetch('/api/shopify/products/create', {
@@ -229,10 +243,24 @@ export default function WhatsAppUploaderPage() {
             </Card>
             <Card>
                 <CardHeader>
-                    <CardTitle>2. Bulk Pricing Control</CardTitle>
-                    <CardDescription>Apply a margin to all extracted product prices at once.</CardDescription>
+                    <CardTitle>2. Bulk Edit</CardTitle>
+                    <CardDescription>Apply settings to all products parsed from the chat.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                     <div className="space-y-2">
+                        <Label htmlFor="default-vendor">Default Vendor Name</Label>
+                        <div className="flex items-center gap-2">
+                            <Factory className="h-5 w-5 text-muted-foreground" />
+                            <Input id="default-vendor" value={defaultVendor} onChange={e => setDefaultVendor(e.target.value)} placeholder="e.g., Snazzify Official" />
+                        </div>
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="default-category">Default Collection/Category</Label>
+                        <div className="flex items-center gap-2">
+                           <Book className="h-5 w-5 text-muted-foreground" />
+                           <Input id="default-category" value={defaultCategory} onChange={e => setDefaultCategory(e.target.value)} placeholder="e.g., Summer Collection" />
+                        </div>
+                    </div>
                     <div className="space-y-2">
                         <Label htmlFor="bulk-margin">Set Margin for All Products</Label>
                         <div className="flex items-center gap-2">
@@ -249,7 +277,7 @@ export default function WhatsAppUploaderPage() {
                 </CardContent>
                 <CardFooter>
                     <Button onClick={applyBulkMargin} variant="secondary" disabled={parsedProducts.length === 0}>
-                        Apply Margin
+                        Apply Bulk Edits
                     </Button>
                 </CardFooter>
             </Card>
@@ -259,7 +287,7 @@ export default function WhatsAppUploaderPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>3. Review, Edit & Push</CardTitle>
-                    <CardDescription>Review the products parsed by the AI. You can edit the price for each item before pushing them all to Shopify.</CardDescription>
+                    <CardDescription>Review the products parsed by the AI. You can edit the price and other details for each item before pushing them all to Shopify.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     {isParsing ? (
@@ -272,19 +300,26 @@ export default function WhatsAppUploaderPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {parsedProducts.map((p) => (
                                 <Card key={p.id}>
-                                    <CardHeader><CardTitle className="text-lg">{p.title}</CardTitle></CardHeader>
+                                    <CardHeader>
+                                        <Input value={p.title} onChange={e => handleProductChange(p.id, 'title', e.target.value)} className="font-bold text-lg"/>
+                                    </CardHeader>
                                     <CardContent className="space-y-2 text-sm">
-                                        <p className="text-muted-foreground line-clamp-3">{p.description}</p>
-                                        <p><strong>Category:</strong> {p.category}</p>
-                                        <p><strong>Sizes:</strong> {p.sizes.join(', ')}</p>
-                                        <p><strong>Colors:</strong> {p.colors.join(', ')}</p>
+                                        <Textarea value={p.description} onChange={e => handleProductChange(p.id, 'description', e.target.value)} rows={4} />
+                                        <Label>Category</Label>
+                                        <Input value={p.category} onChange={e => handleProductChange(p.id, 'category', e.target.value)} />
+                                        <Label>Vendor</Label>
+                                        <Input value={p.vendorName} onChange={e => handleProductChange(p.id, 'vendorName', e.target.value)} />
+                                        <Label>Sizes (comma-separated)</Label>
+                                        <Input value={p.sizes.join(', ')} onChange={e => handleProductChange(p.id, 'sizes', e.target.value.split(',').map(s=>s.trim()))} />
+                                        <Label>Colors (comma-separated)</Label>
+                                        <Input value={p.colors.join(', ')} onChange={e => handleProductChange(p.id, 'colors', e.target.value.split(',').map(c=>c.trim()))} />
                                         <div className="space-y-1 pt-2">
                                             <Label htmlFor={`price-${p.id}`}>Selling Price</Label>
                                             <Input
                                                 id={`price-${p.id}`}
                                                 type="number"
                                                 value={p.price}
-                                                onChange={(e) => handlePriceChange(p.id, e.target.value)}
+                                                onChange={(e) => handleProductChange(p.id, 'price', parseFloat(e.target.value))}
                                             />
                                         </div>
                                     </CardContent>
@@ -313,5 +348,3 @@ export default function WhatsAppUploaderPage() {
     </AppShell>
   );
 }
-
-    

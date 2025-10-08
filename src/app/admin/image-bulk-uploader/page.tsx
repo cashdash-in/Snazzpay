@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, DragEvent, ChangeEvent } from 'react';
+import { useState, DragEvent, ChangeEvent, useEffect } from 'react';
 import { AppShell } from '@/components/layout/app-shell';
 import {
   Card,
@@ -22,6 +22,8 @@ import {
   Rocket,
   Wand2,
   ImagePlus,
+  Factory,
+  Book,
 } from 'lucide-react';
 import Image from 'next/image';
 import { createProductDescription } from '@/ai/flows/create-product-description';
@@ -33,6 +35,7 @@ import type { ProductDrop } from '@/app/vendor/product-drops/page';
 type GeneratedProduct = ProductListingOutput & {
   id: string;
   imageDataUri: string;
+  vendorName?: string;
 };
 
 const MAX_IMAGE_SIZE_PX = 800; // Max width/height for resizing
@@ -44,6 +47,8 @@ export default function ImageBulkUploaderPage() {
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [generatedProducts, setGeneratedProducts] = useState<GeneratedProduct[]>([]);
+  const [defaultVendor, setDefaultVendor] = useState('');
+  const [defaultCategory, setDefaultCategory] = useState('');
 
   const handleFiles = (files: FileList | File[]) => {
     const fileArray = Array.from(files).filter(f => f.type.startsWith('image/'));
@@ -117,21 +122,19 @@ export default function ImageBulkUploaderPage() {
       try {
         const resizedDataUri = await resizeImage(file);
         const result = await createProductDescription({
-          title: file.name.replace(/\.[^/.]+$/, ""), // Use filename as a basic title
           imageDataUri: resizedDataUri,
         });
         
-        const initialTitle = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ").substring(0,60);
-
         return {
           id: `gen-${index}-${Date.now()}`,
           imageDataUri: resizedDataUri,
-          title: initialTitle,
+          title: result.title,
           description: result.description,
-          category: 'Default Category',
+          category: result.category,
           price: 0,
           sizes: [],
           colors: [],
+          vendorName: defaultVendor || 'Snazzify AI',
         };
       } catch (e: any) {
         toast({
@@ -144,7 +147,11 @@ export default function ImageBulkUploaderPage() {
     });
 
     const results = (await Promise.all(productPromises)).filter(Boolean) as GeneratedProduct[];
-    setGeneratedProducts(results);
+    setGeneratedProducts(results.map(p => ({
+        ...p,
+        vendorName: defaultVendor || p.vendorName,
+        category: defaultCategory || p.category,
+    })));
     setIsProcessing(false);
     setImageFiles([]);
     setImagePreviews([]);
@@ -170,7 +177,7 @@ export default function ImageBulkUploaderPage() {
             const newProductDrop: ProductDrop = {
                 id: uuidv4(),
                 vendorId: 'admin_snazzify',
-                vendorName: 'SnazzifyOfficial',
+                vendorName: product.vendorName || 'SnazzifyOfficial',
                 title: product.title,
                 description: product.description,
                 costPrice: product.price,
@@ -187,7 +194,7 @@ export default function ImageBulkUploaderPage() {
                 title: product.title,
                 body_html: product.description,
                 product_type: product.category,
-                vendor: 'Snazzify AI',
+                vendor: product.vendorName || 'Snazzify AI',
                 variants: [{ price: product.price, option1: product.sizes[0] || 'Default', option2: product.colors[0] || 'Default' }],
                 options: [
                     { name: "Size", values: product.sizes.length > 0 ? product.sizes : ["Default"] },
@@ -219,6 +226,18 @@ export default function ImageBulkUploaderPage() {
     setGeneratedProducts([]);
     setIsPushing(false);
   };
+  
+  useEffect(() => {
+    if (defaultVendor) {
+        setGeneratedProducts(prev => prev.map(p => ({...p, vendorName: defaultVendor})))
+    }
+  }, [defaultVendor]);
+
+   useEffect(() => {
+    if (defaultCategory) {
+        setGeneratedProducts(prev => prev.map(p => ({...p, category: defaultCategory})))
+    }
+  }, [defaultCategory]);
 
   return (
     <AppShell title="Image Bulk Uploader">
@@ -226,10 +245,10 @@ export default function ImageBulkUploaderPage() {
         <CardHeader>
           <CardTitle>1. Upload Images</CardTitle>
           <CardDescription>
-            Select or drag and drop multiple product images at once.
+            Select or drag and drop multiple product images at once. Set default vendor and collection names to apply to all uploaded images.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <div
             className="relative flex flex-col items-center justify-center w-full min-h-[12rem] border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-muted/50 p-4"
             onDrop={handleDrop}
@@ -252,6 +271,22 @@ export default function ImageBulkUploaderPage() {
             )}
           </div>
           <Input id="product-image-input" type="file" accept="image/*" onChange={handleFileChange} className="hidden" multiple />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="default-vendor">Default Vendor Name</Label>
+                <div className="relative">
+                    <Factory className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input id="default-vendor" value={defaultVendor} onChange={e => setDefaultVendor(e.target.value)} placeholder="e.g., Snazzify Official" className="pl-9"/>
+                </div>
+            </div>
+             <div className="space-y-2">
+                <Label htmlFor="default-category">Default Collection/Category</Label>
+                 <div className="relative">
+                    <Book className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input id="default-category" value={defaultCategory} onChange={e => setDefaultCategory(e.target.value)} placeholder="e.g., Summer Collection" className="pl-9"/>
+                </div>
+            </div>
+          </div>
         </CardContent>
         <CardFooter>
           <Button onClick={handleGenerateListings} disabled={isProcessing || imageFiles.length === 0}>
@@ -300,6 +335,10 @@ export default function ImageBulkUploaderPage() {
                                         <Label htmlFor={`category-${p.id}`}>Category</Label>
                                         <Input id={`category-${p.id}`} value={p.category} onChange={e => handleProductChange(p.id, 'category', e.target.value)} />
                                     </div>
+                                </div>
+                                 <div className="space-y-1">
+                                    <Label htmlFor={`vendor-${p.id}`}>Vendor</Label>
+                                    <Input id={`vendor-${p.id}`} value={p.vendorName} onChange={e => handleProductChange(p.id, 'vendorName', e.target.value)} />
                                 </div>
                                 <div className="space-y-1">
                                     <Label htmlFor={`sizes-${p.id}`}>Sizes (comma-separated)</Label>
