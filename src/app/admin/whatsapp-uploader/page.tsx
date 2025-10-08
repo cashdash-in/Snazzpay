@@ -35,6 +35,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
+import { Textarea } from '@/components/ui/textarea';
 
 type ParsedProduct = ProductListingOutput & {
     id: string; // Add a temporary client-side ID
@@ -283,7 +284,7 @@ export default function WhatsAppUploaderPage() {
             </Card>
         </div>
 
-        <div className="lg:col-span-2 mt-8 lg:mt-0">
+        <div className="lg:col-span-2">
             <Card>
                 <CardHeader>
                     <CardTitle>3. Review, Edit & Push</CardTitle>

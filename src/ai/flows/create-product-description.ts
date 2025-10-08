@@ -31,18 +31,14 @@ const prompt = ai.definePrompt({
   name: 'createProductDescriptionPrompt',
   input: { schema: ProductDescriptionInputSchema },
   output: { schema: ProductDescriptionOutputSchema },
-  prompt: `You are an expert e-commerce copywriter. Your task is to write a compelling, customer-facing product listing based on the provided image.
+  prompt: `You are an expert e-commerce copywriter. Based on the product image provided, generate a compelling product listing.
 
-  Analyze the provided image to understand the product.
+- **Title:** Create a concise and appealing title.
+- **Description:** Write a short, engaging description.
+- **Category:** Suggest a standard Shopify product category.
 
-  - **Title:** Create a concise and appealing title for the product.
-  - **Description:** Write a short, engaging description that highlights the key features and benefits. Format the description for readability, using bullet points for features where it makes sense.
-  - **Category:** Suggest a standard Shopify product category (e.g., "Apparel & Accessories > Clothing > Shirts & Tops").
-
-  Here is the product information:
-  - **Product Image:**
-    {{media url=imageDataUri}}
-  `,
+Product Image:
+{{media url=imageDataUri}}`,
 });
 
 const createProductDescriptionFlow = ai.defineFlow(

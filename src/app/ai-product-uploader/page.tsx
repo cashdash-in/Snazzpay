@@ -174,26 +174,10 @@ export default function AiProductUploaderPage() {
         margin: parseFloat(margin),
       });
 
-      const newProductDrop: ProductDrop = {
-        id: uuidv4(),
-        vendorId: 'admin_snazzify',
-        vendorName: vendorName || 'Snazzify Official',
-        title: result.title,
-        description: result.description,
-        costPrice: result.price,
-        imageDataUris: resizedImageDataUris,
-        createdAt: new Date().toISOString(),
-        category: result.category,
-        sizes: result.sizes,
-        colors: result.colors,
-      };
-
-      await saveDocument('product_drops', newProductDrop, newProductDrop.id);
-
       setGeneratedListing(result);
       toast({
-        title: 'Listing Generated & Saved!',
-        description: 'Review the details below. This product is now in your "My Products" catalog.',
+        title: 'Listing Generated!',
+        description: 'Review the details below before pushing to Shopify.',
       });
     } catch (error: any) {
       console.error("AI Generation Error:", error);
@@ -212,6 +196,22 @@ export default function AiProductUploaderPage() {
     setIsPushing(true);
 
     try {
+        const newProductDrop: ProductDrop = {
+            id: uuidv4(),
+            vendorId: 'admin_snazzify',
+            vendorName: vendorName || 'Snazzify Official',
+            title: generatedListing.title,
+            description: generatedListing.description,
+            costPrice: generatedListing.price,
+            imageDataUris: resizedImageDataUris,
+            createdAt: new Date().toISOString(),
+            category: generatedListing.category,
+            sizes: generatedListing.sizes,
+            colors: generatedListing.colors,
+        };
+
+        await saveDocument('product_drops', newProductDrop, newProductDrop.id);
+
         const productData = {
             title: generatedListing.title,
             body_html: generatedListing.description,
@@ -232,13 +232,12 @@ export default function AiProductUploaderPage() {
         const result = await response.json();
         
         if (!response.ok) {
-            // Use the detailed error message from our improved API route
             throw new Error(result.error || "An unknown error occurred while communicating with Shopify.");
         }
         
         toast({
             title: 'Product Pushed to Shopify!',
-            description: `Successfully created product "${result.product.title}".`,
+            description: `Successfully created "${result.product.title}" and saved it to "My Products".`,
         });
 
     } catch (error: any) {
@@ -405,7 +404,7 @@ export default function AiProductUploaderPage() {
               ) : (
                 <Wand2 className="mr-2 h-4 w-4" />
               )}
-              Generate & Save Listing with AI
+              Generate Listing with AI
             </Button>
           </CardFooter>
         </Card>
@@ -527,7 +526,7 @@ export default function AiProductUploaderPage() {
                   ) : (
                     <Rocket className="mr-2 h-4 w-4" />
                   )}
-                  Push to Shopify
+                  Push to Shopify & Save to My Products
                 </Button>
               </CardFooter>
             </>
