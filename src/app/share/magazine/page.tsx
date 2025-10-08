@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -9,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/hooks/use-auth';
 import type { SellerProduct } from '@/app/seller/ai-product-uploader/page';
 import Image from 'next/image';
-import { Loader2, Share2, Copy, MessageSquare, BookOpen } from 'lucide-react';
+import { Loader2, Share2, Copy, MessageSquare, BookOpen, Percent } from 'lucide-react';
 import { getCollection, saveDocument } from '@/services/firestore';
 import { getCookie } from 'cookies-next';
 import { Label } from '@/components/ui/label';
@@ -26,6 +27,7 @@ type Magazine = {
     creatorId: string;
     creatorName: string;
     createdAt: string;
+    discount?: number;
 };
 
 export default function ShareMagazinePage() {
@@ -37,6 +39,8 @@ export default function ShareMagazinePage() {
     const [isLoading, setIsLoading] = useState(true);
     const [magazineLink, setMagazineLink] = useState('');
     const [magazineTitle, setMagazineTitle] = useState('Our Latest Collection');
+    const [discount, setDiscount] = useState<number>(0);
+
 
     useEffect(() => {
         async function loadData() {
@@ -103,6 +107,7 @@ export default function ShareMagazinePage() {
             creatorId: user.uid,
             creatorName: creatorName,
             createdAt: new Date().toISOString(),
+            discount: discount > 0 ? discount : undefined,
         };
 
         try {
@@ -110,7 +115,10 @@ export default function ShareMagazinePage() {
             setMagazines(prev => [newMagazine, ...prev]); // Add to the list
             
             const baseUrl = window.location.origin;
-            const link = `${baseUrl}/smart-magazine?id=${magazineId}`;
+            let link = `${baseUrl}/smart-magazine?id=${magazineId}`;
+            if (discount > 0) {
+                link += `&discount=${discount}`;
+            }
             setMagazineLink(link);
             
             toast({ title: 'Magazine Created & Link Generated!', description: 'Your new magazine is saved and can be shared.' });
@@ -121,7 +129,11 @@ export default function ShareMagazinePage() {
     
     const getShareLink = (mag: Magazine) => {
         const baseUrl = window.location.origin;
-        return `${baseUrl}/smart-magazine?id=${mag.id}`;
+        let link = `${baseUrl}/smart-magazine?id=${mag.id}`;
+        if (mag.discount) {
+            link += `&discount=${mag.discount}`;
+        }
+        return link;
     };
 
     const handleCopyLink = (link: string) => {
@@ -174,7 +186,7 @@ export default function ShareMagazinePage() {
                     <Card className="sticky top-24">
                         <CardHeader>
                             <CardTitle>Generate & Share</CardTitle>
-                            <CardDescription>Give your collection a title, then generate a shareable link.</CardDescription>
+                            <CardDescription>Give your collection a title and an optional discount, then generate a shareable link.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="space-y-2">
@@ -185,6 +197,20 @@ export default function ShareMagazinePage() {
                                     onChange={(e) => setMagazineTitle(e.target.value)}
                                     placeholder="e.g., Summer Collection"
                                 />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="discount">Discount % (Optional)</Label>
+                                <div className="relative">
+                                    <Input
+                                        id="discount"
+                                        type="number"
+                                        value={discount || ''}
+                                        onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
+                                        placeholder="e.g., 10 for 10%"
+                                        className="pl-8"
+                                    />
+                                    <Percent className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                </div>
                             </div>
                             <p className="font-medium">{selectedProductIds.length} product(s) selected.</p>
                              <Button onClick={handleGenerateLink} className="w-full" disabled={selectedProductIds.length === 0}>
@@ -223,6 +249,7 @@ export default function ShareMagazinePage() {
                                                 <p className="font-semibold flex items-center gap-2"><BookOpen className="h-4 w-4 text-primary"/>{mag.title}</p>
                                                 <p className="text-xs text-muted-foreground">
                                                     by {mag.creatorName} &bull; {formatDistanceToNow(new Date(mag.createdAt), { addSuffix: true })}
+                                                    {mag.discount && <span className="ml-2 font-bold text-destructive">({mag.discount}% off)</span>}
                                                 </p>
                                             </div>
                                             <a href={link} target="_blank" className="text-xs text-primary hover:underline">View</a>

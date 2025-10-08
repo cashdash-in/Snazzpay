@@ -5,7 +5,7 @@ import { Suspense, useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, ShieldCheck, ShoppingCart, User, Phone, Mail as MailIcon, Home, MapPin, CheckCircle } from 'lucide-react';
+import { Loader2, ShieldCheck, ShoppingCart, User, Phone, Mail as MailIcon, Home, MapPin, CheckCircle, Percent } from 'lucide-react';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
@@ -47,6 +47,7 @@ function CatalogueOrderPageContent() {
     const [totalPrice, setTotalPrice] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isOrderComplete, setIsOrderComplete] = useState(false);
+    const [discount, setDiscount] = useState<number>(0);
     
     // Get sizes and colors from URL params
     const availableSizes = searchParams.get('sizes')?.split(',') || [];
@@ -56,6 +57,11 @@ function CatalogueOrderPageContent() {
     useEffect(() => {
         async function fetchProduct() {
             const productId = searchParams.get('id');
+            const discountParam = searchParams.get('discount');
+            if (discountParam) {
+                setDiscount(parseFloat(discountParam));
+            }
+
             if (!productId) {
                 setIsLoadingProduct(false);
                 toast({ variant: 'destructive', title: "Product not found", description: "The product ID is missing from the link." });
@@ -69,9 +75,12 @@ function CatalogueOrderPageContent() {
                 }
 
                 if (fetchedProduct) {
+                    const price = (fetchedProduct as SellerProduct).price ?? (fetchedProduct as ProductDrop).costPrice;
+                    const discountedPrice = price - (price * (parseFloat(discountParam || '0') / 100));
+
                     const displayProduct: DisplayProduct = {
                         ...fetchedProduct,
-                        price: (fetchedProduct as SellerProduct).price ?? (fetchedProduct as ProductDrop).costPrice,
+                        price: discountedPrice,
                         sellerName: (fetchedProduct as SellerProduct).sellerName ?? (fetchedProduct as ProductDrop).vendorName,
                         sellerId: (fetchedProduct as SellerProduct).sellerId ?? (fetchedProduct as ProductDrop).vendorId,
                     };
@@ -223,6 +232,11 @@ function CatalogueOrderPageContent() {
                     <CardHeader className="text-center">
                         <CardTitle className="text-3xl font-bold">{product.title}</CardTitle>
                         <CardDescription>Order from {product.sellerName}</CardDescription>
+                         {discount > 0 && (
+                            <div className="!mt-4 inline-flex items-center justify-center rounded-full bg-destructive/10 px-4 py-1 text-sm font-semibold text-destructive">
+                                <Percent className="mr-2 h-4 w-4" /> Special Offer: {discount}% OFF!
+                            </div>
+                        )}
                     </CardHeader>
                     <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
                         <div className="space-y-4">
