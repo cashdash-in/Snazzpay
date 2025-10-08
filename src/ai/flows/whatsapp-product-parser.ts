@@ -49,20 +49,21 @@ const parseChatPrompt = ai.definePrompt({
   output: { schema: WhatsAppChatOutputSchema },
   prompt: `You are an expert e-commerce merchandiser specializing in parsing unstructured text from WhatsApp chats into structured product data.
 
-Your task is to analyze the entire chat transcript provided in 'chatText'. The chat contains discussions about multiple products. Identify each distinct product and extract its details.
+Your task is to analyze the entire chat transcript provided in 'chatText'. Identify each distinct product being discussed and extract its details into a structured JSON object.
 
-{{#if startDate}}
-IMPORTANT: Only consider messages that fall between {{startDate}} and {{endDate}}. You must ignore all messages outside of this date range.
-{{else}}
-You should process all messages in the entire chat transcript.
-{{/if}}
+**IMPORTANT DATE FILTERING RULES:**
+- {{#if startDate}}
+  A start and end date have been provided. You MUST only consider messages that fall between **{{startDate}}** and **{{endDate}}**. Ignore all messages outside of this date range.
+- {{else}}
+  No date range has been provided. You MUST process all messages in the entire chat transcript.
+- {{/if}}
 
-For each product you find, generate a complete product listing object with the following fields:
+For each product you find within the given timeframe, generate a complete product listing object with the following fields:
 - **title:** Create a concise, catchy, and SEO-friendly title (under 60 characters).
-- **description:** Write a compelling, well-formatted product description using Markdown. Start with an engaging sentence and use a bulleted list for features.
+- **description:** Write a compelling, well-formatted product description using Markdown. Start with an engaging sentence and use a bulleted list for features like material, quality, etc.
 - **category:** Suggest a standard Shopify product category (e.g., "Apparel & Accessories > Clothing > Shirts & Tops").
-- **price:** Extract the selling price from the text. This is a critical field. If a price is mentioned (e.g., "price 599", "Rs. 599", "599/-"), extract that numeric value. If no price is found for a product, set it to 0.
-- **sizes:** Extract all available sizes into an array of strings.
+- **price:** This is a critical field. Extract the selling price from the text. Look for patterns like "price 599", "Rs. 599", "599/-". If you absolutely cannot find a price for a specific product, set its price to 0.
+- **sizes:** Extract all available sizes (e.g., S, M, L, XL) into an array of strings.
 - **colors:** Extract all available colors into an array of strings.
 
 Aggregate all the generated product objects into a single array under the 'products' key in the final output.
