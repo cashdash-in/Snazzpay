@@ -18,6 +18,7 @@ import { v4 as uuidv4 } from 'uuid';
 import type { SellerProduct } from '../seller/ai-product-uploader/page';
 import type { ProductDrop } from '../vendor/product-drops/page';
 import type { SellerUser } from '../seller-accounts/page';
+import { cn } from '@/lib/utils';
 
 type DisplayProduct = (SellerProduct | ProductDrop) & { price: number; sellerName: string; sellerId: string; };
 
@@ -48,8 +49,8 @@ function CatalogueOrderPageContent() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isOrderComplete, setIsOrderComplete] = useState(false);
     const [discount, setDiscount] = useState<number>(0);
+    const [originalPrice, setOriginalPrice] = useState(0);
     
-    // Get sizes and colors from URL params
     const availableSizes = searchParams.get('sizes')?.split(',') || [];
     const availableColors = searchParams.get('colors')?.split(',') || [];
 
@@ -76,16 +77,15 @@ function CatalogueOrderPageContent() {
 
                 if (fetchedProduct) {
                     const price = (fetchedProduct as SellerProduct).price ?? (fetchedProduct as ProductDrop).costPrice;
-                    const discountedPrice = price - (price * (parseFloat(discountParam || '0') / 100));
+                    setOriginalPrice(price);
 
                     const displayProduct: DisplayProduct = {
                         ...fetchedProduct,
-                        price: discountedPrice,
+                        price: price, // Store the original price
                         sellerName: (fetchedProduct as SellerProduct).sellerName ?? (fetchedProduct as ProductDrop).vendorName,
                         sellerId: (fetchedProduct as SellerProduct).sellerId ?? (fetchedProduct as ProductDrop).vendorId,
                     };
                     setProduct(displayProduct);
-                    setTotalPrice(displayProduct.price);
                     if (availableSizes.length > 0) setSelectedSize(availableSizes[0]);
                     if (availableColors.length > 0) setSelectedColor(availableColors[0]);
                 } else {
@@ -103,9 +103,13 @@ function CatalogueOrderPageContent() {
 
     useEffect(() => {
         if (product) {
-            setTotalPrice(product.price * quantity);
+            let currentPrice = originalPrice;
+            if (discount > 0 && (paymentMethod === 'Prepaid' || paymentMethod === 'Secure Charge on Delivery')) {
+                currentPrice = originalPrice - (originalPrice * (discount / 100));
+            }
+            setTotalPrice(currentPrice * quantity);
         }
-    }, [quantity, product]);
+    }, [quantity, product, paymentMethod, discount, originalPrice]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -149,7 +153,6 @@ function CatalogueOrderPageContent() {
                 description: `The seller, ${product.sellerName}, has received your request and will contact you shortly to confirm.`,
             });
             
-            // Send internal notification
             let recipientEmail = 'customer.service@snazzify.co.in'; // Admin fallback
             if (product.sellerId) {
                 const seller = await getDocument<SellerUser>('seller_users', product.sellerId);
@@ -234,7 +237,7 @@ function CatalogueOrderPageContent() {
                         <CardDescription>Order from {product.sellerName}</CardDescription>
                          {discount > 0 && (
                             <div className="!mt-4 inline-flex items-center justify-center rounded-full bg-destructive/10 px-4 py-1 text-sm font-semibold text-destructive">
-                                <Percent className="mr-2 h-4 w-4" /> Special Offer: {discount}% OFF!
+                                <Percent className="mr-2 h-4 w-4" /> Special Offer: {discount}% OFF on Prepaid/Secure COD!
                             </div>
                         )}
                     </CardHeader>
@@ -298,19 +301,22 @@ function CatalogueOrderPageContent() {
                                         </div>
                                     )}
                                 </div>
-                                <div className="text-3xl font-bold">
+                                <div className="space-y-3">
+                                    <Label>Payment Method</Label>
+                                    <RadioGroup value={paymentMethod} onValueChange={(value: 'Prepaid' | 'Secure Charge on Delivery' | 'Cash on Delivery') => setPaymentMethod(value)} className="flex flex-wrap gap-4">
+                                        <div className="flex items-center space-x-2"><RadioGroupItem value="Prepaid" id="r1" /><Label htmlFor="r1">Prepaid</Label></div>
+                                        <div className="flex items-center space-x-2"><RadioGroupItem value="Secure Charge on Delivery" id="r2" /><Label htmlFor="r2">Secure COD</Label></div>
+                                        <div className="flex items-center space-x-2"><RadioGroupItem value="Cash on Delivery" id="r3" /><Label htmlFor="r3">Cash on Delivery</Label></div>
+                                    </RadioGroup>
+                                </div>
+                                <div className={cn("text-3xl font-bold transition-colors", discount > 0 && paymentMethod !== 'Cash on Delivery' ? 'text-destructive' : '')}>
                                     Total: ₹{totalPrice.toFixed(2)}
+                                     {discount > 0 && paymentMethod !== 'Cash on Delivery' && (
+                                        <span className="text-base text-muted-foreground font-normal ml-2 line-through">₹{(originalPrice * quantity).toFixed(2)}</span>
+                                     )}
                                 </div>
                             </div>
                             
-                            <div className="space-y-3">
-                                <Label>Payment Method</Label>
-                                <RadioGroup defaultValue="Secure Charge on Delivery" onValueChange={(value: 'Prepaid' | 'Secure Charge on Delivery' | 'Cash on Delivery') => setPaymentMethod(value)} className="flex flex-wrap gap-4">
-                                    <div className="flex items-center space-x-2"><RadioGroupItem value="Prepaid" id="r1" /><Label htmlFor="r1">Prepaid</Label></div>
-                                    <div className="flex items-center space-x-2"><RadioGroupItem value="Secure Charge on Delivery" id="r2" /><Label htmlFor="r2">Secure COD</Label></div>
-                                    <div className="flex items-center space-x-2"><RadioGroupItem value="Cash on Delivery" id="r3" /><Label htmlFor="r3">Cash on Delivery</Label></div>
-                                </RadioGroup>
-                            </div>
                         </div>
                     </CardContent>
                     <CardFooter>
@@ -332,3 +338,5 @@ export default function CatalogueOrderPage() {
         </Suspense>
     );
 }
+
+    
