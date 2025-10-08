@@ -50,8 +50,11 @@ const parseChatPrompt = ai.definePrompt({
   prompt: `You are an expert e-commerce merchandiser specializing in parsing unstructured text from WhatsApp chats into structured product data.
 
 Your task is to analyze the entire chat transcript provided in 'chatText'. The chat contains discussions about multiple products. Identify each distinct product and extract its details.
+
 {{#if startDate}}
-Only consider messages between {{startDate}} and {{endDate}}. Ignore all messages outside this date range.
+IMPORTANT: Only consider messages that fall between {{startDate}} and {{endDate}}. You must ignore all messages outside of this date range.
+{{else}}
+You should process all messages in the entire chat transcript.
 {{/if}}
 
 For each product you find, generate a complete product listing object with the following fields:
