@@ -77,6 +77,15 @@ export default function ShareMagazinePage() {
         loadData();
     }, [user, toast]);
 
+    const handleSelectAll = (checked: boolean) => {
+        if (checked) {
+            setSelectedProductIds(products.map(p => p.id));
+        } else {
+            setSelectedProductIds([]);
+        }
+         setMagazineLink('');
+    };
+
     const handleProductSelect = (productId: string, checked: boolean) => {
         if (checked) {
             setSelectedProductIds(prev => [...prev, productId]);
@@ -154,14 +163,23 @@ export default function ShareMagazinePage() {
                     <Card>
                         <CardHeader>
                             <CardTitle>Build Your Smart Magazine</CardTitle>
-                            <CardDescription>Select the products you want to feature in this collection. Your 30 most recent products are shown here.</CardDescription>
+                            <CardDescription>Select the products you want to feature in this collection.</CardDescription>
                         </CardHeader>
                         <CardContent>
                             {isLoading ? (
                                 <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>
                             ) : (
                                 <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-4">
-                                    {products.slice(0, 30).map(product => (
+                                     <div className="flex items-center space-x-2 p-2 border-b">
+                                        <Checkbox
+                                            id="select-all"
+                                            onCheckedChange={handleSelectAll}
+                                            checked={selectedProductIds.length === products.length && products.length > 0}
+                                            aria-label="Select all"
+                                        />
+                                        <Label htmlFor="select-all" className="font-semibold">Select All Products</Label>
+                                    </div>
+                                    {products.map(product => (
                                         <div key={product.id} className="flex items-center gap-4 p-2 border rounded-lg">
                                             <Checkbox 
                                                 id={`product-${product.id}`}

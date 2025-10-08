@@ -26,11 +26,13 @@ import { Dialog, DialogTrigger } from '@/components/ui/dialog';
 import { ShareComposerDialog } from '@/components/share-composer-dialog';
 import { getCollection, deleteDocument } from '@/services/firestore';
 import Link from 'next/link';
+import { Checkbox } from '@/components/ui/checkbox';
 
 export default function AdminProductsPage() {
     const { toast } = useToast();
     const [products, setProducts] = useState<ProductDrop[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
 
     const storageKey = 'product_drops';
 
@@ -51,6 +53,22 @@ export default function AdminProductsPage() {
         }
         loadProducts();
     }, [toast]);
+
+    const handleSelectAll = (checked: boolean) => {
+        if (checked) {
+            setSelectedProducts(products.map(p => p.id));
+        } else {
+            setSelectedProducts([]);
+        }
+    };
+    
+    const handleSelectProduct = (productId: string, checked: boolean) => {
+        if (checked) {
+            setSelectedProducts(prev => [...prev, productId]);
+        } else {
+            setSelectedProducts(prev => prev.filter(id => id !== productId));
+        }
+    };
 
     const handleDeleteProduct = async (id: string) => {
         try {
@@ -100,6 +118,13 @@ export default function AdminProductsPage() {
                 <Table>
                     <TableHeader>
                         <TableRow>
+                            <TableHead className="w-[50px]">
+                                <Checkbox
+                                    onCheckedChange={handleSelectAll}
+                                    checked={selectedProducts.length === products.length && products.length > 0}
+                                    aria-label="Select all"
+                                />
+                            </TableHead>
                             <TableHead>Product</TableHead>
                             <TableHead>Cost Price</TableHead>
                             <TableHead>Description</TableHead>
@@ -110,6 +135,13 @@ export default function AdminProductsPage() {
                     <TableBody>
                         {products.map(product => (
                             <TableRow key={product.id}>
+                                <TableCell>
+                                    <Checkbox
+                                        onCheckedChange={(checked) => handleSelectProduct(product.id, !!checked)}
+                                        checked={selectedProducts.includes(product.id)}
+                                        aria-label={`Select product ${product.title}`}
+                                    />
+                                </TableCell>
                                 <TableCell className="font-medium flex items-center gap-4">
                                      <Image src={product.imageDataUris[0]} alt={product.title} width={40} height={40} className="rounded-md object-cover aspect-square" />
                                      <span>{product.title}</span>

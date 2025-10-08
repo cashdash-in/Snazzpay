@@ -36,6 +36,7 @@ type GeneratedProduct = ProductListingOutput & {
   id: string;
   imageDataUri: string;
   vendorName?: string;
+  costPrice?: number;
 };
 
 const MAX_IMAGE_SIZE_PX = 800; // Max width/height for resizing
@@ -132,6 +133,7 @@ export default function ImageBulkUploaderPage() {
           description: result.description,
           category: result.category,
           price: 0,
+          costPrice: 0,
           sizes: [],
           colors: [],
           vendorName: defaultVendor || 'Snazzify AI',
@@ -180,7 +182,7 @@ export default function ImageBulkUploaderPage() {
                 vendorName: product.vendorName || 'SnazzifyOfficial',
                 title: product.title,
                 description: product.description,
-                costPrice: product.price,
+                costPrice: product.costPrice || 0,
                 imageDataUris: [product.imageDataUri],
                 createdAt: new Date().toISOString(),
                 category: product.category,
@@ -328,15 +330,19 @@ export default function ImageBulkUploaderPage() {
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                      <div className="space-y-1">
-                                        <Label htmlFor={`price-${p.id}`}>Price</Label>
-                                        <Input id={`price-${p.id}`} type="number" value={p.price} onChange={e => handleProductChange(p.id, 'price', Number(e.target.value))} />
+                                        <Label htmlFor={`cost-${p.id}`}>Cost Price</Label>
+                                        <Input id={`cost-${p.id}`} type="number" value={p.costPrice} onChange={e => handleProductChange(p.id, 'costPrice', Number(e.target.value))} />
                                     </div>
                                     <div className="space-y-1">
-                                        <Label htmlFor={`category-${p.id}`}>Category</Label>
-                                        <Input id={`category-${p.id}`} value={p.category} onChange={e => handleProductChange(p.id, 'category', e.target.value)} />
+                                        <Label htmlFor={`price-${p.id}`}>Selling Price</Label>
+                                        <Input id={`price-${p.id}`} type="number" value={p.price} onChange={e => handleProductChange(p.id, 'price', Number(e.target.value))} />
                                     </div>
                                 </div>
                                  <div className="space-y-1">
+                                    <Label htmlFor={`category-${p.id}`}>Category</Label>
+                                    <Input id={`category-${p.id}`} value={p.category} onChange={e => handleProductChange(p.id, 'category', e.target.value)} />
+                                </div>
+                                <div className="space-y-1">
                                     <Label htmlFor={`vendor-${p.id}`}>Vendor</Label>
                                     <Input id={`vendor-${p.id}`} value={p.vendorName} onChange={e => handleProductChange(p.id, 'vendorName', e.target.value)} />
                                 </div>
