@@ -69,6 +69,7 @@ function DiscountManager() {
     const [productDiscount, setProductDiscount] = useState(0);
     
     const [searchTerms, setSearchTerms] = useState({ collection: '', vendor: '', product: '' });
+    const [activeTab, setActiveTab] = useState('collection');
 
     const loadDiscountData = useCallback(async () => {
         setLoading(true);
@@ -159,6 +160,17 @@ function DiscountManager() {
     const filteredCollections = useMemo(() => collections.filter(c => c.title.toLowerCase().includes(searchTerms.collection.toLowerCase())), [collections, searchTerms.collection]);
     const filteredVendors = useMemo(() => vendors.filter(v => v.toLowerCase().includes(searchTerms.vendor.toLowerCase())), [vendors, searchTerms.vendor]);
     const filteredProducts = useMemo(() => products.filter(p => p.title.toLowerCase().includes(searchTerms.product.toLowerCase())), [products, searchTerms.product]);
+    
+    const handleProductSelectAndSwitch = (productId: string) => {
+        setSelectedProduct(productId);
+        const product = products.find(p => p.id.toString() === productId);
+        const collection = collections.find(c => c.title === product?.product_type);
+        if (collection) {
+            setSelectedCollection(collection.id.toString());
+            setActiveTab('collection');
+            toast({ title: 'Collection Selected', description: `Switched to 'By Collection' tab with '${collection.title}' pre-selected.` });
+        }
+    };
 
 
     return (
@@ -175,7 +187,7 @@ function DiscountManager() {
                         If Collection, Vendor, or Product lists are empty on your live site, please ensure you have set the `SHOPIFY_STORE_URL` and `SHOPIFY_API_KEY` environment variables in your hosting provider's settings (e.g., Vercel, Netlify).
                     </AlertDescription>
                 </Alert>
-                <Tabs defaultValue="collection">
+                <Tabs value={activeTab} onValueChange={setActiveTab}>
                     <TabsList className="grid w-full grid-cols-3">
                         <TabsTrigger value="collection">By Collection</TabsTrigger>
                         <TabsTrigger value="vendor">By Vendor</TabsTrigger>
@@ -192,7 +204,9 @@ function DiscountManager() {
                                 <Select onValueChange={setSelectedCollection} value={selectedCollection}>
                                     <SelectTrigger><SelectValue placeholder="Select a collection..." /></SelectTrigger>
                                     <SelectContent>
-                                        {filteredCollections.map(c => <SelectItem key={c.id} value={c.id.toString()}>{c.title}</SelectItem>)}
+                                        <ScrollArea className="h-72">
+                                            {filteredCollections.map(c => <SelectItem key={c.id} value={c.id.toString()}>{c.title}</SelectItem>)}
+                                        </ScrollArea>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -214,7 +228,9 @@ function DiscountManager() {
                                 <Select onValueChange={setSelectedVendor} value={selectedVendor}>
                                     <SelectTrigger><SelectValue placeholder="Select a vendor..." /></SelectTrigger>
                                     <SelectContent>
-                                        {filteredVendors.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+                                         <ScrollArea className="h-72">
+                                            {filteredVendors.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+                                        </ScrollArea>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -233,7 +249,7 @@ function DiscountManager() {
                          <div className="flex gap-4 items-end">
                             <div className="flex-grow space-y-2">
                                 <Label>Product</Label>
-                                <Select onValueChange={setSelectedProduct} value={selectedProduct}>
+                                <Select onValueChange={handleProductSelectAndSwitch} value={selectedProduct}>
                                     <SelectTrigger><SelectValue placeholder="Select a product..." /></SelectTrigger>
                                     <SelectContent>
                                         <ScrollArea className="h-72">
