@@ -140,12 +140,7 @@ export function SecureCodPaymentForm() {
             const baseTotal = orderDetails.amount * quantity;
             setOriginalPrice(baseTotal);
     
-            if (paymentMethod === 'Cash on Delivery') {
-                setTotalPrice(baseTotal);
-                setAppliedDiscount(null);
-                return;
-            }
-    
+            // Always find the best available discount, but only apply it if Secure COD is selected.
             try {
                 const discounts = await getCollection<DiscountRule>('discounts');
                 const productDiscount = discounts.find(d => d.id === `product_${orderDetails.productId}`);
@@ -153,14 +148,13 @@ export function SecureCodPaymentForm() {
                 const collectionDiscount = discounts.find(d => d.id === `collection_${orderDetails.collection}`);
                 
                 const bestDiscount = productDiscount || vendorDiscount || collectionDiscount || null;
+                setAppliedDiscount(bestDiscount);
                 
-                if (bestDiscount) {
-                    setAppliedDiscount(bestDiscount);
+                if (paymentMethod === 'Secure Charge on Delivery' && bestDiscount) {
                     const discountedTotal = baseTotal - (baseTotal * (bestDiscount.discount / 100));
                     setTotalPrice(discountedTotal);
                 } else {
                     setTotalPrice(baseTotal);
-                    setAppliedDiscount(null);
                 }
             } catch (error) {
                 console.error("Could not fetch discounts:", error);
@@ -189,14 +183,16 @@ export function SecureCodPaymentForm() {
 
         setIsSubmitting(true);
 
+        const finalDiscountAmount = (paymentMethod === 'Secure Charge on Delivery' && appliedDiscount) ? originalPrice - totalPrice : undefined;
+
         const orderData: Omit<EditableOrder, 'id' | 'paymentStatus' | 'source'> = {
             orderId: orderDetails.orderId, customerName: name, customerEmail: email, contactNo: contact, customerAddress: address, pincode,
             productOrdered: orderDetails.productName, quantity: quantity, price: totalPrice.toString(), date: new Date().toISOString(),
             sellerId: orderDetails.sellerId, sellerName: orderDetails.sellerName, paymentMethod,
             size: selectedSize, color: selectedColor,
             originalPrice: originalPrice.toString(),
-            discountPercentage: appliedDiscount?.discount,
-            discountAmount: originalPrice - totalPrice,
+            discountPercentage: (paymentMethod === 'Secure Charge on Delivery' && appliedDiscount) ? appliedDiscount.discount : undefined,
+            discountAmount: finalDiscountAmount,
         };
         
         if (paymentMethod === 'Cash on Delivery') {
@@ -345,9 +341,9 @@ export function SecureCodPaymentForm() {
                         <Card className="bg-muted/30">
                              <CardHeader className="p-4 flex flex-row justify-between items-center">
                                  <CardTitle className="text-lg">Order Summary</CardTitle>
-                                 {appliedDiscount && paymentMethod === 'Secure Charge on Delivery' && (
+                                 {appliedDiscount && (
                                     <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
-                                        <Percent className="mr-1 h-3 w-3"/> {appliedDiscount.discount}% OFF Applied!
+                                        <Percent className="mr-1 h-3 w-3"/> {appliedDiscount.discount}% OFF on Secure COD!
                                     </Badge>
                                  )}
                             </CardHeader>
@@ -465,3 +461,5 @@ export function SecureCodPaymentForm() {
         </div>
     );
 }
+
+    

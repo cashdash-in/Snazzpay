@@ -162,6 +162,9 @@ function CatalogueOrderPageContent() {
 
         setIsSubmitting(true);
         const leadId = uuidv4();
+
+        const finalDiscountAmount = (paymentMethod === 'Secure Charge on Delivery' && appliedDiscount) ? originalPrice - totalPrice : undefined;
+
         const newLead: EditableOrder = {
             id: leadId,
             orderId: `#SMRT-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -177,7 +180,7 @@ function CatalogueOrderPageContent() {
             price: totalPrice.toString(),
             originalPrice: originalPrice.toString(),
             discountPercentage: paymentMethod === 'Secure Charge on Delivery' ? appliedDiscount?.discount : undefined,
-            discountAmount: paymentMethod === 'Secure Charge on Delivery' ? originalPrice - totalPrice : undefined,
+            discountAmount: finalDiscountAmount,
             date: new Date().toISOString(),
             paymentStatus: 'Lead',
             paymentMethod,
@@ -276,7 +279,7 @@ function CatalogueOrderPageContent() {
                     <CardHeader className="text-center">
                         <CardTitle className="text-3xl font-bold">{product.title}</CardTitle>
                         <CardDescription>Order from {product.sellerName}</CardDescription>
-                         {appliedDiscount && paymentMethod === 'Secure Charge on Delivery' && (
+                         {appliedDiscount && (
                             <div className="!mt-4">
                                 <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
                                     <Percent className="mr-1 h-3 w-3"/> Special Offer: {appliedDiscount.discount}% OFF on Secure COD!
@@ -391,3 +394,5 @@ export default function CatalogueOrderPage() {
         </Suspense>
     );
 }
+
+    
