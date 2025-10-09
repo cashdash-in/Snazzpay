@@ -24,10 +24,11 @@ export default function CodInstructionsPage() {
 }
 <\/script>
 
-<script id="snazzpay-logic-script">
+<script>
 (function() {
     // --- You do not need to edit anything below this line ---
-    var thisScript = document.getElementById('snazzpay-logic-script');
+    var thisScript = document.currentScript;
+    if (!thisScript) return; // Exit if the script can't be found
     var appUrl = new URL(thisScript.src).origin;
     
     var container = document.getElementById('snazzpay-secure-cod-container');
