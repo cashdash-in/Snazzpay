@@ -103,11 +103,13 @@ function CatalogueOrderPageContent() {
 
     useEffect(() => {
         if (product) {
-            let currentPrice = originalPrice;
+            const baseTotal = originalPrice * quantity;
             if (discount > 0 && (paymentMethod === 'Prepaid' || paymentMethod === 'Secure Charge on Delivery')) {
-                currentPrice = originalPrice - (originalPrice * (discount / 100));
+                const discountedTotal = baseTotal - (baseTotal * (discount / 100));
+                setTotalPrice(discountedTotal);
+            } else {
+                setTotalPrice(baseTotal);
             }
-            setTotalPrice(currentPrice * quantity);
         }
     }, [quantity, product, paymentMethod, discount, originalPrice]);
 
@@ -338,3 +340,5 @@ export default function CatalogueOrderPage() {
         </Suspense>
     );
 }
+
+    
