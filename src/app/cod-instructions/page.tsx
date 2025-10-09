@@ -8,8 +8,12 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 
 export default function CodInstructionsPage() {
     const embedCode = `<!-- SnazzPay Secure COD Button Start -->
+<!-- 
+  IMPORTANT: Before pasting this into Shopify, you MUST replace 'YOUR_APP_URL' below
+  with your actual live application URL. For example: https://my-cool-store.vercel.app
+-->
 <div id="snazzpay-secure-cod-container">
-    <form id="snazzpay-secure-cod-form" action="https://snazzpay-djsy0.web.app/secure-cod" method="GET" target="_blank" style="margin-top: 15px; width: 100%;">
+    <form id="snazzpay-secure-cod-form" action="YOUR_APP_URL/secure-cod" method="GET" target="_blank" style="margin-top: 15px; width: 100%;">
         <!-- Hidden fields for product data -->
         <input type="hidden" name="name" id="snazzpay-p-name" />
         <input type="hidden" name="amount" id="snazzpay-p-amount" />
@@ -32,7 +36,7 @@ export default function CodInstructionsPage() {
             Buy with Secure COD
         </button>
         <div style="text-align: center; margin-top: 8px; font-size: 12px;">
-            <a href="https://snazzpay-djsy0.web.app/secure-cod-info" target="_blank" style="color: #5a31f4; text-decoration: underline;">What is this?</a>
+            <a href="YOUR_APP_URL/secure-cod-info" target="_blank" style="color: #5a31f4; text-decoration: underline;">What is this?</a>
         </div>
     </form>
 </div>
@@ -167,7 +171,7 @@ document.addEventListener('DOMContentLoaded', function() {
               <div className="space-y-2">
                 <h3 className="text-lg font-semibold">Step 2: Copy and Paste the Code</h3>
                 <p className="text-muted-foreground">
-                  Copy the code below and paste it where you want the button to appear, usually near the "Add to Cart" button.
+                  Copy the code below and paste it where you want the button to appear, usually near the "Add to Cart" button. Make sure to replace <span className="font-mono bg-muted p-1 rounded-md">YOUR_APP_URL</span> with your live site's URL.
                 </p>
                 <CodeBlock code={embedCode} />
               </div>
