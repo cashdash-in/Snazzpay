@@ -32,7 +32,7 @@ export type EditableOrder = {
   size?: string;
   color?: string;
   price: string;
-  originalPrice?: string; // To store price before discount
+  originalPrice?: string;
   discountPercentage?: number;
   discountAmount?: number;
   paymentStatus: string;
@@ -43,7 +43,6 @@ export type EditableOrder = {
   vendorName?: string;
   cancellationFee?: string;
   paymentMethod?: 'Prepaid' | 'Secure Charge on Delivery' | 'Cash on Delivery';
-  // Fields from other tabs
   trackingNumber?: string;
   courierCompanyName?: string;
   deliveryStatus?: 'pending' | 'dispatched' | 'out-for-delivery' | 'delivered' | 'failed';
@@ -56,11 +55,10 @@ export type EditableOrder = {
   refundReason?: string;
   refundStatus?: 'Pending' | 'Processed' | 'Failed';
   source?: 'Shopify' | 'Manual' | 'Seller' | 'Catalogue' | 'SmartMagazine';
-  // Guest vendor fields
   guestVendorName?: string;
   guestFulfillmentToken?: string;
   packageImageUrls?: string[];
-  imageDataUris?: string[]; // Added for compatibility
+  imageDataUris?: string[];
   vendorPaymentReceived?: 'Yes' | 'No';
   isRead?: boolean;
 };
@@ -460,3 +458,5 @@ export default function OrdersPage() {
     </AppShell>
   );
 }
+
+    
