@@ -1,5 +1,32 @@
 <!-- SnazzPay Secure COD Button Start -->
-<div id="snazzpay-secure-cod-container"></div>
+<div id="snazzpay-secure-cod-container">
+    <form id="snazzpay-secure-cod-form" action="https://snazzpay.netlify.app/secure-cod" method="GET" target="_blank" style="margin-top: 15px; width: 100%;">
+        <!-- Hidden fields for product data -->
+        <input type="hidden" name="name" id="snazzpay-p-name" />
+        <input type="hidden" name="amount" id="snazzpay-p-amount" />
+        <input type="hidden" name="image" id="snazzpay-p-image" />
+        <input type="hidden" name="order_id" id="snazzpay-p-order-id" />
+        <input type="hidden" name="sellerName" id="snazzpay-p-sellerName" />
+        <input type="hidden" name="sellerId" id="snazzpay-p-sellerId" />
+        <input type="hidden" name="productId" id="snazzpay-p-productId" />
+        <input type="hidden" name="vendor" id="snazzpay-p-vendor" />
+        <input type="hidden" name="collection" id="snazzpay-p-collection" />
+        <input type="hidden" name="sizes" id="snazzpay-p-sizes" />
+        <input type="hidden" name="colors" id="snazzpay-p-colors" />
+
+        <button 
+            type="submit" 
+            style="width: 100%; min-height: 45px; font-size: 16px; background-color: #5a31f4; color: white; border: none; border-radius: 5px; cursor: pointer; transition: background-color 0.2s;"
+            onmouseover="this.style.backgroundColor='#4a28c7'"
+            onmouseout="this.style.backgroundColor='#5a31f4'"
+        >
+            Buy with Secure COD
+        </button>
+        <div style="text-align: center; margin-top: 8px; font-size: 12px;">
+            <a href="https://snazzpay.netlify.app/secure-cod-info" target="_blank" style="color: #5a31f4; text-decoration: underline;">What is this?</a>
+        </div>
+    </form>
+</div>
 
 <!-- Data script to safely pass Liquid variables to JavaScript -->
 <script id="snazzpay-product-data" type="application/json">
@@ -12,94 +39,88 @@
   "initialVariant": {{ product.selected_or_first_available_variant | json }},
   "options_with_values": {{ product.options_with_values | json }}
 }
-<\/script>
+</script>
+
 
 <script>
-(function() {
-    // --- You do not need to edit anything below this line ---
-    var thisScript = document.currentScript;
-    if (!thisScript) return; // Exit if the script can't be found
-    var appUrl = new URL(thisScript.src).origin;
-    
-    var container = document.getElementById('snazzpay-secure-cod-container');
-    if (!container) return;
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        const container = document.getElementById('snazzpay-secure-cod-container');
+        if (!container) return;
 
-    var secureCodForm = document.createElement('form');
-    secureCodForm.id = 'snazzpay-secure-cod-form';
-    secureCodForm.action = appUrl + '/secure-cod';
-    secureCodForm.method = 'GET';
-    secureCodForm.target = '_blank';
-    secureCodForm.style.marginTop = '15px';
-    secureCodForm.style.width = '100%';
+        const dataScript = document.getElementById('snazzpay-product-data');
+        if (!dataScript || !dataScript.textContent) {
+          console.error("SnazzPay Error: Data script not found or empty.");
+          container.style.display = 'none';
+          return;
+        }
 
-    var hiddenFieldsHTML = \`
-        <input type="hidden" name="name" id="snazzpay-p-name" />
-        <input type="hidden" name="amount" id="snazzpay-p-amount" />
-        <input type="hidden" name="image" id="snazzpay-p-image" />
-        <input type="hidden" name="order_id" id="snazzpay-p-order-id" />
-        <input type="hidden" name="sellerName" id="snazzpay-p-sellerName" />
-        <input type="hidden" name="sellerId" id="snazzpay-p-sellerId" />
-        <input type="hidden" name="sizes" id="snazzpay-p-sizes" />
-        <input type="hidden" name="colors" id="snazzpay-p-colors" />
-        <input type="hidden" name="productId" id="snazzpay-p-productId" />
-        <input type="hidden" name="vendor" id="snazzpay-p-vendor" />
-        <input type="hidden" name="collection" id="snazzpay-p-collection" />
-    \`;
+        const productData = JSON.parse(dataScript.textContent);
+        const vendor = productData.vendor;
 
-    var submitButton = document.createElement('button');
-    submitButton.type = 'submit';
-    submitButton.style.cssText = 'width: 100%; min-height: 45px; font-size: 16px; background-color: #5a31f4; color: white; border: none; border-radius: 5px; cursor: pointer; transition: background-color 0.2s;';
-    submitButton.innerText = 'Buy with Secure COD';
-    submitButton.onmouseover = function() { this.style.backgroundColor='#4a28c7'; };
-    submitButton.onmouseout = function() { this.style.backgroundColor='#5a31f4'; };
+        // --- Vendor Visibility Logic ---
+        const allowedVendors = [
+            'Ashish', 'Deep Sarees', 'Elite', 'Haryana Garments', 'Indie Glam', 
+            'Lace Collections', 'Luv Kush creations', 'Sakshi Indiedrop', 'Shipera', 
+            'Snazzify AI', 'Snazzify RC', 'snazzify.co.in', 'Snazzify.co.in', 
+            'Sneaker room', 'SR', 'Taufiq Khan', 'Wukusy'
+        ];
+        
+        if (vendor && !allowedVendors.includes(vendor)) {
+            container.style.display = 'none';
+            return; 
+        }
+        // --- End of Vendor Logic ---
 
-    var infoLinkDiv = document.createElement('div');
-    infoLinkDiv.style.cssText = 'text-align: center; margin-top: 8px; font-size: 12px;';
-    
-    var infoLink = document.createElement('a');
-    infoLink.href = appUrl + '/secure-cod-info';
-    infoLink.target = '_blank';
-    infoLink.style.cssText = 'color: #5a31f4; text-decoration: underline;';
-    infoLink.innerText = 'What is this?';
+        const form = document.getElementById('snazzpay-secure-cod-form');
 
-    infoLinkDiv.appendChild(infoLink);
-    secureCodForm.innerHTML = hiddenFieldsHTML;
-    secureCodForm.appendChild(submitButton);
-    secureCodForm.appendChild(infoLinkDiv);
-    container.appendChild(secureCodForm);
-
-    function populateFormFields() {
-        try {
-            var dataScript = document.getElementById('snazzpay-product-data');
-            if (!dataScript) return;
-            var productData = JSON.parse(dataScript.innerHTML);
+        function updateForm(variant) {
+            const currentVariant = variant || productData.initialVariant;
             
-            var variant = productData.initialVariant;
-            
+            if (!currentVariant) {
+                console.error("SnazzPay Error: Could not determine product variant.");
+                return;
+            }
+
             document.getElementById('snazzpay-p-name').value = productData.title;
-            document.getElementById('snazzpay-p-amount').value = (variant.price / 100).toFixed(2);
-            document.getElementById('snazzpay-p-image').value = productData.featuredImage || '';
-            document.getElementById('snazzpay-p-order-id').value = 'SNZ-' + Math.random().toString(36).substr(2, 9).toUpperCase();
+            document.getElementById('snazzpay-p-amount').value = (currentVariant.price / 100).toFixed(2);
+            let imageUrl = currentVariant.featured_image ? currentVariant.featured_image.src : productData.featuredImage;
+            if (imageUrl && !imageUrl.startsWith('http')) {
+                imageUrl = 'https:' + imageUrl;
+            }
+            document.getElementById('snazzpay-p-image').value = imageUrl || '';
+
+            document.getElementById('snazzpay-p-order-id').value = 'SNZ-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5).toUpperCase();
+            
+            document.getElementById('snazzpay-p-sellerName').value = productData.vendor || '';
+            document.getElementById('snazzpay-p-sellerId').value = productData.vendor || '';
             document.getElementById('snazzpay-p-productId').value = productData.id;
             document.getElementById('snazzpay-p-vendor').value = productData.vendor;
             document.getElementById('snazzpay-p-collection').value = productData.type;
 
-            var allSizes = productData.options_with_values.find(o => o.name.toLowerCase() === 'size')?.values || [];
+            const allSizes = productData.options_with_values.find(o => o.name.toLowerCase() === 'size')?.values || [];
             document.getElementById('snazzpay-p-sizes').value = allSizes.join(',');
 
-            var allColors = productData.options_with_values.find(o => o.name.toLowerCase() === 'color')?.values || [];
+            const allColors = productData.options_with_values.find(o => o.name.toLowerCase() === 'color')?.values || [];
             document.getElementById('snazzpay-p-colors').value = allColors.join(',');
 
-        } catch (e) {
-            console.error('SnazzPay Error: Could not parse product data.', e);
         }
+
+        // Initial update on page load
+        updateForm();
+
+        // Listen for Shopify's variant change event.
+        document.addEventListener('variant:change', function(event) {
+            if (event.detail.variant) {
+                updateForm(event.detail.variant);
+            }
+        });
+
+    } catch (e) {
+        console.error("SnazzPay Script Error:", e);
+        const container = document.getElementById('snazzpay-secure-cod-container');
+        if (container) container.style.display = 'none';
     }
-    
-    if (document.readyState === "complete" || document.readyState === "interactive") {
-        populateFormFields();
-    } else {
-        document.addEventListener("DOMContentLoaded", populateFormFields);
-    }
-})();
-<\/script>
+});
+</script>
 <!-- SnazzPay Secure COD Button End -->
