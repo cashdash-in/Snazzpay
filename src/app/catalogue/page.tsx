@@ -21,7 +21,14 @@ import type { SellerUser } from '../seller-accounts/page';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 
-type DisplayProduct = (SellerProduct | ProductDrop) & { price: number; sellerName: string; sellerId: string; };
+type DisplayProduct = (SellerProduct | ProductDrop) & { 
+    price: number; 
+    sellerName: string; 
+    sellerId: string;
+    productId: string;
+    vendor: string;
+    collection: string;
+};
 
 type CustomerDetails = {
     name: string;
@@ -78,9 +85,12 @@ function CatalogueOrderPageContent() {
 
             try {
                 let fetchedProduct: SellerProduct | ProductDrop | null = await getDocument<SellerProduct>('seller_products', productId);
+                let productType = 'seller_product';
                 if (!fetchedProduct) {
                     fetchedProduct = await getDocument<ProductDrop>('product_drops', productId);
+                    productType = 'product_drop';
                 }
+
 
                 if (fetchedProduct) {
                     const price = (fetchedProduct as SellerProduct).price ?? (fetchedProduct as ProductDrop).costPrice;
@@ -90,25 +100,26 @@ function CatalogueOrderPageContent() {
                         price: price,
                         sellerName: (fetchedProduct as SellerProduct).sellerName ?? (fetchedProduct as ProductDrop).vendorName,
                         sellerId: (fetchedProduct as SellerProduct).sellerId ?? (fetchedProduct as ProductDrop).vendorId,
+                        // Add these for discount checking
+                        productId: fetchedProduct.id,
+                        vendor: (productType === 'product_drop' ? (fetchedProduct as ProductDrop).vendorName : (fetchedProduct as SellerProduct).sellerName) || '',
+                        collection: (fetchedProduct as any).category || '', // Assuming category is the collection
                     };
                     setProduct(displayProduct);
 
                     let bestDiscount: DiscountRule | null = null;
                     if(discountParam) {
                         bestDiscount = { id: 'link_discount', type: 'collection', name: 'Special Offer', discount: parseFloat(discountParam) };
+                    } else {
+                        // Fetch and find best discount if not passed in param
+                        const discounts = await getCollection<DiscountRule>('discounts');
+                        const productDiscount = discounts.find(d => d.id === `product_${displayProduct.productId}`);
+                        const vendorDiscount = discounts.find(d => d.id === `vendor_${displayProduct.vendor}`);
+                        const collectionDiscount = discounts.find(d => d.id === `collection_${displayProduct.collection}`);
+                        bestDiscount = productDiscount || vendorDiscount || collectionDiscount || null;
                     }
 
                     setAppliedDiscount(bestDiscount);
-
-                    const baseTotal = price * quantity;
-                    setOriginalPrice(baseTotal);
-
-                    if (bestDiscount && paymentMethod === 'Secure Charge on Delivery') {
-                        const discountedTotal = baseTotal - (baseTotal * (bestDiscount.discount / 100));
-                        setTotalPrice(discountedTotal);
-                    } else {
-                        setTotalPrice(baseTotal);
-                    }
 
                     if (availableSizes.length > 0) setSelectedSize(availableSizes[0]);
                     if (availableColors.length > 0) setSelectedColor(availableColors[0]);
@@ -166,8 +177,8 @@ function CatalogueOrderPageContent() {
             color: selectedColor,
             price: totalPrice.toString(),
             originalPrice: originalPrice.toString(),
-            discountPercentage: appliedDiscount?.discount,
-            discountAmount: originalPrice - totalPrice,
+            discountPercentage: paymentMethod === 'Secure Charge on Delivery' ? appliedDiscount?.discount : undefined,
+            discountAmount: paymentMethod === 'Secure Charge on Delivery' ? originalPrice - totalPrice : undefined,
             date: new Date().toISOString(),
             paymentStatus: 'Lead',
             paymentMethod,
