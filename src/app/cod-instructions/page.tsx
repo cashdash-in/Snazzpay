@@ -46,7 +46,8 @@ export default function CodInstructionsPage() {
   "title": {{ product.title | json }},
   "featuredImage": {{ product.featured_image | img_url: 'large' | json }},
   "initialVariant": {{ product.selected_or_first_available_variant | json }},
-  "options_with_values": {{ product.options_with_values | json }}
+  "options_with_values": {{ product.options_with_values | json }},
+  "collectionId": {{ collection.id | json }}
 }
 </script>
 
@@ -105,7 +106,7 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('snazzpay-p-sellerId').value = productData.vendor || '';
             document.getElementById('snazzpay-p-productId').value = productData.id;
             document.getElementById('snazzpay-p-vendor').value = productData.vendor;
-            document.getElementById('snazzpay-p-collection').value = productData.type;
+            document.getElementById('snazzpay-p-collection').value = productData.collectionId || '';
 
             const allSizes = productData.options_with_values.find(o => o.name.toLowerCase() === 'size')?.values || [];
             document.getElementById('snazzpay-p-sizes').value = allSizes.join(',');
