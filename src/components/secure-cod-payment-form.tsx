@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState, FormEvent } from 'react';
@@ -6,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, HelpCircle, ShieldCheck, CheckCircle, User, Phone, Mail as MailIcon, Home, MapPin } from "lucide-react";
+import { Loader2, HelpCircle, ShieldCheck, CheckCircle, User, Phone, Mail as MailIcon, Home, MapPin, Percent } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
 import type { EditableOrder } from '@/app/orders/page';
@@ -18,6 +17,8 @@ import { sanitizePhoneNumber } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Label } from "@/components/ui/label";
 import Image from 'next/image';
+import { cn } from '@/lib/utils';
+import { Badge } from './ui/badge';
 
 type CustomerDetails = {
     name: string;
@@ -25,6 +26,13 @@ type CustomerDetails = {
     contact: string;
     address: string;
     pincode: string;
+};
+
+type DiscountRule = {
+    id: string; // e.g., 'collection_12345', 'vendor_MyVendor', 'product_67890'
+    type: 'collection' | 'vendor' | 'product';
+    name: string; // Name of the collection, vendor, or product
+    discount: number;
 };
 
 export function SecureCodPaymentForm() {
@@ -38,7 +46,10 @@ export function SecureCodPaymentForm() {
         orderId: '',
         sellerId: '',
         sellerName: '',
-        productImage: ''
+        productImage: '',
+        productId: '',
+        vendor: '',
+        collection: '',
     });
     
     const [quantity, setQuantity] = useState(1);
@@ -55,6 +66,9 @@ export function SecureCodPaymentForm() {
     const [newlyCreatedCard, setNewlyCreatedCard] = useState<ShaktiCardData | null>(null);
     
     const [totalPrice, setTotalPrice] = useState(0);
+    const [originalPrice, setOriginalPrice] = useState(0);
+    const [appliedDiscount, setAppliedDiscount] = useState<DiscountRule | null>(null);
+
     const [isAmountConfirmed, setIsAmountConfirmed] = useState(false);
 
     useEffect(() => {
@@ -94,12 +108,15 @@ export function SecureCodPaymentForm() {
         const sellerId = searchParams.get('sellerId') || '';
         const sellerName = searchParams.get('sellerName') || '';
         let image = searchParams.get('image') || '';
-        
+        const productId = searchParams.get('productId') || '';
+        const vendor = searchParams.get('vendor') || '';
+        const collection = searchParams.get('collection') || '';
+
         if (image && !image.startsWith('http')) {
             image = 'https:' + image;
         }
         
-        setOrderDetails({ productName: name, amount, orderId: id, sellerId, sellerName, productImage: image });
+        setOrderDetails({ productName: name, amount, orderId: id, sellerId, sellerName, productImage: image, productId, vendor, collection });
         
         setCustomerDetails({
             name: searchParams.get('customerName') || '',
@@ -113,9 +130,35 @@ export function SecureCodPaymentForm() {
     }, [searchParams]);
 
     useEffect(() => {
-        const newTotal = orderDetails.amount * quantity;
-        setTotalPrice(newTotal);
-    }, [quantity, orderDetails.amount]);
+        async function calculatePrice() {
+            const baseTotal = orderDetails.amount * quantity;
+            setOriginalPrice(baseTotal);
+
+            // Fetch discounts
+            const discounts = await getCollection<DiscountRule>('discounts');
+            const productDiscount = discounts.find(d => d.id === `product_${orderDetails.productId}`);
+            const vendorDiscount = discounts.find(d => d.id === `vendor_${orderDetails.vendor}`);
+            const collectionDiscount = discounts.find(d => d.id === `collection_${orderDetails.collection}`);
+            
+            const bestDiscount = productDiscount || vendorDiscount || collectionDiscount || null;
+            
+            if (bestDiscount) {
+                setAppliedDiscount(bestDiscount);
+                const discountedTotal = baseTotal - (baseTotal * (bestDiscount.discount / 100));
+                setTotalPrice(discountedTotal);
+                 toast({
+                    title: `✨ Discount Applied!`,
+                    description: `You've received a ${bestDiscount.discount}% discount on this order for paying securely.`,
+                });
+            } else {
+                setTotalPrice(baseTotal);
+                setAppliedDiscount(null);
+            }
+        }
+        if (orderDetails.amount > 0) {
+            calculatePrice();
+        }
+    }, [quantity, orderDetails, toast]);
 
     const handleConfirmAmount = () => {
         setIsAmountConfirmed(true);
@@ -271,6 +314,13 @@ export function SecureCodPaymentForm() {
                         <ShieldCheck className="mx-auto h-12 w-12 text-primary" />
                         <CardTitle>Secure Your Order</CardTitle>
                         <CardDescription>Confirm details for order {orderDetails.orderId}</CardDescription>
+                         {appliedDiscount && (
+                            <div className="!mt-4">
+                                <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
+                                    <Percent className="mr-1 h-3 w-3"/> Congratulations! A {appliedDiscount.discount}% discount has been applied.
+                                </Badge>
+                            </div>
+                        )}
                     </CardHeader>
                     <CardContent className="space-y-6">
                         <Card className="bg-muted/30">
@@ -311,7 +361,13 @@ export function SecureCodPaymentForm() {
                                         <Input id="color" value={selectedColor} onChange={(e) => setSelectedColor(e.target.value)} className="h-8" placeholder="e.g., Blue"/>
                                     </div>
                                 </div>
-                                <div className="flex justify-between items-center font-bold text-lg pt-2 border-t"><span className="text-muted-foreground">Total Order Amount:</span><span>₹{totalPrice.toFixed(2)}</span></div>
+                                <div className="flex justify-between items-center font-bold text-lg pt-2 border-t">
+                                    <span className="text-muted-foreground">Total Order Amount:</span>
+                                    <div className="text-right">
+                                        <span className={cn('transition-colors', appliedDiscount ? 'text-destructive' : 'text-foreground')}>₹{totalPrice.toFixed(2)}</span>
+                                        {appliedDiscount && <span className="text-sm font-normal text-muted-foreground ml-2 line-through">₹{originalPrice.toFixed(2)}</span>}
+                                    </div>
+                                </div>
                             </CardContent>
                         </Card>
 

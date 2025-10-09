@@ -1,4 +1,3 @@
-
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -20,6 +19,9 @@ export default function CodInstructionsPage() {
         <input type="hidden" name="sellerId" id="snazzpay-p-sellerId" />
         <input type="hidden" name="sizes" id="snazzpay-p-sizes" />
         <input type="hidden" name="colors" id="snazzpay-p-colors" />
+        <input type="hidden" name="productId" id="snazzpay-p-productId" />
+        <input type="hidden" name="vendor" id="snazzpay-p-vendor" />
+        <input type="hidden" name="collection" id="snazzpay-p-collection" />
 
         <button 
             type="submit" 
@@ -38,7 +40,9 @@ export default function CodInstructionsPage() {
 <!-- Data script to safely pass Liquid variables to JavaScript -->
 <script id="snazzpay-product-data" type="application/json">
 {
+  "id": {{ product.id | json }},
   "vendor": {{ product.vendor | json }},
+  "type": {{ product.type | json }},
   "title": {{ product.title | json }},
   "featuredImage": {{ product.featured_image | img_url: 'large' | json }},
   "initialVariant": {{ product.selected_or_first_available_variant | json }},
@@ -86,6 +90,10 @@ document.addEventListener('DOMContentLoaded', function() {
         const sellerIdInput = document.getElementById('snazzpay-p-sellerId');
         const sizesInput = document.getElementById('snazzpay-p-sizes');
         const colorsInput = document.getElementById('snazzpay-p-colors');
+        const productIdInput = document.getElementById('snazzpay-p-productId');
+        const vendorInput = document.getElementById('snazzpay-p-vendor');
+        const collectionInput = document.getElementById('snazzpay-p-collection');
+
 
         function updateForm(variant) {
             const currentVariant = variant || productData.initialVariant;
@@ -98,8 +106,14 @@ document.addEventListener('DOMContentLoaded', function() {
             amountInput.value = (currentVariant.price / 100).toFixed(2);
             imageInput.value = currentVariant.featured_image ? currentVariant.featured_image.src : productData.featuredImage;
             orderIdInput.value = 'SNZ-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5).toUpperCase();
+            
+            // Pass all relevant data
             sellerNameInput.value = productData.vendor || '';
-            sellerIdInput.value = productData.vendor || '';
+            sellerIdInput.value = productData.vendor || ''; // Using vendor name as ID for simplicity
+            productIdInput.value = productData.id;
+            vendorInput.value = productData.vendor;
+            collectionInput.value = productData.type;
+
 
             const sizes = productData.options_with_values.find(opt => opt.name.toLowerCase() === 'size')?.values || [];
             const colors = productData.options_with_values.find(opt => opt.name.toLowerCase() === 'color')?.values || [];
