@@ -61,8 +61,8 @@ function CatalogueOrderPageContent() {
     const [originalPrice, setOriginalPrice] = useState(0);
     const [appliedDiscount, setAppliedDiscount] = useState<DiscountRule | null>(null);
     
-    const availableSizes = searchParams.get('sizes')?.split(',') || [];
-    const availableColors = searchParams.get('colors')?.split(',') || [];
+    const availableSizes = searchParams.get('sizes')?.split(',').filter(s => s) || [];
+    const availableColors = searchParams.get('colors')?.split(',').filter(c => c) || [];
 
 
     useEffect(() => {
@@ -381,5 +381,3 @@ export default function CatalogueOrderPage() {
         </Suspense>
     );
 }
-
-    
