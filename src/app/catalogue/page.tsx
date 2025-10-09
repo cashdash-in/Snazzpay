@@ -12,13 +12,14 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { saveDocument, getDocument } from '@/services/firestore';
+import { saveDocument, getDocument, getCollection } from '@/services/firestore';
 import type { EditableOrder } from '@/app/orders/page';
 import { v4 as uuidv4 } from 'uuid';
 import type { SellerProduct } from '../seller/ai-product-uploader/page';
 import type { ProductDrop } from '../vendor/product-drops/page';
 import type { SellerUser } from '../seller-accounts/page';
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
 type DisplayProduct = (SellerProduct | ProductDrop) & { price: number; sellerName: string; sellerId: string; };
 
@@ -29,6 +30,14 @@ type CustomerDetails = {
     address: string;
     pincode: string;
 };
+
+type DiscountRule = {
+    id: string;
+    type: 'collection' | 'vendor' | 'product';
+    name: string;
+    discount: number;
+};
+
 
 function CatalogueOrderPageContent() {
     const searchParams = useSearchParams();
@@ -41,15 +50,16 @@ function CatalogueOrderPageContent() {
     const [customerDetails, setCustomerDetails] = useState<CustomerDetails>({
         name: '', email: '', contact: '', address: '', pincode: ''
     });
-    const [paymentMethod, setPaymentMethod] = useState<'Prepaid' | 'Secure Charge on Delivery' | 'Cash on Delivery'>('Secure Charge on Delivery');
+    const [paymentMethod, setPaymentMethod] = useState<'Secure Charge on Delivery' | 'Cash on Delivery'>('Secure Charge on Delivery');
     const [quantity, setQuantity] = useState(1);
     const [selectedSize, setSelectedSize] = useState('');
     const [selectedColor, setSelectedColor] = useState('');
-    const [totalPrice, setTotalPrice] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isOrderComplete, setIsOrderComplete] = useState(false);
-    const [discount, setDiscount] = useState<number>(0);
+    
+    const [totalPrice, setTotalPrice] = useState(0);
     const [originalPrice, setOriginalPrice] = useState(0);
+    const [appliedDiscount, setAppliedDiscount] = useState<DiscountRule | null>(null);
     
     const availableSizes = searchParams.get('sizes')?.split(',') || [];
     const availableColors = searchParams.get('colors')?.split(',') || [];
@@ -59,10 +69,7 @@ function CatalogueOrderPageContent() {
         async function fetchProduct() {
             const productId = searchParams.get('id');
             const discountParam = searchParams.get('discount');
-            if (discountParam) {
-                setDiscount(parseFloat(discountParam));
-            }
-
+            
             if (!productId) {
                 setIsLoadingProduct(false);
                 toast({ variant: 'destructive', title: "Product not found", description: "The product ID is missing from the link." });
@@ -77,15 +84,32 @@ function CatalogueOrderPageContent() {
 
                 if (fetchedProduct) {
                     const price = (fetchedProduct as SellerProduct).price ?? (fetchedProduct as ProductDrop).costPrice;
-                    setOriginalPrice(price);
-
+                    
                     const displayProduct: DisplayProduct = {
                         ...fetchedProduct,
-                        price: price, // Store the original price
+                        price: price,
                         sellerName: (fetchedProduct as SellerProduct).sellerName ?? (fetchedProduct as ProductDrop).vendorName,
                         sellerId: (fetchedProduct as SellerProduct).sellerId ?? (fetchedProduct as ProductDrop).vendorId,
                     };
                     setProduct(displayProduct);
+
+                    let bestDiscount: DiscountRule | null = null;
+                    if(discountParam) {
+                        bestDiscount = { id: 'link_discount', type: 'collection', name: 'Special Offer', discount: parseFloat(discountParam) };
+                    }
+
+                    setAppliedDiscount(bestDiscount);
+
+                    const baseTotal = price * quantity;
+                    setOriginalPrice(baseTotal);
+
+                    if (bestDiscount && paymentMethod === 'Secure Charge on Delivery') {
+                        const discountedTotal = baseTotal - (baseTotal * (bestDiscount.discount / 100));
+                        setTotalPrice(discountedTotal);
+                    } else {
+                        setTotalPrice(baseTotal);
+                    }
+
                     if (availableSizes.length > 0) setSelectedSize(availableSizes[0]);
                     if (availableColors.length > 0) setSelectedColor(availableColors[0]);
                 } else {
@@ -103,15 +127,17 @@ function CatalogueOrderPageContent() {
 
     useEffect(() => {
         if (product) {
-            const baseTotal = originalPrice * quantity;
-            if (discount > 0 && (paymentMethod === 'Prepaid' || paymentMethod === 'Secure Charge on Delivery')) {
-                const discountedTotal = baseTotal - (baseTotal * (discount / 100));
+            const baseTotal = ((product as SellerProduct).price || (product as ProductDrop).costPrice) * quantity;
+            setOriginalPrice(baseTotal);
+            
+            if (appliedDiscount && paymentMethod === 'Secure Charge on Delivery') {
+                const discountedTotal = baseTotal - (baseTotal * (appliedDiscount.discount / 100));
                 setTotalPrice(discountedTotal);
             } else {
                 setTotalPrice(baseTotal);
             }
         }
-    }, [quantity, product, paymentMethod, discount, originalPrice]);
+    }, [quantity, product, paymentMethod, appliedDiscount]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -139,6 +165,9 @@ function CatalogueOrderPageContent() {
             size: selectedSize,
             color: selectedColor,
             price: totalPrice.toString(),
+            originalPrice: originalPrice.toString(),
+            discountPercentage: appliedDiscount?.discount,
+            discountAmount: originalPrice - totalPrice,
             date: new Date().toISOString(),
             paymentStatus: 'Lead',
             paymentMethod,
@@ -237,9 +266,11 @@ function CatalogueOrderPageContent() {
                     <CardHeader className="text-center">
                         <CardTitle className="text-3xl font-bold">{product.title}</CardTitle>
                         <CardDescription>Order from {product.sellerName}</CardDescription>
-                         {discount > 0 && (
-                            <div className="!mt-4 inline-flex items-center justify-center rounded-full bg-destructive/10 px-4 py-1 text-sm font-semibold text-destructive">
-                                <Percent className="mr-2 h-4 w-4" /> Special Offer: {discount}% OFF on Prepaid/Secure COD!
+                         {appliedDiscount && (
+                            <div className="!mt-4">
+                                <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
+                                    <Percent className="mr-1 h-3 w-3"/> Special Offer: {appliedDiscount.discount}% OFF on Secure COD!
+                                </Badge>
                             </div>
                         )}
                     </CardHeader>
@@ -305,17 +336,27 @@ function CatalogueOrderPageContent() {
                                 </div>
                                 <div className="space-y-3">
                                     <Label>Payment Method</Label>
-                                    <RadioGroup value={paymentMethod} onValueChange={(value: 'Prepaid' | 'Secure Charge on Delivery' | 'Cash on Delivery') => setPaymentMethod(value)} className="flex flex-wrap gap-4">
-                                        <div className="flex items-center space-x-2"><RadioGroupItem value="Prepaid" id="r1" /><Label htmlFor="r1">Prepaid</Label></div>
-                                        <div className="flex items-center space-x-2"><RadioGroupItem value="Secure Charge on Delivery" id="r2" /><Label htmlFor="r2">Secure COD</Label></div>
-                                        <div className="flex items-center space-x-2"><RadioGroupItem value="Cash on Delivery" id="r3" /><Label htmlFor="r3">Cash on Delivery</Label></div>
+                                    <RadioGroup value={paymentMethod} onValueChange={(value: 'Secure Charge on Delivery' | 'Cash on Delivery') => setPaymentMethod(value)} className="grid grid-cols-2 gap-4">
+                                        <Label htmlFor="r-scod" className={cn("flex flex-col items-center justify-center rounded-md border-2 p-4 cursor-pointer", paymentMethod === 'Secure Charge on Delivery' && 'border-primary')}>
+                                            <RadioGroupItem value="Secure Charge on Delivery" id="r-scod" className="sr-only"/>
+                                            <span className="font-bold">Secure COD</span>
+                                            <span className={cn("text-sm text-center", appliedDiscount ? 'text-green-600' : 'text-muted-foreground')}>
+                                                {appliedDiscount ? `${appliedDiscount.discount}% discount!` : 'Pay online now, safely.'}
+                                            </span>
+                                        </Label>
+                                        <Label htmlFor="r-cod" className={cn("flex flex-col items-center justify-center rounded-md border-2 p-4 cursor-pointer", paymentMethod === 'Cash on Delivery' && 'border-primary')}>
+                                            <RadioGroupItem value="Cash on Delivery" id="r-cod" className="sr-only"/>
+                                            <span className="font-bold">Cash on Delivery</span>
+                                            <span className="text-sm text-muted-foreground text-center">Pay cash to the courier.</span>
+                                        </Label>
                                     </RadioGroup>
                                 </div>
-                                <div className={cn("text-3xl font-bold transition-colors", discount > 0 && paymentMethod !== 'Cash on Delivery' ? 'text-destructive' : '')}>
-                                    Total: ₹{totalPrice.toFixed(2)}
-                                     {discount > 0 && paymentMethod !== 'Cash on Delivery' && (
-                                        <span className="text-base text-muted-foreground font-normal ml-2 line-through">₹{(originalPrice * quantity).toFixed(2)}</span>
-                                     )}
+                                <div className="text-3xl font-bold flex justify-between items-center pt-2 border-t">
+                                    <span>Total:</span>
+                                    <div className="text-right">
+                                        <span className={cn('transition-colors', appliedDiscount && paymentMethod === 'Secure Charge on Delivery' ? 'text-destructive' : 'text-foreground')}>₹{totalPrice.toFixed(2)}</span>
+                                        {appliedDiscount && paymentMethod === 'Secure Charge on Delivery' && <span className="text-sm font-normal text-muted-foreground ml-2 line-through">₹{originalPrice.toFixed(2)}</span>}
+                                    </div>
                                 </div>
                             </div>
                             
@@ -340,5 +381,3 @@ export default function CatalogueOrderPage() {
         </Suspense>
     );
 }
-
-    

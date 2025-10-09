@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -33,6 +32,9 @@ export type EditableOrder = {
   size?: string;
   color?: string;
   price: string;
+  originalPrice?: string; // To store price before discount
+  discountPercentage?: number;
+  discountAmount?: number;
   paymentStatus: string;
   date: string;
   sellerId?: string;
@@ -349,11 +351,18 @@ export default function OrdersPage() {
                                 />
                             </TableCell>
                             <TableCell>
-                                <Input 
-                                    value={order.price} 
-                                    onChange={(e) => handleFieldChange(order.id, 'price', e.target.value)} 
-                                    className="w-24 h-8" 
-                                />
+                                <div className="flex flex-col">
+                                    <Input 
+                                        value={order.price} 
+                                        onChange={(e) => handleFieldChange(order.id, 'price', e.target.value)} 
+                                        className="w-24 h-8" 
+                                    />
+                                    {order.discountAmount && order.discountAmount > 0 && (
+                                        <Badge variant="secondary" className="mt-1 w-fit text-xs">
+                                            -{order.discountAmount.toFixed(2)} ({order.discountPercentage}%)
+                                        </Badge>
+                                    )}
+                                </div>
                             </TableCell>
                             <TableCell>
                                 <div className="flex flex-col gap-1">

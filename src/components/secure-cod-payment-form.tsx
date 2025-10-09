@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, FormEvent } from 'react';
@@ -19,6 +20,7 @@ import { Label } from "@/components/ui/label";
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { Badge } from './ui/badge';
+import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 
 type CustomerDetails = {
     name: string;
@@ -64,12 +66,11 @@ export function SecureCodPaymentForm() {
         name: '', email: '', contact: '', address: '', pincode: ''
     });
     const [newlyCreatedCard, setNewlyCreatedCard] = useState<ShaktiCardData | null>(null);
+    const [paymentMethod, setPaymentMethod] = useState<'Secure Charge on Delivery' | 'Cash on Delivery'>('Secure Charge on Delivery');
     
     const [totalPrice, setTotalPrice] = useState(0);
     const [originalPrice, setOriginalPrice] = useState(0);
     const [appliedDiscount, setAppliedDiscount] = useState<DiscountRule | null>(null);
-
-    const [isAmountConfirmed, setIsAmountConfirmed] = useState(false);
 
     useEffect(() => {
         const script = document.createElement('script');
@@ -133,8 +134,14 @@ export function SecureCodPaymentForm() {
         async function calculatePrice() {
             const baseTotal = orderDetails.amount * quantity;
             setOriginalPrice(baseTotal);
-
-            // Fetch discounts
+    
+            if (paymentMethod === 'Cash on Delivery') {
+                setTotalPrice(baseTotal);
+                setAppliedDiscount(null);
+                return;
+            }
+    
+            // Only apply discount for Secure COD
             const discounts = await getCollection<DiscountRule>('discounts');
             const productDiscount = discounts.find(d => d.id === `product_${orderDetails.productId}`);
             const vendorDiscount = discounts.find(d => d.id === `vendor_${orderDetails.vendor}`);
@@ -146,10 +153,6 @@ export function SecureCodPaymentForm() {
                 setAppliedDiscount(bestDiscount);
                 const discountedTotal = baseTotal - (baseTotal * (bestDiscount.discount / 100));
                 setTotalPrice(discountedTotal);
-                 toast({
-                    title: `✨ Discount Applied!`,
-                    description: `You've received a ${bestDiscount.discount}% discount on this order for paying securely.`,
-                });
             } else {
                 setTotalPrice(baseTotal);
                 setAppliedDiscount(null);
@@ -158,12 +161,8 @@ export function SecureCodPaymentForm() {
         if (orderDetails.amount > 0) {
             calculatePrice();
         }
-    }, [quantity, orderDetails, toast]);
+    }, [quantity, orderDetails, toast, paymentMethod]);
 
-    const handleConfirmAmount = () => {
-        setIsAmountConfirmed(true);
-        toast({ title: "Amount Confirmed", description: `Total amount is set to ₹${totalPrice.toFixed(2)}` });
-    };
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
@@ -183,10 +182,23 @@ export function SecureCodPaymentForm() {
         const orderData: Omit<EditableOrder, 'id' | 'paymentStatus' | 'source'> = {
             orderId: orderDetails.orderId, customerName: name, customerEmail: email, contactNo: contact, customerAddress: address, pincode,
             productOrdered: orderDetails.productName, quantity: quantity, price: totalPrice.toString(), date: new Date().toISOString(),
-            sellerId: orderDetails.sellerId, sellerName: orderDetails.sellerName, paymentMethod: 'Secure Charge on Delivery',
+            sellerId: orderDetails.sellerId, sellerName: orderDetails.sellerName, paymentMethod,
             size: selectedSize, color: selectedColor,
+            originalPrice: originalPrice.toString(),
+            discountPercentage: appliedDiscount?.discount,
+            discountAmount: originalPrice - totalPrice,
         };
         
+        if (paymentMethod === 'Cash on Delivery') {
+            const newOrder: EditableOrder = { ...orderData, id: uuidv4(), paymentStatus: 'Pending', source: 'Shopify' };
+            await saveDocument('orders', newOrder, newOrder.id);
+            toast({ title: "Order Placed!", description: `Your Cash on Delivery order ${newOrder.orderId} has been confirmed.` });
+            setStep('complete');
+            setIsSubmitting(false);
+            return;
+        }
+
+        // --- Secure COD Flow ---
         if (!razorpayKeyId) {
             toast({ variant: 'destructive', title: "Razorpay Not Configured" });
             setIsSubmitting(false);
@@ -282,19 +294,23 @@ export function SecureCodPaymentForm() {
     }
 
     if (step === 'complete') {
-        const successMessage = "Your payment has been authorized! Your order is confirmed.";
+        const successMessage = paymentMethod === 'Cash on Delivery' 
+            ? "Your COD order has been successfully placed!" 
+            : "Your payment has been authorized! Your order is confirmed.";
         return (
             <div className="flex items-center justify-center min-h-screen bg-transparent p-4">
                  <Card className="w-full max-w-md shadow-lg text-center">
                     <CardHeader>
                          <CheckCircle className="mx-auto h-12 w-12 text-green-500" />
                         <CardTitle>Thank You!</CardTitle>
-                        <CardDescription>Payment Authorized!</CardDescription>
+                        <CardDescription>
+                            {paymentMethod === 'Cash on Delivery' ? 'Order Placed!' : 'Payment Authorized!'}
+                        </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <p className="text-muted-foreground">{successMessage}</p>
                         {newlyCreatedCard && (
-                            <div className="pt-4 border-t"><h4 className="font-semibold mb-2">Your Shakti COD Card is Ready!</h4><div className="flex justify-center"><ShaktiCard card={newlyCreatedCard} /></div></div>
+                            <div className="pt-4 border-t"><h4 className="font-semibold mb-2">Your Shakti Card is Ready!</h4><div className="flex justify-center"><ShaktiCard card={newlyCreatedCard} /></div></div>
                         )}
                     </CardContent>
                      <CardFooter className="flex-col gap-2">
@@ -314,13 +330,6 @@ export function SecureCodPaymentForm() {
                         <ShieldCheck className="mx-auto h-12 w-12 text-primary" />
                         <CardTitle>Secure Your Order</CardTitle>
                         <CardDescription>Confirm details for order {orderDetails.orderId}</CardDescription>
-                         {appliedDiscount && (
-                            <div className="!mt-4">
-                                <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
-                                    <Percent className="mr-1 h-3 w-3"/> Congratulations! A {appliedDiscount.discount}% discount has been applied.
-                                </Badge>
-                            </div>
-                        )}
                     </CardHeader>
                     <CardContent className="space-y-6">
                         <Card className="bg-muted/30">
@@ -362,16 +371,16 @@ export function SecureCodPaymentForm() {
                                     </div>
                                 </div>
                                 <div className="flex justify-between items-center font-bold text-lg pt-2 border-t">
-                                    <span className="text-muted-foreground">Total Order Amount:</span>
+                                    <span className="text-muted-foreground">Total:</span>
                                     <div className="text-right">
-                                        <span className={cn('transition-colors', appliedDiscount ? 'text-destructive' : 'text-foreground')}>₹{totalPrice.toFixed(2)}</span>
-                                        {appliedDiscount && <span className="text-sm font-normal text-muted-foreground ml-2 line-through">₹{originalPrice.toFixed(2)}</span>}
+                                        <span className={cn('transition-colors', appliedDiscount && paymentMethod === 'Secure Charge on Delivery' ? 'text-destructive' : 'text-foreground')}>₹{totalPrice.toFixed(2)}</span>
+                                        {appliedDiscount && paymentMethod === 'Secure Charge on Delivery' && <span className="text-sm font-normal text-muted-foreground ml-2 line-through">₹{originalPrice.toFixed(2)}</span>}
                                     </div>
                                 </div>
                             </CardContent>
                         </Card>
-
-                        <div className="space-y-4">
+                        
+                        <div className="space-y-3">
                             <h3 className="font-semibold">Your Details</h3>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div className="space-y-2">
@@ -397,18 +406,36 @@ export function SecureCodPaymentForm() {
                             </div>
                         </div>
 
+                        <div className="space-y-3">
+                            <Label className="font-semibold">Select Payment Method</Label>
+                            <RadioGroup value={paymentMethod} onValueChange={(value: 'Secure Charge on Delivery' | 'Cash on Delivery') => setPaymentMethod(value)} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <Label htmlFor="r-scod" className={cn("flex flex-col items-center justify-center rounded-md border-2 p-4 cursor-pointer", paymentMethod === 'Secure Charge on Delivery' && 'border-primary')}>
+                                    <RadioGroupItem value="Secure Charge on Delivery" id="r-scod" className="sr-only"/>
+                                    <span className="font-bold">Secure COD</span>
+                                    <span className={cn("text-sm text-center", appliedDiscount ? 'text-green-600' : 'text-muted-foreground')}>
+                                        {appliedDiscount ? `Includes a ${appliedDiscount.discount}% discount!` : 'Pay online now, safely.'}
+                                    </span>
+                                </Label>
+                                 <Label htmlFor="r-cod" className={cn("flex flex-col items-center justify-center rounded-md border-2 p-4 cursor-pointer", paymentMethod === 'Cash on Delivery' && 'border-primary')}>
+                                    <RadioGroupItem value="Cash on Delivery" id="r-cod" className="sr-only"/>
+                                    <span className="font-bold">Cash on Delivery</span>
+                                    <span className="text-sm text-muted-foreground text-center">Pay cash to the courier.</span>
+                                </Label>
+                            </RadioGroup>
+                        </div>
+
                     </CardContent>
                     <CardFooter className="flex-col gap-2">
-                         <div className="w-full flex flex-col gap-2">
-                            <Button type="button" variant="outline" className="w-full" onClick={handleConfirmAmount}>
-                                Confirm Amount
-                            </Button>
-                             <Button type="submit" className="w-full" disabled={isSubmitting || loading || !isAmountConfirmed}>
-                                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                Proceed to Secure Payment
-                            </Button>
-                         </div>
-                        <p className="text-xs text-muted-foreground text-center">Your card will be authorized for the total amount. Funds are only captured upon dispatch.</p>
+                        <Button type="submit" className="w-full" disabled={isSubmitting || loading}>
+                            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            {paymentMethod === 'Cash on Delivery' ? 'Place COD Order' : 'Proceed to Secure Payment'}
+                        </Button>
+                        <p className="text-xs text-muted-foreground text-center">
+                            {paymentMethod === 'Secure Charge on Delivery' 
+                                ? "Your card will be authorized for the total amount. Funds are only captured upon dispatch."
+                                : "The courier will collect the cash amount upon delivery."
+                            }
+                        </p>
                         <div className="flex items-center justify-center space-x-4 text-sm mt-2">
                             <Link href="/customer/login" passHref><span className="text-primary hover:underline cursor-pointer inline-flex items-center gap-1">Customer Login</span></Link>
                             <Link href="/faq" passHref><span className="text-primary hover:underline cursor-pointer inline-flex items-center gap-1"><HelpCircle className="h-4 w-4" />How this works</span></Link>
