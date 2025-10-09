@@ -7,8 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { useState, useEffect, useCallback } from "react";
-import { Loader2, Sparkles, Send, Settings, Save, History, Check, Briefcase, Tag, Percent } from "lucide-react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { Loader2, Sparkles, Send, Settings, Save, History, Check, Briefcase, Tag, Percent, Search, Terminal } from "lucide-react";
 import { getCollection, saveDocument, getDocument, deleteDocument } from "@/services/firestore";
 import { getProducts, getCollections, getVendors, ShopifyCollection, ShopifyProduct } from "@/services/shopify";
 import type { SellerUser } from "@/app/seller-accounts/page";
@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { CollaboratorBillingPage } from "@/components/collaborator-billing";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 type UsageStat = {
     id: string;
@@ -66,6 +67,8 @@ function DiscountManager() {
     const [vendorDiscount, setVendorDiscount] = useState(0);
     const [selectedProduct, setSelectedProduct] = useState('');
     const [productDiscount, setProductDiscount] = useState(0);
+    
+    const [searchTerms, setSearchTerms] = useState({ collection: '', vendor: '', product: '' });
 
     const loadDiscountData = useCallback(async () => {
         setLoading(true);
@@ -81,7 +84,7 @@ function DiscountManager() {
             setProducts(shopifyProducts);
             setDiscounts(savedDiscounts);
         } catch (error: any) {
-            toast({ variant: "destructive", title: "Failed to load Shopify data", description: error.message });
+            toast({ variant: "destructive", title: "Failed to load Shopify data", description: "Please ensure Shopify API credentials are set correctly in your production environment variables." });
         } finally {
             setLoading(false);
         }
@@ -152,6 +155,11 @@ function DiscountManager() {
             toast({ variant: 'destructive', title: 'Error Deleting Discount' });
         }
     };
+    
+    const filteredCollections = useMemo(() => collections.filter(c => c.title.toLowerCase().includes(searchTerms.collection.toLowerCase())), [collections, searchTerms.collection]);
+    const filteredVendors = useMemo(() => vendors.filter(v => v.toLowerCase().includes(searchTerms.vendor.toLowerCase())), [vendors, searchTerms.vendor]);
+    const filteredProducts = useMemo(() => products.filter(p => p.title.toLowerCase().includes(searchTerms.product.toLowerCase())), [products, searchTerms.product]);
+
 
     return (
         <Card>
@@ -160,20 +168,31 @@ function DiscountManager() {
                 <CardDescription>Set discounts for Secure COD orders based on collection, vendor, or individual product.</CardDescription>
             </CardHeader>
             <CardContent>
+                 <Alert variant="destructive" className="mb-4">
+                    <Terminal className="h-4 w-4" />
+                    <AlertTitle>Production Environment Note</AlertTitle>
+                    <AlertDescription>
+                        If Collection, Vendor, or Product lists are empty on your live site, please ensure you have set the `SHOPIFY_STORE_URL` and `SHOPIFY_API_KEY` environment variables in your hosting provider's settings (e.g., Vercel, Netlify).
+                    </AlertDescription>
+                </Alert>
                 <Tabs defaultValue="collection">
                     <TabsList className="grid w-full grid-cols-3">
                         <TabsTrigger value="collection">By Collection</TabsTrigger>
                         <TabsTrigger value="vendor">By Vendor</TabsTrigger>
                         <TabsTrigger value="product">By Product</TabsTrigger>
                     </TabsList>
-                    <TabsContent value="collection" className="mt-4">
+                    <TabsContent value="collection" className="mt-4 space-y-4">
+                        <div className="relative">
+                            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input placeholder="Search collections..." className="pl-8" value={searchTerms.collection} onChange={e => setSearchTerms({...searchTerms, collection: e.target.value})}/>
+                        </div>
                         <div className="flex gap-4 items-end">
                             <div className="flex-grow space-y-2">
                                 <Label>Collection</Label>
                                 <Select onValueChange={setSelectedCollection} value={selectedCollection}>
                                     <SelectTrigger><SelectValue placeholder="Select a collection..." /></SelectTrigger>
                                     <SelectContent>
-                                        {collections.map(c => <SelectItem key={c.id} value={c.id.toString()}>{c.title}</SelectItem>)}
+                                        {filteredCollections.map(c => <SelectItem key={c.id} value={c.id.toString()}>{c.title}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -184,14 +203,18 @@ function DiscountManager() {
                             <Button onClick={() => handleSaveDiscount('collection')}><Save className="mr-2 h-4 w-4" /> Save</Button>
                         </div>
                     </TabsContent>
-                    <TabsContent value="vendor" className="mt-4">
+                    <TabsContent value="vendor" className="mt-4 space-y-4">
+                         <div className="relative">
+                            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input placeholder="Search vendors..." className="pl-8" value={searchTerms.vendor} onChange={e => setSearchTerms({...searchTerms, vendor: e.target.value})}/>
+                        </div>
                          <div className="flex gap-4 items-end">
                             <div className="flex-grow space-y-2">
                                 <Label>Vendor</Label>
                                 <Select onValueChange={setSelectedVendor} value={selectedVendor}>
                                     <SelectTrigger><SelectValue placeholder="Select a vendor..." /></SelectTrigger>
                                     <SelectContent>
-                                        {vendors.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+                                        {filteredVendors.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -202,7 +225,11 @@ function DiscountManager() {
                             <Button onClick={() => handleSaveDiscount('vendor')}><Save className="mr-2 h-4 w-4" /> Save</Button>
                         </div>
                     </TabsContent>
-                    <TabsContent value="product" className="mt-4">
+                    <TabsContent value="product" className="mt-4 space-y-4">
+                         <div className="relative">
+                            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input placeholder="Search products..." className="pl-8" value={searchTerms.product} onChange={e => setSearchTerms({...searchTerms, product: e.target.value})}/>
+                        </div>
                          <div className="flex gap-4 items-end">
                             <div className="flex-grow space-y-2">
                                 <Label>Product</Label>
@@ -210,7 +237,7 @@ function DiscountManager() {
                                     <SelectTrigger><SelectValue placeholder="Select a product..." /></SelectTrigger>
                                     <SelectContent>
                                         <ScrollArea className="h-72">
-                                            {products.map(p => <SelectItem key={p.id} value={p.id.toString()}>{p.title}</SelectItem>)}
+                                            {filteredProducts.map(p => <SelectItem key={p.id} value={p.id.toString()}>{p.title}</SelectItem>)}
                                         </ScrollArea>
                                     </SelectContent>
                                 </Select>
