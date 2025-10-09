@@ -458,5 +458,3 @@ export default function OrdersPage() {
     </AppShell>
   );
 }
-
-    
