@@ -2,14 +2,15 @@
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, Sparkles, Send, Settings, Save, History, Check, Briefcase } from "lucide-react";
-import { getCollection, saveDocument, getDocument } from "@/services/firestore";
+import { Loader2, Sparkles, Send, Settings, Save, History, Check, Briefcase, Tag, Percent } from "lucide-react";
+import { getCollection, saveDocument, getDocument, deleteDocument } from "@/services/firestore";
+import { getProducts, getCollections, getVendors, ShopifyCollection, ShopifyProduct } from "@/services/shopify";
 import type { SellerUser } from "@/app/seller-accounts/page";
 import type { Vendor } from "@/app/vendors/page";
 import { Input } from "@/components/ui/input";
@@ -18,6 +19,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { format, parseISO } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { CollaboratorBillingPage } from "@/components/collaborator-billing";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 type UsageStat = {
     id: string;
@@ -41,6 +44,207 @@ type LimitIncreaseRequest = {
     status: 'Pending Approval' | 'Approved';
     requestDate: string;
 };
+
+type DiscountRule = {
+    id: string; // e.g., 'collection_12345', 'vendor_MyVendor', 'product_67890'
+    type: 'collection' | 'vendor' | 'product';
+    name: string; // Name of the collection, vendor, or product
+    discount: number;
+};
+
+function DiscountManager() {
+    const { toast } = useToast();
+    const [collections, setCollections] = useState<ShopifyCollection[]>([]);
+    const [vendors, setVendors] = useState<string[]>([]);
+    const [products, setProducts] = useState<ShopifyProduct[]>([]);
+    const [discounts, setDiscounts] = useState<DiscountRule[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    const [selectedCollection, setSelectedCollection] = useState('');
+    const [collectionDiscount, setCollectionDiscount] = useState(0);
+    const [selectedVendor, setSelectedVendor] = useState('');
+    const [vendorDiscount, setVendorDiscount] = useState(0);
+    const [selectedProduct, setSelectedProduct] = useState('');
+    const [productDiscount, setProductDiscount] = useState(0);
+
+    const loadDiscountData = useCallback(async () => {
+        setLoading(true);
+        try {
+            const [shopifyCollections, shopifyVendors, shopifyProducts, savedDiscounts] = await Promise.all([
+                getCollections(),
+                getVendors(),
+                getProducts(),
+                getCollection<DiscountRule>('discounts'),
+            ]);
+            setCollections(shopifyCollections);
+            setVendors(shopifyVendors);
+            setProducts(shopifyProducts);
+            setDiscounts(savedDiscounts);
+        } catch (error: any) {
+            toast({ variant: "destructive", title: "Failed to load Shopify data", description: error.message });
+        } finally {
+            setLoading(false);
+        }
+    }, [toast]);
+
+    useEffect(() => {
+        loadDiscountData();
+    }, [loadDiscountData]);
+
+    const handleSaveDiscount = async (type: 'collection' | 'vendor' | 'product') => {
+        let id: string, name: string, discount: number;
+
+        if (type === 'collection') {
+            if (!selectedCollection || collectionDiscount <= 0) {
+                toast({ variant: 'destructive', title: 'Invalid Input', description: 'Please select a collection and set a discount percentage.' });
+                return;
+            }
+            const collection = collections.find(c => c.id.toString() === selectedCollection);
+            if (!collection) return;
+            id = `collection_${collection.id}`;
+            name = collection.title;
+            discount = collectionDiscount;
+        } else if (type === 'vendor') {
+            if (!selectedVendor || vendorDiscount <= 0) {
+                 toast({ variant: 'destructive', title: 'Invalid Input', description: 'Please select a vendor and set a discount percentage.' });
+                return;
+            }
+            id = `vendor_${selectedVendor}`;
+            name = selectedVendor;
+            discount = vendorDiscount;
+        } else { // product
+            if (!selectedProduct || productDiscount <= 0) {
+                 toast({ variant: 'destructive', title: 'Invalid Input', description: 'Please select a product and set a discount percentage.' });
+                return;
+            }
+             const product = products.find(p => p.id.toString() === selectedProduct);
+            if (!product) return;
+            id = `product_${product.id}`;
+            name = product.title;
+            discount = productDiscount;
+        }
+
+        const newRule: DiscountRule = { id, type, name, discount };
+
+        try {
+            await saveDocument('discounts', newRule, id);
+            setDiscounts(prev => {
+                const existing = prev.findIndex(d => d.id === id);
+                if (existing > -1) {
+                    const updated = [...prev];
+                    updated[existing] = newRule;
+                    return updated;
+                }
+                return [...prev, newRule];
+            });
+            toast({ title: 'Discount Saved!', description: `A ${discount}% discount for ${name} has been saved.` });
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Error Saving Discount' });
+        }
+    };
+
+    const handleDeleteDiscount = async (id: string) => {
+        try {
+            await deleteDocument('discounts', id);
+            setDiscounts(prev => prev.filter(d => d.id !== id));
+            toast({ variant: 'destructive', title: 'Discount Deleted' });
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Error Deleting Discount' });
+        }
+    };
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Discount Management</CardTitle>
+                <CardDescription>Set discounts for Secure COD orders based on collection, vendor, or individual product.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Tabs defaultValue="collection">
+                    <TabsList className="grid w-full grid-cols-3">
+                        <TabsTrigger value="collection">By Collection</TabsTrigger>
+                        <TabsTrigger value="vendor">By Vendor</TabsTrigger>
+                        <TabsTrigger value="product">By Product</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="collection" className="mt-4">
+                        <div className="flex gap-4 items-end">
+                            <div className="flex-grow space-y-2">
+                                <Label>Collection</Label>
+                                <Select onValueChange={setSelectedCollection} value={selectedCollection}>
+                                    <SelectTrigger><SelectValue placeholder="Select a collection..." /></SelectTrigger>
+                                    <SelectContent>
+                                        {collections.map(c => <SelectItem key={c.id} value={c.id.toString()}>{c.title}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Discount (%)</Label>
+                                <Input type="number" value={collectionDiscount || ''} onChange={e => setCollectionDiscount(parseFloat(e.target.value))} className="w-28" />
+                            </div>
+                            <Button onClick={() => handleSaveDiscount('collection')}><Save className="mr-2 h-4 w-4" /> Save</Button>
+                        </div>
+                    </TabsContent>
+                    <TabsContent value="vendor" className="mt-4">
+                         <div className="flex gap-4 items-end">
+                            <div className="flex-grow space-y-2">
+                                <Label>Vendor</Label>
+                                <Select onValueChange={setSelectedVendor} value={selectedVendor}>
+                                    <SelectTrigger><SelectValue placeholder="Select a vendor..." /></SelectTrigger>
+                                    <SelectContent>
+                                        {vendors.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Discount (%)</Label>
+                                <Input type="number" value={vendorDiscount || ''} onChange={e => setVendorDiscount(parseFloat(e.target.value))} className="w-28" />
+                            </div>
+                            <Button onClick={() => handleSaveDiscount('vendor')}><Save className="mr-2 h-4 w-4" /> Save</Button>
+                        </div>
+                    </TabsContent>
+                    <TabsContent value="product" className="mt-4">
+                         <div className="flex gap-4 items-end">
+                            <div className="flex-grow space-y-2">
+                                <Label>Product</Label>
+                                <Select onValueChange={setSelectedProduct} value={selectedProduct}>
+                                    <SelectTrigger><SelectValue placeholder="Select a product..." /></SelectTrigger>
+                                    <SelectContent>
+                                        <ScrollArea className="h-72">
+                                            {products.map(p => <SelectItem key={p.id} value={p.id.toString()}>{p.title}</SelectItem>)}
+                                        </ScrollArea>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Discount (%)</Label>
+                                <Input type="number" value={productDiscount || ''} onChange={e => setProductDiscount(parseFloat(e.target.value))} className="w-28" />
+                            </div>
+                            <Button onClick={() => handleSaveDiscount('product')}><Save className="mr-2 h-4 w-4" /> Save</Button>
+                        </div>
+                    </TabsContent>
+                </Tabs>
+                <div className="mt-6">
+                    <h4 className="font-semibold mb-2">Active Discounts</h4>
+                    <Table>
+                        <TableHeader><TableRow><TableHead>Type</TableHead><TableHead>Name</TableHead><TableHead>Discount</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader>
+                        <TableBody>
+                            {discounts.map(d => (
+                                <TableRow key={d.id}>
+                                    <TableCell className="capitalize">{d.type}</TableCell>
+                                    <TableCell>{d.name}</TableCell>
+                                    <TableCell>{d.discount}%</TableCell>
+                                    <TableCell className="text-right"><Button variant="destructive" size="sm" onClick={() => handleDeleteDiscount(d.id)}>Delete</Button></TableCell>
+                                </TableRow>
+                            ))}
+                            {discounts.length === 0 && <TableRow><TableCell colSpan={4} className="text-center">No active discounts.</TableCell></TableRow>}
+                        </TableBody>
+                    </Table>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
 
 export default function BillingPage() {
     const { toast } = useToast();
@@ -168,14 +372,18 @@ export default function BillingPage() {
     };
 
     return (
-        <AppShell title="Billing & Usage Management">
+        <AppShell title="Billing, Usage & Discounts">
             <Tabs defaultValue="sellers">
-                <TabsList className="grid w-full grid-cols-4 max-w-2xl">
+                <TabsList className="grid w-full grid-cols-5 max-w-3xl">
+                    <TabsTrigger value="discounts"><Tag className="mr-2 h-4 w-4" /> Discounts</TabsTrigger>
                     <TabsTrigger value="sellers">Seller Usage</TabsTrigger>
                     <TabsTrigger value="vendors">Vendor Usage</TabsTrigger>
                     <TabsTrigger value="collaborators">Collaborator Billing</TabsTrigger>
                     <TabsTrigger value="requests">Limit Requests <Badge className="ml-2">{limitRequests.filter(r=> r.status === 'Pending Approval').length}</Badge></TabsTrigger>
                 </TabsList>
+                <TabsContent value="discounts" className="mt-4">
+                   <DiscountManager />
+                </TabsContent>
                 <TabsContent value="sellers" className="mt-4">
                     <Card>
                         <CardHeader>
@@ -336,3 +544,5 @@ export default function BillingPage() {
         </AppShell>
     );
 }
+
+    

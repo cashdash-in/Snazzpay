@@ -39,8 +39,35 @@ const OrdersResponseSchema = z.object({
     orders: z.array(OrderSchema),
 });
 
+const ProductSchema = z.object({
+    id: z.number(),
+    title: z.string(),
+    vendor: z.string(),
+    product_type: z.string(),
+    variants: z.array(z.object({
+        price: z.string()
+    })),
+});
+
+const ProductsResponseSchema = z.object({
+    products: z.array(ProductSchema),
+});
+
+const CollectionSchema = z.object({
+    id: z.number(),
+    title: z.string(),
+});
+
+const CollectionsResponseSchema = z.object({
+    custom_collections: z.array(CollectionSchema).optional(),
+    smart_collections: z.array(CollectionSchema).optional(),
+});
+
 
 export type Order = z.infer<typeof OrderSchema>;
+export type ShopifyProduct = z.infer<typeof ProductSchema>;
+export type ShopifyCollection = z.infer<typeof CollectionSchema>;
+
 
 export type ShopifyProductInput = {
     title: string;
@@ -66,7 +93,7 @@ async function shopifyFetch(endpoint: string, options: RequestInit = {}) {
         throw new Error("The SHOPIFY_API_KEY environment variable is not set.");
     }
      if (!SHOPIFY_API_KEY.startsWith('shpat_')) {
-        throw new Error("The SHOPIFY_API_KEY does not look like a valid Admin API access token. It should start with 'shpat_'.");
+        throw new Error("The SHOPIFY_API_KEY does not look like a valid Admin API access token. It should start with 'shpat_'. It should start with 'shpat_'.");
     }
 
     const url = `https://${SHOPIFY_STORE_URL}/admin/api/2023-10/${endpoint}`;
@@ -130,3 +157,56 @@ export async function createProduct(product: ShopifyProductInput): Promise<any> 
         throw error;
     }
 }
+
+
+export async function getProducts(): Promise<ShopifyProduct[]> {
+    try {
+        const jsonResponse = await shopifyFetch('products.json?limit=250');
+        const parsed = ProductsResponseSchema.safeParse(jsonResponse);
+
+        if (!parsed.success) {
+            console.error("Failed to parse Shopify products response:", parsed.error.toString());
+            throw new Error("Failed to parse products from Shopify.");
+        }
+        return parsed.data.products;
+    } catch (error: any) {
+        console.error("Error fetching Shopify products:", error);
+        throw error;
+    }
+}
+
+export async function getCollections(): Promise<ShopifyCollection[]> {
+    try {
+        const [customCollections, smartCollections] = await Promise.all([
+            shopifyFetch('custom_collections.json?limit=250'),
+            shopifyFetch('smart_collections.json?limit=250')
+        ]);
+        const parsedCustom = CollectionsResponseSchema.safeParse(customCollections);
+        const parsedSmart = CollectionsResponseSchema.safeParse(smartCollections);
+
+        let allCollections: ShopifyCollection[] = [];
+        if (parsedCustom.success && parsedCustom.data.custom_collections) {
+            allCollections = allCollections.concat(parsedCustom.data.custom_collections);
+        }
+        if (parsedSmart.success && parsedSmart.data.smart_collections) {
+            allCollections = allCollections.concat(parsedSmart.data.smart_collections);
+        }
+        return allCollections;
+    } catch (error: any) {
+        console.error("Error fetching Shopify collections:", error);
+        throw error;
+    }
+}
+
+export async function getVendors(): Promise<string[]> {
+    try {
+        const products = await getProducts();
+        const vendors = new Set(products.map(p => p.vendor));
+        return Array.from(vendors);
+    } catch (error) {
+        console.error("Error fetching vendors via products:", error);
+        throw error;
+    }
+}
+
+    

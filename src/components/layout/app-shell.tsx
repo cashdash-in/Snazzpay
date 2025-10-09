@@ -1,3 +1,4 @@
+
 'use client';
 import type {FC, PropsWithChildren} from 'react';
 import {
@@ -63,6 +64,7 @@ import {
   UserPlus,
   Briefcase,
   Image as ImageIcon,
+  Tag,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { getCookie } from 'cookies-next';
@@ -367,3 +369,5 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
     </SidebarProvider>
   );
 };
+
+    
