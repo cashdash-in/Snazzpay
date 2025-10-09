@@ -142,6 +142,7 @@ export function SecureCodPaymentForm() {
             const baseTotal = orderDetails.amount * quantity;
             setOriginalPrice(baseTotal);
     
+            // No discount for COD
             if (paymentMethod === 'Cash on Delivery') {
                 setTotalPrice(baseTotal);
                 setAppliedDiscount(null);
