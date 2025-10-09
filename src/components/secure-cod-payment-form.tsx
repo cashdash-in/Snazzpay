@@ -21,6 +21,7 @@ import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { Badge } from './ui/badge';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/select';
 
 type CustomerDetails = {
     name: string;
@@ -54,6 +55,9 @@ export function SecureCodPaymentForm() {
         collection: '',
     });
     
+    const availableSizes = searchParams.get('sizes')?.split(',').filter(s => s) || [];
+    const availableColors = searchParams.get('colors')?.split(',').filter(c => c) || [];
+
     const [quantity, setQuantity] = useState(1);
     const [selectedSize, setSelectedSize] = useState('');
     const [selectedColor, setSelectedColor] = useState('');
@@ -119,6 +123,9 @@ export function SecureCodPaymentForm() {
         
         setOrderDetails({ productName: name, amount, orderId: id, sellerId, sellerName, productImage: image, productId, vendor, collection });
         
+        if (availableSizes.length > 0) setSelectedSize(availableSizes[0]);
+        if (availableColors.length > 0) setSelectedColor(availableColors[0]);
+
         setCustomerDetails({
             name: searchParams.get('customerName') || '',
             email: searchParams.get('customerEmail') || '',
@@ -161,7 +168,7 @@ export function SecureCodPaymentForm() {
         if (orderDetails.amount > 0) {
             calculatePrice();
         }
-    }, [quantity, orderDetails, toast, paymentMethod]);
+    }, [quantity, orderDetails, paymentMethod]);
 
 
     const handleSubmit = async (e: FormEvent) => {
@@ -361,14 +368,20 @@ export function SecureCodPaymentForm() {
                                         <Label htmlFor='quantity' className="text-xs text-muted-foreground">Quantity:</Label>
                                         <Input id="quantity" type="number" value={quantity} onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))} className="h-8" min={1}/>
                                     </div>
-                                    <div className="space-y-1">
-                                        <Label htmlFor='size' className="text-xs text-muted-foreground">Size:</Label>
-                                        <Input id="size" value={selectedSize} onChange={(e) => setSelectedSize(e.target.value)} className="h-8" placeholder="e.g., M, 42"/>
-                                    </div>
-                                    <div className="space-y-1">
-                                        <Label htmlFor='color' className="text-xs text-muted-foreground">Color:</Label>
-                                        <Input id="color" value={selectedColor} onChange={(e) => setSelectedColor(e.target.value)} className="h-8" placeholder="e.g., Blue"/>
-                                    </div>
+                                     <div className="grid grid-cols-2 col-span-2 gap-2">
+                                        {availableSizes.length > 0 && (
+                                            <div className="space-y-1">
+                                                <Label htmlFor="size" className="text-xs text-muted-foreground">Size</Label>
+                                                <Select onValueChange={setSelectedSize} value={selectedSize}><SelectTrigger className="h-8"><SelectValue /></SelectTrigger><SelectContent>{availableSizes.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select>
+                                            </div>
+                                        )}
+                                        {availableColors.length > 0 && (
+                                            <div className="space-y-1">
+                                                <Label htmlFor="color" className="text-xs text-muted-foreground">Color</Label>
+                                                <Select onValueChange={setSelectedColor} value={selectedColor}><SelectTrigger className="h-8"><SelectValue /></SelectTrigger><SelectContent>{availableColors.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select>
+                                            </div>
+                                        )}
+                                     </div>
                                 </div>
                                 <div className="flex justify-between items-center font-bold text-lg pt-2 border-t">
                                     <span className="text-muted-foreground">Total:</span>
@@ -446,5 +459,3 @@ export function SecureCodPaymentForm() {
         </div>
     );
 }
-
-    
