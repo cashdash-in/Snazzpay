@@ -55,7 +55,6 @@ export function SecureCodPaymentForm() {
         collection: '',
     });
     
-    const availableSizes = searchParams.get('sizes')?.split(',').filter(s => s) || [];
     const availableColors = searchParams.get('colors')?.split(',').filter(c => c) || [];
 
     const [quantity, setQuantity] = useState(1);
@@ -123,7 +122,6 @@ export function SecureCodPaymentForm() {
         
         setOrderDetails({ productName: name, amount, orderId: id, sellerId, sellerName, productImage: image, productId, vendor, collection });
         
-        if (availableSizes.length > 0) setSelectedSize(availableSizes[0]);
         if (availableColors.length > 0) setSelectedColor(availableColors[0]);
 
         setCustomerDetails({
@@ -142,14 +140,12 @@ export function SecureCodPaymentForm() {
             const baseTotal = orderDetails.amount * quantity;
             setOriginalPrice(baseTotal);
     
-            // No discount for COD
             if (paymentMethod === 'Cash on Delivery') {
                 setTotalPrice(baseTotal);
                 setAppliedDiscount(null);
                 return;
             }
     
-            // Only apply discount for Secure COD
             try {
                 const discounts = await getCollection<DiscountRule>('discounts');
                 const productDiscount = discounts.find(d => d.id === `product_${orderDetails.productId}`);
@@ -381,12 +377,10 @@ export function SecureCodPaymentForm() {
                                         <Input id="quantity" type="number" value={quantity} onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))} className="h-8" min={1}/>
                                     </div>
                                      <div className="grid grid-cols-2 col-span-2 gap-2">
-                                        {availableSizes.length > 0 && (
-                                            <div className="space-y-1">
-                                                <Label htmlFor="size" className="text-xs text-muted-foreground">Size</Label>
-                                                <Select onValueChange={setSelectedSize} value={selectedSize}><SelectTrigger className="h-8"><SelectValue /></SelectTrigger><SelectContent>{availableSizes.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select>
-                                            </div>
-                                        )}
+                                        <div className="space-y-1">
+                                            <Label htmlFor="size" className="text-xs text-muted-foreground">Size</Label>
+                                            <Input id="size" value={selectedSize} onChange={e => setSelectedSize(e.target.value)} placeholder="e.g. M, L, 42" className="h-8"/>
+                                        </div>
                                         {availableColors.length > 0 && (
                                             <div className="space-y-1">
                                                 <Label htmlFor="color" className="text-xs text-muted-foreground">Color</Label>
