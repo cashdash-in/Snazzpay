@@ -9,12 +9,8 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 
 export default function CodInstructionsPage() {
     const embedCode = `<!-- SnazzPay Secure COD Button Start -->
-<!-- 
-  IMPORTANT: Before pasting this into Shopify, you MUST replace 'YOUR_APP_URL' below
-  with your actual live application URL. For example: https://my-cool-store.vercel.app
--->
 <div id="snazzpay-secure-cod-container">
-    <form id="snazzpay-secure-cod-form" action="YOUR_APP_URL/secure-cod" method="GET" target="_blank" style="margin-top: 15px; width: 100%;">
+    <form id="snazzpay-secure-cod-form" action="/secure-cod" method="GET" target="_blank" style="margin-top: 15px; width: 100%;">
         <!-- Hidden fields for product data -->
         <input type="hidden" name="name" id="snazzpay-p-name" />
         <input type="hidden" name="amount" id="snazzpay-p-amount" />
@@ -37,7 +33,7 @@ export default function CodInstructionsPage() {
             Buy with Secure COD
         </button>
         <div style="text-align: center; margin-top: 8px; font-size: 12px;">
-            <a href="YOUR_APP_URL/secure-cod-info" target="_blank" style="color: #5a31f4; text-decoration: underline;" id="snazzpay-info-link">What is this?</a>
+            <a href="/secure-cod-info" target="_blank" style="color: #5a31f4; text-decoration: underline;" id="snazzpay-info-link">What is this?</a>
         </div>
     </form>
 </div>
@@ -56,18 +52,24 @@ export default function CodInstructionsPage() {
 <\/script>
 
 
-<script>
+<script id="snazzpay-logic-script">
 document.addEventListener('DOMContentLoaded', function() {
     try {
+        const logicScript = document.getElementById('snazzpay-logic-script');
+        if (!logicScript) return;
+
+        // This is the key change: determine the app's base URL from where this script is loaded.
+        const appUrl = new URL(logicScript.src).origin;
+        
         const container = document.getElementById('snazzpay-secure-cod-container');
         if (!container) return;
 
-        // Dynamically set the form action to be an absolute URL
         const form = document.getElementById('snazzpay-secure-cod-form');
         const infoLink = document.getElementById('snazzpay-info-link');
+        
         if (form && infoLink) {
-            const appUrl = new URL(infoLink.href).origin;
             form.action = appUrl + '/secure-cod';
+            infoLink.href = appUrl + '/secure-cod-info';
         }
 
         const dataScript = document.getElementById('snazzpay-product-data');
@@ -80,7 +82,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const productData = JSON.parse(dataScript.textContent);
         const vendor = productData.vendor;
 
-        // --- Vendor Visibility Logic ---
         const allowedVendors = [
             'Ashish', 'Deep Sarees', 'Elite', 'Haryana Garments', 'Indie Glam', 
             'Lace Collections', 'Luv Kush creations', 'Sakshi Indiedrop', 'Shipera', 
@@ -92,7 +93,6 @@ document.addEventListener('DOMContentLoaded', function() {
             container.style.display = 'none';
             return; 
         }
-        // --- End of Vendor Logic ---
 
         const nameInput = document.getElementById('snazzpay-p-name');
         const amountInput = document.getElementById('snazzpay-p-amount');
@@ -119,13 +119,11 @@ document.addEventListener('DOMContentLoaded', function() {
             imageInput.value = currentVariant.featured_image ? currentVariant.featured_image.src : productData.featuredImage;
             orderIdInput.value = 'SNZ-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5).toUpperCase();
             
-            // Pass all relevant data
             sellerNameInput.value = productData.vendor || '';
-            sellerIdInput.value = productData.vendor || ''; // Using vendor name as ID for simplicity
+            sellerIdInput.value = productData.vendor || '';
             productIdInput.value = productData.id;
             vendorInput.value = productData.vendor;
             collectionInput.value = productData.type;
-
 
             const sizes = productData.options_with_values.find(opt => opt.name.toLowerCase() === 'size')?.values || [];
             const colors = productData.options_with_values.find(opt => opt.name.toLowerCase() === 'color')?.values || [];
@@ -157,7 +155,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <CardHeader>
               <CardTitle>Embed Secure COD on Your Shopify Store</CardTitle>
               <CardDescription>
-                Follow these steps to add the Secure COD button to your Shopify product page theme.
+                Follow these steps to add the Secure COD button to your Shopify product page theme. This code has been updated to automatically detect your app's URL.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -179,7 +177,7 @@ document.addEventListener('DOMContentLoaded', function() {
               <div className="space-y-2">
                 <h3 className="text-lg font-semibold">Step 2: Copy and Paste the Code</h3>
                 <p className="text-muted-foreground">
-                  Copy the code below and paste it where you want the button to appear, usually near the "Add to Cart" button. Make sure to replace <span className="font-mono bg-muted p-1 rounded-md">YOUR_APP_URL</span> with your live site's URL.
+                  Copy the code below and paste it where you want the button to appear, usually near the "Add to Cart" button. **This new version requires no manual URL changes.**
                 </p>
                 <CodeBlock code={embedCode} />
               </div>

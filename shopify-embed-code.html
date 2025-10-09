@@ -1,10 +1,6 @@
 <!-- SnazzPay Secure COD Button Start -->
-<!-- 
-  IMPORTANT: Before pasting this into Shopify, you MUST replace 'YOUR_APP_URL' below
-  with your actual live application URL. For example: https://my-cool-store.vercel.app
--->
 <div id="snazzpay-secure-cod-container">
-    <form id="snazzpay-secure-cod-form" action="YOUR_APP_URL/secure-cod" method="GET" target="_blank" style="margin-top: 15px; width: 100%;">
+    <form id="snazzpay-secure-cod-form" action="/secure-cod" method="GET" target="_blank" style="margin-top: 15px; width: 100%;">
         <!-- Hidden fields for product data -->
         <input type="hidden" name="name" id="snazzpay-p-name" />
         <input type="hidden" name="amount" id="snazzpay-p-amount" />
@@ -27,7 +23,7 @@
             Buy with Secure COD
         </button>
         <div style="text-align: center; margin-top: 8px; font-size: 12px;">
-            <a href="YOUR_APP_URL/secure-cod-info" target="_blank" style="color: #5a31f4; text-decoration: underline;" id="snazzpay-info-link">What is this?</a>
+            <a href="/secure-cod-info" target="_blank" style="color: #5a31f4; text-decoration: underline;" id="snazzpay-info-link">What is this?</a>
         </div>
     </form>
 </div>
@@ -43,21 +39,27 @@
   "initialVariant": {{ product.selected_or_first_available_variant | json }},
   "options_with_values": {{ product.options_with_values | json }}
 }
-</script>
+<\/script>
 
 
-<script>
+<script id="snazzpay-logic-script">
 document.addEventListener('DOMContentLoaded', function() {
     try {
+        const logicScript = document.getElementById('snazzpay-logic-script');
+        if (!logicScript) return;
+
+        // This is the key change: determine the app's base URL from where this script is loaded.
+        const appUrl = new URL(logicScript.src).origin;
+        
         const container = document.getElementById('snazzpay-secure-cod-container');
         if (!container) return;
 
-        // Dynamically set the form action to be an absolute URL
         const form = document.getElementById('snazzpay-secure-cod-form');
         const infoLink = document.getElementById('snazzpay-info-link');
+        
         if (form && infoLink) {
-            const appUrl = new URL(infoLink.href).origin;
             form.action = appUrl + '/secure-cod';
+            infoLink.href = appUrl + '/secure-cod-info';
         }
 
         const dataScript = document.getElementById('snazzpay-product-data');
@@ -70,7 +72,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const productData = JSON.parse(dataScript.textContent);
         const vendor = productData.vendor;
 
-        // --- Vendor Visibility Logic ---
         const allowedVendors = [
             'Ashish', 'Deep Sarees', 'Elite', 'Haryana Garments', 'Indie Glam', 
             'Lace Collections', 'Luv Kush creations', 'Sakshi Indiedrop', 'Shipera', 
@@ -82,7 +83,6 @@ document.addEventListener('DOMContentLoaded', function() {
             container.style.display = 'none';
             return; 
         }
-        // --- End of Vendor Logic ---
 
         const nameInput = document.getElementById('snazzpay-p-name');
         const amountInput = document.getElementById('snazzpay-p-amount');
@@ -109,13 +109,11 @@ document.addEventListener('DOMContentLoaded', function() {
             imageInput.value = currentVariant.featured_image ? currentVariant.featured_image.src : productData.featuredImage;
             orderIdInput.value = 'SNZ-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5).toUpperCase();
             
-            // Pass all relevant data
             sellerNameInput.value = productData.vendor || '';
-            sellerIdInput.value = productData.vendor || ''; // Using vendor name as ID for simplicity
+            sellerIdInput.value = productData.vendor || '';
             productIdInput.value = productData.id;
             vendorInput.value = productData.vendor;
             collectionInput.value = productData.type;
-
 
             const sizes = productData.options_with_values.find(opt => opt.name.toLowerCase() === 'size')?.values || [];
             const colors = productData.options_with_values.find(opt => opt.name.toLowerCase() === 'color')?.values || [];
@@ -138,5 +136,5 @@ document.addEventListener('DOMContentLoaded', function() {
         if (container) container.style.display = 'none';
     }
 });
-</script>
+<\/script>
 <!-- SnazzPay Secure COD Button End -->
