@@ -37,7 +37,7 @@ export default function CodInstructionsPage() {
             Buy with Secure COD
         </button>
         <div style="text-align: center; margin-top: 8px; font-size: 12px;">
-            <a href="YOUR_APP_URL/secure-cod-info" target="_blank" style="color: #5a31f4; text-decoration: underline;">What is this?</a>
+            <a href="YOUR_APP_URL/secure-cod-info" target="_blank" style="color: #5a31f4; text-decoration: underline;" id="snazzpay-info-link">What is this?</a>
         </div>
     </form>
 </div>
@@ -61,6 +61,14 @@ document.addEventListener('DOMContentLoaded', function() {
     try {
         const container = document.getElementById('snazzpay-secure-cod-container');
         if (!container) return;
+
+        // Dynamically set the form action to be an absolute URL
+        const form = document.getElementById('snazzpay-secure-cod-form');
+        const infoLink = document.getElementById('snazzpay-info-link');
+        if (form && infoLink) {
+            const appUrl = new URL(infoLink.href).origin;
+            form.action = appUrl + '/secure-cod';
+        }
 
         const dataScript = document.getElementById('snazzpay-product-data');
         if (!dataScript || !dataScript.textContent) {
@@ -86,7 +94,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         // --- End of Vendor Logic ---
 
-        const form = document.getElementById('snazzpay-secure-cod-form');
         const nameInput = document.getElementById('snazzpay-p-name');
         const amountInput = document.getElementById('snazzpay-p-amount');
         const imageInput = document.getElementById('snazzpay-p-image');
