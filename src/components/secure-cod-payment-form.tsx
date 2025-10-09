@@ -149,18 +149,24 @@ export function SecureCodPaymentForm() {
             }
     
             // Only apply discount for Secure COD
-            const discounts = await getCollection<DiscountRule>('discounts');
-            const productDiscount = discounts.find(d => d.id === `product_${orderDetails.productId}`);
-            const vendorDiscount = discounts.find(d => d.id === `vendor_${orderDetails.vendor}`);
-            const collectionDiscount = discounts.find(d => d.id === `collection_${orderDetails.collection}`);
-            
-            const bestDiscount = productDiscount || vendorDiscount || collectionDiscount || null;
-            
-            if (bestDiscount) {
-                setAppliedDiscount(bestDiscount);
-                const discountedTotal = baseTotal - (baseTotal * (bestDiscount.discount / 100));
-                setTotalPrice(discountedTotal);
-            } else {
+            try {
+                const discounts = await getCollection<DiscountRule>('discounts');
+                const productDiscount = discounts.find(d => d.id === `product_${orderDetails.productId}`);
+                const vendorDiscount = discounts.find(d => d.id === `vendor_${orderDetails.vendor}`);
+                const collectionDiscount = discounts.find(d => d.id === `collection_${orderDetails.collection}`);
+                
+                const bestDiscount = productDiscount || vendorDiscount || collectionDiscount || null;
+                
+                if (bestDiscount) {
+                    setAppliedDiscount(bestDiscount);
+                    const discountedTotal = baseTotal - (baseTotal * (bestDiscount.discount / 100));
+                    setTotalPrice(discountedTotal);
+                } else {
+                    setTotalPrice(baseTotal);
+                    setAppliedDiscount(null);
+                }
+            } catch (error) {
+                console.error("Could not fetch discounts:", error);
                 setTotalPrice(baseTotal);
                 setAppliedDiscount(null);
             }
