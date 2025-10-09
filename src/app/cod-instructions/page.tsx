@@ -26,22 +26,22 @@ export default function CodInstructionsPage() {
 
 <script id="snazzpay-logic-script">
 (function() {
-    // IMPORTANT: REPLACE THIS URL WITH YOUR LIVE, DEPLOYED APP URL
-    const APP_URL = "YOUR_APP_URL"; 
-
     // --- You do not need to edit anything below this line ---
-
-    const container = document.getElementById('snazzpay-secure-cod-container');
+    var thisScript = document.getElementById('snazzpay-logic-script');
+    var appUrl = new URL(thisScript.src).origin;
+    
+    var container = document.getElementById('snazzpay-secure-cod-container');
     if (!container) return;
 
-    const secureCodForm = document.createElement('form');
+    var secureCodForm = document.createElement('form');
     secureCodForm.id = 'snazzpay-secure-cod-form';
+    secureCodForm.action = appUrl + '/secure-cod';
     secureCodForm.method = 'GET';
     secureCodForm.target = '_blank';
     secureCodForm.style.marginTop = '15px';
     secureCodForm.style.width = '100%';
 
-    const hiddenFieldsHTML = \`
+    var hiddenFieldsHTML = \`
         <input type="hidden" name="name" id="snazzpay-p-name" />
         <input type="hidden" name="amount" id="snazzpay-p-amount" />
         <input type="hidden" name="image" id="snazzpay-p-image" />
@@ -55,18 +55,18 @@ export default function CodInstructionsPage() {
         <input type="hidden" name="collection" id="snazzpay-p-collection" />
     \`;
 
-    const submitButton = document.createElement('button');
+    var submitButton = document.createElement('button');
     submitButton.type = 'submit';
     submitButton.style.cssText = 'width: 100%; min-height: 45px; font-size: 16px; background-color: #5a31f4; color: white; border: none; border-radius: 5px; cursor: pointer; transition: background-color 0.2s;';
     submitButton.innerText = 'Buy with Secure COD';
     submitButton.onmouseover = function() { this.style.backgroundColor='#4a28c7'; };
     submitButton.onmouseout = function() { this.style.backgroundColor='#5a31f4'; };
 
-    const infoLinkDiv = document.createElement('div');
+    var infoLinkDiv = document.createElement('div');
     infoLinkDiv.style.cssText = 'text-align: center; margin-top: 8px; font-size: 12px;';
     
-    const infoLink = document.createElement('a');
-    infoLink.id = 'snazzpay-info-link';
+    var infoLink = document.createElement('a');
+    infoLink.href = appUrl + '/secure-cod-info';
     infoLink.target = '_blank';
     infoLink.style.cssText = 'color: #5a31f4; text-decoration: underline;';
     infoLink.innerText = 'What is this?';
@@ -77,27 +77,13 @@ export default function CodInstructionsPage() {
     secureCodForm.appendChild(infoLinkDiv);
     container.appendChild(secureCodForm);
 
-    function setFormAction() {
-        if (APP_URL === "YOUR_APP_URL" || !APP_URL) {
-            console.error("SnazzPay Error: You must set the APP_URL in the embed script.");
-            const button = document.getElementById('snazzpay-secure-cod-form')?.querySelector('button');
-            if (button) {
-                button.innerText = "SETUP ERROR: URL not set";
-                button.disabled = true;
-            }
-            return;
-        }
-        secureCodForm.action = APP_URL + '/secure-cod';
-        infoLink.href = APP_URL + '/secure-cod-info';
-    }
-
     function populateFormFields() {
         try {
-            const dataScript = document.getElementById('snazzpay-product-data');
+            var dataScript = document.getElementById('snazzpay-product-data');
             if (!dataScript) return;
-            const productData = JSON.parse(dataScript.innerHTML);
+            var productData = JSON.parse(dataScript.innerHTML);
             
-            const variant = productData.initialVariant;
+            var variant = productData.initialVariant;
             
             document.getElementById('snazzpay-p-name').value = productData.title;
             document.getElementById('snazzpay-p-amount').value = (variant.price / 100).toFixed(2);
@@ -107,25 +93,21 @@ export default function CodInstructionsPage() {
             document.getElementById('snazzpay-p-vendor').value = productData.vendor;
             document.getElementById('snazzpay-p-collection').value = productData.type;
 
-            const allSizes = productData.options_with_values.find(o => o.name.toLowerCase() === 'size')?.values || [];
+            var allSizes = productData.options_with_values.find(o => o.name.toLowerCase() === 'size')?.values || [];
             document.getElementById('snazzpay-p-sizes').value = allSizes.join(',');
 
-            const allColors = productData.options_with_values.find(o => o.name.toLowerCase() === 'color')?.values || [];
-             document.getElementById('snazzpay-p-colors').value = allColors.join(',');
+            var allColors = productData.options_with_values.find(o => o.name.toLowerCase() === 'color')?.values || [];
+            document.getElementById('snazzpay-p-colors').value = allColors.join(',');
 
         } catch (e) {
             console.error('SnazzPay Error: Could not parse product data.', e);
         }
     }
     
-    document.addEventListener("DOMContentLoaded", function() {
-        setFormAction();
-        populateFormFields();
-    });
-
     if (document.readyState === "complete" || document.readyState === "interactive") {
-        setFormAction();
         populateFormFields();
+    } else {
+        document.addEventListener("DOMContentLoaded", populateFormFields);
     }
 })();
 <\/script>
@@ -137,17 +119,17 @@ export default function CodInstructionsPage() {
             <CardHeader>
               <CardTitle>Embed Secure COD on Your Shopify Store</CardTitle>
               <CardDescription>
-                Follow these steps to add the Secure COD button to your Shopify product page theme.
+                Follow these steps to add the Secure COD button to your Shopify product page theme. This code is now fully automatic.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <Alert variant="destructive">
-                <Terminal className="h-4 w-4" />
-                <AlertTitle>Action Required: Set Your App URL</AlertTitle>
-                <AlertDescription>
-                    <p>Before you copy and paste this code, you **must** replace the `YOUR_APP_URL` placeholder on line 16 with your actual deployed application URL (e.g., "https://my-snazz-app.vercel.app").</p>
-                </AlertDescription>
-              </Alert>
+                <Alert variant="default" className="bg-green-50 border-green-200">
+                    <Terminal className="h-4 w-4" />
+                    <AlertTitle>No Manual Edits Needed!</AlertTitle>
+                    <AlertDescription>
+                        <p>This script now automatically detects your app's URL. Simply copy the entire block and paste it into your Shopify theme. There are no placeholders to replace.</p>
+                    </AlertDescription>
+                </Alert>
     
               <div className="space-y-2">
                 <h3 className="text-lg font-semibold">Step 1: Go to your Theme Editor</h3>
