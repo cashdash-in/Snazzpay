@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Suspense, useState, useEffect, useCallback } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -100,10 +100,9 @@ function CatalogueOrderPageContent() {
                         price: price,
                         sellerName: (fetchedProduct as SellerProduct).sellerName ?? (fetchedProduct as ProductDrop).vendorName,
                         sellerId: (fetchedProduct as SellerProduct).sellerId ?? (fetchedProduct as ProductDrop).vendorId,
-                        // Add these for discount checking
                         productId: fetchedProduct.id,
                         vendor: (productType === 'product_drop' ? (fetchedProduct as ProductDrop).vendorName : (fetchedProduct as SellerProduct).sellerName) || '',
-                        collection: (fetchedProduct as any).category || '', // Assuming category is the collection
+                        collection: (fetchedProduct as any).category || '',
                     };
                     setProduct(displayProduct);
 
@@ -277,7 +276,7 @@ function CatalogueOrderPageContent() {
                     <CardHeader className="text-center">
                         <CardTitle className="text-3xl font-bold">{product.title}</CardTitle>
                         <CardDescription>Order from {product.sellerName}</CardDescription>
-                         {appliedDiscount && (
+                         {appliedDiscount && paymentMethod === 'Secure Charge on Delivery' && (
                             <div className="!mt-4">
                                 <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
                                     <Percent className="mr-1 h-3 w-3"/> Special Offer: {appliedDiscount.discount}% OFF on Secure COD!

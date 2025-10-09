@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { format, subDays } from "date-fns";
 import { useState, useEffect, useCallback, ClipboardEvent } from "react";
-import { Loader2, PlusCircle, Trash2, Save, MessageSquare, CreditCard, Ban, CircleDollarSign, Factory, Store, ImagePlus, ShoppingCart } from "lucide-react";
+import { Loader2, PlusCircle, Trash2, Save, MessageSquare, CreditCard, Ban, CircleDollarSign, Factory, Store, ImagePlus, ShoppingCart, Percent } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { v4 as uuidv4 } from 'uuid';
@@ -356,8 +356,8 @@ export default function OrdersPage() {
                                         className="w-24 h-8" 
                                     />
                                     {order.discountAmount && order.discountAmount > 0 && (
-                                        <Badge variant="secondary" className="mt-1 w-fit text-xs">
-                                            -{order.discountAmount.toFixed(2)} ({order.discountPercentage}%)
+                                        <Badge variant="secondary" className="mt-1 w-fit text-xs text-green-600 border-green-200 bg-green-50">
+                                            <Percent className="mr-1 h-3 w-3"/> -{order.discountAmount.toFixed(2)}
                                         </Badge>
                                     )}
                                 </div>
@@ -458,6 +458,3 @@ export default function OrdersPage() {
     </AppShell>
   );
 }
-
-    
-    

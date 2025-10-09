@@ -6,7 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, HelpCircle, ShieldCheck, CheckCircle, User, Phone, Mail as MailIcon, Home, MapPin } from "lucide-react";
+import { Loader2, HelpCircle, ShieldCheck, CheckCircle, User, Phone, Mail as MailIcon, Home, MapPin, Percent } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
 import type { EditableOrder } from '@/app/orders/page';
@@ -346,8 +346,13 @@ export function SecureCodPaymentForm() {
                     </CardHeader>
                     <CardContent className="space-y-6">
                         <Card className="bg-muted/30">
-                             <CardHeader className="p-4">
+                             <CardHeader className="p-4 flex flex-row justify-between items-center">
                                  <CardTitle className="text-lg">Order Summary</CardTitle>
+                                 {appliedDiscount && paymentMethod === 'Secure Charge on Delivery' && (
+                                    <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
+                                        <Percent className="mr-1 h-3 w-3"/> {appliedDiscount.discount}% OFF Applied!
+                                    </Badge>
+                                 )}
                             </CardHeader>
                             <CardContent className="p-4 pt-0 space-y-3">
                                 {orderDetails.productImage && (
@@ -465,6 +470,3 @@ export function SecureCodPaymentForm() {
         </div>
     );
 }
-
-    
-    
