@@ -15,6 +15,7 @@
         <input type="hidden" name="colors" id="snazzpay-p-colors" />
 
         <button 
+            id="snazzpay-submit-button"
             type="submit" 
             style="width: 100%; min-height: 45px; font-size: 16px; background-color: #5a31f4; color: white; border: none; border-radius: 5px; cursor: pointer; transition: background-color 0.2s;"
             onmouseover="this.style.backgroundColor='#4a28c7'"
@@ -74,6 +75,36 @@ document.addEventListener('DOMContentLoaded', function() {
         // --- End of Vendor Logic ---
 
         const form = document.getElementById('snazzpay-secure-cod-form');
+        const submitButton = document.getElementById('snazzpay-submit-button');
+
+        // Fetch discounts from your app's API
+        fetch('https://snazzpay.netlify.app/api/discounts')
+            .then(response => {
+                if (!response.ok) { throw new Error('Network response was not ok'); }
+                return response.json();
+            })
+            .then(discounts => {
+                const productDiscount = discounts.find(d => d.id === \`product_\${productData.id}\`);
+                const vendorDiscount = discounts.find(d => d.id === \`vendor_\${productData.vendor}\`);
+                const collectionDiscount = discounts.find(d => d.id === \`collection_\${productData.collectionId}\`);
+
+                const bestDiscount = productDiscount || vendorDiscount || collectionDiscount;
+
+                if (bestDiscount && submitButton) {
+                    submitButton.innerHTML = \`Buy with Secure COD (<span style="font-weight:bold;">\${bestDiscount.discount}% OFF</span>)\`;
+                    
+                    // NEW: Add badge next to 'Add to Cart' button
+                    const addToCartButton = document.querySelector('form[action="/cart/add"] button[type="submit"], form[action="/cart/add"] input[type="submit"]');
+                    if (addToCartButton) {
+                        const badge = document.createElement('div');
+                        badge.innerHTML = \`&#9889; \${bestDiscount.discount}% OFF with Secure COD\`;
+                        badge.style.cssText = 'font-size: 12px; font-weight: bold; color: #5a31f4; text-align: center; margin-top: 8px;';
+                        addToCartButton.parentNode.insertBefore(badge, addToCartButton.nextSibling);
+                    }
+                }
+            })
+            .catch(error => console.error("SnazzPay Discount Fetch Error:", error));
+
 
         function updateForm(variant) {
             const currentVariant = variant || productData.initialVariant;
@@ -104,7 +135,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const allColors = productData.options_with_values.find(o => o.name.toLowerCase() === 'color')?.values || [];
             document.getElementById('snazzpay-p-colors').value = allColors.join(',');
-
         }
 
         // Initial update on page load
@@ -125,5 +155,3 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 <!-- SnazzPay Secure COD Button End -->
-
-    

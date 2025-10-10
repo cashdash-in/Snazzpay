@@ -6,9 +6,16 @@ import { CodeBlock } from "@/components/code-block";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Terminal } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { useEffect, useState } from 'react';
 
 export default function CodInstructionsPage() {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://your-app-url.com';
+    const [appUrl, setAppUrl] = useState('');
+
+    useEffect(() => {
+        // This ensures the value is only set on the client side
+        setAppUrl(process.env.NEXT_PUBLIC_APP_URL || window.location.origin);
+    }, []);
+
     const embedCode = `<!-- SnazzPay Secure COD Button Start -->
 <div id="snazzpay-secure-cod-container">
     <form id="snazzpay-secure-cod-form" action="${appUrl}/secure-cod" method="GET" target="_blank" style="margin-top: 15px; width: 100%;">
@@ -89,9 +96,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const submitButton = document.getElementById('snazzpay-submit-button');
 
         // Fetch discounts from your app's API
-        // This is a simplified example. In a real scenario, you'd want to cache this.
         fetch('${appUrl}/api/discounts')
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) { throw new Error('Network response was not ok'); }
+                return response.json();
+            })
             .then(discounts => {
                 const productDiscount = discounts.find(d => d.id === \`product_\${productData.id}\`);
                 const vendorDiscount = discounts.find(d => d.id === \`vendor_\${productData.vendor}\`);
@@ -101,6 +110,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (bestDiscount && submitButton) {
                     submitButton.innerHTML = \`Buy with Secure COD (<span style="font-weight:bold;">\${bestDiscount.discount}% OFF</span>)\`;
+                    
+                    // NEW: Add badge next to 'Add to Cart' button
+                    const addToCartButton = document.querySelector('form[action="/cart/add"] button[type="submit"], form[action="/cart/add"] input[type="submit"]');
+                    if (addToCartButton) {
+                        const badge = document.createElement('div');
+                        badge.innerHTML = \`&#9889; \${bestDiscount.discount}% OFF with Secure COD\`;
+                        badge.style.cssText = 'font-size: 12px; font-weight: bold; color: #5a31f4; text-align: center; margin-top: 8px;';
+                        addToCartButton.parentNode.insertBefore(badge, addToCartButton.nextSibling);
+                    }
                 }
             })
             .catch(error => console.error("SnazzPay Discount Fetch Error:", error));
@@ -186,7 +204,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <p className="text-muted-foreground">
                   Copy the code below and paste it where you want the button to appear, usually near the "Add to Cart" button.
                 </p>
-                <CodeBlock code={embedCode} />
+                <CodeBlock code={appUrl ? embedCode : 'Loading embed code...'} />
               </div>
     
             </CardContent>
