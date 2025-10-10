@@ -91,7 +91,6 @@ function CatalogueOrderPageContent() {
                     productType = 'product_drop';
                 }
 
-
                 if (fetchedProduct) {
                     const price = (fetchedProduct as SellerProduct).price ?? (fetchedProduct as ProductDrop).costPrice;
                     
@@ -107,10 +106,9 @@ function CatalogueOrderPageContent() {
                     setProduct(displayProduct);
 
                     let bestDiscount: DiscountRule | null = null;
-                    if(discountParam) {
+                    if(discountParam && parseFloat(discountParam) > 0) {
                         bestDiscount = { id: 'link_discount', type: 'collection', name: 'Special Offer', discount: parseFloat(discountParam) };
                     } else {
-                        // Fetch and find best discount if not passed in param
                         const discounts = await getCollection<DiscountRule>('discounts');
                         const productDiscount = discounts.find(d => d.id === `product_${displayProduct.productId}`);
                         const vendorDiscount = discounts.find(d => d.id === `vendor_${displayProduct.vendor}`);
@@ -394,5 +392,3 @@ export default function CatalogueOrderPage() {
         </Suspense>
     );
 }
-
-    
