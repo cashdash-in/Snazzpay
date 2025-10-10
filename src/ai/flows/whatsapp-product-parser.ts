@@ -50,7 +50,7 @@ const parseChatPrompt = ai.definePrompt({
   prompt: `You are an expert e-commerce merchandiser. Analyze the entire chat transcript in 'chatText' and extract each distinct product into a structured JSON object.
 
 **Filtering Rule:**
-- You MUST only consider messages that fall between **{{startDate}}** and **{{endDate}}** if those dates are provided.
+- You MUST only consider messages that fall between **{{{startDate}}}** and **{{{endDate}}}** if those dates are provided.
 - If no dates are provided, you MUST process all messages in the transcript.
 
 For each product found, generate a complete object with:
@@ -76,7 +76,13 @@ const parseWhatsAppChatFlow = ai.defineFlow(
     outputSchema: WhatsAppChatOutputSchema,
   },
   async (input) => {
-    const { output } = await parseChatPrompt(input);
+    // Handle optional dates gracefully for the prompt
+    const promptData = {
+        chatText: input.chatText,
+        startDate: input.startDate || 'the beginning of time',
+        endDate: input.endDate || 'the end of time',
+    };
+    const { output } = await parseChatPrompt(promptData);
     if (!output || !output.products) {
       throw new Error('The AI failed to parse any products from the chat.');
     }

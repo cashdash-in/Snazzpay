@@ -111,7 +111,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (bestDiscount && submitButton) {
                     submitButton.innerHTML = \`Buy with Secure COD (<span style="font-weight:bold;">\${bestDiscount.discount}% OFF</span>)\`;
                     
-                    // NEW: Add badge next to 'Add to Cart' button
                     const addToCartButton = document.querySelector('form[action="/cart/add"] button[type="submit"], form[action="/cart/add"] input[type="submit"]');
                     if (addToCartButton) {
                         const badge = document.createElement('div');
