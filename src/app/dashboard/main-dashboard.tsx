@@ -2,14 +2,16 @@
 'use client';
 
 import { useState, useEffect } from "react";
-import { getCollection } from "@/services/firestore";
+import { getCollection, getDocument } from "@/services/firestore";
 import type { EditableOrder } from "@/app/orders/page";
 import { useToast } from "@/hooks/use-toast";
 import { format, subDays } from "date-fns";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
-import { DollarSign, WalletCards, CheckCircle2, AlertTriangle, Users, CircleDollarSign } from "lucide-react";
+import { DollarSign, WalletCards, CheckCircle2, AlertTriangle, Users, CircleDollarSign, Eye, MousePointerClick } from "lucide-react";
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts"
 import { RecentOrders } from "@/components/dashboard/recent-orders";
+import { onSnapshot, doc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 export function MainDashboard() {
     const [stats, setStats] = useState({
@@ -18,9 +20,30 @@ export function MainDashboard() {
         successfulCharges: 0,
         totalRefunds: 0,
     });
+    const [liveStats, setLiveStats] = useState({
+        secureCodClicks: 0,
+        magazineVisits: 0,
+        secureCodActiveSessions: 0,
+        magazineActiveSessions: 0,
+    });
     const [salesData, setSalesData] = useState<{ name: string, total: number }[]>([]);
     const [loading, setLoading] = useState(true);
     const { toast } = useToast();
+
+    useEffect(() => {
+        const today = format(new Date(), 'yyyy-MM-dd');
+        const liveStatsDocRef = doc(db, 'analytics', today);
+
+        const unsubscribe = onSnapshot(liveStatsDocRef, (doc) => {
+            if (doc.exists()) {
+                setLiveStats(doc.data() as any);
+            }
+        }, (error) => {
+            console.error("Error fetching live stats:", error);
+        });
+
+        return () => unsubscribe();
+    }, []);
 
     useEffect(() => {
         async function loadDashboardData() {
@@ -46,7 +69,6 @@ export function MainDashboard() {
                     .filter(o => ['Refunded', 'Voided'].includes(o.paymentStatus))
                     .reduce((sum, o) => sum + parseFloat(o.price || '0'), 0);
                 
-                // Filter out converted leads from the leads count
                 const activeLeads = leads.filter(l => l.paymentStatus !== 'Converted');
 
                 setStats({
@@ -96,49 +118,49 @@ export function MainDashboard() {
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                  <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total Secured Value</CardTitle>
-                        <DollarSign className="h-4 w-4 text-muted-foreground" />
+                        <CardTitle className="text-sm font-medium">Secure COD Clicks (Today)</CardTitle>
+                        <MousePointerClick className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">₹{stats.totalSecuredValue.toFixed(2)}</div>
-                        <p className="text-xs text-muted-foreground">Value held in customer Trust Wallets.</p>
+                        <div className="text-2xl font-bold">{liveStats.secureCodClicks}</div>
+                        <p className="text-xs text-muted-foreground">Clicks on the main Secure COD button.</p>
                     </CardContent>
                 </Card>
                  <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Active Leads</CardTitle>
-                        <Users className="h-4 w-4 text-muted-foreground" />
+                        <CardTitle className="text-sm font-medium">Magazine Visits (Today)</CardTitle>
+                        <Eye className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{stats.activeLeads}</div>
-                        <p className="text-xs text-muted-foreground">Customers who submitted order requests.</p>
+                        <div className="text-2xl font-bold">{liveStats.magazineVisits}</div>
+                         <p className="text-xs text-muted-foreground">Total views across all Smart Magazines.</p>
                     </CardContent>
                 </Card>
                  <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Successful Charges</CardTitle>
+                        <CardTitle className="text-sm font-medium">Active Secure COD Sessions</CardTitle>
                         <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">₹{stats.successfulCharges.toFixed(2)}</div>
-                        <p className="text-xs text-muted-foreground">Total value of finalized payments.</p>
+                        <div className="text-2xl font-bold">{liveStats.secureCodActiveSessions}</div>
+                        <p className="text-xs text-muted-foreground">Users currently on the payment page.</p>
                     </CardContent>
                 </Card>
                  <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Refunded / Cancelled</CardTitle>
+                        <CardTitle className="text-sm font-medium">Active Magazine Sessions</CardTitle>
                         <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">₹{stats.totalRefunds.toFixed(2)}</div>
-                        <p className="text-xs text-muted-foreground">Total value of refunded orders.</p>
+                        <div className="text-2xl font-bold">{liveStats.magazineActiveSessions}</div>
+                        <p className="text-xs text-muted-foreground">Users on a magazine order page.</p>
                     </CardContent>
                 </Card>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-7 gap-8">
                 <Card className="lg:col-span-4">
                     <CardHeader>
-                        <CardTitle>Overview</CardTitle>
+                        <CardTitle>Sales Overview (Last 7 Days)</CardTitle>
                     </CardHeader>
                     <CardContent className="pl-2">
                        <ResponsiveContainer width="100%" height={350}>

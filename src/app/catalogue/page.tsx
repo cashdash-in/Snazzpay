@@ -71,6 +71,31 @@ function CatalogueOrderPageContent() {
     const availableSizes = searchParams.get('sizes')?.split(',').filter(s => s) || [];
     const availableColors = searchParams.get('colors')?.split(',').filter(c => c) || [];
 
+    useEffect(() => {
+        // Track session start
+        fetch('/api/track', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ event: 'magazineSessionStart' }),
+            keepalive: true,
+        });
+
+        const handleUnload = () => {
+             fetch('/api/track', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ event: 'sessionEnd', type: 'magazine' }),
+                keepalive: true,
+            });
+        };
+
+        window.addEventListener('beforeunload', handleUnload);
+
+        return () => {
+            window.removeEventListener('beforeunload', handleUnload);
+            handleUnload();
+        };
+    }, []);
 
     useEffect(() => {
         async function fetchProduct() {
@@ -385,10 +410,10 @@ function CatalogueOrderPageContent() {
     );
 }
 
-export default function CatalogueOrderPage() {
+export default function SmartMagazinePage() {
     return (
         <Suspense fallback={<div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
-            <CatalogueOrderPageContent />
+            <SmartMagazineContent />
         </Suspense>
     );
 }

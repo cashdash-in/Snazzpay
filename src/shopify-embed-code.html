@@ -77,6 +77,19 @@ document.addEventListener('DOMContentLoaded', function() {
         const form = document.getElementById('snazzpay-secure-cod-form');
         const submitButton = document.getElementById('snazzpay-submit-button');
 
+        // Track button click
+        if(submitButton) {
+            submitButton.addEventListener('click', function() {
+                 fetch('https://snazzpay.netlify.app/api/track', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ event: 'secureCodClick' }),
+                    keepalive: true,
+                });
+            });
+        }
+        
+
         // Fetch discounts from your app's API
         fetch('https://snazzpay.netlify.app/api/discounts')
             .then(response => {

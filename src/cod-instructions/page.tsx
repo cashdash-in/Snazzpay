@@ -95,6 +95,18 @@ document.addEventListener('DOMContentLoaded', function() {
         const form = document.getElementById('snazzpay-secure-cod-form');
         const submitButton = document.getElementById('snazzpay-submit-button');
 
+        // Track button click
+        if(submitButton) {
+            submitButton.addEventListener('click', function() {
+                 fetch('${appUrl}/api/track', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ event: 'secureCodClick' }),
+                    keepalive: true,
+                });
+            });
+        }
+        
         // Fetch discounts from your app's API
         fetch('${appUrl}/api/discounts')
             .then(response => {
@@ -111,6 +123,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (bestDiscount && submitButton) {
                     submitButton.innerHTML = \`Buy with Secure COD (<span style="font-weight:bold;">\${bestDiscount.discount}% OFF</span>)\`;
                     
+                    // NEW: Add badge next to 'Add to Cart' button
                     const addToCartButton = document.querySelector('form[action="/cart/add"] button[type="submit"], form[action="/cart/add"] input[type="submit"]');
                     if (addToCartButton) {
                         const badge = document.createElement('div');

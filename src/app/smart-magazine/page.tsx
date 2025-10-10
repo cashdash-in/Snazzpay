@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
@@ -39,6 +40,13 @@ function SmartMagazineContent() {
             }
 
             try {
+                // Track visit
+                fetch('/api/track', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ event: 'magazineVisit' }),
+                });
+
                 const fetchedMagazine = await getDocument<Magazine>('smart_magazines', magazineId);
                 if (!fetchedMagazine) {
                     setIsLoading(false);
