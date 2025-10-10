@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
@@ -16,6 +15,7 @@ type DisplayProduct = SellerProduct | ProductDrop;
 type Magazine = {
     id: string;
     title: string;
+    vendorTitle?: string;
     productIds: string[];
     creatorName: string;
     createdAt: string;
@@ -79,7 +79,7 @@ function SmartMagazineContent() {
     }, [searchParams]);
     
     const handleOrderClick = (product: DisplayProduct) => {
-        const params = new URLSearchParams();
+        const params = new URLSearchParams(searchParams); // Preserve existing params like discount
         params.set('id', product.id);
 
         if ((product as SellerProduct).sizes && (product as SellerProduct).sizes.length > 0) {
@@ -112,31 +112,31 @@ function SmartMagazineContent() {
     return (
         <div className="min-h-screen bg-gray-50 p-4 sm:p-8">
             <div className="max-w-6xl mx-auto">
-                 <Card className="mb-8 text-center shadow-lg">
-                    <CardHeader>
-                        <CardTitle className="text-3xl font-bold">{magazine.title}</CardTitle>
-                        <CardDescription>Curated just for you by {magazine.creatorName}</CardDescription>
-                    </CardHeader>
-                </Card>
+                 <header className="text-center mb-12">
+                    <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-gray-900">{magazine.title}</h1>
+                    <p className="mt-4 text-lg text-muted-foreground">
+                        {magazine.vendorTitle || `A curated collection by ${magazine.creatorName}`}
+                    </p>
+                </header>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                     {products.map(product => (
-                        <Card key={product.id} className="shadow-md hover:shadow-xl transition-shadow overflow-hidden flex flex-col group">
-                            <CardHeader className="p-0">
+                        <Card key={product.id} className="shadow-md hover:shadow-xl transition-shadow overflow-hidden flex flex-col group rounded-lg">
+                             <div className="overflow-hidden">
                                 <Image
                                     src={product.imageDataUris[0]}
                                     alt={product.title}
-                                    width={100}
-                                    height={200}
-                                    className="object-cover w-full h-48"
+                                    width={400}
+                                    height={400}
+                                    className="object-cover w-full h-48 sm:h-64 group-hover:scale-105 transition-transform duration-300"
                                 />
-                            </CardHeader>
-                             <CardContent className="p-4 flex-grow">
-                                <CardTitle className="text-base font-semibold mb-1 line-clamp-2">{product.title}</CardTitle>
-                                <div className="text-lg font-bold">
+                            </div>
+                             <CardContent className="p-4 flex-grow flex flex-col">
+                                <h3 className="text-base font-semibold mb-1 line-clamp-2 flex-grow">{product.title}</h3>
+                                <p className="text-lg font-bold text-primary mt-2">
                                     ₹{((product as SellerProduct).price || (product as ProductDrop).costPrice).toFixed(2)}
-                                </div>
+                                </p>
                             </CardContent>
-                            <CardFooter className="p-2">
+                            <CardFooter className="p-2 bg-slate-50">
                                 <Button className="w-full" size="sm" onClick={() => handleOrderClick(product)}>
                                     Click to Order
                                     <ShoppingCart className="ml-2 h-4 w-4" />

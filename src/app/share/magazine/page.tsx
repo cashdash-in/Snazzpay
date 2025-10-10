@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -10,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/hooks/use-auth';
 import type { SellerProduct } from '@/app/seller/ai-product-uploader/page';
 import Image from 'next/image';
-import { Loader2, Share2, Copy, MessageSquare, BookOpen, Percent } from 'lucide-react';
+import { Loader2, Share2, Copy, MessageSquare, BookOpen, Percent, Factory } from 'lucide-react';
 import { getCollection, saveDocument } from '@/services/firestore';
 import { getCookie } from 'cookies-next';
 import { Label } from '@/components/ui/label';
@@ -23,6 +22,7 @@ import { formatDistanceToNow } from 'date-fns';
 type Magazine = {
     id: string;
     title: string;
+    vendorTitle?: string; // New field for admin
     productIds: string[];
     creatorId: string;
     creatorName: string;
@@ -39,17 +39,21 @@ export default function ShareMagazinePage() {
     const [isLoading, setIsLoading] = useState(true);
     const [magazineLink, setMagazineLink] = useState('');
     const [magazineTitle, setMagazineTitle] = useState('Our Latest Collection');
+    const [vendorTitle, setVendorTitle] = useState('');
     const [discount, setDiscount] = useState<number>(0);
+    const [isAdmin, setIsAdmin] = useState(false);
 
 
     useEffect(() => {
+        const role = getCookie('userRole');
+        setIsAdmin(role === 'admin');
+
         async function loadData() {
             if (!user) {
                 setIsLoading(false);
                 return;
             }
             try {
-                const role = getCookie('userRole');
                 let productsCollection: Array<SellerProduct | ProductDrop> = [];
                 
                 if (role === 'seller') {
@@ -112,6 +116,7 @@ export default function ShareMagazinePage() {
         const newMagazine: Magazine = {
             id: magazineId,
             title: magazineTitle,
+            vendorTitle: isAdmin && vendorTitle ? vendorTitle : undefined,
             productIds: selectedProductIds,
             creatorId: user.uid,
             creatorName: creatorName,
@@ -173,7 +178,7 @@ export default function ShareMagazinePage() {
                                      <div className="flex items-center space-x-2 p-2 border-b">
                                         <Checkbox
                                             id="select-all"
-                                            onCheckedChange={handleSelectAll}
+                                            onCheckedChange={(checked) => handleSelectAll(!!checked)}
                                             checked={selectedProductIds.length === products.length && products.length > 0}
                                             aria-label="Select all"
                                         />
@@ -216,6 +221,21 @@ export default function ShareMagazinePage() {
                                     placeholder="e.g., Summer Collection"
                                 />
                             </div>
+                            {isAdmin && (
+                                <div className="space-y-2">
+                                    <Label htmlFor="vendor-title">Vendor Title (Admin Only)</Label>
+                                     <div className="relative">
+                                        <Input
+                                            id="vendor-title"
+                                            value={vendorTitle}
+                                            onChange={(e) => setVendorTitle(e.target.value)}
+                                            placeholder="e.g., Curated by Snazzify"
+                                            className="pl-8"
+                                        />
+                                        <Factory className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    </div>
+                                </div>
+                            )}
                             <div className="space-y-2">
                                 <Label htmlFor="discount">Discount % (Optional)</Label>
                                 <div className="relative">
