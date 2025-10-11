@@ -192,6 +192,7 @@ export function SecureCodPaymentForm() {
             originalPrice: originalPrice.toString(),
             discountPercentage: (paymentMethod === 'Secure Charge on Delivery' && appliedDiscount) ? appliedDiscount.discount : undefined,
             discountAmount: finalDiscountAmount,
+            imageDataUris: orderDetails.productImage ? [orderDetails.productImage] : [],
         };
         
         if (paymentMethod === 'Cash on Delivery') {

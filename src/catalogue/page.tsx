@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Suspense, useState, useEffect } from 'react';
@@ -211,6 +210,7 @@ function CatalogueOrderPageContent() {
             sellerId: product.sellerId,
             sellerName: product.sellerName,
             isRead: false,
+            imageDataUris: product.imageDataUris,
         };
 
         try {
@@ -417,5 +417,3 @@ export default function CataloguePage() {
         </Suspense>
     );
 }
-
-    
