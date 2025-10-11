@@ -211,6 +211,7 @@ function CatalogueOrderPageContent() {
             sellerId: product.sellerId,
             sellerName: product.sellerName,
             isRead: false,
+            imageDataUris: product.imageDataUris,
         };
 
         try {
@@ -410,10 +411,10 @@ function CatalogueOrderPageContent() {
     );
 }
 
-export default function SmartMagazinePage() {
+export default function CataloguePage() {
     return (
         <Suspense fallback={<div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
-            <SmartMagazineContent />
+            <CatalogueOrderPageContent />
         </Suspense>
     );
 }
