@@ -1,15 +1,15 @@
-
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, ShoppingCart } from 'lucide-react';
+import { Loader2, ShoppingCart, Percent } from 'lucide-react';
 import Image from 'next/image';
 import type { SellerProduct } from '../seller/ai-product-uploader/page';
 import { getCollection, getDocument } from '@/services/firestore';
 import type { ProductDrop } from '../vendor/product-drops/page';
+import { Badge } from '@/components/ui/badge';
 
 type DisplayProduct = SellerProduct | ProductDrop;
 
@@ -20,6 +20,7 @@ type Magazine = {
     productIds: string[];
     creatorName: string;
     createdAt: string;
+    discount?: number;
 };
 
 
@@ -29,8 +30,14 @@ function SmartMagazineContent() {
     const [products, setProducts] = useState<DisplayProduct[]>([]);
     const [magazine, setMagazine] = useState<Magazine | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [discount, setDiscount] = useState<number>(0);
 
     useEffect(() => {
+        const discountParam = searchParams.get('discount');
+        if (discountParam) {
+            setDiscount(parseFloat(discountParam));
+        }
+
         async function fetchProducts() {
             const magazineId = searchParams.get('id');
 
@@ -127,9 +134,13 @@ function SmartMagazineContent() {
                     </p>
                 </header>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                    {products.map(product => (
+                    {products.map(product => {
+                         const price = ((product as SellerProduct).price || (product as ProductDrop).costPrice);
+                         const discountedPrice = discount > 0 ? price - (price * (discount / 100)) : price;
+
+                        return (
                         <Card key={product.id} className="shadow-md hover:shadow-xl transition-shadow overflow-hidden flex flex-col group rounded-lg">
-                             <div className="overflow-hidden">
+                             <div className="overflow-hidden relative">
                                 <Image
                                     src={product.imageDataUris[0]}
                                     alt={product.title}
@@ -137,12 +148,25 @@ function SmartMagazineContent() {
                                     height={400}
                                     className="object-cover w-full h-48 sm:h-64 group-hover:scale-105 transition-transform duration-300"
                                 />
+                                {discount > 0 && (
+                                    <Badge className="absolute top-2 right-2 bg-destructive text-destructive-foreground">
+                                        <Percent className="h-3 w-3 mr-1" />
+                                        {discount}% OFF
+                                    </Badge>
+                                )}
                             </div>
                              <CardContent className="p-4 flex-grow flex flex-col">
                                 <h3 className="text-base font-semibold mb-1 line-clamp-2 flex-grow">{product.title}</h3>
-                                <p className="text-lg font-bold text-primary mt-2">
-                                    ₹{((product as SellerProduct).price || (product as ProductDrop).costPrice).toFixed(2)}
-                                </p>
+                                <div className="mt-2">
+                                     <p className="text-lg font-bold text-primary">
+                                        ₹{discountedPrice.toFixed(2)}
+                                        {discount > 0 && (
+                                            <span className="text-sm font-normal text-muted-foreground ml-2 line-through">
+                                                ₹{price.toFixed(2)}
+                                            </span>
+                                        )}
+                                    </p>
+                                </div>
                             </CardContent>
                             <CardFooter className="p-2 bg-slate-50">
                                 <Button className="w-full" size="sm" onClick={() => handleOrderClick(product)}>
@@ -151,7 +175,7 @@ function SmartMagazineContent() {
                                 </Button>
                             </CardFooter>
                         </Card>
-                    ))}
+                    )})}
                 </div>
             </div>
         </div>
@@ -165,5 +189,3 @@ export default function SmartMagazinePage() {
         </Suspense>
     );
 }
-
-    
