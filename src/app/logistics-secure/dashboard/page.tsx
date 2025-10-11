@@ -55,6 +55,7 @@ export type LogisticsPartnerData = {
     aadhaar: string;
     address: string;
     phone: string;
+    email: string;
     status: 'pending' | 'approved' | 'rejected';
 };
 
@@ -67,7 +68,7 @@ function ReportsTab({ fleet, pickups, partnerName }: { fleet: Agent[], pickups: 
         try {
             let dataToExport: any[] = [];
             let fileName = `${partnerName.replace(/\s+/g, '_')}_report_${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
-            let worksheet: XLSX.WorkSheet | undefined;
+            let worksheet: XLSX.WorkSheet;
 
             if (type === 'fleet') {
                 dataToExport = fleet.map(agent => ({
@@ -79,8 +80,10 @@ function ReportsTab({ fleet, pickups, partnerName }: { fleet: Agent[], pickups: 
                     'Status': agent.status,
                     'Current Task': agent.task
                 }));
-                worksheet = XLSX.utils.json_to_sheet(dataToExport);
-                fileName = `Fleet_Performance_${fileName}`;
+                if (dataToExport.length > 0) {
+                    worksheet = XLSX.utils.json_to_sheet(dataToExport);
+                    fileName = `Fleet_Performance_${fileName}`;
+                }
             } else if (type === 'pickups') {
                  dataToExport = pickups.map(pickup => ({
                     'Pickup ID': pickup.id,
@@ -91,22 +94,14 @@ function ReportsTab({ fleet, pickups, partnerName }: { fleet: Agent[], pickups: 
                     'Assigned To': pickup.assignedTo || 'N/A',
                     'AI Verification': pickup.aiVerification
                 }));
-                worksheet = XLSX.utils.json_to_sheet(dataToExport);
-                fileName = `Pickup_History_${fileName}`;
+                if (dataToExport.length > 0) {
+                    worksheet = XLSX.utils.json_to_sheet(dataToExport);
+                    fileName = `Pickup_History_${fileName}`;
+                }
             }
 
             if (dataToExport.length === 0) {
                 toast({
-                    variant: 'destructive',
-                    title: "No Data Found",
-                    description: "There is no data to export for this report type.",
-                });
-                setIsGenerating(false);
-                return;
-            }
-
-            if (!worksheet) {
-                 toast({
                     variant: 'destructive',
                     title: "No Data Found",
                     description: "There is no data to export for this report type.",
@@ -321,8 +316,8 @@ export default function LogisticsDashboardPage() {
     };
 
     const handleFieldChange = (id: string, field: keyof Agent | keyof ServicePartner, value: string) => {
-        setFleet(prev => prev.map(item => item.id === id ? { ...item, [field]: value } : item));
-        setServicePartners(prev => prev.map(item => item.id === id ? { ...item, [field]: value } : item));
+        setFleet(prev => prev.map(item => (item.id === id ? { ...item, [field]: value } : item) as Agent));
+        setServicePartners(prev => prev.map(item => (item.id === id ? { ...item, [field]: value } : item) as ServicePartner));
     };
 
     const handleShaktiCardSearch = () => {

@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Truck, Lock, FileText, User, Home, Phone } from "lucide-react";
+import { Truck, Lock, FileText, User, Home, Phone, Mail } from "lucide-react";
 import Link from "next/link";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -24,7 +24,8 @@ export default function LogisticsSignupPage() {
         pan: '',
         aadhaar: '',
         address: '',
-        phone: ''
+        phone: '',
+        email: ''
     });
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -35,8 +36,8 @@ export default function LogisticsSignupPage() {
     const handleSignup = () => {
         setIsLoading(true);
 
-        const { companyName, pan, aadhaar, address, phone } = formData;
-        if (!companyName || !pan || !aadhaar || !address || !phone) {
+        const { companyName, pan, aadhaar, address, phone, email } = formData;
+        if (!companyName || !pan || !aadhaar || !address || !phone || !email) {
             toast({ variant: 'destructive', title: "Missing Fields", description: "Please fill out all required fields." });
             setIsLoading(false);
             return;
@@ -90,6 +91,10 @@ export default function LogisticsSignupPage() {
                             <Input id="phone" placeholder="9876543210" value={formData.phone} onChange={handleInputChange} />
                         </div>
                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="email">Email</Label>
+                        <Input id="email" type="email" placeholder="contact@yourcompany.com" value={formData.email} onChange={handleInputChange} />
+                    </div>
                      <div className="space-y-2">
                         <Label htmlFor="address">Complete Address</Label>
                         <Input id="address" placeholder="123, Main Street, Your City, 400001" value={formData.address} onChange={handleInputChange} />
