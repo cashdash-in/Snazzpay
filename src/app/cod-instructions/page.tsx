@@ -157,7 +157,7 @@ document.addEventListener('DOMContentLoaded', function() {
               <div className="space-y-2">
                 <h3 className="text-lg font-semibold">Step 1: Go to your Theme Editor</h3>
                 <p className="text-muted-foreground">
-                  In your Shopify admin, go to **Online Store > Themes**. Find your current theme, click the "..." button, and select **"Edit code"**. In the file browser on the left, find the template file that controls your product page. This is often called <span className="font-mono bg-muted p-1 rounded-md">product.liquid</span>, <span className="font-mono bg-muted p-1 rounded-md">main-product.liquid</span>, or similar.
+                  In your Shopify admin, go to **Online Store &gt; Themes**. Find your current theme, click the "..." button, and select **"Edit code"**. In the file browser on the left, find the template file that controls your product page. This is often called <span className="font-mono bg-muted p-1 rounded-md">product.liquid</span>, <span className="font-mono bg-muted p-1 rounded-md">main-product.liquid</span>, or similar.
                 </p>
               </div>
     
