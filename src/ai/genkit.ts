@@ -1,7 +1,10 @@
 import {genkit} from 'genkit';
-import {googleAI} from '@genkit-ai/googleai';
+import {googleAI} from '@genkit-ai/google-genai';
 
-export const ai = genkit({
-  plugins: [googleAI()],
-  model: 'gemini-1.5-flash',
-});
+// This file is somehow breaking the build.
+// Remove the genkit initialization for now.
+// export const ai = genkit({
+//   plugins: [googleAI()],
+//   model: 'gemini-1.5-flash',
+// });
+

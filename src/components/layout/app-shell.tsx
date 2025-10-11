@@ -102,7 +102,6 @@ const adminGrowthMenuItems = [
 
 const adminConfigMenuItems = [
   { href: '/billing', label: 'Billing & Usage', icon: Receipt },
-  { href: '/explainer-video', label: 'Explainer Video', icon: Video },
   { href: '/cod-instructions', label: 'Embedding', icon: FileCode },
   { href: '/terms-and-conditions', label: 'Contracts', icon: FileText },
   { href: '/settings', label: 'Settings', icon: Settings },
