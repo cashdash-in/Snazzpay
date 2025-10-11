@@ -28,6 +28,11 @@ type Commission = {
     orderCount?: number;
 };
 
+type CommissionSettings = {
+    id: string;
+    commissionRate: number;
+};
+
 export default function CollaboratorBillingPage() {
     const { user } = useAuth();
     const { toast } = useToast();
@@ -47,7 +52,7 @@ export default function CollaboratorBillingPage() {
                 getCollection<EditableOrder>('orders'),
                 getCollection<Collaborator>('collaborators'),
                 getCollection<EditableOrder>('leads'),
-                getCollection<{commissionRate: number}>('commission_settings'),
+                getCollection<CommissionSettings>('commission_settings'),
             ]);
             
             const settingsMap = new Map(commissionSettings.map(s => [s.id, s.commissionRate]));

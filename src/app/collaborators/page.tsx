@@ -11,8 +11,6 @@ import { useToast } from "@/hooks/use-toast";
 import { getCollection, saveDocument, getDocument } from '@/services/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import type { SellerUser } from '@/app/seller-accounts/page';
 import type { Vendor } from '@/app/vendors/page';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -32,6 +30,11 @@ export type Collaborator = {
 type MonthlyCommission = {
     month: string;
     commission: number;
+};
+
+type CommissionSettings = {
+    id: string;
+    commissionRate?: number;
 };
 
 export default function CollaboratorsPage() {
@@ -68,7 +71,7 @@ export default function CollaboratorsPage() {
             setPendingCollaborators(collaboratorsWithNames.filter(c => c.status === 'pending'));
             setApprovedCollaborators(collaboratorsWithNames.filter(c => c.status === 'approved' || c.status === 'active'));
             
-            const adminSettings = await getDocument<{commissionRate?: number}>('commission_settings', 'admin');
+            const adminSettings = await getDocument<CommissionSettings>('commission_settings', 'admin');
             if (adminSettings?.commissionRate) {
                 setCommissionRate(adminSettings.commissionRate);
             }
