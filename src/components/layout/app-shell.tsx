@@ -63,7 +63,7 @@ import {
   BookOpen,
   UserPlus,
   Briefcase,
-  Image as ImageIcon,
+  ImageIcon,
   Tag,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
@@ -369,5 +369,3 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
     </SidebarProvider>
   );
 };
-
-    
