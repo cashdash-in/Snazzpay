@@ -64,7 +64,6 @@ import {
   UserPlus,
   Briefcase,
   ImageIcon,
-  Tag,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { getCookie } from 'cookies-next';
