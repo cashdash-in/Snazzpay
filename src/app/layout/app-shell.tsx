@@ -72,7 +72,15 @@ import { Badge } from '@/components/ui/badge';
 import { getCollection } from '@/services/firestore';
 import type { EditableOrder } from '@/app/orders/page';
 
-const adminCoreMenuItems = [
+type MenuItem = {
+    href: string;
+    label: string;
+    icon: React.ElementType;
+    notificationKey?: 'orders' | 'leads';
+};
+
+
+const adminCoreMenuItems: MenuItem[] = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/mandates', label: 'Mandates', icon: WalletCards },
   { href: '/orders', label: 'Orders', icon: ShoppingCart, notificationKey: 'orders' as const },
@@ -83,7 +91,7 @@ const adminCoreMenuItems = [
   { href: '/reports', label: 'Reports', icon: FileSpreadsheet },
 ];
 
-const adminGrowthMenuItems = [
+const adminGrowthMenuItems: MenuItem[] = [
     { href: '/ai-product-uploader', label: 'AI Product Uploader', icon: Wand2 },
     { href: '/admin/whatsapp-uploader', label: 'WhatsApp Uploader', icon: MessageSquare },
     { href: '/admin/image-bulk-uploader', label: 'Image Bulk Uploader', icon: ImageIcon },
@@ -100,13 +108,13 @@ const adminGrowthMenuItems = [
     { href: '/logistics-secure', label: 'Logistics Hub', icon: Combine },
 ];
 
-const adminConfigMenuItems = [
+const adminConfigMenuItems: MenuItem[] = [
   { href: '/billing', label: 'Billing & Usage', icon: Receipt },
   { href: '/terms-and-conditions', label: 'Contracts', icon: FileText },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
-const sellerMenuItems = [
+const sellerMenuItems: MenuItem[] = [
     { href: '/seller/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/seller/leads', label: 'Leads', icon: Users, notificationKey: 'leads' as const },
     { href: '/seller/product-drops', label: 'Product Drops', icon: Send },
@@ -122,7 +130,7 @@ const sellerMenuItems = [
     { href: '/seller/settings', label: 'Settings', icon: Settings },
 ]
 
-const vendorMenuItems = [
+const vendorMenuItems: MenuItem[] = [
     { href: '/vendor/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/vendor/product-drops', label: 'Product Drops', icon: PackagePlus },
     { href: '/vendor/products', label: 'My Products', icon: Package },
@@ -138,7 +146,7 @@ const vendorMenuItems = [
     { href: '/vendor/settings', label: 'Settings', icon: Settings },
 ];
 
-const collaboratorMenuItems = [
+const collaboratorMenuItems: MenuItem[] = [
     { href: '/collaborator/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/collaborator/magazines', label: 'Magazines', icon: BookOpen },
     { href: '/collaborator/orders', label: 'My Order Requests', icon: Package },
@@ -366,5 +374,3 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
     </SidebarProvider>
   );
 };
-
-    
