@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, DragEvent, ClipboardEvent } from 'react';
@@ -9,11 +10,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, PackagePlus, Lock, Wand2, ImagePlus } from 'lucide-react';
+import { Loader2, PackagePlus, Wand2, ImagePlus } from 'lucide-react';
 import Image from 'next/image';
 import { useAuth } from '@/hooks/use-auth';
 import { v4 as uuidv4 } from 'uuid';
-import { Dialog, DialogTrigger, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogTrigger, DialogContent } from '@/components/ui/dialog';
 import { ShareComposerDialog } from '@/components/share-composer-dialog';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { getCollection, saveDocument, getDocument } from '@/services/firestore';
@@ -30,6 +31,8 @@ export interface ProductDrop {
     category?: string;
     imageDataUris: string[];
     createdAt: string;
+    sizes: string[];
+    colors: string[];
 }
 
 const PRODUCT_DROP_LIMIT = 50;
@@ -212,6 +215,8 @@ export default function VendorProductDropsPage() {
             costPrice: parseFloat(costPrice),
             imageDataUris: resizedImageDataUris, // Use resized data
             createdAt: new Date().toISOString(),
+            sizes: [], // Default to empty array
+            colors: [], // Default to empty array
         };
 
         try {
@@ -280,7 +285,7 @@ export default function VendorProductDropsPage() {
         <AppShell title="Create Product Drop">
              {isLimitReached && (
                 <Alert variant="destructive" className="mb-6 max-w-3xl mx-auto">
-                    <Lock className="h-4 w-4" />
+                    
                     <AlertTitle>Feature Limit Reached</AlertTitle>
                     <AlertDescription>
                         You have reached your limit of {limit} product drops. Please contact the administrator to upgrade your plan for a higher limit.
