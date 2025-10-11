@@ -27,9 +27,9 @@ export default function ShaktiCardDetailsPage() {
             return;
         }
 
-        async function fetchCard() {
+        async function fetchCard(mobile: string) {
             try {
-                const sanitizedMobile = sanitizePhoneNumber(loggedInMobile);
+                const sanitizedMobile = sanitizePhoneNumber(mobile);
                 const allCards = await getCollection<ShaktiCardData>('shakti_cards');
                 const customerCard = allCards.find(card => card.customerPhone === sanitizedMobile);
                 
@@ -46,7 +46,7 @@ export default function ShaktiCardDetailsPage() {
             }
         }
         
-        fetchCard();
+        fetchCard(loggedInMobile);
         
     }, [router, toast]);
 
