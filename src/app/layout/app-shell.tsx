@@ -63,11 +63,12 @@ import {
   BookOpen,
   UserPlus,
   Briefcase,
+  ImageIcon,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { getCookie } from 'cookies-next';
 import { useEffect, useState } from 'react';
-import { Badge } from '../ui/badge';
+import { Badge } from '@/components/ui/badge';
 import { getCollection } from '@/services/firestore';
 import type { EditableOrder } from '@/app/orders/page';
 
@@ -84,6 +85,8 @@ const adminCoreMenuItems = [
 
 const adminGrowthMenuItems = [
     { href: '/ai-product-uploader', label: 'AI Product Uploader', icon: Wand2 },
+    { href: '/admin/whatsapp-uploader', label: 'WhatsApp Uploader', icon: MessageSquare },
+    { href: '/admin/image-bulk-uploader', label: 'Image Bulk Uploader', icon: ImageIcon },
     { href: '/product-drops', label: 'Product Drops', icon: Send },
     { href: '/admin/products', label: 'My Products', icon: Package },
     { href: '/share/magazine', label: 'Smart Magazine', icon: BookOpen },
@@ -99,8 +102,6 @@ const adminGrowthMenuItems = [
 
 const adminConfigMenuItems = [
   { href: '/billing', label: 'Billing & Usage', icon: Receipt },
-  { href: '/explainer-video', label: 'Explainer Video', icon: Video },
-  { href: '/cod-instructions', label: 'Embedding', icon: FileCode },
   { href: '/terms-and-conditions', label: 'Contracts', icon: FileText },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
@@ -194,7 +195,8 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
   }, [pathname, user]);
 
   const getMenuItems = () => {
-    switch (role) {
+    const currentRole = getCookie('userRole');
+    switch (currentRole) {
       case 'seller':
         return { core: sellerMenuItems, growth: [], config: [] };
       case 'vendor':
@@ -364,4 +366,5 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
     </SidebarProvider>
   );
 };
-```
+
+    
