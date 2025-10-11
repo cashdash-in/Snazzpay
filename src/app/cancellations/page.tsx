@@ -126,7 +126,7 @@ export default function CancellationsPage() {
                     <TableCell>
                         <Select
                             value={order.cancellationStatus || 'Pending'}
-                            onValueChange={(value: CancellationStatus) => handleFieldChange(order.id, 'cancellationStatus', value)}
+                            onValueChange={(value) => handleFieldChange(order.id, 'cancellationStatus', value)}
                         >
                           <SelectTrigger className="w-[180px]">
                             <SelectValue placeholder="Select Status" />

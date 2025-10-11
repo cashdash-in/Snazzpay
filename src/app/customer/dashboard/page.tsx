@@ -142,9 +142,8 @@ export default function CustomerDashboardPage() {
             const result = await response.json();
             if (!response.ok) throw new Error(result.error || 'Failed to process cancellation.');
             
-            // Update Firestore
-            const updatedOrderData = { paymentStatus: 'Voided', cancellationStatus: 'Processed' };
-            await saveDocument('orders', { ...order, ...updatedOrderData }, order.id);
+            const updatedOrderData = { paymentStatus: 'Voided', cancellationStatus: 'Processed' as const };
+            await saveDocument('orders', updatedOrderData, order.id);
 
             setOrders(prev => prev.map(o => o.id === order.id ? {...o, ...updatedOrderData} : o));
             setTrustWalletValue(prev => prev - parseFloat(order.price || '0'));
