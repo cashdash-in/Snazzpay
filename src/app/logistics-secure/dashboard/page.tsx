@@ -67,7 +67,7 @@ function ReportsTab({ fleet, pickups, partnerName }: { fleet: Agent[], pickups: 
         try {
             let dataToExport: any[] = [];
             let fileName = `${partnerName.replace(/\s+/g, '_')}_report_${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
-            let worksheet;
+            let worksheet: XLSX.WorkSheet | undefined;
 
             if (type === 'fleet') {
                 dataToExport = fleet.map(agent => ({
@@ -97,6 +97,16 @@ function ReportsTab({ fleet, pickups, partnerName }: { fleet: Agent[], pickups: 
 
             if (dataToExport.length === 0) {
                 toast({
+                    variant: 'destructive',
+                    title: "No Data Found",
+                    description: "There is no data to export for this report type.",
+                });
+                setIsGenerating(false);
+                return;
+            }
+
+            if (!worksheet) {
+                 toast({
                     variant: 'destructive',
                     title: "No Data Found",
                     description: "There is no data to export for this report type.",
@@ -572,4 +582,5 @@ export default function LogisticsDashboardPage() {
             </div>
         </div>
     );
-}
+
+    
