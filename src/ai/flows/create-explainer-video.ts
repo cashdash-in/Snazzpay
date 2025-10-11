@@ -7,7 +7,8 @@
  * - createExplainerVideo - A function that generates the video.
  */
 import { ai } from '@/ai/genkit';
-import { googleAI } from '@genkit-ai/google-genai';
+import { googleAI } from '@genkit-ai/googleai';
+const fetch = (...args: Parameters<typeof import('node-fetch').then>) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 
 // Helper function to convert a stream to a base64 string
 async function streamToB64(stream: NodeJS.ReadableStream): Promise<string> {
@@ -75,7 +76,6 @@ export async function createExplainerVideo(): Promise<{ videoDataUri: string }> 
     console.log("Video generated. Downloading content...");
 
     // The media URL is a GCS URL that needs to be fetched with an API key.
-    const fetch = (await import('node-fetch')).default;
     const videoDownloadResponse = await fetch(
         `${video.media.url}&key=${process.env.GEMINI_API_KEY}`
     );
