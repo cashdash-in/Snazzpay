@@ -19,6 +19,8 @@ import { sanitizePhoneNumber } from "@/lib/utils";
 import { getCollection, saveDocument, deleteDocument, getDocument, batchUpdateDocuments } from "@/services/firestore";
 import Image from 'next/image';
 
+export type OrderStatus = 'pending' | 'dispatched' | 'out-for-delivery' | 'delivered' | 'failed' | 'rto';
+
 export type EditableOrder = {
   id: string;
   orderId: string;
@@ -46,7 +48,7 @@ export type EditableOrder = {
   paymentMethod?: 'Prepaid' | 'Secure Charge on Delivery' | 'Cash on Delivery';
   trackingNumber?: string;
   courierCompanyName?: string;
-  deliveryStatus?: 'pending' | 'dispatched' | 'out-for-delivery' | 'delivered' | 'failed';
+  deliveryStatus?: OrderStatus;
   estDelivery?: string;
   readyForDispatchDate?: string;
   cancellationId?: string;
@@ -465,7 +467,3 @@ export default function OrdersPage() {
     </AppShell>
   );
 }
-
-    
-
-    

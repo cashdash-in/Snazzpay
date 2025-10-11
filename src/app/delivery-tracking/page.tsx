@@ -13,13 +13,12 @@ import { Trash2, PlusCircle, Save, Loader2 as ButtonLoader, Mail, Copy, MessageS
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
-import type { EditableOrder } from '../orders/page';
+import type { EditableOrder, OrderStatus } from '../orders/page';
 import { sanitizePhoneNumber } from "@/lib/utils";
 import { getCollection, saveDocument, deleteDocument } from "@/services/firestore";
 import Image from 'next/image';
 import { Badge } from "@/components/ui/badge";
 
-type OrderStatus = 'pending' | 'dispatched' | 'out-for-delivery' | 'delivered' | 'failed';
 const MAX_IMAGE_SIZE_PX = 800; // Max width/height for resizing
 
 
@@ -336,6 +335,7 @@ export default function DeliveryTrackingPage() {
                             <SelectItem value="out-for-delivery">Out for Delivery</SelectItem>
                             <SelectItem value="delivered">Delivered</SelectItem>
                             <SelectItem value="failed">Delivery Failed</SelectItem>
+                             <SelectItem value="rto">Return to Origin</SelectItem>
                           </SelectContent>
                         </Select>
                       </TableCell>
@@ -361,7 +361,3 @@ export default function DeliveryTrackingPage() {
     </AppShell>
   );
 }
-
-    
-
-    

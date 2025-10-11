@@ -12,7 +12,7 @@ import { PlusCircle, Save, Loader2, Trash2, MoreVertical, Search, Check, X, Shie
 import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
-import type { EditableOrder } from '../orders/page';
+import type { EditableOrder, OrderStatus } from '../orders/page';
 import { format } from "date-fns";
 import { v4 as uuidv4 } from 'uuid';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose, DialogDescription } from "@/components/ui/dialog";
@@ -20,9 +20,6 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { LogisticsPartnerData } from "./dashboard/page";
-
-
-type OrderStatus = 'pending' | 'dispatched' | 'out-for-delivery' | 'delivered' | 'failed' | 'rto' | 'ndr';
 
 function formatAddress(address: ShopifyOrder['shipping_address']): string {
     if (!address) return 'N/A';
@@ -262,6 +259,7 @@ export default function LogisticsHubPage() {
                                                     <div className="space-y-2 text-sm">
                                                         <p><strong>Partner ID:</strong> <span className="font-mono">{p.id}</span></p>
                                                         <p><strong>Contact Phone:</strong> {p.phone}</p>
+                                                        <p><strong>Email:</strong> {p.email}</p>
                                                         <p><strong>Address:</strong> {p.address}</p>
                                                         <p><strong>PAN:</strong> <span className="font-mono">{p.pan}</span></p>
                                                         <p><strong>Aadhaar:</strong> <span className="font-mono">{p.aadhaar}</span></p>
