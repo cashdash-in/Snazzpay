@@ -135,9 +135,9 @@ function CatalogueOrderPageContent() {
                         bestDiscount = { id: 'link_discount', type: 'collection', name: 'Special Offer', discount: parseFloat(discountParam) };
                     } else {
                         const discounts = await getCollection<DiscountRule>('discounts');
-                        const productDiscount = discounts.find(d => d.id === \`product_\${displayProduct.productId}\`);
-                        const vendorDiscount = discounts.find(d => d.id === \`vendor_\${displayProduct.vendor}\`);
-                        const collectionDiscount = discounts.find(d => d.id === \`collection_\${displayProduct.collection}\`);
+                        const productDiscount = discounts.find(d => d.id === `product_${displayProduct.productId}`);
+                        const vendorDiscount = discounts.find(d => d.id === `vendor_${displayProduct.vendor}`);
+                        const collectionDiscount = discounts.find(d => d.id === `collection_${displayProduct.collection}`);
                         bestDiscount = productDiscount || vendorDiscount || collectionDiscount || null;
                     }
 
@@ -190,7 +190,7 @@ function CatalogueOrderPageContent() {
 
         const newLead: EditableOrder = {
             id: leadId,
-            orderId: \`#SMRT-\${Math.floor(1000 + Math.random() * 9000)}\`,
+            orderId: `#SMRT-${Math.floor(1000 + Math.random() * 9000)}`,
             customerName: name,
             customerEmail: customerDetails.email,
             customerAddress: address,
@@ -217,7 +217,7 @@ function CatalogueOrderPageContent() {
             await saveDocument('leads', newLead, leadId);
             toast({
                 title: 'Order Request Sent!',
-                description: \`The seller, \${product.sellerName}, has received your request and will contact you shortly to confirm.\`,
+                description: `The seller, ${product.sellerName}, has received your request and will contact you shortly to confirm.`,
             });
             
             let recipientEmail = 'customer.service@snazzify.co.in'; // Admin fallback
@@ -234,19 +234,19 @@ function CatalogueOrderPageContent() {
                 body: JSON.stringify({
                     type: 'internal_alert',
                     recipientEmail: recipientEmail,
-                    subject: \`New Lead from \${name} for \${product.title}\`,
-                    body: \`
+                    subject: `New Lead from ${name} for ${product.title}`,
+                    body: `
                         <div style="font-family: Arial, sans-serif; line-height: 1.6;">
                             <h2>New Lead Alert!</h2>
                             <p>You have a new order request from your Smart Magazine.</p>
                             <ul>
-                                <li><strong>Customer:</strong> \${name}</li>
-                                <li><strong>Product:</strong> \${product.title}</li>
-                                <li><strong>Value:</strong> ₹\${totalPrice.toFixed(2)}</li>
+                                <li><strong>Customer:</strong> ${name}</li>
+                                <li><strong>Product:</strong> ${product.title}</li>
+                                <li><strong>Value:</strong> ₹${totalPrice.toFixed(2)}</li>
                             </ul>
                             <p>Please log in to your dashboard to view the lead and take action.</p>
                         </div>
-                    \`
+                    `
                 })
             });
 
@@ -377,7 +377,7 @@ function CatalogueOrderPageContent() {
                                             <RadioGroupItem value="Secure Charge on Delivery" id="r-scod" className="sr-only"/>
                                             <span className="font-bold">Secure COD</span>
                                             <span className={cn("text-sm text-center", appliedDiscount ? 'text-green-600' : 'text-muted-foreground')}>
-                                                {appliedDiscount ? \`\${appliedDiscount.discount}% discount!\` : 'Pay online now, safely.'}
+                                                {appliedDiscount ? `${appliedDiscount.discount}% discount!` : 'Pay online now, safely.'}
                                             </span>
                                         </Label>
                                         <Label htmlFor="r-cod" className={cn("flex flex-col items-center justify-center rounded-md border-2 p-4 cursor-pointer", paymentMethod === 'Cash on Delivery' && 'border-primary')}>
@@ -417,3 +417,5 @@ export default function CataloguePage() {
         </Suspense>
     );
 }
+
+    
