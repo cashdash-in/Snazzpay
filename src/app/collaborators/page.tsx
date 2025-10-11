@@ -16,6 +16,8 @@ import type { Vendor } from '@/app/vendors/page';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import type { EditableOrder } from '../orders/page';
 import { format, parseISO } from 'date-fns';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 export type Collaborator = {
     id: string;
@@ -32,7 +34,7 @@ type MonthlyCommission = {
     commission: number;
 };
 
-type CommissionSettings = {
+export type CommissionSettings = {
     id: string;
     commissionRate?: number;
 };
