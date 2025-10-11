@@ -199,8 +199,8 @@ export default function LogisticsDashboardPage() {
             setFleet(JSON.parse(storedFleet));
         } else {
             const initialFleet = [
-                { id: `AGENT-${loggedInPartnerId}-01`, name: 'Rajesh Kumar', phone: '9876543210', status: 'Active', cashOnHand: 0, pickupsToday: 0, area: 'Mumbai South', task: 'Idle' },
-                { id: `AGENT-${loggedInPartnerId}-02`, name: 'Sunita Devi', phone: '9123456789', status: 'Active', cashOnHand: 0, pickupsToday: 0, area: 'Pune Central', task: 'On Delivery' },
+                { id: `AGENT-${loggedInPartnerId}-01`, name: 'Rajesh Kumar', phone: '9876543210', status: 'Active' as const, cashOnHand: 0, pickupsToday: 0, area: 'Mumbai South', task: 'Idle' as const },
+                { id: `AGENT-${loggedInPartnerId}-02`, name: 'Sunita Devi', phone: '9123456789', status: 'Active' as const, cashOnHand: 0, pickupsToday: 0, area: 'Pune Central', task: 'On Delivery' as const },
             ];
             setFleet(initialFleet);
         }
@@ -209,8 +209,8 @@ export default function LogisticsDashboardPage() {
             setPickups(JSON.parse(storedPickups));
         } else {
              const initialPickups = [
-                { id: '#SNZ-PICKUP-001', customer: 'Amit Sharma', address: '123, Rose Villa, Mumbai', amount: 1500.00, status: 'Pending Assignment', aiVerification: 'Pending' },
-                { id: '#SNZ-PICKUP-002', customer: 'Priya Mehta', address: '456, Orchid Heights, Pune', amount: 450.50, status: 'Pending Assignment', aiVerification: 'Pending' },
+                { id: '#SNZ-PICKUP-001', customer: 'Amit Sharma', address: '123, Rose Villa, Mumbai', amount: 1500.00, status: 'Pending Assignment' as const, aiVerification: 'Pending' as const },
+                { id: '#SNZ-PICKUP-002', customer: 'Priya Mehta', address: '456, Orchid Heights, Pune', amount: 450.50, status: 'Pending Assignment' as const, aiVerification: 'Pending' as const },
             ];
             setPickups(initialPickups);
         }
@@ -219,7 +219,7 @@ export default function LogisticsDashboardPage() {
             setServicePartners(JSON.parse(storedServicePartners));
         } else {
              const initialServicePartners = [
-                { id: `SP-${loggedInPartnerId}-01`, name: 'Ganesh Logistics', contact: '9000011111', coverageArea: 'Rural Thane', status: 'Active' }
+                { id: `SP-${loggedInPartnerId}-01`, name: 'Ganesh Logistics', contact: '9000011111', coverageArea: 'Rural Thane', status: 'Active' as const }
             ];
             setServicePartners(initialServicePartners);
         }
@@ -320,8 +320,9 @@ export default function LogisticsDashboardPage() {
         toast({ variant: 'destructive', title: 'Service Partner Removed', description: 'The partner has been removed from your network.' });
     };
 
-    const handleFieldChange = (agentId: string, field: keyof Agent, value: string) => {
-        setFleet(prev => prev.map(agent => agent.id === agentId ? { ...agent, [field]: value } : agent));
+    const handleFieldChange = (id: string, field: keyof Agent | keyof ServicePartner, value: string) => {
+        setFleet(prev => prev.map(item => item.id === id ? { ...item, [field]: value } : item));
+        setServicePartners(prev => prev.map(item => item.id === id ? { ...item, [field]: value } : item));
     };
 
     const handleShaktiCardSearch = () => {
