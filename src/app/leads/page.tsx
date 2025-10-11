@@ -15,6 +15,7 @@ import { getCollection, deleteDocument, saveDocument, batchUpdateDocuments } fro
 import { useRouter } from "next/navigation";
 import Image from 'next/image';
 import { useAuth } from "@/hooks/use-auth";
+import { Badge } from "@/components/ui/badge";
 
 const MAX_IMAGE_SIZE_PX = 800; // Max width/height for resizing
 
@@ -223,6 +224,7 @@ export default function LeadsPage() {
                   <TableHead>Product(s)</TableHead>
                   <TableHead>Customer</TableHead>
                   <TableHead>Value</TableHead>
+                  <TableHead>Payment Method</TableHead>
                   <TableHead>Source / Actors</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-center">Actions</TableHead>
@@ -252,6 +254,11 @@ export default function LeadsPage() {
                       <div className='text-xs text-muted-foreground'>{lead.contactNo}</div>
                     </TableCell>
                     <TableCell>₹{lead.price}</TableCell>
+                    <TableCell>
+                        <Badge variant={lead.paymentMethod === 'Cash on Delivery' ? 'secondary' : 'outline'}>
+                            {lead.paymentMethod || 'Prepaid'}
+                        </Badge>
+                    </TableCell>
                      <TableCell>
                       <div className="space-y-1 text-xs">
                            <div className="flex items-center gap-1 font-medium">

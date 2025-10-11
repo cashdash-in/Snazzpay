@@ -17,6 +17,7 @@ import type { EditableOrder } from '../orders/page';
 import { sanitizePhoneNumber } from "@/lib/utils";
 import { getCollection, saveDocument, deleteDocument } from "@/services/firestore";
 import Image from 'next/image';
+import { Badge } from "@/components/ui/badge";
 
 type OrderStatus = 'pending' | 'dispatched' | 'out-for-delivery' | 'delivered' | 'failed';
 const MAX_IMAGE_SIZE_PX = 800; // Max width/height for resizing
@@ -255,6 +256,7 @@ export default function DeliveryTrackingPage() {
                     <TableHead>Order ID</TableHead>
                     <TableHead>Product</TableHead>
                     <TableHead>Customer</TableHead>
+                    <TableHead>Payment Method</TableHead>
                     <TableHead>Source / Actors</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-center w-[550px]">Actions</TableHead>
@@ -291,6 +293,11 @@ export default function DeliveryTrackingPage() {
                             className="w-40"
                             placeholder="Customer Name"
                         />
+                      </TableCell>
+                      <TableCell>
+                          <Badge variant={order.paymentMethod === 'Cash on Delivery' ? 'secondary' : 'outline'}>
+                            {order.paymentMethod || 'Prepaid'}
+                          </Badge>
                       </TableCell>
                        <TableCell>
                          <div className="space-y-1 text-xs">

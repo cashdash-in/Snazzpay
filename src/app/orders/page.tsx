@@ -1,3 +1,4 @@
+
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -307,6 +308,7 @@ export default function OrdersPage() {
                   <TableHead>Product</TableHead>
                   <TableHead>Customer</TableHead>
                   <TableHead>Price</TableHead>
+                  <TableHead>Payment Method</TableHead>
                   <TableHead>Payment Status</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Source / Actors</TableHead>
@@ -360,6 +362,11 @@ export default function OrdersPage() {
                                         </Badge>
                                     )}
                                 </div>
+                            </TableCell>
+                            <TableCell>
+                                <Badge variant={order.paymentMethod === 'Cash on Delivery' ? "secondary" : "outline"}>
+                                    {order.paymentMethod || 'Prepaid'}
+                                </Badge>
                             </TableCell>
                             <TableCell>
                                 <div className="flex flex-col gap-1">
