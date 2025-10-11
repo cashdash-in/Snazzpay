@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/hooks/use-auth';
 import type { SellerProduct } from '@/app/seller/ai-product-uploader/page';
 import Image from 'next/image';
-import { Loader2, Share2, Copy, MessageSquare, BookOpen, Percent, Factory } from 'lucide-react';
+import { Loader2, Share2, Copy, MessageSquare, BookOpen, Percent, Factory, Edit } from 'lucide-react';
 import { getCollection, saveDocument } from '@/services/firestore';
 import { getCookie } from 'cookies-next';
 import { Label } from '@/components/ui/label';
@@ -18,6 +18,8 @@ import type { ProductDrop } from '@/app/vendor/product-drops/page';
 import { Input } from '@/components/ui/input';
 import { v4 as uuidv4 } from 'uuid';
 import { formatDistanceToNow } from 'date-fns';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Textarea } from '@/components/ui/textarea';
 
 
 type Magazine = {
@@ -43,7 +45,7 @@ export default function ShareMagazinePage() {
     const [vendorTitle, setVendorTitle] = useState('');
     const [discount, setDiscount] = useState<number>(0);
     const [isAdmin, setIsAdmin] = useState(false);
-
+    const [editingProduct, setEditingProduct] = useState<SellerProduct | ProductDrop | null>(null);
 
     useEffect(() => {
         const role = getCookie('userRole');
@@ -162,6 +164,22 @@ export default function ShareMagazinePage() {
         window.open(whatsappUrl, '_blank');
     };
 
+    const handleUpdateProduct = async () => {
+        if (!editingProduct) return;
+        
+        const role = getCookie('userRole');
+        const collectionName = role === 'seller' ? 'seller_products' : 'product_drops';
+
+        try {
+            await saveDocument(collectionName, editingProduct, editingProduct.id);
+            setProducts(prev => prev.map(p => p.id === editingProduct.id ? editingProduct : p));
+            toast({ title: 'Product Updated', description: 'Your changes have been saved.' });
+            setEditingProduct(null); // Close the dialog
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Error Updating Product' });
+        }
+    };
+
     return (
         <AppShell title="Smart Magazine Hub">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -192,13 +210,20 @@ export default function ShareMagazinePage() {
                                                 onCheckedChange={(checked) => handleProductSelect(product.id, !!checked)}
                                                 checked={selectedProductIds.includes(product.id)}
                                             />
-                                            <label htmlFor={`product-${product.id}`} className="flex items-center gap-4 cursor-pointer w-full">
+                                            <label htmlFor={`product-${product.id}`} className="flex items-center gap-4 cursor-pointer flex-grow">
                                                 <Image src={product.imageDataUris[0]} alt={product.title} width={60} height={60} className="rounded-md object-contain aspect-square bg-muted" />
                                                 <div className="flex-grow">
                                                     <p className="font-semibold">{product.title}</p>
                                                     <p className="text-sm text-muted-foreground">Price: ₹{((product as SellerProduct).price || (product as ProductDrop).costPrice).toFixed(2)}</p>
                                                 </div>
                                             </label>
+                                            <Dialog>
+                                                <DialogTrigger asChild>
+                                                    <Button variant="outline" size="sm" onClick={() => setEditingProduct(product)}>
+                                                        <Edit className="h-4 w-4" />
+                                                    </Button>
+                                                </DialogTrigger>
+                                            </Dialog>
                                         </div>
                                     ))}
                                 </div>
@@ -306,8 +331,58 @@ export default function ShareMagazinePage() {
                     </Card>
                 </div>
             </div>
+             {editingProduct && (
+                <Dialog open={!!editingProduct} onOpenChange={(isOpen) => !isOpen && setEditingProduct(null)}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Edit Product: {editingProduct.title}</DialogTitle>
+                            <DialogDescription>Make changes to the product details below.</DialogDescription>
+                        </DialogHeader>
+                        <div className="py-4 space-y-4">
+                             <div className="space-y-2">
+                                <Label htmlFor="edit-title">Title</Label>
+                                <Input 
+                                    id="edit-title" 
+                                    value={editingProduct.title} 
+                                    onChange={(e) => setEditingProduct(p => p ? {...p, title: e.target.value} : null)}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-desc">Description</Label>
+                                <Textarea 
+                                    id="edit-desc"
+                                    value={editingProduct.description}
+                                    onChange={(e) => setEditingProduct(p => p ? {...p, description: e.target.value} : null)}
+                                    rows={5}
+                                />
+                            </div>
+                             <div className="space-y-2">
+                                <Label htmlFor="edit-price">Price (INR)</Label>
+                                <Input 
+                                    id="edit-price"
+                                    type="number"
+                                    value={(editingProduct as any).price ?? (editingProduct as any).costPrice}
+                                    onChange={(e) => setEditingProduct(p => {
+                                        if (!p) return null;
+                                        const newPrice = parseFloat(e.target.value);
+                                        const updatedProduct = {...p};
+                                        if ('price' in updatedProduct) {
+                                            (updatedProduct as SellerProduct).price = newPrice;
+                                        } else {
+                                            (updatedProduct as ProductDrop).costPrice = newPrice;
+                                        }
+                                        return updatedProduct;
+                                    })}
+                                />
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setEditingProduct(null)}>Cancel</Button>
+                            <Button onClick={handleUpdateProduct}>Save Changes</Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            )}
         </AppShell>
     );
 }
-
-    
