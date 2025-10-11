@@ -103,8 +103,7 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
         setIsGenerating(true);
         try {
             const { description: newDescription } = await createProductDescription({
-                title: product.title,
-                imagesDataUri: product.imageDataUris,
+                imageDataUri: product.imageDataUris[0],
             });
             
             const params = new URLSearchParams();

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState, FormEvent } from 'react';
@@ -461,5 +460,3 @@ export function SecureCodPaymentForm() {
         </div>
     );
 }
-
-    
