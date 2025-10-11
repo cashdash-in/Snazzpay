@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, DragEvent, ChangeEvent, useEffect } from 'react';
@@ -26,7 +25,7 @@ import {
   Book,
 } from 'lucide-react';
 import Image from 'next/image';
-// import { createProductDescription } from '@/ai/flows/create-product-description';
+import { createProductDescription } from '@/ai/flows/create-product-description';
 import { type ProductListingOutput } from '@/ai/schemas/product-listing';
 import { v4 as uuidv4 } from 'uuid';
 import { saveDocument } from '@/services/firestore';
@@ -118,48 +117,46 @@ export default function ImageBulkUploaderPage() {
     }
     setIsProcessing(true);
     setGeneratedProducts([]);
-    toast({ title: 'AI functionality is temporarily disabled.' });
-    setIsProcessing(false);
 
-    // const productPromises = imageFiles.map(async (file, index) => {
-    //   try {
-    //     const resizedDataUri = await resizeImage(file);
-    //     const result = await createProductDescription({
-    //       imageDataUri: resizedDataUri,
-    //     });
+    const productPromises = imageFiles.map(async (file, index) => {
+      try {
+        const resizedDataUri = await resizeImage(file);
+        const result = await createProductDescription({
+          imageDataUri: resizedDataUri,
+        });
         
-    //     return {
-    //       id: `gen-${index}-${Date.now()}`,
-    //       imageDataUri: resizedDataUri,
-    //       title: result.title,
-    //       description: result.description,
-    //       category: result.category,
-    //       price: 0,
-    //       costPrice: 0,
-    //       sizes: [],
-    //       colors: [],
-    //       vendorName: defaultVendor || 'Snazzify AI',
-    //     };
-    //   } catch (e: any) {
-    //     toast({
-    //       variant: 'destructive',
-    //       title: `Failed to process image ${index + 1}`,
-    //       description: e.message,
-    //     });
-    //     return null;
-    //   }
-    // });
+        return {
+          id: `gen-${index}-${Date.now()}`,
+          imageDataUri: resizedDataUri,
+          title: result.title,
+          description: result.description,
+          category: result.category,
+          price: 0,
+          costPrice: 0,
+          sizes: [],
+          colors: [],
+          vendorName: defaultVendor || 'Snazzify AI',
+        };
+      } catch (e: any) {
+        toast({
+          variant: 'destructive',
+          title: `Failed to process image ${index + 1}`,
+          description: e.message,
+        });
+        return null;
+      }
+    });
 
-    // const results = (await Promise.all(productPromises)).filter(Boolean) as GeneratedProduct[];
-    // setGeneratedProducts(results.map(p => ({
-    //     ...p,
-    //     vendorName: defaultVendor || p.vendorName,
-    //     category: defaultCategory || p.category,
-    // })));
-    // setIsProcessing(false);
-    // setImageFiles([]);
-    // setImagePreviews([]);
-    // toast({ title: 'Processing Complete!', description: `${results.length} product listings generated.` });
+    const results = (await Promise.all(productPromises)).filter(Boolean) as GeneratedProduct[];
+    setGeneratedProducts(results.map(p => ({
+        ...p,
+        vendorName: defaultVendor || p.vendorName,
+        category: defaultCategory || p.category,
+    })));
+    setIsProcessing(false);
+    setImageFiles([]);
+    setImagePreviews([]);
+    toast({ title: 'Processing Complete!', description: `${results.length} product listings generated.` });
   };
 
   const handleProductChange = (id: string, field: keyof GeneratedProduct, value: string | number | string[]) => {
