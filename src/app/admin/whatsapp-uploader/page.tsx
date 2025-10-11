@@ -25,8 +25,8 @@ import {
   Factory,
   Book,
 } from 'lucide-react';
-// import { type ProductListingOutput } from '@/ai/schemas/product-listing';
-// import { parseWhatsAppChat } from '@/ai/flows/whatsapp-product-parser';
+import { type ProductListingOutput } from '@/ai/schemas/product-listing';
+import { parseWhatsAppChat } from '@/ai/flows/whatsapp-product-parser';
 import { saveDocument } from '@/services/firestore';
 import { v4 as uuidv4 } from 'uuid';
 import type { ProductDrop } from '@/app/vendor/product-drops/page';
@@ -35,16 +35,6 @@ import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 import { Textarea } from '@/components/ui/textarea';
-
-// Placeholder types since schemas are removed
-type ProductListingOutput = {
-  title: string;
-  description: string;
-  category: string;
-  price: number;
-  sizes: string[];
-  colors: string[];
-};
 
 type ParsedProduct = ProductListingOutput & {
     id: string; // Add a temporary client-side ID
@@ -77,12 +67,30 @@ export default function WhatsAppUploaderPage() {
   };
 
   const handleParseChat = async () => {
-    toast({
-        variant: 'destructive',
-        title: 'Feature Disabled',
-        description: 'The AI features have been temporarily disabled to ensure application stability.',
-    });
-    return;
+    if (!chatContent) return;
+    setIsParsing(true);
+    setParsedProducts([]);
+
+    try {
+        const result = await parseWhatsAppChat({
+            chatText: chatContent,
+            startDate: dateRange?.from?.toISOString(),
+            endDate: dateRange?.to?.toISOString(),
+        });
+        
+        const productsWithIds = result.products.map(p => ({
+            ...p,
+            id: uuidv4(),
+            vendorName: defaultVendor || 'Snazzify AI', // Apply defaults
+            category: defaultCategory || p.category,
+        }));
+        setParsedProducts(productsWithIds);
+        toast({ title: `${result.products.length} Products Found!`, description: 'AI has parsed the chat. Review the products below.'});
+    } catch (error: any) {
+         toast({ variant: 'destructive', title: 'Parsing Failed', description: error.message || 'An unknown error occurred.' });
+    } finally {
+        setIsParsing(false);
+    }
   };
 
   const handleProductChange = (id: string, field: keyof ParsedProduct, value: string | number | string[]) => {
@@ -108,7 +116,7 @@ export default function WhatsAppUploaderPage() {
         return { ...p, price: Math.round(newPrice) };
     });
     setParsedProducts(updatedProducts);
-    toast({ title: 'Prices Updated', description: \`All product prices have been recalculated with a \${margin}% margin.\` });
+    toast({ title: 'Prices Updated', description: `All product prices have been recalculated with a ${margin}% margin.` });
   };
 
 
@@ -159,13 +167,13 @@ export default function WhatsAppUploaderPage() {
 
         } catch (error: any) {
             errorCount++;
-            console.error(\`Failed to push product "\${product.title}":\`, error);
+            console.error(`Failed to push product "${product.title}":`, error);
         }
     }
 
     toast({
         title: 'Shopify Push Complete!',
-        description: \`\${successCount} products pushed successfully and saved to "My Products". \${errorCount} failed. Check console for details.\`,
+        description: `${successCount} products pushed successfully and saved to "My Products". ${errorCount} failed. Check console for details.`,
     });
     setParsedProducts([]);
     setIsPushing(false);
@@ -305,9 +313,9 @@ export default function WhatsAppUploaderPage() {
                                         <Label>Colors (comma-separated)</Label>
                                         <Input value={p.colors.join(', ')} onChange={e => handleProductChange(p.id, 'colors', e.target.value.split(',').map(c=>c.trim()))} />
                                         <div className="space-y-1 pt-2">
-                                            <Label htmlFor={\`price-\${p.id}\`}>Selling Price</Label>
+                                            <Label htmlFor={`price-${p.id}`}>Selling Price</Label>
                                             <Input
-                                                id={\`price-\${p.id}\`}
+                                                id={`price-${p.id}`}
                                                 type="number"
                                                 value={p.price}
                                                 onChange={(e) => handleProductChange(p.id, 'price', parseFloat(e.target.value))}

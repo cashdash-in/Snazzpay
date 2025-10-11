@@ -14,8 +14,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-// import { createProductListing } from '@/ai/flows/create-product-listing';
-// import { type ProductListingOutput } from '@/ai/schemas/product-listing';
+import { createProductListing } from '@/ai/flows/create-product-listing';
+import { type ProductListingOutput } from '@/ai/schemas/product-listing';
 import { useToast } from '@/hooks/use-toast';
 import {
   Loader2,
@@ -28,21 +28,10 @@ import {
   Factory,
 } from 'lucide-react';
 import Image from 'next/image';
-// import { createProductFromText } from '@/ai/flows/create-product-from-text';
+import { createProductFromText } from '@/ai/flows/create-product-from-text';
 import { saveDocument } from '@/services/firestore';
 import { v4 as uuidv4 } from 'uuid';
 import type { ProductDrop } from '@/app/vendor/product-drops/page';
-
-// Placeholder type since schema is removed
-type ProductListingOutput = {
-  title: string;
-  description: string;
-  category: string;
-  price: number;
-  sizes: string[];
-  colors: string[];
-}
-
 
 const MAX_IMAGE_SIZE_PX = 800; // Max width/height for resizing
 
@@ -165,12 +154,46 @@ export default function AiProductUploaderPage() {
 
 
   const handleGenerateListing = async () => {
-    toast({
+    if (
+      resizedImageDataUris.length === 0 ||
+      !vendorDescription ||
+      !cost ||
+      !margin
+    ) {
+      toast({
         variant: 'destructive',
-        title: 'Feature Disabled',
-        description: 'The AI features have been temporarily disabled to ensure application stability.',
-    });
-    return;
+        title: 'Missing Information',
+        description:
+          'Please provide at least one image, a description, cost, and margin.',
+      });
+      return;
+    }
+    setIsLoading(true);
+    setGeneratedListing(null);
+
+    try {
+      const result = await createProductListing({
+        imageDataUris: resizedImageDataUris,
+        description: vendorDescription,
+        cost: parseFloat(cost),
+        margin: parseFloat(margin),
+      });
+      setGeneratedListing(result);
+      toast({
+        title: 'Listing Generated!',
+        description: 'Review the AI-generated details on the right.',
+      });
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Generation Failed',
+        description:
+          error.message ||
+          'An unexpected error occurred while generating the listing.',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handlePushToShopify = async () => {
@@ -219,7 +242,7 @@ export default function AiProductUploaderPage() {
         
         toast({
             title: 'Product Pushed to Shopify!',
-            description: \`Successfully created "\${result.product.title}" and saved it to "My Products".\`,
+            description: `Successfully created "${result.product.title}" and saved it to "My Products".`,
         });
 
     } catch (error: any) {
@@ -234,12 +257,34 @@ export default function AiProductUploaderPage() {
   };
 
   const handleMagicPaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-    toast({
+    const pastedText = e.clipboardData.getData('text');
+    if (pastedText.trim().length < 10) return;
+
+    // Prevent the image paste handler from also firing
+    if (e.clipboardData.files.length > 0) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    setIsPasting(true);
+    try {
+      const result = await createProductFromText({ text: pastedText });
+      setVendorDescription(
+        (prev) => prev + (prev ? '\n\n' : '') + result.description
+      );
+      toast({
+        title: 'AI Parsing Complete!',
+        description: 'Product description has been extracted from the pasted text.',
+      });
+    } catch (error: any) {
+      toast({
         variant: 'destructive',
-        title: 'Feature Disabled',
-        description: 'The AI features have been temporarily disabled to ensure application stability.',
-    });
-    return;
+        title: 'AI Parsing Failed',
+        description: error.message || 'Could not process the pasted text.',
+      });
+    } finally {
+      setIsPasting(false);
+    }
   };
 
   return (
@@ -298,7 +343,7 @@ export default function AiProductUploaderPage() {
                      <Image
                         key={index}
                         src={src}
-                        alt={\`Product preview \${index + 1}\`}
+                        alt={`Product preview ${index + 1}`}
                         width={150}
                         height={150}
                         className="object-contain rounded-md aspect-square"
