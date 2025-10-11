@@ -165,3 +165,5 @@ export default function SmartMagazinePage() {
         </Suspense>
     );
 }
+
+    

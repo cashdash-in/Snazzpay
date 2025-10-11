@@ -219,7 +219,7 @@ export default function OrdersPage() {
     } else if (order.cancellationStatus === 'Processed' || order.paymentStatus === 'Voided') {
         message = `Hi ${order.customerName}, this confirms the cancellation of your Snazzify order #${order.orderId}. Your payment authorization has been voided. We hope to see you again!`;
     } else if (order.refundStatus === 'Processed' || order.paymentStatus === 'Refunded') {
-        message = `Hi ${order.customerName}, your refund for order #${order.orderId} has been processed. You should see the amount in your account within 5-7 business days.`;
+        message = `Hi ${order.customerName}, your refund for order #${order.id} has been processed. You should see the amount in your account within 5-7 business days.`;
     } else {
         message = `Hi ${order.customerName}, this is a notification regarding your Snazzify order #${order.orderId}.`;
     }
@@ -464,3 +464,5 @@ export default function OrdersPage() {
     </AppShell>
   );
 }
+
+    
