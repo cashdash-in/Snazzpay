@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, Suspense, FormEvent } from 'react';
@@ -14,6 +15,7 @@ import { getCollection, saveDocument, getDocument, deleteDocument } from '@/serv
 import { ShaktiCard, type ShaktiCardData } from '@/components/shakti-card';
 import { sanitizePhoneNumber } from '@/lib/utils';
 import { CancellationForm } from '@/components/cancellation-form';
+import { format, addYears } from 'date-fns';
 
 type PaymentInfo = {
     paymentId: string;
@@ -200,7 +202,7 @@ function PaymentPageContent() {
                         <p className="text-muted-foreground">The seller has been notified and will process your order.</p>
                         {newlyCreatedCard && (
                             <div className="pt-4 border-t">
-                                <h4 className="font-semibold mb-2">Your Shakti COD Card is Ready!</h4>
+                                <h4 className="font-semibold mb-2">Your Shakti Card is Ready!</h4>
                                 <div className="flex justify-center">
                                     <ShaktiCard card={newlyCreatedCard} />
                                 </div>
