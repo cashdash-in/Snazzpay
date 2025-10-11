@@ -12,7 +12,7 @@ import { getCollection, getDocument } from '@/services/firestore';
 import { format, parseISO } from 'date-fns';
 import { getCookie } from 'cookies-next';
 import type { EditableOrder } from '@/app/orders/page';
-import type { Collaborator } from '@/app/collaborators/page';
+import { type CommissionSettings, type Collaborator } from '@/app/collaborators/page';
 
 type Commission = {
     id: string;
@@ -26,11 +26,6 @@ type Commission = {
     status: string;
     leadCount?: number;
     orderCount?: number;
-};
-
-type CommissionSettings = {
-    id: string;
-    commissionRate: number;
 };
 
 export default function CollaboratorBillingPage() {
@@ -48,10 +43,9 @@ export default function CollaboratorBillingPage() {
 
         try {
             const role = getCookie('userRole');
-            const [allOrders, allCollaborators, allLeads, commissionSettings] = await Promise.all([
+            const [allOrders, allCollaborators, commissionSettings] = await Promise.all([
                 getCollection<EditableOrder>('orders'),
                 getCollection<Collaborator>('collaborators'),
-                getCollection<EditableOrder>('leads'),
                 getCollection<CommissionSettings>('commission_settings'),
             ]);
             
@@ -60,7 +54,7 @@ export default function CollaboratorBillingPage() {
 
             const collaboratorMap = new Map(allCollaborators.map(c => [c.id, c]));
 
-            const leadCounts = allLeads.reduce((acc, lead) => {
+            const leadCounts = (await getCollection<EditableOrder>('leads')).reduce((acc, lead) => {
                 if (lead.sellerId) {
                     acc[lead.sellerId] = (acc[lead.sellerId] || 0) + 1;
                 }
@@ -151,7 +145,7 @@ export default function CollaboratorBillingPage() {
                                     <TableCell>{c.leadCount}</TableCell>
                                     <TableCell>{c.orderCount}</TableCell>
                                     <TableCell className="text-right">₹{c.orderValue.toFixed(2)}</TableCell>
-                                    <TableCell className="text-right font-semibold text-green-600">+ ₹{c.commissionEarned.toFixed(2)}</TableCell>
+                                    <TableCell className="text-right font-semibold text-green-600">+ ₹{(c.commissionEarned || 0).toFixed(2)}</TableCell>
                                 </TableRow>
                             )) : (
                                 <TableRow>
