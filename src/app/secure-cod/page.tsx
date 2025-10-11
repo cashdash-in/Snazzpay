@@ -22,7 +22,6 @@ function Page() {
             keepalive: true, // This is important!
         });
 
-        // Track session end when the user leaves
         const handleUnload = () => {
              fetch('/api/track', {
                 method: 'POST',
