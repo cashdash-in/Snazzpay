@@ -1,4 +1,3 @@
-
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -28,7 +27,7 @@ function ChatWindow({ activeChat, currentUser }: { activeChat: Chat; currentUser
         if (!activeChat.id || !db) return;
         setLoading(true);
 
-        const q = query(collection(db, `chats/${activeChat.id}/messages`), orderBy("timestamp", "asc"));
+        const q = query(collection(db, \`chats/\${activeChat.id}/messages\`), orderBy("timestamp", "asc"));
         
         const unsubscribe = onSnapshot(q, (querySnapshot) => {
             const msgs: Message[] = [];
@@ -102,15 +101,15 @@ function ChatWindow({ activeChat, currentUser }: { activeChat: Chat; currentUser
                         const isSender = message.senderId === currentUser.id;
                         const senderName = activeChat.participantNames[message.senderId] || 'U';
                         return (
-                            <div key={message.id} className={`flex items-end gap-2 ${isSender ? 'justify-end' : 'justify-start'}`}>
+                            <div key={message.id} className={\`flex items-end gap-2 \${isSender ? 'justify-end' : 'justify-start'}\`}>
                                 {!isSender && <Avatar className="h-8 w-8"><AvatarFallback>{senderName[0]}</AvatarFallback></Avatar>}
-                                <div className={`max-w-xs md:max-w-md p-1 rounded-2xl ${isSender ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-muted rounded-bl-none'}`}>
+                                <div className={\`max-w-xs md:max-w-md p-1 rounded-2xl \${isSender ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-muted rounded-bl-none'}\`}>
                                     {message.content.type === 'text' ? (
                                         <p className="text-sm p-2 break-words">{message.content.content}</p>
                                     ) : (
                                         <Image src={message.content.content} alt="Shared image" width={250} height={250} className="rounded-xl object-cover" />
                                     )}
-                                    <p className={`text-xs px-2 pb-1 ${isSender ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>{message.timestamp ? format(message.timestamp, 'p') : ''}</p>
+                                    <p className={\`text-xs px-2 pb-1 \${isSender ? 'text-primary-foreground/70' : 'text-muted-foreground'}\`}>{message.timestamp ? format(message.timestamp, 'p') : ''}</p>
                                 </div>
                                 {isSender && <Avatar className="h-8 w-8"><AvatarFallback>{currentUser.name[0]}</AvatarFallback></Avatar>}
                             </div>
@@ -206,7 +205,7 @@ export default function ChatPage() {
                                 const otherParticipantId = chat.participants.find(p => p !== currentUser?.id);
                                 const otherParticipantName = otherParticipantId ? chat.participantNames[otherParticipantId] : 'Unknown';
                                 return (
-                                    <div key={chat.id} onClick={() => setActiveChat(chat)} className={`p-4 border-b cursor-pointer hover:bg-muted ${activeChat?.id === chat.id ? 'bg-muted' : ''}`}>
+                                    <div key={chat.id} onClick={() => setActiveChat(chat)} className={\`p-4 border-b cursor-pointer hover:bg-muted \${activeChat?.id === chat.id ? 'bg-muted' : ''}\`}>
                                         <div className="flex items-center gap-3">
                                              <Avatar className="h-10 w-10">
                                                 <AvatarFallback>{otherParticipantName?.[0]?.toUpperCase() || '?'}</AvatarFallback>

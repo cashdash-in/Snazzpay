@@ -187,13 +187,13 @@ export default function ImageBulkUploaderPage() {
 
         } catch (error: any) {
             errorCount++;
-            console.error(`Failed to push product "${product.title}":`, error);
+            console.error(\`Failed to push product "\${product.title}":\`, error);
         }
     }
 
     toast({
         title: 'Shopify Push Complete!',
-        description: `${successCount} products pushed successfully and saved to "My Products". ${errorCount} failed. Check console for details.`,
+        description: \`\${successCount} products pushed successfully and saved to "My Products". \${errorCount} failed. Check console for details.\`,
     });
     setGeneratedProducts([]);
     setIsPushing(false);
@@ -237,7 +237,7 @@ export default function ImageBulkUploaderPage() {
             ) : (
               <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-4">
                 {imagePreviews.map((src, index) => (
-                  <Image key={index} src={src} alt={`preview ${index}`} width={100} height={100} className="object-cover rounded-md aspect-square" />
+                  <Image key={index} src={src} alt={\`preview \${index}\`} width={100} height={100} className="object-cover rounded-md aspect-square" />
                 ))}
               </div>
             )}
@@ -291,38 +291,38 @@ export default function ImageBulkUploaderPage() {
                             </CardHeader>
                             <CardContent className="p-4 space-y-2">
                                 <div className="space-y-1">
-                                    <Label htmlFor={`title-${p.id}`}>Title</Label>
-                                    <Input id={`title-${p.id}`} value={p.title} onChange={e => handleProductChange(p.id, 'title', e.target.value)} />
+                                    <Label htmlFor={\`title-\${p.id}\`}>Title</Label>
+                                    <Input id={\`title-\${p.id}\`} value={p.title} onChange={e => handleProductChange(p.id, 'title', e.target.value)} />
                                 </div>
                                  <div className="space-y-1">
-                                    <Label htmlFor={`desc-${p.id}`}>Description</Label>
-                                    <Textarea id={`desc-${p.id}`} value={p.description} onChange={e => handleProductChange(p.id, 'description', e.target.value)} rows={4} />
+                                    <Label htmlFor={\`desc-\${p.id}\`}>Description</Label>
+                                    <Textarea id={\`desc-\${p.id}\`} value={p.description} onChange={e => handleProductChange(p.id, 'description', e.target.value)} rows={4} />
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                      <div className="space-y-1">
-                                        <Label htmlFor={`cost-${p.id}`}>Cost Price</Label>
-                                        <Input id={`cost-${p.id}`} type="number" value={p.costPrice} onChange={e => handleProductChange(p.id, 'costPrice', Number(e.target.value))} />
+                                        <Label htmlFor={\`cost-\${p.id}\`}>Cost Price</Label>
+                                        <Input id={\`cost-\${p.id}\`} type="number" value={p.costPrice} onChange={e => handleProductChange(p.id, 'costPrice', Number(e.target.value))} />
                                     </div>
                                     <div className="space-y-1">
-                                        <Label htmlFor={`price-${p.id}`}>Selling Price</Label>
-                                        <Input id={`price-${p.id}`} type="number" value={p.price} onChange={e => handleProductChange(p.id, 'price', Number(e.target.value))} />
+                                        <Label htmlFor={\`price-\${p.id}\`}>Selling Price</Label>
+                                        <Input id={\`price-\${p.id}\`} type="number" value={p.price} onChange={e => handleProductChange(p.id, 'price', Number(e.target.value))} />
                                     </div>
                                 </div>
                                  <div className="space-y-1">
-                                    <Label htmlFor={`category-${p.id}`}>Category</Label>
-                                    <Input id={`category-${p.id}`} value={p.category} onChange={e => handleProductChange(p.id, 'category', e.target.value)} />
+                                    <Label htmlFor={\`category-\${p.id}\`}>Category</Label>
+                                    <Input id={\`category-\${p.id}\`} value={p.category} onChange={e => handleProductChange(p.id, 'category', e.target.value)} />
                                 </div>
                                 <div className="space-y-1">
-                                    <Label htmlFor={`vendor-${p.id}`}>Vendor</Label>
-                                    <Input id={`vendor-${p.id}`} value={p.vendorName} onChange={e => handleProductChange(p.id, 'vendorName', e.target.value)} />
+                                    <Label htmlFor={\`vendor-\${p.id}\`}>Vendor</Label>
+                                    <Input id={\`vendor-\${p.id}\`} value={p.vendorName} onChange={e => handleProductChange(p.id, 'vendorName', e.target.value)} />
                                 </div>
                                 <div className="space-y-1">
-                                    <Label htmlFor={`sizes-${p.id}`}>Sizes (comma-separated)</Label>
-                                    <Input id={`sizes-${p.id}`} value={p.sizes.join(', ')} onChange={e => handleProductChange(p.id, 'sizes', e.target.value.split(',').map(s=>s.trim()))} />
+                                    <Label htmlFor={\`sizes-\${p.id}\`}>Sizes (comma-separated)</Label>
+                                    <Input id={\`sizes-\${p.id}\`} value={p.sizes.join(', ')} onChange={e => handleProductChange(p.id, 'sizes', e.target.value.split(',').map(s=>s.trim()))} />
                                 </div>
                                 <div className="space-y-1">
-                                    <Label htmlFor={`colors-${p.id}`}>Colors (comma-separated)</Label>
-                                    <Input id={`colors-${p.id}`} value={p.colors.join(', ')} onChange={e => handleProductChange(p.id, 'colors', e.target.value.split(',').map(s=>s.trim()))} />
+                                    <Label htmlFor={\`colors-\${p.id}\`}>Colors (comma-separated)</Label>
+                                    <Input id={\`colors-\${p.id}\`} value={p.colors.join(', ')} onChange={e => handleProductChange(p.id, 'colors', e.target.value.split(',').map(s=>s.trim()))} />
                                 </div>
                             </CardContent>
                         </Card>

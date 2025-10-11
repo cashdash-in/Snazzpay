@@ -219,7 +219,7 @@ export default function AiProductUploaderPage() {
         
         toast({
             title: 'Product Pushed to Shopify!',
-            description: `Successfully created "${result.product.title}" and saved it to "My Products".`,
+            description: \`Successfully created "\${result.product.title}" and saved it to "My Products".\`,
         });
 
     } catch (error: any) {
@@ -298,7 +298,7 @@ export default function AiProductUploaderPage() {
                      <Image
                         key={index}
                         src={src}
-                        alt={`Product preview ${index + 1}`}
+                        alt={\`Product preview \${index + 1}\`}
                         width={150}
                         height={150}
                         className="object-contain rounded-md aspect-square"

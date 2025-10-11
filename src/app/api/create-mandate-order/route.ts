@@ -24,7 +24,7 @@ export async function POST(request: Request) {
         const { amount, productName, name, email, contact, address, pincode, isAuthorization } = await request.json();
         
         // Generate a new, unique order ID on the server for every request.
-        const uniqueOrderId = `SNZ-${Math.floor(1000 + Math.random() * 9000)}-${uuidv4().substring(0, 4).toUpperCase()}`;
+        const uniqueOrderId = \`SNZ-\${Math.floor(1000 + Math.random() * 9000)}-\${uuidv4().substring(0, 4).toUpperCase()}\`;
 
         let customerId;
 
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
             const newCustomer = await razorpay.customers.create({
                 name: name,
                 contact: contact,
-                email: email || `customer.${contact || uuidv4().substring(0,8)}@example.com`,
+                email: email || \`customer.\${contact || uuidv4().substring(0,8)}@example.com\`,
                 notes: {
                     address: address,
                     pincode: pincode,
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
             customerId = newCustomer.id;
 
         } catch (customerError: any) {
-            console.warn(`Could not create new Razorpay customer (they might already exist): ${customerError.error?.description || customerError.message}`);
+            console.warn(\`Could not create new Razorpay customer (they might already exist): \${customerError.error?.description || customerError.message}\`);
         }
        
         // Step 2: Create Order
@@ -82,7 +82,7 @@ export async function POST(request: Request) {
         }
         const errorMessage = error?.error?.description || error.message || 'An unknown error occurred.';
         return new NextResponse(
-            JSON.stringify({ error: `Failed to create Razorpay order: ${errorMessage}` }),
+            JSON.stringify({ error: \`Failed to create Razorpay order: \${errorMessage}\` }),
             { status: 500, headers: { 'Content-Type': 'application/json' } }
         );
     }

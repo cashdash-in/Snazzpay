@@ -44,9 +44,9 @@ export async function POST(request: Request) {
             amount: Math.round(amount * 100),
             speed: 'normal',
             notes: {
-                reason: `Customer cancellation with ID: ${cancellationId}`
+                reason: \`Customer cancellation with ID: \${cancellationId}\`
             },
-            receipt: `receipt-cancel-${orderId}`
+            receipt: \`receipt-cancel-\${orderId}\`
         });
         
         console.log("Successfully processed refund/cancellation (void):", refund);
@@ -64,7 +64,7 @@ export async function POST(request: Request) {
         }
         const errorMessage = error?.error?.description || error.message || 'An unknown error occurred.';
         return new NextResponse(
-            JSON.stringify({ error: `Failed to cancel order: ${errorMessage}` }),
+            JSON.stringify({ error: \`Failed to cancel order: \${errorMessage}\` }),
             { status: 500, headers: { 'Content-Type': 'application/json' } }
         );
     }

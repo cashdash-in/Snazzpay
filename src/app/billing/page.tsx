@@ -1,4 +1,3 @@
-
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -105,7 +104,7 @@ function DiscountManager() {
             }
             const collection = collections.find(c => c.id.toString() === selectedCollection);
             if (!collection) return;
-            id = `collection_${collection.id}`;
+            id = \`collection_\${collection.id}\`;
             name = collection.title;
             discount = collectionDiscount;
         } else if (type === 'vendor') {
@@ -113,7 +112,7 @@ function DiscountManager() {
                  toast({ variant: 'destructive', title: 'Invalid Input', description: 'Please select a vendor and set a discount percentage.' });
                 return;
             }
-            id = `vendor_${selectedVendor}`;
+            id = \`vendor_\${selectedVendor}\`;
             name = selectedVendor;
             discount = vendorDiscount;
         } else { // product
@@ -123,7 +122,7 @@ function DiscountManager() {
             }
              const product = products.find(p => p.id.toString() === selectedProduct);
             if (!product) return;
-            id = `product_${product.id}`;
+            id = \`product_\${product.id}\`;
             name = product.title;
             discount = productDiscount;
         }
@@ -141,7 +140,7 @@ function DiscountManager() {
                 }
                 return [...prev, newRule];
             });
-            toast({ title: 'Discount Saved!', description: `A ${discount}% discount for ${name} has been saved.` });
+            toast({ title: 'Discount Saved!', description: \`A \${discount}% discount for \${name} has been saved.\` });
         } catch (error) {
             toast({ variant: 'destructive', title: 'Error Saving Discount' });
         }
@@ -168,7 +167,7 @@ function DiscountManager() {
         if (collection) {
             setSelectedCollection(collection.id.toString());
             setActiveTab('collection');
-            toast({ title: 'Collection Selected', description: `Switched to 'By Collection' tab with '${collection.title}' pre-selected.` });
+            toast({ title: 'Collection Selected', description: \`Switched to 'By Collection' tab with '\${collection.title}' pre-selected.\` });
         }
     };
 
@@ -184,7 +183,7 @@ function DiscountManager() {
                     <Terminal className="h-4 w-4" />
                     <AlertTitle>Production Environment Note</AlertTitle>
                     <AlertDescription>
-                        If Collection, Vendor, or Product lists are empty on your live site, please ensure you have set the `SHOPIFY_STORE_URL` and `SHOPIFY_API_KEY` environment variables in your hosting provider's settings (e.g., Vercel, Netlify).
+                        If Collection, Vendor, or Product lists are empty on your live site, please ensure you have set the \`SHOPIFY_STORE_URL\` and \`SHOPIFY_API_KEY\` environment variables in your hosting provider's settings (e.g., Vercel, Netlify).
                     </AlertDescription>
                 </Alert>
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -380,8 +379,8 @@ export default function BillingPage() {
         if (!item) return;
 
         try {
-            console.log(`Saving ${type} ${id}:`, { totalValue: item.totalValue, commission: item.commission });
-            toast({ title: "Data Saved", description: `Billing info for ${item.name} has been updated.` });
+            console.log(\`Saving \${type} \${id}:\`, { totalValue: item.totalValue, commission: item.commission });
+            toast({ title: "Data Saved", description: \`Billing info for \${item.name} has been updated.\` });
         } catch (error) {
              toast({ variant: "destructive", title: "Failed to save" });
         }
@@ -405,7 +404,7 @@ export default function BillingPage() {
             await saveDocument('user_permissions', permissions, request.userId);
             await saveDocument('limitIncreaseRequests', { ...request, status: 'Approved' }, request.id);
             
-            toast({ title: 'Request Approved!', description: `${request.userName}'s limit has been increased.` });
+            toast({ title: 'Request Approved!', description: \`\${request.userName}'s limit has been increased.\` });
             loadBillingData();
 
         } catch (error) {

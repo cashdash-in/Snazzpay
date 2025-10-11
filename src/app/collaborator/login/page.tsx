@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -54,7 +53,7 @@ export default function CollaboratorLoginPage() {
             }
 
             // For prototype purposes, we simulate success if the user exists and is approved.
-            // In a real app, this would use `signInWithEmailAndPassword`.
+            // In a real app, this would use \`signInWithEmailAndPassword\`.
             const allCollaborators = await getCollection<Collaborator>('collaborators');
             const collaborator = allCollaborators.find(c => c.email === userEmail);
             

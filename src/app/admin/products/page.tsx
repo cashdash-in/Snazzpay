@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -139,7 +138,7 @@ export default function AdminProductsPage() {
                                     <Checkbox
                                         onCheckedChange={(checked) => handleSelectProduct(product.id, !!checked)}
                                         checked={selectedProducts.includes(product.id)}
-                                        aria-label={`Select product ${product.title}`}
+                                        aria-label={\`Select product \${product.title}\`}
                                     />
                                 </TableCell>
                                 <TableCell className="font-medium flex items-center gap-4">

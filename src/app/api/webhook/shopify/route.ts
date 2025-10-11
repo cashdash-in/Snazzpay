@@ -33,15 +33,15 @@ interface ShopifyOrderPayload {
 
 function mapShopifyToEditable(shopifyOrder: ShopifyOrderPayload): EditableOrder {
     const customer = shopifyOrder.customer;
-    const customerName = customer ? `${customer.first_name || ''} ${customer.last_name || ''}`.trim() : 'N/A';
+    const customerName = customer ? \`\${customer.first_name || ''} \${customer.last_name || ''}\`.trim() : 'N/A';
     const products = shopifyOrder.line_items.map(item => item.title).join(', ');
 
     return {
-        id: `shopify-${shopifyOrder.id.toString()}`,
+        id: \`shopify-\${shopifyOrder.id.toString()}\`,
         orderId: shopifyOrder.name,
         customerName,
         customerEmail: customer?.email || undefined,
-        customerAddress: shopifyOrder.shipping_address ? `${shopifyOrder.shipping_address.address1 || ''}, ${shopifyOrder.shipping_address.city || ''}` : 'N/A',
+        customerAddress: shopifyOrder.shipping_address ? \`\${shopifyOrder.shipping_address.address1 || ''}, \${shopifyOrder.shipping_address.city || ''}\` : 'N/A',
         pincode: shopifyOrder.shipping_address?.zip || 'N/A',
         contactNo: shopifyOrder.customer?.phone || 'N/A',
         productOrdered: products,
@@ -73,7 +73,7 @@ export async function POST(request: Request) {
         // as each function invocation has its own isolated environment.
         // We are using it here because the rest of the app's persistence is based on it.
 
-        console.log(`Processing webhook for Shopify Order: ${newOrder.orderId}`);
+        console.log(\`Processing webhook for Shopify Order: \${newOrder.orderId}\`);
 
         // This is a server-side action. It cannot directly access client-side localStorage.
         // This is a fundamental limitation of the current prototype design.
@@ -81,14 +81,14 @@ export async function POST(request: Request) {
         // logic needs to be migrated from localStorage to a server-side database (e.g., Firestore).
 
         // For now, we will simply log that the webhook was received and processed.
-        // The `getOrders()` function will continue to be the primary source of truth for Shopify orders.
+        // The \`getOrders()\` function will continue to be the primary source of truth for Shopify orders.
         console.log("Webhook processed successfully. The order will be synced on the next manual refresh of the Orders page.");
         
-        return NextResponse.json({ success: true, message: `Webhook for order ${newOrder.orderId} processed.` });
+        return NextResponse.json({ success: true, message: \`Webhook for order \${newOrder.orderId} processed.\` });
 
     } catch (error: any) {
         console.error("--- Shopify Webhook Error ---");
         console.error(error);
-        return NextResponse.json({ error: `Failed to process webhook: ${error.message}` }, { status: 500 });
+        return NextResponse.json({ error: \`Failed to process webhook: \${error.message}\` }, { status: 500 });
     }
 }

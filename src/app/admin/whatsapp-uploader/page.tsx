@@ -108,7 +108,7 @@ export default function WhatsAppUploaderPage() {
         return { ...p, price: Math.round(newPrice) };
     });
     setParsedProducts(updatedProducts);
-    toast({ title: 'Prices Updated', description: `All product prices have been recalculated with a ${margin}% margin.` });
+    toast({ title: 'Prices Updated', description: \`All product prices have been recalculated with a \${margin}% margin.\` });
   };
 
 
@@ -159,13 +159,13 @@ export default function WhatsAppUploaderPage() {
 
         } catch (error: any) {
             errorCount++;
-            console.error(`Failed to push product "${product.title}":`, error);
+            console.error(\`Failed to push product "\${product.title}":\`, error);
         }
     }
 
     toast({
         title: 'Shopify Push Complete!',
-        description: `${successCount} products pushed successfully and saved to "My Products". ${errorCount} failed. Check console for details.`,
+        description: \`\${successCount} products pushed successfully and saved to "My Products". \${errorCount} failed. Check console for details.\`,
     });
     setParsedProducts([]);
     setIsPushing(false);
@@ -305,9 +305,9 @@ export default function WhatsAppUploaderPage() {
                                         <Label>Colors (comma-separated)</Label>
                                         <Input value={p.colors.join(', ')} onChange={e => handleProductChange(p.id, 'colors', e.target.value.split(',').map(c=>c.trim()))} />
                                         <div className="space-y-1 pt-2">
-                                            <Label htmlFor={`price-${p.id}`}>Selling Price</Label>
+                                            <Label htmlFor={\`price-\${p.id}\`}>Selling Price</Label>
                                             <Input
-                                                id={`price-${p.id}`}
+                                                id={\`price-\${p.id}\`}
                                                 type="number"
                                                 value={p.price}
                                                 onChange={(e) => handleProductChange(p.id, 'price', parseFloat(e.target.value))}

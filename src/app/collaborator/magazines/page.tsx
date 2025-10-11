@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -50,7 +49,7 @@ export default function CollaboratorMagazinesPage() {
     
     const getShareLink = (mag: Magazine) => {
         const baseUrl = window.location.origin;
-        return `${baseUrl}/smart-magazine?id=${mag.id}`;
+        return \`\${baseUrl}/smart-magazine?id=\${mag.id}\`;
     };
 
     const handleCopy = (mag: Magazine) => {
@@ -61,8 +60,8 @@ export default function CollaboratorMagazinesPage() {
 
     const handleShare = (mag: Magazine) => {
         const link = getShareLink(mag);
-        const message = `Check out this amazing collection: *${mag.title}*\n\n${link}`;
-        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+        const message = \`Check out this amazing collection: *\${mag.title}*\n\n\${link}\`;
+        const whatsappUrl = \`https://wa.me/?text=\${encodeURIComponent(message)}\`;
         window.open(whatsappUrl, '_blank');
     };
 
@@ -113,7 +112,7 @@ export default function CollaboratorMagazinesPage() {
                                  <CardFooter className="flex justify-end gap-2">
                                     <Button variant="secondary" onClick={() => handleCopy(mag)}><Copy className="mr-2 h-4 w-4"/>Copy Link</Button>
                                     <Button onClick={() => handleShare(mag)}><MessageSquare className="mr-2 h-4 w-4"/>Share on WhatsApp</Button>
-                                </CardFooter>
+                                 </CardFooter>
                             </Card>
                         )})}
                     </div>

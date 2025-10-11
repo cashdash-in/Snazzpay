@@ -51,19 +51,19 @@ export async function POST(request: Request) {
                 notes: {
                     reason: reason || "Partial refund after cancellation fee."
                 },
-                receipt: `refund-partial-${paymentId}`
+                receipt: \`refund-partial-\${paymentId}\`
             });
             console.log("Successfully processed partial refund:", refund);
             return NextResponse.json({ 
                 success: true, 
-                message: `Successfully charged a fee of ₹${feeAmount} and refunded ₹${(refundAmount / 100).toFixed(2)}.`,
+                message: \`Successfully charged a fee of ₹\${feeAmount} and refunded ₹\${(refundAmount / 100).toFixed(2)}.\`,
                 captureId: capturedPayment.id,
                 refundId: refund.id 
             });
         } else {
              return NextResponse.json({ 
                 success: true, 
-                message: `Successfully charged a fee of ₹${feeAmount}. No refund was necessary.`,
+                message: \`Successfully charged a fee of ₹\${feeAmount}. No refund was necessary.\`,
                 captureId: capturedPayment.id
             });
         }
@@ -77,7 +77,7 @@ export async function POST(request: Request) {
         }
         const errorMessage = error?.error?.description || error.message || 'An unknown error occurred.';
         return new NextResponse(
-            JSON.stringify({ error: `Failed to process cancellation fee: ${errorMessage}` }),
+            JSON.stringify({ error: \`Failed to process cancellation fee: \${errorMessage}\` }),
             { status: 500, headers: { 'Content-Type': 'application/json' } }
         );
     }
