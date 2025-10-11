@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, DragEvent, ClipboardEvent } from 'react';
@@ -10,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, PackagePlus, Wand2, ImagePlus } from 'lucide-react';
+import { Loader2, PackagePlus, Wand2, ImagePlus, Lock } from 'lucide-react';
 import Image from 'next/image';
 import { useAuth } from '@/hooks/use-auth';
 import { v4 as uuidv4 } from 'uuid';

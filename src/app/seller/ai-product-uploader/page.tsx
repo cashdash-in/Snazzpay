@@ -42,6 +42,7 @@ import { createProductFromText } from '@/ai/flows/create-product-from-text';
 export interface SellerProduct extends ProductListingOutput {
     id: string;
     sellerId: string;
+    sellerName: string;
     imageDataUris: string[];
     createdAt: string;
 }
@@ -226,6 +227,7 @@ export default function AiProductUploaderPage() {
         const newSellerProduct: SellerProduct = {
             id: uuidv4(),
             sellerId: user.uid,
+            sellerName: user.displayName || 'Unknown Seller',
             ...listing,
             imageDataUris: resizedImageDataUris,
             createdAt: new Date().toISOString(),
@@ -575,7 +577,7 @@ export default function AiProductUploaderPage() {
                             <MessageSquare className="mr-2 h-4 w-4" /> Share on WhatsApp
                         </Button>
                     </DialogTrigger>
-                    <ShareComposerDialog product={{...generatedListing, costPrice: parseFloat(cost), imageDataUris: resizedImageDataUris, id: 'temp'}} />
+                    <ShareComposerDialog product={{...generatedListing, costPrice: parseFloat(cost), imageDataUris: resizedImageDataUris, id: 'temp', sellerName: user?.displayName || 'Seller'}} />
                 </Dialog>
               </CardFooter>
             </>

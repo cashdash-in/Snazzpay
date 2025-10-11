@@ -125,7 +125,7 @@ function CatalogueOrderPageContent() {
                         sellerName: (fetchedProduct as SellerProduct).sellerName ?? (fetchedProduct as ProductDrop).vendorName,
                         sellerId: (fetchedProduct as SellerProduct).sellerId ?? (fetchedProduct as ProductDrop).vendorId,
                         productId: fetchedProduct.id,
-                        vendor: (productType === 'product_drop' ? (fetchedProduct as ProductDrop).vendorName : (fetchedProduct as SellerProduct).sellerName) || '',
+                        vendor: productType === 'product_drop' ? (fetchedProduct as ProductDrop).vendorName : ((fetchedProduct as SellerProduct).sellerName || ''),
                         collection: (fetchedProduct as any).category || '',
                     };
                     setProduct(displayProduct);
@@ -418,5 +418,3 @@ export default function CataloguePage() {
         </Suspense>
     );
 }
-
-    
