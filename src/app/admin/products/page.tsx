@@ -119,7 +119,7 @@ export default function AdminProductsPage() {
                         <TableRow>
                             <TableHead className="w-[50px]">
                                 <Checkbox
-                                    onCheckedChange={handleSelectAll}
+                                    onCheckedChange={(checked) => handleSelectAll(!!checked)}
                                     checked={selectedProducts.length === products.length && products.length > 0}
                                     aria-label="Select all"
                                 />
@@ -138,7 +138,7 @@ export default function AdminProductsPage() {
                                     <Checkbox
                                         onCheckedChange={(checked) => handleSelectProduct(product.id, !!checked)}
                                         checked={selectedProducts.includes(product.id)}
-                                        aria-label={\`Select product \${product.title}\`}
+                                        aria-label={`Select product ${product.title}`}
                                     />
                                 </TableCell>
                                 <TableCell className="font-medium flex items-center gap-4">
