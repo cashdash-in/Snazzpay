@@ -234,7 +234,7 @@ export default function LeadsPage() {
                 {leads.map((lead) => {
                     const imageUrl = lead.imageDataUris?.[0];
                     let sourceName = lead.source || 'Manual';
-                    if (sourceName === 'Catalogue') sourceName = 'Smart Magazine';
+                    if (sourceName === 'Catalogue') sourceName = 'SmartMagazine';
                     
                     return (
                   <TableRow key={lead.id} onPaste={(e) => handleImagePaste(e, lead.id)}>
@@ -316,5 +316,7 @@ export default function LeadsPage() {
     </AppShell>
   );
 }
+
+    
 
     

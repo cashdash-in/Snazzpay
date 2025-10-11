@@ -266,7 +266,7 @@ export default function DeliveryTrackingPage() {
                   {orders.map((order) => {
                       const imageUrl = order.imageDataUris?.[0];
                       let sourceName = order.source || 'Manual';
-                      if (sourceName === 'Catalogue') sourceName = 'Smart Magazine';
+                      if (sourceName === 'Catalogue') sourceName = 'SmartMagazine';
 
 
                       return (
@@ -361,5 +361,7 @@ export default function DeliveryTrackingPage() {
     </AppShell>
   );
 }
+
+    
 
     

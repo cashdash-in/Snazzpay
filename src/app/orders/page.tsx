@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -322,7 +323,7 @@ export default function OrdersPage() {
                     const imageUrl = order.imageDataUris?.[0];
                     
                     let sourceName = order.source || 'Manual';
-                    if (sourceName === 'Catalogue') sourceName = 'Smart Magazine';
+                    if (sourceName === 'Catalogue') sourceName = 'SmartMagazine';
 
 
                     return (
@@ -464,5 +465,7 @@ export default function OrdersPage() {
     </AppShell>
   );
 }
+
+    
 
     
