@@ -51,11 +51,7 @@ export async function POST(request: Request) {
                 notes: {
                     reason: reason || "Partial refund after cancellation fee."
                 },
-                receipt: `refund-partial-${paymentId}`,
-                notify: {
-                    sms: true,
-                    email: true,
-                }
+                receipt: `refund-partial-${paymentId}`
             });
             console.log("Successfully processed partial refund:", refund);
             return NextResponse.json({ 

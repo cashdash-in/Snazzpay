@@ -38,11 +38,7 @@ export async function POST(request: Request) {
             notes: {
                 reason: reason || "Refund processed from SnazzPay dashboard."
             },
-            receipt: `refund-receipt-${paymentId}`,
-            notify: {
-                sms: true,
-                email: true,
-            }
+            receipt: `refund-receipt-${paymentId}`
         });
         
         console.log("Successfully processed refund:", refund);

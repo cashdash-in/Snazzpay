@@ -46,11 +46,7 @@ export async function POST(request: Request) {
             notes: {
                 reason: `Customer cancellation with ID: ${cancellationId}`
             },
-            receipt: `receipt-cancel-${orderId}`,
-            notify: {
-                sms: true,
-                email: true,
-            }
+            receipt: `receipt-cancel-${orderId}`
         });
         
         console.log("Successfully processed refund/cancellation (void):", refund);
