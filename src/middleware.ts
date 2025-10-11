@@ -11,9 +11,11 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const publicPaths = [
+    '/',
     '/auth/login',
     '/auth/signup',
     '/auth/forgot-password', 
+    '/seller',
     '/seller/login',
     '/vendor/login',
     '/secure-cod', 
@@ -35,7 +37,6 @@ export function middleware(request: NextRequest) {
     '/collaborator/magazines',
     '/collaborator/commissions',
     '/collaborator/orders',
-    '/seller',
     '/guest-fulfillment',
     '/catalogue',
     '/smart-magazine',

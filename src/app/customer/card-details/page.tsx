@@ -28,6 +28,12 @@ export default function ShaktiCardDetailsPage() {
         }
 
         async function fetchCard(mobile: string) {
+            if (!mobile) {
+                toast({ variant: 'destructive', title: "Authentication Error", description: "Could not identify logged in user."});
+                setIsLoading(false);
+                return;
+            }
+
             try {
                 const sanitizedMobile = sanitizePhoneNumber(mobile);
                 const allCards = await getCollection<ShaktiCardData>('shakti_cards');
