@@ -18,7 +18,7 @@ import { ShareComposerDialog } from '@/components/share-composer-dialog';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { getCollection, saveDocument, getDocument } from '@/services/firestore';
 import { getCookie } from 'cookies-next';
-import { createProductFromText } from '@/ai/flows/create-product-from-text';
+// import { createProductFromText } from '@/ai/flows/create-product-from-text';
 
 export interface ProductDrop {
     id: string;
@@ -260,23 +260,25 @@ export default function VendorProductDropsPage() {
         e.stopPropagation();
 
         setIsPasting(true);
-        try {
-            const result = await createProductFromText({ text: pastedText });
-            setTitle(result.title);
-            setDescription(result.description);
-            toast({
-                title: "AI Parsing Complete!",
-                description: "Product title and description have been filled in.",
-            });
-        } catch (error: any) {
-             toast({
-                variant: 'destructive',
-                title: 'AI Parsing Failed',
-                description: error.message || 'Could not process the pasted text.',
-            });
-        } finally {
-            setIsPasting(false);
-        }
+        toast({ title: 'AI functionality is temporarily disabled.' });
+        setIsPasting(false);
+        // try {
+        //     const result = await createProductFromText({ text: pastedText });
+        //     setTitle(result.title);
+        //     setDescription(result.description);
+        //     toast({
+        //         title: "AI Parsing Complete!",
+        //         description: "Product title and description have been filled in.",
+        //     });
+        // } catch (error: any) {
+        //      toast({
+        //         variant: 'destructive',
+        //         title: 'AI Parsing Failed',
+        //         description: error.message || 'Could not process the pasted text.',
+        //     });
+        // } finally {
+        //     setIsPasting(false);
+        // }
     };
 
 

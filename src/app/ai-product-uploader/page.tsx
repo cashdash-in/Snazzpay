@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { createProductListing } from '@/ai/flows/create-product-listing';
+// import { createProductListing } from '@/ai/flows/create-product-listing';
 import { type ProductListingOutput } from '@/ai/schemas/product-listing';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -29,7 +29,7 @@ import {
   Factory,
 } from 'lucide-react';
 import Image from 'next/image';
-import { createProductFromText } from '@/ai/flows/create-product-from-text';
+// import { createProductFromText } from '@/ai/flows/create-product-from-text';
 import { saveDocument } from '@/services/firestore';
 import { v4 as uuidv4 } from 'uuid';
 import type { ProductDrop } from '@/app/vendor/product-drops/page';
@@ -165,30 +165,32 @@ export default function AiProductUploaderPage() {
     }
     setIsLoading(true);
     setGeneratedListing(null);
+    toast({ title: 'AI functionality is temporarily disabled.' });
+    setIsLoading(false);
 
-    try {
-      const result = await createProductListing({
-        imageDataUris: resizedImageDataUris, // Use resized data
-        description: vendorDescription,
-        cost: parseFloat(cost),
-        margin: parseFloat(margin),
-      });
+    // try {
+    //   const result = await createProductListing({
+    //     imageDataUris: resizedImageDataUris, // Use resized data
+    //     description: vendorDescription,
+    //     cost: parseFloat(cost),
+    //     margin: parseFloat(margin),
+    //   });
 
-      setGeneratedListing(result);
-      toast({
-        title: 'Listing Generated!',
-        description: 'Review the details below before pushing to Shopify.',
-      });
-    } catch (error: any) {
-      console.error("AI Generation Error:", error);
-      toast({
-        variant: 'destructive',
-        title: 'Generation Failed',
-        description: `Server error: ${error.message || 'An unexpected error occurred.'}`,
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    //   setGeneratedListing(result);
+    //   toast({
+    //     title: 'Listing Generated!',
+    //     description: 'Review the details below before pushing to Shopify.',
+    //   });
+    // } catch (error: any) {
+    //   console.error("AI Generation Error:", error);
+    //   toast({
+    //     variant: 'destructive',
+    //     title: 'Generation Failed',
+    //     description: `Server error: ${error.message || 'An unexpected error occurred.'}`,
+    //   });
+    // } finally {
+    //   setIsLoading(false);
+    // }
   };
 
   const handlePushToShopify = async () => {
@@ -263,29 +265,31 @@ export default function AiProductUploaderPage() {
         e.stopPropagation();
 
         setIsPasting(true);
-        try {
-            const result = await createProductFromText({ text: pastedText });
-            // For admin, fill both title and description
-            setVendorDescription(result.description);
-            setGeneratedListing(prev => ({
-                ...(prev || { title: '', description: '', category: '', price: 0, sizes: [], colors: [] }),
-                title: result.title,
-                description: result.description,
-            }));
+        toast({ title: 'AI functionality is temporarily disabled.' });
+        setIsPasting(false);
+        // try {
+        //     const result = await createProductFromText({ text: pastedText });
+        //     // For admin, fill both title and description
+        //     setVendorDescription(result.description);
+        //     setGeneratedListing(prev => ({
+        //         ...(prev || { title: '', description: '', category: '', price: 0, sizes: [], colors: [] }),
+        //         title: result.title,
+        //         description: result.description,
+        //     }));
             
-            toast({
-                title: "AI Parsing Complete!",
-                description: "Product title and description have been filled in.",
-            });
-        } catch (error: any) {
-             toast({
-                variant: 'destructive',
-                title: 'AI Parsing Failed',
-                description: error.message || 'Could not process the pasted text.',
-            });
-        } finally {
-            setIsPasting(false);
-        }
+        //     toast({
+        //         title: "AI Parsing Complete!",
+        //         description: "Product title and description have been filled in.",
+        //     });
+        // } catch (error: any) {
+        //      toast({
+        //         variant: 'destructive',
+        //         title: 'AI Parsing Failed',
+        //         description: error.message || 'Could not process the pasted text.',
+        //     });
+        // } finally {
+        //     setIsPasting(false);
+        // }
   };
 
   return (
