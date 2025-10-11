@@ -33,8 +33,8 @@ export default function CollaboratorMagazinesPage() {
                 const allMagazines = await getCollection<Magazine>('smart_magazines');
                 
                 const formattedMagazines = allMagazines.map(mag => ({
-                    id: mag.id || uuidv4(),
                     ...mag,
+                    id: mag.id || uuidv4(),
                 })).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
                 setMagazines(formattedMagazines);
