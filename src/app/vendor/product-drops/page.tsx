@@ -17,7 +17,7 @@ import { ShareComposerDialog } from '@/components/share-composer-dialog';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { getCollection, saveDocument, getDocument } from '@/services/firestore';
 import { getCookie } from 'cookies-next';
-import { createProductFromText } from '@/ai/flows/create-product-from-text';
+// import { createProductFromText } from '@/ai/flows/create-product-from-text';
 
 export interface ProductDrop {
     id: string;
@@ -248,34 +248,12 @@ export default function VendorProductDropsPage() {
     };
 
     const handleMagicPaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-        const pastedText = e.clipboardData.getData('text');
-         // Check if clipboard contains files, if so, let the other handler take care of it.
-        if (e.clipboardData.files.length > 0) {
-            return;
-        }
-        if (pastedText.trim().length < 10) return;
-
-        e.preventDefault();
-        e.stopPropagation();
-
-        setIsPasting(true);
-        try {
-            const result = await createProductFromText({ text: pastedText });
-            setTitle(result.title);
-            setDescription(result.description);
-            toast({
-                title: "AI Parsing Complete!",
-                description: "Product title and description have been filled in.",
-            });
-        } catch (error: any) {
-             toast({
-                variant: 'destructive',
-                title: 'AI Parsing Failed',
-                description: error.message || 'Could not process the pasted text.',
-            });
-        } finally {
-            setIsPasting(false);
-        }
+        toast({
+            variant: 'destructive',
+            title: 'Feature Disabled',
+            description: 'The AI features have been temporarily disabled to ensure application stability.',
+        });
+        return;
     };
 
 

@@ -111,7 +111,9 @@ function ReportsTab({ fleet, pickups, partnerName }: { fleet: Agent[], pickups: 
             }
 
             const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, 'Report');
+            if (worksheet) {
+                XLSX.utils.book_append_sheet(workbook, worksheet, 'Report');
+            }
             XLSX.writeFile(workbook, fileName);
 
             toast({ title: "Report Generated", description: `${dataToExport.length} records exported to ${fileName}.` });
@@ -316,8 +318,13 @@ export default function LogisticsDashboardPage() {
     };
 
     const handleFieldChange = (id: string, field: keyof Agent | keyof ServicePartner, value: string) => {
-        setFleet(prev => prev.map(item => (item.id === id ? { ...item, [field]: value } : item) as Agent));
-        setServicePartners(prev => prev.map(item => (item.id === id ? { ...item, [field]: value } : item) as ServicePartner));
+        if (field === 'task' || field === 'status') {
+            setFleet(prev => prev.map(item => (item.id === id ? { ...item, [field]: value } : item)));
+            setServicePartners(prev => prev.map(item => (item.id === id ? { ...item, [field]: value } : item)));
+        } else {
+            setFleet(prev => prev.map(item => (item.id === id ? { ...item, [field]: value } : item)));
+            setServicePartners(prev => prev.map(item => (item.id === id ? { ...item, [field]: value } : item)));
+        }
     };
 
     const handleShaktiCardSearch = () => {
@@ -493,7 +500,7 @@ export default function LogisticsDashboardPage() {
                                     </Table>
                                 </CardContent>
                             </Card>
-                        </TabsContent>
+                         </TabsContent>
                          <TabsContent value="service_partners">
                             <Card className="shadow-lg">
                                 <CardHeader className="flex flex-row justify-between items-start">
@@ -579,5 +586,3 @@ export default function LogisticsDashboardPage() {
         </div>
     );
 }
-
-    

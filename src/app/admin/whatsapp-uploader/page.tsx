@@ -25,8 +25,8 @@ import {
   Factory,
   Book,
 } from 'lucide-react';
-import { type ProductListingOutput } from '@/ai/schemas/product-listing';
-import { parseWhatsAppChat } from '@/ai/flows/whatsapp-product-parser';
+// import { type ProductListingOutput } from '@/ai/schemas/product-listing';
+// import { parseWhatsAppChat } from '@/ai/flows/whatsapp-product-parser';
 import { saveDocument } from '@/services/firestore';
 import { v4 as uuidv4 } from 'uuid';
 import type { ProductDrop } from '@/app/vendor/product-drops/page';
@@ -35,6 +35,16 @@ import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 import { Textarea } from '@/components/ui/textarea';
+
+// Placeholder types since schemas are removed
+type ProductListingOutput = {
+  title: string;
+  description: string;
+  category: string;
+  price: number;
+  sizes: string[];
+  colors: string[];
+};
 
 type ParsedProduct = ProductListingOutput & {
     id: string; // Add a temporary client-side ID
@@ -67,31 +77,12 @@ export default function WhatsAppUploaderPage() {
   };
 
   const handleParseChat = async () => {
-    if (!chatContent) {
-      toast({ variant: 'destructive', title: 'No Chat File', description: 'Please upload a WhatsApp chat .txt file first.' });
-      return;
-    }
-    setIsParsing(true);
-    setParsedProducts([]);
-    try {
-      const result = await parseWhatsAppChat({ 
-          chatText: chatContent,
-          startDate: dateRange?.from?.toISOString(),
-          endDate: dateRange?.to?.toISOString(),
-      });
-      const productsWithIds = result.products.map(p => ({
-          ...p, 
-          id: `temp-${Math.random()}`,
-          vendorName: defaultVendor || 'Snazzify AI',
-          category: defaultCategory || p.category,
-        }));
-      setParsedProducts(productsWithIds);
-      toast({ title: 'Chat Parsed Successfully!', description: `${productsWithIds.length} products were identified. Review them below.` });
-    } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Parsing Failed', description: error.message || 'An unexpected error occurred while parsing the chat.' });
-    } finally {
-      setIsParsing(false);
-    }
+    toast({
+        variant: 'destructive',
+        title: 'Feature Disabled',
+        description: 'The AI features have been temporarily disabled to ensure application stability.',
+    });
+    return;
   };
 
   const handleProductChange = (id: string, field: keyof ParsedProduct, value: string | number | string[]) => {

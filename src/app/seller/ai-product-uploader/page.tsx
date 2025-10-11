@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, DragEvent, ClipboardEvent } from 'react';
@@ -15,8 +14,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { createProductListing } from '@/ai/flows/create-product-listing';
-import { type ProductListingOutput } from '@/ai/schemas/product-listing';
+// import { createProductListing } from '@/ai/flows/create-product-listing';
+// import { type ProductListingOutput } from '@/ai/schemas/product-listing';
 import { useToast } from '@/hooks/use-toast';
 import {
   Loader2,
@@ -37,7 +36,18 @@ import { getCookie } from 'cookies-next';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Dialog, DialogTrigger } from '@/components/ui/dialog';
 import { ShareComposerDialog } from '@/components/share-composer-dialog';
-import { createProductFromText } from '@/ai/flows/create-product-from-text';
+// import { createProductFromText } from '@/ai/flows/create-product-from-text';
+
+// Placeholder type since schema is removed
+type ProductListingOutput = {
+  title: string;
+  description: string;
+  category: string;
+  price: number;
+  sizes: string[];
+  colors: string[];
+};
+
 
 export interface SellerProduct extends ProductListingOutput {
     id: string;
@@ -246,14 +256,6 @@ export default function AiProductUploaderPage() {
   };
 
   const handleGenerateListing = async () => {
-    if (resizedImageDataUris.length === 0 || !vendorDescription || !cost || !margin) {
-      toast({
-        variant: 'destructive',
-        title: 'Missing Information',
-        description: 'Please provide at least one image, a description, cost, and margin.',
-      });
-      return;
-    }
     if (isLimitReached) {
         toast({
             variant: 'destructive',
@@ -262,63 +264,21 @@ export default function AiProductUploaderPage() {
         });
         return;
     }
-
-    setIsLoading(true);
-    setGeneratedListing(null);
-
-    try {
-      const result = await createProductListing({
-        imageDataUris: resizedImageDataUris,
-        description: vendorDescription,
-        cost: parseFloat(cost),
-        margin: parseFloat(margin),
-      });
-      setGeneratedListing(result);
-      await saveGeneratedProduct(result);
-      toast({
-        title: 'Listing Generated!',
-        description: "Review the details below. This has also been saved to your 'My Products' page.",
-      });
-    } catch (error: any) {
-      toast({
+    toast({
         variant: 'destructive',
-        title: 'Generation Failed',
-        description:
-          error.message ||
-          'An unexpected error occurred while generating the listing.',
-      });
-    } finally {
-      setIsLoading(false);
-    }
+        title: 'Feature Disabled',
+        description: 'The AI features have been temporarily disabled to ensure application stability.',
+    });
+    return;
   };
 
    const handleMagicPaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-        const pastedText = e.clipboardData.getData('text');
-        if (e.clipboardData.files.length > 0) {
-            return; // Let image handler take over
-        }
-        if (pastedText.trim().length < 10) return;
-
-        e.preventDefault();
-        e.stopPropagation();
-
-        setIsPasting(true);
-        try {
-            const result = await createProductFromText({ text: pastedText });
-            setVendorDescription(result.description);
-            toast({
-                title: "AI Parsing Complete!",
-                description: "Product description has been filled in from your pasted text.",
-            });
-        } catch (error: any) {
-             toast({
-                variant: 'destructive',
-                title: 'AI Parsing Failed',
-                description: error.message || 'Could not process the pasted text.',
-            });
-        } finally {
-            setIsPasting(false);
-        }
+        toast({
+            variant: 'destructive',
+            title: 'Feature Disabled',
+            description: 'The AI features have been temporarily disabled to ensure application stability.',
+        });
+        return;
     };
 
 

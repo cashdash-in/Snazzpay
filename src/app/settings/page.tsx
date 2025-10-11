@@ -276,8 +276,8 @@ export default function SettingsPage() {
                 <AlertDescription>
                   For logistics integration to work, you must set your API credentials as environment variables. The example uses Shiprocket, but you can adapt it for any provider.
                   <ul className="list-disc pl-5 mt-2">
-                    <li><span className="font-mono text-xs">LOGISTICS_API_USER</span> (Your logistics API user/email)</li>
-                    <li><span className="font-mono text-xs">LOGISTICS_API_PASSWORD</span> (Your logistics API password/secret)</li>
+                    <li key="logistics-user"><span className="font-mono text-xs">LOGISTICS_API_USER</span> (Your logistics API user/email)</li>
+                    <li key="logistics-pass"><span className="font-mono text-xs">LOGISTICS_API_PASSWORD</span> (Your logistics API password/secret)</li>
                   </ul>
                 </AlertDescription>
               </Alert>
@@ -334,8 +334,8 @@ export default function SettingsPage() {
                          <p className="font-semibold mt-2">Step 2: Set Environment Variables</p>
                          <p>In your hosting environment, set the following variables:</p>
                         <ul className="list-disc pl-5 mt-1 font-mono text-xs">
-                           <li>GMAIL_APP_EMAIL: "your-email@gmail.com"</li>
-                           <li>GMAIL_APP_PASSWORD: "your-16-character-app-password"</li>
+                           <li key="gmail-email">GMAIL_APP_EMAIL: "your-email@gmail.com"</li>
+                           <li key="gmail-pass">GMAIL_APP_PASSWORD: "your-16-character-app-password"</li>
                         </ul>
                     </AlertDescription>
                 </Alert>

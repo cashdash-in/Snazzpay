@@ -49,8 +49,6 @@ export default function LogisticsSignupPage() {
             return;
         }
         
-        // In a real app, this would be a server call.
-        // For the prototype, we save to localStorage for the admin to approve.
         const newPartnerRequest: LogisticsPartnerData = {
             id: `LGS-${uuidv4().substring(0, 8).toUpperCase()}`, // Generate a unique ID
             ...formData,
