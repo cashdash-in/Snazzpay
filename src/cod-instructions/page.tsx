@@ -98,7 +98,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Track button click
         if(submitButton) {
             submitButton.addEventListener('click', function() {
-                 fetch('${appUrl}/api/track', {
+                 fetch('/api/track', { // CORRECTED: Use relative path
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ event: 'secureCodClick' }),
@@ -108,7 +108,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Fetch discounts from your app's API
-        fetch('${appUrl}/api/discounts')
+        fetch('/api/discounts') // CORRECTED: Use relative path
             .then(response => {
                 if (!response.ok) { throw new Error('Network response was not ok'); }
                 return response.json();
