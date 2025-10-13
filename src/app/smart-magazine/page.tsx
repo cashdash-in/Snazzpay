@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
@@ -34,12 +33,19 @@ function SmartMagazineContent() {
     const [discount, setDiscount] = useState<number>(0);
 
     useEffect(() => {
-        const discountParam = searchParams.get('discount');
-        if (discountParam) {
-            setDiscount(parseFloat(discountParam));
+        // Fire tracking events immediately on component mount.
+        const magazineId = searchParams.get('id');
+        if (magazineId) {
+            // This is the main visit tracking.
+            fetch('/api/track', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ event: 'magazineVisit' }),
+                keepalive: true,
+            });
         }
-
-        // Track session start
+        
+        // This tracks the user session.
         fetch('/api/track', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -58,6 +64,18 @@ function SmartMagazineContent() {
 
         window.addEventListener('beforeunload', handleUnload);
 
+        return () => {
+            window.removeEventListener('beforeunload', handleUnload);
+            handleUnload();
+        };
+    }, [searchParams]);
+
+    useEffect(() => {
+        const discountParam = searchParams.get('discount');
+        if (discountParam) {
+            setDiscount(parseFloat(discountParam));
+        }
+
         async function fetchProducts() {
             const magazineId = searchParams.get('id');
 
@@ -67,14 +85,6 @@ function SmartMagazineContent() {
             }
 
             try {
-                // Track visit
-                fetch('/api/track', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ event: 'magazineVisit' }),
-                    keepalive: true,
-                });
-
                 const fetchedMagazine = await getDocument<Magazine>('smart_magazines', magazineId);
                 if (!fetchedMagazine) {
                     setIsLoading(false);
@@ -112,11 +122,6 @@ function SmartMagazineContent() {
             }
         }
         fetchProducts();
-
-        return () => {
-            window.removeEventListener('beforeunload', handleUnload);
-            handleUnload();
-        };
     }, [searchParams]);
     
     const handleOrderClick = (product: DisplayProduct) => {

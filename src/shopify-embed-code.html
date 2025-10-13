@@ -50,6 +50,18 @@ document.addEventListener('DOMContentLoaded', function() {
         const container = document.getElementById('snazzpay-secure-cod-container');
         if (!container) return;
 
+        // Use the app's own URL for the form action
+        const appUrl = 'https://' + ( 'snazzpay.netlify.app' ); // Replace with a dynamic way to get this if possible
+        const form = document.getElementById('snazzpay-secure-cod-form');
+        if(form) {
+            form.action = appUrl + '/secure-cod';
+        }
+        const infoLink = container.querySelector('a[href*="secure-cod-info"]');
+        if(infoLink) {
+            infoLink.href = appUrl + '/secure-cod-info';
+        }
+
+
         const dataScript = document.getElementById('snazzpay-product-data');
         if (!dataScript || !dataScript.textContent) {
           console.error("SnazzPay Error: Data script not found or empty.");
@@ -74,13 +86,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         // --- End of Vendor Logic ---
 
-        const form = document.getElementById('snazzpay-secure-cod-form');
         const submitButton = document.getElementById('snazzpay-submit-button');
 
         // Track button click
         if(submitButton) {
             submitButton.addEventListener('click', function() {
-                 fetch('/api/track', { // CORRECTED: Use relative path
+                 fetch(appUrl + '/api/track', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ event: 'secureCodClick' }),
@@ -90,7 +101,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Fetch discounts from your app's API
-        fetch('/api/discounts') // CORRECTED: Use relative path
+        fetch(appUrl + '/api/discounts')
             .then(response => {
                 if (!response.ok) { throw new Error('Network response was not ok'); }
                 return response.json();
@@ -105,7 +116,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (bestDiscount && submitButton) {
                     submitButton.innerHTML = `Buy with Secure COD (<span style="font-weight:bold;">${bestDiscount.discount}% OFF</span>)`;
                     
-                    // NEW: Add badge next to 'Add to Cart' button
                     const addToCartButton = document.querySelector('form[action="/cart/add"] button[type="submit"], form[action="/cart/add"] input[type="submit"]');
                     if (addToCartButton) {
                         const badge = document.createElement('div');
