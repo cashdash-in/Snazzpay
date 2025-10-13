@@ -14,7 +14,7 @@ export async function POST(request: Request) {
         }
         
         const today = format(new Date(), 'yyyy-MM-dd');
-        const docRef = \`analytics/\${today}\`;
+        const docRef = 'analytics/' + today;
 
         const currentStats = await getDocument<any>(docRef.split('/')[0], docRef.split('/')[1]) || {
             secureCodClicks: 0,
@@ -51,10 +51,10 @@ export async function POST(request: Request) {
         
         await saveDocument('analytics', { ...currentStats, ...updateData }, today);
 
-        return NextResponse.json({ success: true, message: \`Event '\${event}' tracked.\` });
+        return NextResponse.json({ success: true, message: `Event '${event}' tracked.` });
 
     } catch (error: any) {
         console.error("--- Analytics Tracking Error ---", error);
-        return NextResponse.json({ error: \`Failed to track event: \${error.message}\` }, { status: 500 });
+        return NextResponse.json({ error: `Failed to track event: ${error.message}` }, { status: 500 });
     }
 }
