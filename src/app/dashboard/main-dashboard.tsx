@@ -7,11 +7,14 @@ import type { EditableOrder } from "@/app/orders/page";
 import { useToast } from "@/hooks/use-toast";
 import { format, subDays } from "date-fns";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
-import { DollarSign, WalletCards, CheckCircle2, AlertTriangle, Users, CircleDollarSign, Eye, MousePointerClick } from "lucide-react";
+import { DollarSign, WalletCards, CheckCircle2, AlertTriangle, Users, CircleDollarSign, Eye, MousePointerClick, Calendar as CalendarIcon } from "lucide-react";
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts"
 import { RecentOrders } from "@/components/dashboard/recent-orders";
 import { onSnapshot, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 
 export function MainDashboard() {
     const [stats, setStats] = useState({
@@ -29,21 +32,30 @@ export function MainDashboard() {
     const [salesData, setSalesData] = useState<{ name: string, total: number }[]>([]);
     const [loading, setLoading] = useState(true);
     const { toast } = useToast();
+    const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+
 
     useEffect(() => {
-        const today = format(new Date(), 'yyyy-MM-dd');
-        const liveStatsDocRef = doc(db, 'analytics', today);
+        const dateString = format(selectedDate, 'yyyy-MM-dd');
+        const liveStatsDocRef = doc(db, 'analytics', dateString);
 
         const unsubscribe = onSnapshot(liveStatsDocRef, (doc) => {
             if (doc.exists()) {
                 setLiveStats(doc.data() as any);
+            } else {
+                 setLiveStats({
+                    secureCodClicks: 0,
+                    magazineVisits: 0,
+                    secureCodActiveSessions: 0,
+                    magazineActiveSessions: 0,
+                });
             }
         }, (error) => {
             console.error("Error fetching live stats:", error);
         });
 
         return () => unsubscribe();
-    }, []);
+    }, [selectedDate]);
 
     useEffect(() => {
         async function loadDashboardData() {
@@ -113,12 +125,39 @@ export function MainDashboard() {
         loadDashboardData();
     }, [toast]);
 
+    const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+
     return (
         <div className="grid gap-8">
+             <div className="flex justify-end">
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <Button
+                            id="date"
+                            variant={"outline"}
+                            className={"w-[240px] pl-3 text-left font-normal"}
+                        >
+                            <span>{format(selectedDate, "PPP")}</span>
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="end">
+                        <Calendar
+                            mode="single"
+                            selected={selectedDate}
+                            onSelect={(date) => setSelectedDate(date || new Date())}
+                            disabled={(date) =>
+                                date > new Date() || date < new Date("1900-01-01")
+                            }
+                            initialFocus
+                        />
+                    </PopoverContent>
+                </Popover>
+            </div>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                  <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Secure COD Clicks (Today)</CardTitle>
+                        <CardTitle className="text-sm font-medium">Secure COD Clicks ({isToday ? 'Today' : 'on Date'})</CardTitle>
                         <MousePointerClick className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
@@ -128,7 +167,7 @@ export function MainDashboard() {
                 </Card>
                  <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Magazine Visits (Today)</CardTitle>
+                        <CardTitle className="text-sm font-medium">Magazine Visits ({isToday ? 'Today' : 'on Date'})</CardTitle>
                         <Eye className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
@@ -143,7 +182,7 @@ export function MainDashboard() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{liveStats.secureCodActiveSessions}</div>
-                        <p className="text-xs text-muted-foreground">Users currently on the payment page.</p>
+                        <p className="text-xs text-muted-foreground">Users on payment page {isToday ? 'today' : `on ${format(selectedDate, 'MMM d')}`}.</p>
                     </CardContent>
                 </Card>
                  <Card>
@@ -153,7 +192,7 @@ export function MainDashboard() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{liveStats.magazineActiveSessions}</div>
-                        <p className="text-xs text-muted-foreground">Users on a magazine order page.</p>
+                        <p className="text-xs text-muted-foreground">Users on magazine page {isToday ? 'today' : `on ${format(selectedDate, 'MMM d')}`}.</p>
                     </CardContent>
                 </Card>
             </div>
