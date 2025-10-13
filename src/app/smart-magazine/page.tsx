@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
@@ -52,6 +53,7 @@ function SmartMagazineContent() {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ event: 'magazineVisit' }),
+                    keepalive: true, // Fix: Ensure tracking request is sent even if user navigates away
                 });
 
                 const fetchedMagazine = await getDocument<Magazine>('smart_magazines', magazineId);
