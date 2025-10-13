@@ -39,6 +39,25 @@ function SmartMagazineContent() {
             setDiscount(parseFloat(discountParam));
         }
 
+        // Track session start
+        fetch('/api/track', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ event: 'magazineSessionStart' }),
+            keepalive: true,
+        });
+
+        const handleUnload = () => {
+             fetch('/api/track', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ event: 'sessionEnd', type: 'magazine' }),
+                keepalive: true,
+            });
+        };
+
+        window.addEventListener('beforeunload', handleUnload);
+
         async function fetchProducts() {
             const magazineId = searchParams.get('id');
 
@@ -53,7 +72,7 @@ function SmartMagazineContent() {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ event: 'magazineVisit' }),
-                    keepalive: true, // Fix: Ensure tracking request is sent even if user navigates away
+                    keepalive: true,
                 });
 
                 const fetchedMagazine = await getDocument<Magazine>('smart_magazines', magazineId);
@@ -93,6 +112,11 @@ function SmartMagazineContent() {
             }
         }
         fetchProducts();
+
+        return () => {
+            window.removeEventListener('beforeunload', handleUnload);
+            handleUnload();
+        };
     }, [searchParams]);
     
     const handleOrderClick = (product: DisplayProduct) => {
