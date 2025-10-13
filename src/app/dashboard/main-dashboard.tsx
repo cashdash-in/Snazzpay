@@ -32,10 +32,16 @@ export function MainDashboard() {
     const [salesData, setSalesData] = useState<{ name: string, total: number }[]>([]);
     const [loading, setLoading] = useState(true);
     const { toast } = useToast();
-    const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+    const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+
+    useEffect(() => {
+        // Set initial date on client-side to avoid hydration mismatch
+        setSelectedDate(new Date());
+    }, []);
 
 
     useEffect(() => {
+        if (!selectedDate) return;
         const dateString = format(selectedDate, 'yyyy-MM-dd');
         const liveStatsDocRef = doc(db, 'analytics', dateString);
 
@@ -125,7 +131,7 @@ export function MainDashboard() {
         loadDashboardData();
     }, [toast]);
 
-    const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+    const isToday = selectedDate ? format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd') : false;
 
     return (
         <div className="grid gap-8">
@@ -137,7 +143,7 @@ export function MainDashboard() {
                             variant={"outline"}
                             className={"w-[240px] pl-3 text-left font-normal"}
                         >
-                            <span>{format(selectedDate, "PPP")}</span>
+                            <span>{selectedDate ? format(selectedDate, "PPP") : "Select a date"}</span>
                             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                         </Button>
                     </PopoverTrigger>
@@ -157,7 +163,7 @@ export function MainDashboard() {
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                  <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Secure COD Clicks ({isToday ? 'Today' : 'on Date'})</CardTitle>
+                        <CardTitle className="text-sm font-medium">Secure COD Clicks ({selectedDate ? (isToday ? 'Today' : 'on Date') : '...'})</CardTitle>
                         <MousePointerClick className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
@@ -167,7 +173,7 @@ export function MainDashboard() {
                 </Card>
                  <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Magazine Visits ({isToday ? 'Today' : 'on Date'})</CardTitle>
+                        <CardTitle className="text-sm font-medium">Magazine Visits ({selectedDate ? (isToday ? 'Today' : 'on Date') : '...'})</CardTitle>
                         <Eye className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
@@ -182,7 +188,7 @@ export function MainDashboard() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{liveStats.secureCodActiveSessions}</div>
-                        <p className="text-xs text-muted-foreground">Users on payment page {isToday ? 'today' : `on ${format(selectedDate, 'MMM d')}`}.</p>
+                        <p className="text-xs text-muted-foreground">Users on payment page {selectedDate ? (isToday ? 'today' : `on ${format(selectedDate, 'MMM d')}`) : '...'}.</p>
                     </CardContent>
                 </Card>
                  <Card>
@@ -192,7 +198,7 @@ export function MainDashboard() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{liveStats.magazineActiveSessions}</div>
-                        <p className="text-xs text-muted-foreground">Users on magazine page {isToday ? 'today' : `on ${format(selectedDate, 'MMM d')}`}.</p>
+                        <p className="text-xs text-muted-foreground">Users on magazine page {selectedDate ? (isToday ? 'today' : `on ${format(selectedDate, 'MMM d')}`) : '...'}.</p>
                     </CardContent>
                 </Card>
             </div>
