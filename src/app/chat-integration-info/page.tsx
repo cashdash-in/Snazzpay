@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -20,6 +21,7 @@ function ChatWindow({ activeChat, currentUser }: { activeChat: Chat; currentUser
     const [messages, setMessages] = useState<Message[]>([]);
     const [newMessage, setNewMessage] = useState('');
     const [loading, setLoading] = useState(true);
+    const [messageSearchQuery, setMessageSearchQuery] = useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { toast } = useToast();
@@ -86,19 +88,40 @@ function ChatWindow({ activeChat, currentUser }: { activeChat: Chat; currentUser
 
     const otherParticipantName = Object.values(activeChat.participantNames).find(name => name !== currentUser.name) || 'Chat';
 
+    const filteredMessages = useMemo(() => {
+        if (!messageSearchQuery) {
+            return messages;
+        }
+        return messages.filter(message => 
+            message.content.type === 'text' && 
+            message.content.content.toLowerCase().includes(messageSearchQuery.toLowerCase())
+        );
+    }, [messages, messageSearchQuery]);
+
     return (
         <div className="flex flex-col h-full">
-            <header className="p-4 border-b flex items-center gap-4">
-                <Avatar>
-                    <AvatarFallback>{otherParticipantName?.[0].toUpperCase()}</AvatarFallback>
-                </Avatar>
-                <div>
-                    <h3 className="font-semibold">{otherParticipantName}</h3>
+            <header className="p-4 border-b flex items-center justify-between gap-4">
+                 <div className="flex items-center gap-4">
+                    <Avatar>
+                        <AvatarFallback>{otherParticipantName?.[0].toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                        <h3 className="font-semibold">{otherParticipantName}</h3>
+                    </div>
+                </div>
+                 <div className="relative w-full max-w-xs">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        placeholder="Search messages..."
+                        value={messageSearchQuery}
+                        onChange={(e) => setMessageSearchQuery(e.target.value)}
+                        className="pl-8 h-9"
+                    />
                 </div>
             </header>
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {loading ? <Loader2 className="animate-spin mx-auto"/> : (
-                    messages.map(message => {
+                    filteredMessages.map(message => {
                         const isSender = message.senderId === currentUser.id;
                         const senderName = activeChat.participantNames[message.senderId] || 'U';
                         return (
@@ -116,6 +139,11 @@ function ChatWindow({ activeChat, currentUser }: { activeChat: Chat; currentUser
                             </div>
                         )
                     })
+                )}
+                {filteredMessages.length === 0 && !loading && (
+                    <div className="text-center text-muted-foreground pt-10">
+                        <p>No messages found{messageSearchQuery ? ' for your search.' : '.'}</p>
+                    </div>
                 )}
                 <div ref={messagesEndRef} />
             </div>
