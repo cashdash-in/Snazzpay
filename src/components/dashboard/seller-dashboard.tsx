@@ -5,9 +5,9 @@ import { useState, useEffect, useMemo } from "react";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
-import { DollarSign, ShoppingCart, Activity, Star, Factory, Sparkles, PackagePlus, Coins, Loader2 } from "lucide-react";
+import { DollarSign, ShoppingCart, Activity, Star, Factory, Sparkles, PackagePlus, Coins, Loader2, MessageSquare } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import { getDocument, getCollection, saveDocument } from "@/services/firestore";
+import { getDocument, getCollection, saveDocument, createChat } from "@/services/firestore";
 import type { SellerUser } from "@/app/seller-accounts/page";
 import type { SellerProduct } from "@/app/seller/ai-product-uploader/page";
 import type { EditableOrder } from "@/app/orders/page";
@@ -15,6 +15,7 @@ import { getCookie } from "cookies-next";
 import { useToast } from "@/hooks/use-toast";
 import { v4 as uuidv4 } from 'uuid';
 import { getRazorpayKeyId } from "@/app/actions";
+import { useRouter } from "next/navigation";
 
 const AI_UPLOADER_LIMIT = 50;
 
@@ -26,6 +27,7 @@ const limitIncreaseOptions = [
 export function SellerDashboard() {
     const { user } = useAuth();
     const { toast } = useToast();
+    const router = useRouter();
     const [sellerInfo, setSellerInfo] = useState<SellerUser | null>(null);
     const [usage, setUsage] = useState({ aiUploads: 0 });
     const [limits, setLimits] = useState({ aiUploadLimit: AI_UPLOADER_LIMIT });
@@ -124,6 +126,24 @@ export function SellerDashboard() {
             setIsToppingUp(false);
         }
     };
+    
+    const handleChatWithAdmin = async () => {
+        if (!user || !sellerInfo) {
+            toast({ variant: 'destructive', title: "Not logged in" });
+            return;
+        }
+        try {
+            const chatId = `admin_${user.uid}`;
+            const participantNames = {
+                'admin': 'Admin',
+                [user.uid]: sellerInfo.companyName,
+            };
+            await createChat(chatId, ['admin', user.uid], participantNames);
+            router.push('/chat-integration-info');
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Failed to start chat.' });
+        }
+    };
 
 
     return (
@@ -131,7 +151,8 @@ export function SellerDashboard() {
             <Card>
                 <CardHeader>
                     <CardTitle>Welcome, <span className="font-bold">{sellerInfo?.companyName || 'Seller'}</span>!</CardTitle>
-                    <CardDescription>
+                    <CardDescription className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
+                        <div>
                         {sellerInfo?.vendorName ? (
                             <span className="flex items-center gap-2">
                                 <Factory className="h-4 w-4" />
@@ -140,6 +161,10 @@ export function SellerDashboard() {
                         ) : (
                             "This is your dedicated dashboard. From here you can manage your products, view your orders, and track your performance."
                         )}
+                        </div>
+                         <Button variant="outline" onClick={handleChatWithAdmin} className="mt-2 sm:mt-0">
+                            <MessageSquare className="mr-2 h-4 w-4" /> Chat with Admin
+                        </Button>
                     </CardDescription>
                 </CardHeader>
             </Card>
