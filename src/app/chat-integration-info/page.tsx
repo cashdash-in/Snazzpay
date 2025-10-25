@@ -1,3 +1,4 @@
+
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -9,7 +10,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useState, useEffect, useRef, FormEvent, useMemo } from "react";
 import { collection, onSnapshot, orderBy, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Loader2, Send, ImagePlus, MessageCircle } from "lucide-react";
+import { Loader2, Send, ImagePlus, MessageCircle, Search } from "lucide-react";
 import { format } from "date-fns";
 import { sendMessage, type Message, type Chat, type ChatUser } from "@/services/firestore";
 import { useToast } from "@/hooks/use-toast";
@@ -27,7 +28,7 @@ function ChatWindow({ activeChat, currentUser }: { activeChat: Chat; currentUser
         if (!activeChat.id || !db) return;
         setLoading(true);
 
-        const q = query(collection(db, \`chats/\${activeChat.id}/messages\`), orderBy("timestamp", "asc"));
+        const q = query(collection(db, `chats/${activeChat.id}/messages`), orderBy("timestamp", "asc"));
         
         const unsubscribe = onSnapshot(q, (querySnapshot) => {
             const msgs: Message[] = [];
@@ -101,15 +102,15 @@ function ChatWindow({ activeChat, currentUser }: { activeChat: Chat; currentUser
                         const isSender = message.senderId === currentUser.id;
                         const senderName = activeChat.participantNames[message.senderId] || 'U';
                         return (
-                            <div key={message.id} className={\`flex items-end gap-2 \${isSender ? 'justify-end' : 'justify-start'}\`}>
+                            <div key={message.id} className={`flex items-end gap-2 ${isSender ? 'justify-end' : 'justify-start'}`}>
                                 {!isSender && <Avatar className="h-8 w-8"><AvatarFallback>{senderName[0]}</AvatarFallback></Avatar>}
-                                <div className={\`max-w-xs md:max-w-md p-1 rounded-2xl \${isSender ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-muted rounded-bl-none'}\`}>
+                                <div className={`max-w-xs md:max-w-md p-1 rounded-2xl ${isSender ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-muted rounded-bl-none'}`}>
                                     {message.content.type === 'text' ? (
                                         <p className="text-sm p-2 break-words">{message.content.content}</p>
                                     ) : (
                                         <Image src={message.content.content} alt="Shared image" width={250} height={250} className="rounded-xl object-cover" />
                                     )}
-                                    <p className={\`text-xs px-2 pb-1 \${isSender ? 'text-primary-foreground/70' : 'text-muted-foreground'}\`}>{message.timestamp ? format(message.timestamp, 'p') : ''}</p>
+                                    <p className={`text-xs px-2 pb-1 ${isSender ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>{message.timestamp ? format(message.timestamp, 'p') : ''}</p>
                                 </div>
                                 {isSender && <Avatar className="h-8 w-8"><AvatarFallback>{currentUser.name[0]}</AvatarFallback></Avatar>}
                             </div>
@@ -137,6 +138,7 @@ export default function ChatPage() {
     const [chats, setChats] = useState<Chat[]>([]);
     const [activeChat, setActiveChat] = useState<Chat | null>(null);
     const [loadingChats, setLoadingChats] = useState(true);
+    const [searchQuery, setSearchQuery] = useState('');
 
     useEffect(() => {
         if (authLoading || !user) return;
@@ -181,6 +183,14 @@ export default function ChatPage() {
         return () => unsubscribe();
     }, [currentUser, toast]);
     
+    const filteredChats = useMemo(() => {
+        if (!searchQuery) return chats;
+        return chats.filter(chat => {
+            const otherParticipantName = Object.values(chat.participantNames).find(name => name !== currentUser?.name) || '';
+            return otherParticipantName.toLowerCase().includes(searchQuery.toLowerCase());
+        });
+    }, [chats, searchQuery, currentUser]);
+
     if (authLoading || !currentUser) {
         return (
              <AppShell title="Internal Chat">
@@ -197,15 +207,23 @@ export default function ChatPage() {
                 <aside className="w-1/3 border-r flex flex-col">
                     <header className="p-4 border-b space-y-2">
                         <CardTitle>Conversations</CardTitle>
-                        <CardDescription>Select a conversation to start chatting.</CardDescription>
+                         <div className="relative">
+                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Search conversations..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="pl-8"
+                            />
+                        </div>
                     </header>
                     <div className="flex-1 overflow-y-auto">
                         {(loadingChats) ? <Loader2 className="animate-spin m-4"/> : (
-                             chats.map(chat => {
+                             filteredChats.map(chat => {
                                 const otherParticipantId = chat.participants.find(p => p !== currentUser?.id);
                                 const otherParticipantName = otherParticipantId ? chat.participantNames[otherParticipantId] : 'Unknown';
                                 return (
-                                    <div key={chat.id} onClick={() => setActiveChat(chat)} className={\`p-4 border-b cursor-pointer hover:bg-muted \${activeChat?.id === chat.id ? 'bg-muted' : ''}\`}>
+                                    <div key={chat.id} onClick={() => setActiveChat(chat)} className={`p-4 border-b cursor-pointer hover:bg-muted ${activeChat?.id === chat.id ? 'bg-muted' : ''}`}>
                                         <div className="flex items-center gap-3">
                                              <Avatar className="h-10 w-10">
                                                 <AvatarFallback>{otherParticipantName?.[0]?.toUpperCase() || '?'}</AvatarFallback>
@@ -220,9 +238,9 @@ export default function ChatPage() {
                                 )
                              })
                         )}
-                         {!loadingChats && chats.length === 0 && (
+                         {!loadingChats && filteredChats.length === 0 && (
                             <div className="text-center text-muted-foreground p-8">
-                                <p>No conversations yet.</p>
+                                <p>{searchQuery ? 'No matching conversations found.' : 'No conversations yet.'}</p>
                                 <p className="text-xs mt-2">Admins can start new chats from the Seller Accounts or Vendors page.</p>
                             </div>
                          )}
