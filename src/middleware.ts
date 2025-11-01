@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import { NextResponse } from 'next/server'
@@ -7,7 +6,6 @@ import type { NextRequest } from 'next/server'
 
 export function middleware(request: NextRequest) {
   const token = request.cookies.get('firebaseAuthToken');
-  const role = request.cookies.get('userRole')?.value;
   const { pathname } = request.nextUrl;
 
   const publicPaths = [
@@ -54,13 +52,15 @@ export function middleware(request: NextRequest) {
 
   // If there's no auth token, redirect to the default login page
   if (!token) {
-    const loginUrl = new URL('/auth/login', request.url);
-    loginUrl.searchParams.set('redirectedFrom', pathname);
-    return NextResponse.redirect(loginUrl);
+    let loginUrl = '/auth/login';
+    // Append the original path as a query parameter for redirection after login
+    const url = request.nextUrl.clone()
+    url.pathname = loginUrl
+    url.search = `redirectedFrom=${pathname}`
+    return NextResponse.redirect(url);
   }
 
   // If a token exists, let the request through.
-  // Role-based redirection will be handled on the client-side in the AppShell.
   return NextResponse.next();
 }
 
