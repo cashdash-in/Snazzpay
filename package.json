@@ -10,8 +10,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit",
-    "postinstall": "npx update-browserslist-db@latest"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@apidevtools/swagger-parser": "^10.1.0",
