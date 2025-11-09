@@ -1,3 +1,4 @@
+
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -9,7 +10,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Loader2, Sparkles, Send, Settings, Save, History, Check, Briefcase, Tag, Percent, Search, Terminal } from "lucide-react";
 import { getCollection, saveDocument, getDocument, deleteDocument } from "@/services/firestore";
-import { getProducts, getCollections, getVendors, ShopifyCollection, ShopifyProduct } from "@/services/shopify";
 import type { SellerUser } from "@/app/seller-accounts/page";
 import type { Vendor } from "@/app/vendors/page";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,9 @@ import { CollaboratorBillingPage } from "@/components/collaborator-billing";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
+type ShopifyCollection = { id: number; title: string };
+type ShopifyProduct = { id: number; title: string; vendor: string; product_type: string; };
 
 type UsageStat = {
     id: string;
@@ -73,12 +76,21 @@ function DiscountManager() {
     const loadDiscountData = useCallback(async () => {
         setLoading(true);
         try {
-            const [shopifyCollections, shopifyVendors, shopifyProducts, savedDiscounts] = await Promise.all([
-                getCollections(),
-                getVendors(),
-                getProducts(),
+            const [collectionsRes, vendorsRes, productsRes, savedDiscounts] = await Promise.all([
+                fetch('/api/shopify/collections'),
+                fetch('/api/shopify/vendors'),
+                fetch('/api/shopify/products'),
                 getCollection<DiscountRule>('discounts'),
             ]);
+
+            if (!collectionsRes.ok || !vendorsRes.ok || !productsRes.ok) {
+                 throw new Error('Failed to fetch Shopify data. Check API keys.');
+            }
+
+            const shopifyCollections = await collectionsRes.json();
+            const shopifyVendors = await vendorsRes.json();
+            const shopifyProducts = await productsRes.json();
+
             setCollections(shopifyCollections);
             setVendors(shopifyVendors);
             setProducts(shopifyProducts);
@@ -104,7 +116,7 @@ function DiscountManager() {
             }
             const collection = collections.find(c => c.id.toString() === selectedCollection);
             if (!collection) return;
-            id = \`collection_\${collection.id}\`;
+            id = `collection_${collection.id}`;
             name = collection.title;
             discount = collectionDiscount;
         } else if (type === 'vendor') {
@@ -112,7 +124,7 @@ function DiscountManager() {
                  toast({ variant: 'destructive', title: 'Invalid Input', description: 'Please select a vendor and set a discount percentage.' });
                 return;
             }
-            id = \`vendor_\${selectedVendor}\`;
+            id = `vendor_${selectedVendor}`;
             name = selectedVendor;
             discount = vendorDiscount;
         } else { // product
@@ -122,7 +134,7 @@ function DiscountManager() {
             }
              const product = products.find(p => p.id.toString() === selectedProduct);
             if (!product) return;
-            id = \`product_\${product.id}\`;
+            id = `product_${product.id}`;
             name = product.title;
             discount = productDiscount;
         }
@@ -140,7 +152,7 @@ function DiscountManager() {
                 }
                 return [...prev, newRule];
             });
-            toast({ title: 'Discount Saved!', description: \`A \${discount}% discount for \${name} has been saved.\` });
+            toast({ title: 'Discount Saved!', description: `A ${discount}% discount for ${name} has been saved.` });
         } catch (error) {
             toast({ variant: 'destructive', title: 'Error Saving Discount' });
         }
@@ -167,7 +179,7 @@ function DiscountManager() {
         if (collection) {
             setSelectedCollection(collection.id.toString());
             setActiveTab('collection');
-            toast({ title: 'Collection Selected', description: \`Switched to 'By Collection' tab with '\${collection.title}' pre-selected.\` });
+            toast({ title: 'Collection Selected', description: `Switched to 'By Collection' tab with '${collection.title}' pre-selected.` });
         }
     };
 
@@ -183,7 +195,7 @@ function DiscountManager() {
                     <Terminal className="h-4 w-4" />
                     <AlertTitle>Production Environment Note</AlertTitle>
                     <AlertDescription>
-                        If Collection, Vendor, or Product lists are empty on your live site, please ensure you have set the \`SHOPIFY_STORE_URL\` and \`SHOPIFY_API_KEY\` environment variables in your hosting provider's settings (e.g., Vercel, Netlify).
+                        If Collection, Vendor, or Product lists are empty on your live site, please ensure you have set the `SHOPIFY_STORE_URL` and `SHOPIFY_API_KEY` environment variables in your hosting provider's settings (e.g., Vercel, Netlify).
                     </AlertDescription>
                 </Alert>
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -379,8 +391,8 @@ export default function BillingPage() {
         if (!item) return;
 
         try {
-            console.log(\`Saving \${type} \${id}:\`, { totalValue: item.totalValue, commission: item.commission });
-            toast({ title: "Data Saved", description: \`Billing info for \${item.name} has been updated.\` });
+            console.log(`Saving ${type} ${id}:`, { totalValue: item.totalValue, commission: item.commission });
+            toast({ title: "Data Saved", description: `Billing info for ${item.name} has been updated.` });
         } catch (error) {
              toast({ variant: "destructive", title: "Failed to save" });
         }
@@ -404,7 +416,7 @@ export default function BillingPage() {
             await saveDocument('user_permissions', permissions, request.userId);
             await saveDocument('limitIncreaseRequests', { ...request, status: 'Approved' }, request.id);
             
-            toast({ title: 'Request Approved!', description: \`\${request.userName}'s limit has been increased.\` });
+            toast({ title: 'Request Approved!', description: `${request.userName}'s limit has been increased.` });
             loadBillingData();
 
         } catch (error) {
@@ -586,5 +598,3 @@ export default function BillingPage() {
         </AppShell>
     );
 }
-
-    
