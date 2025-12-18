@@ -1,3 +1,4 @@
+
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -97,7 +98,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Track button click
         if(submitButton) {
             submitButton.addEventListener('click', function() {
-                 fetch('${appUrl}/api/track', {
+                 fetch('/api/track', { // CORRECTED: Use relative path
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ event: 'secureCodClick' }),
@@ -107,25 +108,26 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Fetch discounts from your app's API
-        fetch('${appUrl}/api/discounts')
+        fetch('/api/discounts') // CORRECTED: Use relative path
             .then(response => {
                 if (!response.ok) { throw new Error('Network response was not ok'); }
                 return response.json();
             })
             .then(discounts => {
-                const productDiscount = discounts.find(d => d.id === 'product_' + productData.id);
-                const vendorDiscount = discounts.find(d => d.id === 'vendor_' + productData.vendor);
-                const collectionDiscount = discounts.find(d => d.id === 'collection_' + productData.collectionId);
+                const productDiscount = discounts.find(d => d.id === \`product_\${productData.id}\`);
+                const vendorDiscount = discounts.find(d => d.id === \`vendor_\${productData.vendor}\`);
+                const collectionDiscount = discounts.find(d => d.id === \`collection_\${productData.collectionId}\`);
 
                 const bestDiscount = productDiscount || vendorDiscount || collectionDiscount;
 
                 if (bestDiscount && submitButton) {
-                    submitButton.innerHTML = 'Buy with Secure COD (<span style="font-weight:bold;">' + bestDiscount.discount + '% OFF</span>)';
+                    submitButton.innerHTML = \`Buy with Secure COD (<span style="font-weight:bold;">\${bestDiscount.discount}% OFF</span>)\`;
                     
+                    // NEW: Add badge next to 'Add to Cart' button
                     const addToCartButton = document.querySelector('form[action="/cart/add"] button[type="submit"], form[action="/cart/add"] input[type="submit"]');
                     if (addToCartButton) {
                         const badge = document.createElement('div');
-                        badge.innerHTML = '&#9889; ' + bestDiscount.discount + '% OFF with Secure COD';
+                        badge.innerHTML = \`&#9889; \${bestDiscount.discount}% OFF with Secure COD\`;
                         badge.style.cssText = 'font-size: 12px; font-weight: bold; color: #5a31f4; text-align: center; margin-top: 8px;';
                         addToCartButton.parentNode.insertBefore(badge, addToCartButton.nextSibling);
                     }
