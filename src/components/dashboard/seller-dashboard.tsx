@@ -14,7 +14,6 @@ import type { EditableOrder } from "@/app/orders/page";
 import { getCookie } from "cookies-next";
 import { useToast } from "@/hooks/use-toast";
 import { v4 as uuidv4 } from 'uuid';
-import { getRazorpayKeyId } from "@/app/actions";
 import { useRouter } from "next/navigation";
 
 const AI_UPLOADER_LIMIT = 50;
@@ -40,15 +39,15 @@ export function SellerDashboard() {
         async function loadSellerInfo() {
             setLoading(true);
             if (user) {
-                const [info, products, permissions, keyId, allOrders] = await Promise.all([
+                const [info, products, permissions, keyIdData, allOrders] = await Promise.all([
                     getDocument<SellerUser>('seller_users', user.uid),
                     getCollection<SellerProduct>('seller_products'),
                     getDocument<{ aiUploadLimit?: number }>('user_permissions', user.uid),
-                    getRazorpayKeyId(),
+                    fetch('/api/get-key').then(res => res.json()),
                     getCollection<EditableOrder>('orders'),
                 ]);
 
-                setRazorpayKeyId(keyId);
+                setRazorpayKeyId(keyIdData.keyId);
 
                 if (info) {
                     setSellerInfo(info);

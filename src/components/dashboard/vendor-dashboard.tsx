@@ -13,7 +13,6 @@ import type { ProductDrop } from "@/app/vendor/product-drops/page";
 import type { EditableOrder } from "@/app/orders/page";
 import { useToast } from "@/hooks/use-toast";
 import { v4 as uuidv4 } from 'uuid';
-import { getRazorpayKeyId } from "@/app/actions";
 import { useRouter } from "next/navigation";
 
 const PRODUCT_DROP_LIMIT = 50;
@@ -39,16 +38,16 @@ export function VendorDashboard() {
         async function loadVendorInfo() {
             setLoading(true);
             if (user) {
-                const [info, drops, permissions, keyId, allOrders, allSellers] = await Promise.all([
+                const [info, drops, permissions, keyIdData, allOrders, allSellers] = await Promise.all([
                     getDocument<Vendor>('vendors', user.uid),
                     getCollection<ProductDrop>('product_drops'),
                     getDocument<{ productDropLimit?: number }>('user_permissions', user.uid),
-                    getRazorpayKeyId(),
+                    fetch('/api/get-key').then(res => res.json()),
                     getCollection<EditableOrder>('orders'),
                     getCollection<any>('seller_users'),
                 ]);
                 
-                setRazorpayKeyId(keyId);
+                setRazorpayKeyId(keyIdData.keyId);
 
                 if (info) {
                     setVendorInfo(info);

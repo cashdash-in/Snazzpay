@@ -17,7 +17,6 @@ import { format, subMonths, isWithinInterval, parseISO, startOfDay, endOfDay } f
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Textarea } from '@/components/ui/textarea';
-import { getRazorpayKeyId } from '@/app/actions';
 import type { PartnerData } from '../page';
 import { ResponsiveContainer, BarChart, XAxis, YAxis, Tooltip, Bar } from 'recharts';
 import type { ShaktiCardData } from '@/components/shakti-card';
@@ -236,8 +235,8 @@ export default function PartnerPayDashboardPage() {
                 return;
             }
             setPartner(currentPartner);
-
-            getRazorpayKeyId().then(key => setRazorpayKeyId(key));
+            
+            fetch('/api/get-key').then(res => res.json()).then(data => setRazorpayKeyId(data.keyId));
             
             const allTransactions = await getCollection<Transaction>('partner_transactions');
             setTransactions(allTransactions.filter(tx => tx.partnerId === loggedInPartnerId));

@@ -10,7 +10,6 @@ import { Loader2, ShieldCheck, CheckCircle } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
 import type { EditableOrder } from '@/app/orders/page';
-import { getRazorpayKeyId } from '@/app/actions';
 import { getCollection, saveDocument, getDocument, deleteDocument } from '@/services/firestore';
 import { ShaktiCard, type ShaktiCardData } from '@/components/shakti-card';
 import { sanitizePhoneNumber } from '@/lib/utils';
@@ -95,13 +94,24 @@ function PaymentPageContent() {
 
         setOrderDetails({ productName: name, amount, orderId, sellerId, prepaid });
         
-        getRazorpayKeyId().then(key => {
-            if (!key) {
-                toast({ variant: 'destructive', title: "Configuration Error", description: "Razorpay Key ID is not set on the server." });
+        async function fetchKey() {
+            try {
+                const response = await fetch('/api/get-key');
+                if (!response.ok) throw new Error('Failed to fetch key');
+                const { keyId } = await response.json();
+                if (!keyId) {
+                    toast({ variant: 'destructive', title: "Configuration Error", description: "Razorpay Key ID is not set on the server." });
+                }
+                setRazorpayKeyId(keyId);
+            } catch (error) {
+                console.error(error);
+                toast({ variant: 'destructive', title: "Network Error", description: "Could not fetch payment configuration." });
+            } finally {
+                setLoading(false);
             }
-            setRazorpayKeyId(key);
-            setLoading(false);
-        });
+        }
+        
+        fetchKey();
 
     }, [searchParams, toast]);
 
@@ -209,7 +219,7 @@ function PaymentPageContent() {
                             </div>
                         )}
                     </CardContent>
-                    <CardFooter className="flex-col gap-2">
+                     <CardFooter className="flex-col gap-2">
                         <Link href="/customer/login" className="w-full">
                             <Button className="w-full">Go to Customer Portal</Button>
                         </Link>
