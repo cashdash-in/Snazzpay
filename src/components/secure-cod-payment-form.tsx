@@ -10,7 +10,6 @@ import { Loader2, HelpCircle, ShieldCheck, CheckCircle, User, Phone, Mail as Mai
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
 import type { EditableOrder } from '@/app/orders/page';
-import { getRazorpayKeyId } from '@/app/actions';
 import { saveDocument, getDocument, deleteDocument, getCollection } from '@/services/firestore';
 import { format, addYears } from 'date-fns';
 import { ShaktiCard, type ShaktiCardData } from '@/components/shakti-card';
@@ -134,8 +133,24 @@ export function SecureCodPaymentForm() {
             pincode: searchParams.get('customerPincode') || '',
         });
         
-        getRazorpayKeyId().then(key => { setLoading(false); setRazorpayKeyId(key); });
-    }, [searchParams]);
+        async function fetchKey() {
+            try {
+                const response = await fetch('/api/get-key');
+                if (!response.ok) throw new Error('Failed to fetch key');
+                const { keyId } = await response.json();
+                if (!keyId) {
+                    toast({ variant: 'destructive', title: "Configuration Error", description: "Razorpay Key ID is not set on the server." });
+                }
+                setRazorpayKeyId(keyId);
+            } catch (error) {
+                console.error(error);
+                toast({ variant: 'destructive', title: "Network Error", description: "Could not fetch payment configuration." });
+            } finally {
+                setLoading(false);
+            }
+        }
+        fetchKey();
+    }, [searchParams, toast, availableColors.length, availableSizes.length]);
 
     useEffect(() => {
         async function calculatePrice() {
