@@ -158,8 +158,10 @@ export async function createProduct(product: ShopifyProductInput): Promise<any> 
     }
 }
 
+// These functions are now exposed via API routes and shouldn't be exported directly
+// for client-side consumption to avoid leaking server-side environment variables.
 
-export async function getProducts(): Promise<ShopifyProduct[]> {
+async function getProducts(): Promise<ShopifyProduct[]> {
     try {
         const jsonResponse = await shopifyFetch('products.json?limit=250');
         const parsed = ProductsResponseSchema.safeParse(jsonResponse);
@@ -175,7 +177,7 @@ export async function getProducts(): Promise<ShopifyProduct[]> {
     }
 }
 
-export async function getCollections(): Promise<ShopifyCollection[]> {
+async function getCollections(): Promise<ShopifyCollection[]> {
     try {
         const [customCollections, smartCollections] = await Promise.all([
             shopifyFetch('custom_collections.json?limit=250'),
@@ -198,7 +200,7 @@ export async function getCollections(): Promise<ShopifyCollection[]> {
     }
 }
 
-export async function getVendors(): Promise<string[]> {
+async function getVendors(): Promise<string[]> {
     try {
         const products = await getProducts();
         const vendors = new Set(products.map(p => p.vendor));
@@ -209,4 +211,6 @@ export async function getVendors(): Promise<string[]> {
     }
 }
 
+// Re-export for server-side use in API routes
+export { getProducts, getCollections, getVendors };
     
