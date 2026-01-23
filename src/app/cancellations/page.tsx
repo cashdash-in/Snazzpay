@@ -26,7 +26,7 @@ export default function CancellationsPage() {
     setLoading(true);
     try {
         const allOrders = await getCollection<EditableOrder>('orders');
-        setOrders(allOrders.map(o => ({...o, cancellationId: o.cancellationId || \`CNCL-\${uuidv4().substring(0, 8).toUpperCase()}\`})));
+        setOrders(allOrders.map(o => ({...o, cancellationId: o.cancellationId || `CNCL-${uuidv4().substring(0, 8).toUpperCase()}`})));
     } catch (error) {
         console.error("Failed to load orders:", error);
         toast({
@@ -56,7 +56,7 @@ export default function CancellationsPage() {
         await saveDocument('orders', orderToSave, orderId);
         toast({
             title: "Cancellation Info Saved",
-            description: \`Details for order \${orderToSave.orderId} have been updated.\`,
+            description: `Details for order ${orderToSave.orderId} have been updated.`,
         });
     } catch(e) {
         toast({ variant: 'destructive', title: 'Error Saving' });
@@ -115,7 +115,7 @@ export default function CancellationsPage() {
                 {orders.map((order) => (
                   <TableRow key={order.id}>
                     <TableCell>
-                        <Link href={\`/orders/\${order.id}\`} className="font-medium text-primary hover:underline cursor-pointer">
+                        <Link href={`/orders/${order.id}`} className="font-medium text-primary hover:underline cursor-pointer">
                           {order.orderId}
                         </Link>
                     </TableCell>

@@ -38,12 +38,12 @@ export async function POST(request: Request) {
             notes: {
                 reason: reason || "Refund processed from SnazzPay dashboard."
             },
-            receipt: \`refund-receipt-\${paymentId}\`
+            receipt: 'refund-receipt-' + paymentId
         });
         
         console.log("Successfully processed refund:", refund);
         
-        return NextResponse.json({ success: true, message: \`Refund of ₹\${amount} processed successfully.\`, refundId: refund.id });
+        return NextResponse.json({ success: true, message: 'Refund of ₹' + amount + ' processed successfully.', refundId: refund.id });
 
     } catch (error: any) {
         console.error("--- Razorpay Refund Error ---");
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
         }
         const errorMessage = error?.error?.description || error.message || 'An unknown error occurred.';
         return new NextResponse(
-            JSON.stringify({ error: \`Failed to process refund: \${errorMessage}\` }),
+            JSON.stringify({ error: "Failed to process refund: " + errorMessage }),
             { status: 500, headers: { 'Content-Type': 'application/json' } }
         );
     }

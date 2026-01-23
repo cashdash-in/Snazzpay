@@ -75,7 +75,7 @@ export default function CollaboratorReportsPage() {
             })));
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, 'Orders Report');
-            XLSX.writeFile(workbook, \`Collaborator_Report_\${collaboratorId}_\${format(new Date(), 'yyyy-MM-dd')}.xlsx\`);
+            XLSX.writeFile(workbook, `Collaborator_Report_${collaboratorId}_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
 
         } catch (error) {
             console.error("Error generating report:", error);

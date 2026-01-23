@@ -49,7 +49,7 @@ export default function CollaboratorMagazinesPage() {
     
     const getShareLink = (mag: Magazine) => {
         const baseUrl = window.location.origin;
-        return \`\${baseUrl}/smart-magazine?id=\${mag.id}\`;
+        return `${baseUrl}/smart-magazine?id=${mag.id}`;
     };
 
     const handleCopy = (mag: Magazine) => {
@@ -60,8 +60,10 @@ export default function CollaboratorMagazinesPage() {
 
     const handleShare = (mag: Magazine) => {
         const link = getShareLink(mag);
-        const message = \`Check out this amazing collection: *\${mag.title}*\n\n\${link}\`;
-        const whatsappUrl = \`https://wa.me/?text=\${encodeURIComponent(message)}\`;
+        const message = `Check out this amazing collection: *${mag.title}*
+
+${link}`;
+        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
         window.open(whatsappUrl, '_blank');
     };
 

@@ -47,7 +47,7 @@ const createProductFromTextFlow = ai.defineFlow(
     inputSchema: ProductFromTextInputSchema,
     outputSchema: ProductFromTextOutputSchema,
   },
-  async (input) => {
+  async (input: ProductFromTextInput) => {
     const { output } = await prompt(input);
     return output!;
   }

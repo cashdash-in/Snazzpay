@@ -45,7 +45,7 @@ export async function POST(request: Request) {
         }
         const errorMessage = error?.error?.description || error.message || 'An unknown error occurred.';
         return new NextResponse(
-            JSON.stringify({ error: \`Failed to capture payment: \${errorMessage}\` }),
+            JSON.stringify({ error: "Failed to capture payment: " + errorMessage }),
             { status: 500, headers: { 'Content-Type': 'application/json' } }
         );
     }

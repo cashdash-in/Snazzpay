@@ -95,7 +95,7 @@ export default function CollaboratorOrdersPage() {
       
       toast({
         title: "Order Pushed!",
-        description: \`Your order request for \${lead.customerName} has been sent to the seller for confirmation.\`,
+        description: `Your order request for ${lead.customerName} has been sent to the seller for confirmation.`,
       });
 
     } catch (e: any) {
