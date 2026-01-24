@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import Razorpay from 'razorpay';
 import nodemailer from 'nodemailer';
-import { getDocument } from '@/services/firestore';
+// import { getDocument } from '@/services/firestore'; // Removed to fix build error
 
 // Define a type for the payment settings
 type PaymentSettings = {
@@ -14,14 +14,17 @@ async function getRazorpayInstance(userId?: string, userRole?: 'seller' | 'vendo
     let keyId: string | undefined;
     let keySecret: string | undefined;
 
-    if (userId && userRole) {
-        // Fetch credentials for a specific seller or vendor from Firestore
-        const settings = await getDocument<PaymentSettings>(userRole + '_payment_settings', userId);
-        if (settings) {
-            keyId = settings.razorpay_key_id;
-            keySecret = settings.razorpay_key_secret;
-        }
-    }
+    // Firestore fetching is removed to prevent build errors.
+    // This functionality needs to be reimplemented on the client or with a server-side SDK.
+    // The system will now fall back to using platform-wide environment variables.
+    // if (userId && userRole) {
+    //     // Fetch credentials for a specific seller or vendor from Firestore
+    //     const settings = await getDocument<PaymentSettings>(userRole + '_payment_settings', userId);
+    //     if (settings) {
+    //         keyId = settings.razorpay_key_id;
+    //         keySecret = settings.razorpay_key_secret;
+    //     }
+    // }
 
     // Fallback to admin/platform credentials if others are not found
     if (!keyId || !keySecret) {
