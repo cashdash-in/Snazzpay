@@ -262,7 +262,11 @@ export default function RefundsPage() {
                     <TableCell>
                         <Select
                             value={order.refundStatus || 'Pending'}
-                            onValueChange={(value: RefundStatus) => handleFieldChange(order.id, 'refundStatus', value)}
+                            onValueChange={(value: RefundStatus) => {
+                                setOrders(prev => prev.map(o => 
+                                    o.id === order.id ? { ...o, refundStatus: value } : o
+                                ));
+                            }}
                         >
                           <SelectTrigger className="w-[180px]">
                             <SelectValue placeholder="Select Status" />

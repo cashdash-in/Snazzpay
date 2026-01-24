@@ -323,7 +323,11 @@ export default function DeliveryTrackingPage() {
                        <TableCell>
                         <Select
                             value={order.deliveryStatus || 'pending'}
-                            onValueChange={(value: OrderStatus) => handleFieldChange(order.id, 'deliveryStatus', value)}
+                            onValueChange={(value: OrderStatus) => {
+                                setOrders(prev => prev.map(o => 
+                                    o.id === order.id ? { ...o, deliveryStatus: value } : o
+                                ));
+                            }}
                         >
                           <SelectTrigger className="w-[180px]">
                             <SelectValue placeholder="Select Status" />

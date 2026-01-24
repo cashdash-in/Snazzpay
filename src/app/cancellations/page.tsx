@@ -1,3 +1,4 @@
+
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -125,7 +126,11 @@ export default function CancellationsPage() {
                     <TableCell>
                         <Select
                             value={order.cancellationStatus || 'Pending'}
-                            onValueChange={(value) => handleFieldChange(order.id, 'cancellationStatus', value)}
+                            onValueChange={(value: CancellationStatus) => {
+                                setOrders(prev => prev.map(o => 
+                                    o.id === order.id ? { ...o, cancellationStatus: value } : o
+                                ));
+                            }}
                         >
                           <SelectTrigger className="w-[180px]">
                             <SelectValue placeholder="Select Status" />
