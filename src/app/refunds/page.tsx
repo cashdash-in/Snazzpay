@@ -20,6 +20,10 @@ import { v4 as uuidv4 } from 'uuid';
 
 type RefundStatus = 'Pending' | 'Processed' | 'Failed';
 
+function isRefundStatus(value: any): value is RefundStatus {
+    return ['Pending', 'Processed', 'Failed'].includes(value);
+}
+
 function formatAddress(address: ShopifyOrder['shipping_address']): string {
     if (!address) return 'N/A';
     const parts = [address.address1, address.city, address.province, address.country];
@@ -79,33 +83,40 @@ export default function RefundsPage() {
 
     const orderGroups = new Map<string, EditableOrder[]>();
     combinedOrders.forEach(order => {
-        const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${order.id}`) || '{}');
-        const finalOrder = { ...order, ...storedOverrides };
-        const group = orderGroups.get(finalOrder.orderId) || [];
-        group.push(finalOrder);
-        orderGroups.set(finalOrder.orderId, group);
+        const group = orderGroups.get(order.orderId) || [];
+        group.push(order);
+        orderGroups.set(order.orderId, group);
     });
 
     const unifiedOrders: EditableOrder[] = [];
     orderGroups.forEach((group) => {
-        let representativeOrder = group.reduce((acc, curr) => ({ ...acc, ...curr }), group[0]);
+        const representativeOrder = group.reduce((acc, curr) => ({ ...acc, ...curr }), group[0]);
+        const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${representativeOrder.id}`) || '{}');
 
-        const hasRefunded = group.some(o => o.refundStatus === 'Processed' || o.paymentStatus === 'Refunded');
+        const finalOrder: EditableOrder = {
+            ...representativeOrder,
+            ...storedOverrides,
+            refundStatus: isRefundStatus(storedOverrides.refundStatus)
+                ? storedOverrides.refundStatus
+                : representativeOrder.refundStatus,
+        };
+        
+        const hasRefunded = group.some(o => o.refundStatus === 'Processed' || o.paymentStatus === 'Refunded') || finalOrder.refundStatus === 'Processed';
         if (hasRefunded) {
-            representativeOrder.refundStatus = 'Processed';
-            representativeOrder.paymentStatus = 'Refunded';
+            finalOrder.refundStatus = 'Processed';
+            finalOrder.paymentStatus = 'Refunded';
         }
         
-        const hasVoided = group.some(o => o.paymentStatus === 'Voided' || o.cancellationStatus === 'Processed');
+        const hasVoided = group.some(o => o.paymentStatus === 'Voided' || o.cancellationStatus === 'Processed') || finalOrder.paymentStatus === 'Voided';
         if (hasVoided) {
-            representativeOrder.paymentStatus = 'Voided';
+            finalOrder.paymentStatus = 'Voided';
         }
 
-        if (!representativeOrder.cancellationId) {
-            representativeOrder.cancellationId = `CNCL-${uuidv4().substring(0, 8).toUpperCase()}`;
+        if (!finalOrder.cancellationId) {
+            finalOrder.cancellationId = `CNCL-${uuidv4().substring(0, 8).toUpperCase()}`;
         }
         
-        unifiedOrders.push(representativeOrder);
+        unifiedOrders.push(finalOrder);
     });
 
     setOrders(unifiedOrders);
@@ -126,7 +137,6 @@ export default function RefundsPage() {
     const orderToSave = orders.find(o => o.id === orderId);
     if (!orderToSave) return;
 
-    // We only save overrides, never the original shopify/manual order data
     const storedOverrides = JSON.parse(localStorage.getItem(`order-override-${orderId}`) || '{}');
     const newOverrides = { ...storedOverrides, ...orderToSave };
     localStorage.setItem(`order-override-${orderId}`, JSON.stringify(newOverrides));
@@ -139,10 +149,6 @@ export default function RefundsPage() {
 
   const handleRemove = (orderId: string) => {
     setOrders(prev => prev.filter(order => order.id !== orderId));
-    
-    // This action should probably only remove it from a "refunds view" not delete the order
-    // For now, it just removes from the local state.
-    
     toast({
         variant: 'destructive',
         title: "Order Removed",
@@ -172,7 +178,7 @@ export default function RefundsPage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 paymentId: paymentId,
-                amount: order.refundAmount || order.price, // Use refund amount if specified, else full price
+                amount: order.refundAmount || order.price,
                 reason: order.refundReason
             })
         });
