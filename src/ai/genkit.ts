@@ -39,5 +39,3 @@ export const ai = genkit({
   //   },
   // },
 });
-
-export { defineDotprompt };
