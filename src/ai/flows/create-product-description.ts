@@ -35,7 +35,7 @@ export async function createProductDescription(
     output: { schema: ProductDescriptionOutputSchema },
     prompt: `You are an expert e-commerce merchandiser. Your task is to analyze the provided product image and generate a compelling title, description, and category.
 
-      Image: {{media url=imageDataUri}}`,
+      Image: {{media url="imageDataUri"}}`,
   });
 
   const { output } = await prompt(input);
