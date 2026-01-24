@@ -1,0 +1,1 @@
+import * as firebase from '@genkit-ai/firebase'; console.log(firebase);

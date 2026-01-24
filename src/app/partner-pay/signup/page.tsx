@@ -24,7 +24,8 @@ export default function PartnerPaySignupPage() {
         pan: '',
         aadhaar: '',
         address: '',
-        phone: ''
+        phone: '',
+        email: ''
     });
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -35,8 +36,8 @@ export default function PartnerPaySignupPage() {
     const handleSignup = () => {
         setIsLoading(true);
 
-        const { companyName, pan, aadhaar, address, phone } = formData;
-        if (!companyName || !pan || !aadhaar || !address || !phone) {
+        const { companyName, pan, aadhaar, address, phone, email } = formData;
+        if (!companyName || !pan || !aadhaar || !address || !phone || !email) {
             toast({ variant: 'destructive', title: "Missing Fields", description: "Please fill out all required fields." });
             setIsLoading(false);
             return;
@@ -80,14 +81,18 @@ export default function PartnerPaySignupPage() {
                     <CardDescription>Join our network to provide Snazzify Coin services.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="companyName">Shop / Company Name</Label>
+                        <Input id="companyName" placeholder="Your Company Pvt. Ltd." value={formData.companyName} onChange={handleInputChange} />
+                    </div>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="companyName">Shop / Company Name</Label>
-                            <Input id="companyName" placeholder="Your Company Pvt. Ltd." value={formData.companyName} onChange={handleInputChange} />
-                        </div>
                          <div className="space-y-2">
                             <Label htmlFor="phone">Contact Phone</Label>
                             <Input id="phone" placeholder="9876543210" value={formData.phone} onChange={handleInputChange} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="email">Contact Email</Label>
+                            <Input id="email" type="email" placeholder="you@example.com" value={formData.email} onChange={handleInputChange} />
                         </div>
                      </div>
                      <div className="space-y-2">

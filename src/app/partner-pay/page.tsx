@@ -37,6 +37,7 @@ export type PartnerData = {
     aadhaar: string;
     address: string;
     phone: string;
+    email: string;
     status: 'pending' | 'approved' | 'rejected';
     balance: number;
     totalCollected: number;

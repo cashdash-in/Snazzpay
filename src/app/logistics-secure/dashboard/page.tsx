@@ -187,39 +187,37 @@ export default function LogisticsDashboardPage() {
         }
         setPartnerName(loggedInPartnerName);
         
-        // Load data from localStorage
         const storedFleet = localStorage.getItem(`logistics_fleet_${loggedInPartnerId}`);
         const storedPickups = localStorage.getItem(`logistics_pickups_${loggedInPartnerId}`);
         const storedServicePartners = localStorage.getItem(`logistics_service_partners_${loggedInPartnerId}`);
 
-        if (storedFleet) {
-            setFleet(JSON.parse(storedFleet));
-        } else {
-            const initialFleet = [
+        setFleet(JSON.parse(storedFleet || '[]'));
+        setPickups(JSON.parse(storedPickups || '[]'));
+        setServicePartners(JSON.parse(storedServicePartners || '[]'));
+
+        if (!storedFleet) {
+             const initialFleet = [
                 { id: `AGENT-${loggedInPartnerId}-01`, name: 'Rajesh Kumar', phone: '9876543210', status: 'Active' as const, cashOnHand: 0, pickupsToday: 0, area: 'Mumbai South', task: 'Idle' as const },
                 { id: `AGENT-${loggedInPartnerId}-02`, name: 'Sunita Devi', phone: '9123456789', status: 'Active' as const, cashOnHand: 0, pickupsToday: 0, area: 'Pune Central', task: 'On Delivery' as const },
             ];
             setFleet(initialFleet);
         }
 
-        if (storedPickups) {
-            setPickups(JSON.parse(storedPickups));
-        } else {
-             const initialPickups = [
+        if (!storedPickups) {
+            const initialPickups = [
                 { id: '#SNZ-PICKUP-001', customer: 'Amit Sharma', address: '123, Rose Villa, Mumbai', amount: 1500.00, status: 'Pending Assignment' as const, aiVerification: 'Pending' as const },
                 { id: '#SNZ-PICKUP-002', customer: 'Priya Mehta', address: '456, Orchid Heights, Pune', amount: 450.50, status: 'Pending Assignment' as const, aiVerification: 'Pending' as const },
             ];
             setPickups(initialPickups);
         }
         
-         if (storedServicePartners) {
-            setServicePartners(JSON.parse(storedServicePartners));
-        } else {
+        if (!storedServicePartners) {
              const initialServicePartners = [
                 { id: `SP-${loggedInPartnerId}-01`, name: 'Ganesh Logistics', contact: '9000011111', coverageArea: 'Rural Thane', status: 'Active' as const }
             ];
             setServicePartners(initialServicePartners);
         }
+
 
         setLoading(false);
     }, [router, toast]);
@@ -586,3 +584,5 @@ export default function LogisticsDashboardPage() {
         </div>
     );
 }
+
+    

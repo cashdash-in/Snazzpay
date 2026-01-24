@@ -53,13 +53,13 @@ export default function PartnerCancellationsPage() {
     if (partnerTransactionsJSON) {
         let partnerTransactions = JSON.parse(partnerTransactionsJSON);
         partnerTransactions = partnerTransactions.map((tx: any) => 
-            tx.id === req.id ? { ...tx, status: 'Refunded' } : tx
+            tx.id === req.id ? { ...tx, status: 'Refunded' as const } : tx
         );
         localStorage.setItem('partnerTransactions', JSON.stringify(partnerTransactions));
     }
     
     // Update the request itself to show as refunded
-    const updatedRequests = requests.map(r => r.id === req.id ? {...r, status: 'Refunded'} : r);
+    const updatedRequests = requests.map(r => r.id === req.id ? {...r, status: 'Refunded' as const } : r);
     setRequests(updatedRequests);
     localStorage.setItem('partnerCancellations', JSON.stringify(updatedRequests));
 

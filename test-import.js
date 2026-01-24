@@ -1,0 +1,1 @@
+const firebase = require('@genkit-ai/firebase'); console.log(firebase);

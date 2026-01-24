@@ -113,6 +113,8 @@ export default function AdminProductDropsPage() {
             description,
             costPrice: parseFloat(costPrice),
             imageDataUris,
+            sizes: [],
+            colors: [],
             createdAt: new Date().toISOString(),
         };
 
