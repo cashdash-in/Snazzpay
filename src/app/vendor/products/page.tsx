@@ -45,15 +45,17 @@ export default function VendorProductsPage() {
             try {
                 const allDrops = await getCollection<ProductDrop>(storageKey);
                 // Filter drops to show only those created by the current vendor
-                const vendorDrops = allDrops.filter(drop => drop.vendorId === user.uid);
-                
-                // Filter out products older than 30 days
-                const thirtyDaysAgo = subDays(new Date(), 30);
-                const recentProducts = vendorDrops.filter(p => 
-                    !isBefore(new Date(p.createdAt), thirtyDaysAgo)
-                );
-                
-                setProducts(recentProducts.sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+                if (user) {
+                    const vendorDrops = allDrops.filter(drop => drop.vendorId === user.uid);
+                    
+                    // Filter out products older than 30 days
+                    const thirtyDaysAgo = subDays(new Date(), 30);
+                    const recentProducts = vendorDrops.filter(p => 
+                        !isBefore(new Date(p.createdAt), thirtyDaysAgo)
+                    );
+                    
+                    setProducts(recentProducts.sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+                }
 
             } catch (error) {
                 toast({ variant: 'destructive', title: "Error loading data", description: "Could not load products from Firestore." });

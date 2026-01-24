@@ -49,27 +49,29 @@ export default function SellerProductDropsPage() {
                 setDrops(relevantDrops);
 
                 // Automatically add new drops to seller's products
-                const sellerProducts = await getCollection<SellerProduct>('seller_products');
-                const myProductsIds = new Set(sellerProducts.filter(p => p.sellerId === user.uid).map(p => p.id));
-                
-                for (const drop of relevantDrops) {
-                    if (!myProductsIds.has(drop.id)) {
-                        const newSellerProduct: SellerProduct = {
-                            id: drop.id, // Use drop ID to link them
-                            sellerId: user.uid,
-                            title: drop.title,
-                            description: drop.description,
-                            category: drop.category || 'Uncategorized',
-                            price: drop.costPrice, // Seller can adjust this later
-                            sizes: [],
-                            colors: [],
-                            imageDataUris: drop.imageDataUris,
-                            createdAt: new Date().toISOString(),
-                        };
-                        await saveDocument('seller_products', newSellerProduct, newSellerProduct.id);
+                if (user && currentSeller) {
+                    const sellerProducts = await getCollection<SellerProduct>('seller_products');
+                    const myProductsIds = new Set(sellerProducts.filter(p => p.sellerId === user.uid).map(p => p.id));
+                    
+                    for (const drop of relevantDrops) {
+                        if (!myProductsIds.has(drop.id)) {
+                            const newSellerProduct: SellerProduct = {
+                                id: drop.id, // Use drop ID to link them
+                                sellerId: user.uid,
+                                sellerName: currentSeller.companyName,
+                                title: drop.title,
+                                description: drop.description,
+                                category: drop.category || 'Uncategorized',
+                                price: drop.costPrice, // Seller can adjust this later
+                                sizes: [],
+                                colors: [],
+                                imageDataUris: drop.imageDataUris,
+                                createdAt: new Date().toISOString(),
+                            };
+                            await saveDocument('seller_products', newSellerProduct, newSellerProduct.id);
+                        }
                     }
                 }
-
 
             } catch (error) {
                 toast({

@@ -15,7 +15,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { saveDocument, getDocument } from '@/services/firestore';
-import type { EditableOrder } from '../page';
+import type { EditableOrder } from '../../../orders/page';
 import { useAuth } from '@/hooks/use-auth';
 import type { SellerUser } from '@/app/seller-accounts/page';
 import type { Vendor } from '@/app/vendors/page';

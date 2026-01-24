@@ -38,14 +38,16 @@ export default function MySellersPage() {
                     return acc;
                 }, {} as Record<string, number>);
 
-                const sellersForThisVendor = allSellers
-                    .filter(seller => seller.vendorId === user.uid && seller.status === 'approved')
-                    .map(seller => ({
-                        ...seller,
-                        aiUploads: usageMap[seller.id] || 0
-                    }));
-                
-                setMySellers(sellersForThisVendor);
+                if (user) {
+                    const sellersForThisVendor = allSellers
+                        .filter(seller => seller.vendorId === user.uid && seller.status === 'approved')
+                        .map(seller => ({
+                            ...seller,
+                            aiUploads: usageMap[seller.id] || 0
+                        }));
+                    
+                    setMySellers(sellersForThisVendor);
+                }
             } catch (error) {
                 toast({ variant: 'destructive', title: "Error loading data", description: "Could not load your sellers from Firestore." });
             } finally {

@@ -46,8 +46,8 @@ export default function ReportsPage() {
                 if (dataSource === 'orders') {
                     try {
                         const shopifyOrders = await getOrders();
-                        const shopifyEditableOrders = shopifyOrders.map(o => ({
-                            id: o.id.toString(), orderId: o.name, customerName: `${o.customer?.first_name || ''} ${o.customer?.last_name || ''}`.trim(), customerEmail: o.customer?.email, customerAddress: `${o.shipping_address?.address1 || ''}, ${o.shipping_address?.city || ''}`, pincode: o.shipping_address?.zip || '', contactNo: o.customer?.phone || '', productOrdered: o.line_items.map(i => i.title).join(', '), quantity: o.line_items.reduce((sum, i) => sum + i.quantity, 0), price: o.total_price, paymentStatus: o.financial_status || 'Pending', date: o.created_at, source: 'Shopify'
+                        const shopifyEditableOrders: EditableOrder[] = shopifyOrders.map(o => ({
+                            id: o.id.toString(), orderId: o.name, customerName: `${o.customer?.first_name || ''} ${o.customer?.last_name || ''}`.trim(), customerEmail: o.customer?.email === null ? undefined : o.customer?.email, customerAddress: `${o.shipping_address?.address1 || ''}, ${o.shipping_address?.city || ''}`, pincode: o.shipping_address?.zip || '', contactNo: o.customer?.phone || '', productOrdered: o.line_items.map(i => i.title).join(', '), quantity: o.line_items.reduce((sum, i) => sum + i.quantity, 0), price: o.total_price, paymentStatus: o.financial_status || 'Pending', date: o.created_at, source: 'Shopify'
                         }));
                         allOrders.push(...shopifyEditableOrders);
                     } catch (error) { console.error("Could not fetch Shopify orders:", error); }

@@ -15,7 +15,7 @@ import { auth } from '@/lib/firebase';
 import { FirebaseError } from 'firebase/app';
 import { Checkbox } from '@/components/ui/checkbox';
 import { getCollection } from '@/services/firestore';
-import type { Vendor } from '../page';
+import type { Vendor } from '../../vendors/page';
 
 
 export default function VendorLoginPage() {

@@ -24,6 +24,11 @@ function isRefundStatus(value: any): value is RefundStatus {
     return ['Pending', 'Processed', 'Failed'].includes(value);
 }
 
+function normalizeRefundStatus(s: unknown): RefundStatus | undefined {
+  if (s === "Pending" || s === "Processed" || s === "Failed") return s;
+  return undefined;
+}
+
 function formatAddress(address: ShopifyOrder['shipping_address']): string {
     if (!address) return 'N/A';
     const parts = [address.address1, address.city, address.province, address.country];
@@ -96,9 +101,7 @@ export default function RefundsPage() {
         const finalOrder: EditableOrder = {
             ...representativeOrder,
             ...storedOverrides,
-            refundStatus: isRefundStatus(storedOverrides.refundStatus)
-                ? storedOverrides.refundStatus
-                : undefined,
+            refundStatus: normalizeRefundStatus(storedOverrides.refundStatus),
         };
         
         const hasRefunded = group.some(o => o.refundStatus === 'Processed' || o.paymentStatus === 'Refunded') || finalOrder.refundStatus === 'Processed';
@@ -193,7 +196,7 @@ export default function RefundsPage() {
             description: result.message,
         });
 
-        const updatedOrders = orders.map(o => o.id === order.id ? {...o, refundStatus: 'Processed', paymentStatus: 'Refunded'} : o)
+        const updatedOrders: EditableOrder[] = orders.map(o => o.id === order.id ? {...o, refundStatus: 'Processed', paymentStatus: 'Refunded'} : o);
         setOrders(updatedOrders);
         const orderToSave = updatedOrders.find(o => o.id === order.id);
         if (orderToSave) {
