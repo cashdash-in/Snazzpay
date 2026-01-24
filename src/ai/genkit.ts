@@ -1,10 +1,11 @@
+
 /**
  * @fileoverview This file initializes and configures the Genkit AI instance.
  * It is the single source of truth for the AI object used throughout the application.
  */
 import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
-import firebase from '@genkit-ai/firebase';
+import { firebase } from '@genkit-ai/firebase';
 
 // IMPORTANT: Production Environment Configuration
 // For AI features to work in deployed environments (e.g., Vercel, Firebase),
