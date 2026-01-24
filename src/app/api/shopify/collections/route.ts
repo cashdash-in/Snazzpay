@@ -2,6 +2,8 @@
 import { NextResponse } from 'next/server';
 import { getCollections } from '@/services/shopify';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
     try {
         const collections = await getCollections();
