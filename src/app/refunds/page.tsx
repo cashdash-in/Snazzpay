@@ -98,7 +98,7 @@ export default function RefundsPage() {
             ...storedOverrides,
             refundStatus: isRefundStatus(storedOverrides.refundStatus)
                 ? storedOverrides.refundStatus
-                : representativeOrder.refundStatus,
+                : undefined,
         };
         
         const hasRefunded = group.some(o => o.refundStatus === 'Processed' || o.paymentStatus === 'Refunded') || finalOrder.refundStatus === 'Processed';
