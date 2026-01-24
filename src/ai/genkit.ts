@@ -2,9 +2,9 @@
  * @fileoverview This file initializes and configures the Genkit AI instance.
  * It is the single source of truth for the AI object used throughout the application.
  */
-import { genkit, type Plugin } from 'genkit';
+import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
-import { firebase } from '@genkit-ai/firebase';
+import firebase from '@genkit-ai/firebase';
 
 // IMPORTANT: Production Environment Configuration
 // For AI features to work in deployed environments (e.g., Vercel, Firebase),
@@ -12,7 +12,7 @@ import { firebase } from '@genkit-ai/firebase';
 // provider's project settings. The application will fail if this key is not
 // found in production.
 
-const plugins: Plugin<any>[] = [
+const plugins = [
   googleAI({
     apiVersion: 'v1beta',
   }),
@@ -30,8 +30,6 @@ export const ai = genkit({
   plugins,
   // Do not enable flow state in localStorage for server-side code.
   // enableAppFlowState: true,
-  // Set a different log level for production builds.
-  logLevel: process.env.NODE_ENV === 'production' ? 'warn' : 'debug',
   // OpenTelemetry is not configured in this environment.
   // openTelemetry: {
   //   instrumentation: {
