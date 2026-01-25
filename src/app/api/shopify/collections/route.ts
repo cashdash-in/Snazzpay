@@ -1,17 +1,28 @@
-
 import { NextResponse } from 'next/server';
-import { getCollections } from '@/services/shopify';
+import { shopifyClient } from '@/lib/shopify';
 
-export const dynamic = 'force-dynamic';
+export async function GET() {
+  // If the Shopify client failed to initialize, return an empty array.
+  if (!shopifyClient) {
+    console.error(
+      'Shopify client is not initialized in /api/shopify/collections. Check your environment variables.'
+    );
+    return NextResponse.json([]);
+  }
 
-export async function GET(request: Request) {
-    try {
-        const collections = await getCollections();
-        return NextResponse.json(collections);
-    } catch (error: any) {
-        return new NextResponse(
-            JSON.stringify({ error: `Failed to fetch Shopify collections: ${error.message}` }),
-            { status: 500, headers: { 'Content-Type': 'application/json' } }
-        );
-    }
+  try {
+    const response = await shopifyClient.get({
+      path: 'custom_collections',
+      query: { limit: '250' },
+    });
+
+    const result = (await response.json()) as any;
+    return NextResponse.json(result.custom_collections);
+  } catch (error) {
+    console.error(
+      'Error fetching collections from Shopify:', error
+    );
+    // Return an empty array on error to ensure the frontend does not crash.
+    return NextResponse.json([]);
+  }
 }

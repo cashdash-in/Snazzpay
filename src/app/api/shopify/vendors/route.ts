@@ -1,17 +1,29 @@
-
 import { NextResponse } from 'next/server';
-import { getVendors } from '@/services/shopify';
+import { shopifyClient } from '@/lib/shopify';
 
-export const dynamic = 'force-dynamic';
+export async function GET() {
+  // If the Shopify client failed to initialize, return an empty array.
+  if (!shopifyClient) {
+    console.error(
+      'Shopify client is not initialized in /api/shopify/vendors. Check your environment variables.'
+    );
+    return NextResponse.json([]);
+  }
 
-export async function GET(request: Request) {
-    try {
-        const vendors = await getVendors();
-        return NextResponse.json(vendors);
-    } catch (error: any) {
-        return new NextResponse(
-            JSON.stringify({ error: `Failed to fetch Shopify vendors: ${error.message}` }),
-            { status: 500, headers: { 'Content-Type': 'application/json' } }
-        );
-    }
+  try {
+    const response = await shopifyClient.get({
+      path: 'products',
+      query: { limit: '250', fields: 'vendor' },
+    });
+
+    const result = (await response.json()) as any;
+    const vendors = new Set<string>(result.products.map((p: any) => p.vendor));
+    return NextResponse.json(Array.from(vendors));
+  } catch (error) {
+    console.error(
+      'Error fetching vendors from Shopify:', error
+    );
+    // Return an empty array on error to ensure the frontend does not crash.
+    return NextResponse.json([]);
+  }
 }
