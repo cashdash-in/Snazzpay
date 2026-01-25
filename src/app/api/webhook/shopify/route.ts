@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import { format } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
-import type { EditableOrder } from '@/app/orders/page';
+import type { EditableOrder } from '@/types/order';
 
 // This is a simplified representation of the Shopify Order webhook payload.
 // For a production app, you would want to use a more robust schema validation library like Zod.

@@ -11,7 +11,7 @@ export async function GET() {
   }
 
   try {
-    const response = await shopifyClient.get({
+    const response = await shopifyClient.rest.get({
       path: 'products',
       query: { limit: '250' },
     });

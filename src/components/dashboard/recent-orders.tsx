@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/table";
 import { getCollection } from "@/services/firestore";
 import { useState, useEffect } from "react";
-import type { EditableOrder } from "@/app/orders/page";
+import type { EditableOrder } from "@/types/order";
 import { useToast } from "@/hooks/use-toast";
 import Link from 'next/link';
 import { Loader2 } from "lucide-react";

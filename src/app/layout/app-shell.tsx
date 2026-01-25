@@ -70,7 +70,7 @@ import { getCookie } from 'cookies-next';
 import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { getCollection } from '@/services/firestore';
-import type { EditableOrder } from '@/app/orders/page';
+import type { EditableOrder } from '@/types/order';
 
 type MenuItem = {
     href: string;

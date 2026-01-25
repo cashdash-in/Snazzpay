@@ -9,11 +9,12 @@ import { Button } from "@/components/ui/button";
 import { Loader2, HelpCircle, ShieldCheck, CheckCircle, User, Phone, Mail as MailIcon, Home, MapPin, Percent } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
-import type { EditableOrder } from '@/app/orders/page';
+import type { EditableOrder } from '@/types/order';
 import { saveDocument, getDocument, deleteDocument, getCollection } from '@/services/firestore';
 import { format, addYears } from 'date-fns';
 import { ShaktiCard, type ShaktiCardData } from '@/components/shakti-card';
 import { sanitizePhoneNumber } from '@/lib/utils';
+import { CancellationForm } from '@/components/cancellation-form';
 import { Input } from '@/components/ui/input';
 import { Label } from "@/components/ui/label";
 import Image from 'next/image';
@@ -295,7 +296,7 @@ export function SecureCodPaymentForm() {
             if (authResult.error) throw new Error(`Authorization Failed: ${authResult.error}`);
             
             const rzp2 = new (window as any).Razorpay({
-                key: razorpayKeyId,
+                key: authResult.key_id,
                 order_id: authResult.order_id,
                 amount: totalPrice * 100,
                 name: "Authorize Secure COD Payment",

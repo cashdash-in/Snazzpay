@@ -3,7 +3,7 @@
 
 import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
-import type { EditableOrder } from '@/app/orders/page';
+import type { EditableOrder } from '@/types/order';
 
 export async function POST(request: Request) {
     const { order, method }: { order: EditableOrder, method: 'email' } = await request.json();

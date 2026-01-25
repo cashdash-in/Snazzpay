@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { useState, useEffect, useCallback, ClipboardEvent } from "react";
 import { Loader2, Trash2, Send, Loader2 as ButtonLoader, ArrowRight, Store, Factory, ShoppingCart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import type { EditableOrder } from '../orders/page';
+import type { EditableOrder } from '@/types/order';
 import { format } from "date-fns";
 import { getCollection, deleteDocument, saveDocument, batchUpdateDocuments } from "@/services/firestore";
 import { useRouter } from "next/navigation";

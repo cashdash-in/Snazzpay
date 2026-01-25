@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Package, CheckCircle, AlertTriangle, UploadCloud, Phone } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import type { EditableOrder } from '@/app/orders/page';
+import type { EditableOrder } from '@/types/order';
 import { getDocument, saveDocument } from '@/services/firestore';
 import Image from 'next/image';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';

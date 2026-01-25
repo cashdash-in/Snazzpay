@@ -11,7 +11,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Loader2, PlusCircle, Trash2, Save } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
-import type { EditableOrder } from '../orders/page';
+import type { EditableOrder } from '@/types/order';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { v4 as uuidv4 } from 'uuid';
 import { getCollection, saveDocument, deleteDocument } from "@/services/firestore";

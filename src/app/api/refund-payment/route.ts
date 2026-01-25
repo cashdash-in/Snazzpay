@@ -1,7 +1,7 @@
 
 import { NextResponse } from 'next/server';
 import Razorpay from 'razorpay';
-import type { EditableOrder } from '@/app/orders/page';
+import type { EditableOrder } from '@/types/order';
 
 export async function POST(request: Request) {
     const keyId = process.env.RAZORPAY_KEY_ID;
