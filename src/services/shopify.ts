@@ -39,34 +39,10 @@ const OrdersResponseSchema = z.object({
     orders: z.array(OrderSchema),
 });
 
-const ProductSchema = z.object({
-    id: z.number(),
-    title: z.string(),
-    vendor: z.string(),
-    product_type: z.string(),
-    variants: z.array(z.object({
-        price: z.string()
-    })),
-});
-
-const ProductsResponseSchema = z.object({
-    products: z.array(ProductSchema),
-});
-
-const CollectionSchema = z.object({
-    id: z.number(),
-    title: z.string(),
-});
-
-const CollectionsResponseSchema = z.object({
-    custom_collections: z.array(CollectionSchema).optional(),
-    smart_collections: z.array(CollectionSchema).optional(),
-});
 
 
 export type Order = z.infer<typeof OrderSchema>;
-export type ShopifyProduct = z.infer<typeof ProductSchema>;
-export type ShopifyCollection = z.infer<typeof CollectionSchema>;
+
 
 
 export type ShopifyProductInput = {
@@ -157,60 +133,3 @@ export async function createProduct(product: ShopifyProductInput): Promise<any> 
         throw error;
     }
 }
-
-// These functions are now exposed via API routes and shouldn't be exported directly
-// for client-side consumption to avoid leaking server-side environment variables.
-
-async function getProducts(): Promise<ShopifyProduct[]> {
-    try {
-        const jsonResponse = await shopifyFetch('products.json?limit=250');
-        const parsed = ProductsResponseSchema.safeParse(jsonResponse);
-
-        if (!parsed.success) {
-            console.error("Failed to parse Shopify products response:", parsed.error.toString());
-            throw new Error("Failed to parse products from Shopify.");
-        }
-        return parsed.data.products;
-    } catch (error: any) {
-        console.error("Error fetching Shopify products:", error);
-        throw error;
-    }
-}
-
-async function getCollections(): Promise<ShopifyCollection[]> {
-    try {
-        const [customCollections, smartCollections] = await Promise.all([
-            shopifyFetch('custom_collections.json?limit=250'),
-            shopifyFetch('smart_collections.json?limit=250')
-        ]);
-        const parsedCustom = CollectionsResponseSchema.safeParse(customCollections);
-        const parsedSmart = CollectionsResponseSchema.safeParse(smartCollections);
-
-        let allCollections: ShopifyCollection[] = [];
-        if (parsedCustom.success && parsedCustom.data.custom_collections) {
-            allCollections = allCollections.concat(parsedCustom.data.custom_collections);
-        }
-        if (parsedSmart.success && parsedSmart.data.smart_collections) {
-            allCollections = allCollections.concat(parsedSmart.data.smart_collections);
-        }
-        return allCollections;
-    } catch (error: any) {
-        console.error("Error fetching Shopify collections:", error);
-        throw error;
-    }
-}
-
-async function getVendors(): Promise<string[]> {
-    try {
-        const products = await getProducts();
-        const vendors = new Set(products.map(p => p.vendor));
-        return Array.from(vendors);
-    } catch (error) {
-        console.error("Error fetching vendors via products:", error);
-        throw error;
-    }
-}
-
-// Re-export for server-side use in API routes
-export { getProducts, getCollections, getVendors };
-    
