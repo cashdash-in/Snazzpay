@@ -46,7 +46,7 @@ const prompt = ai.definePrompt({
   output: { schema: ProductDescriptionOutputSchema },
   prompt: `You are an expert e-commerce merchandiser. Your task is to analyze the provided product image and generate a compelling title, description, and category.
 
-      Image: {{media url="imageDataUri"}}`,
+      Image: {{media url=imageDataUri}}`,
 });
 
 const createProductDescriptionFlow = ai.defineFlow(
