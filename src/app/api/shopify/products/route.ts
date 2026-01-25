@@ -1,3 +1,4 @@
+
 import { NextResponse } from 'next/server';
 import { shopifyClient } from '@/lib/shopify';
 
@@ -12,7 +13,7 @@ export async function GET() {
   }
 
   try {
-    const response = await shopifyClient.rest.get({
+    const response = await shopifyClient.get({
       path: 'products',
       query: { limit: '250', fields: 'id,title,vendor,product_type' },
     });

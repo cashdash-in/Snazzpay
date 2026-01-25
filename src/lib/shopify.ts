@@ -29,7 +29,7 @@ export async function getCollections() {
     return [];
   }
 
-  const response = await shopifyClient.get({
+  const response = await shopifyClient.rest.get({
     path: 'custom_collections',
     query: { limit: '250' },
   });
@@ -46,7 +46,7 @@ export async function getVendors() {
     return [];
   }
 
-  const response = await shopifyClient.get({
+  const response = await shopifyClient.rest.get({
     path: 'products',
     query: { limit: '250', fields: 'vendor' },
   });
@@ -64,7 +64,7 @@ export async function getTags() {
     return [];
   }
 
-  const response = await shopifyClient.get({
+  const response = await shopifyClient.rest.get({
     path: 'products',
     query: { limit: '250', fields: 'tags' },
   });
