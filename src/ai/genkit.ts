@@ -5,7 +5,8 @@
  */
 import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
-import { enableFirebaseTelemetry } from '@genkit-ai/firebase';
+// We are removing firebase telemetry as it can cause issues in some environments.
+// import { enableFirebaseTelemetry } from '@genkit-ai/firebase';
 
 // IMPORTANT: Production Environment Configuration
 // For AI features to work in deployed environments (e.g., Vercel, Firebase),
@@ -13,13 +14,13 @@ import { enableFirebaseTelemetry } from '@genkit-ai/firebase';
 // provider's project settings. The application will fail if this key is not
 // found in production.
 
-if (process.env.NODE_ENV === 'production' && !process.env.GCLOUD_PROJECT) {
-  // We are in a production-like environment (e.g., Vercel) but not on Google Cloud.
-  // We need to disable Firebase plugin to avoid errors about default credentials.
-} else {
-  // We are in a local or Google Cloud environment, so we can use Firebase.
-  enableFirebaseTelemetry();
-}
+// if (process.env.NODE_ENV === 'production' && !process.env.GCLOUD_PROJECT) {
+//   // We are in a production-like environment (e.g., Vercel) but not on Google Cloud.
+//   // We need to disable Firebase plugin to avoid errors about default credentials.
+// } else {
+//   // We are in a local or Google Cloud environment, so we can use Firebase.
+//   enableFirebaseTelemetry();
+// }
 
 export const ai = genkit({
   plugins: [
