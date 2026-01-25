@@ -34,11 +34,6 @@ export type ProductDescriptionOutput = z.infer<
   typeof ProductDescriptionOutputSchema
 >;
 
-export async function createProductDescription(
-  input: ProductDescriptionInput
-): Promise<ProductDescriptionOutput> {
-  return createProductDescriptionFlow(input);
-}
 
 const prompt = ai.definePrompt({
   name: 'productDescriptionPrompt',
@@ -56,7 +51,25 @@ const createProductDescriptionFlow = ai.defineFlow(
     outputSchema: ProductDescriptionOutputSchema,
   },
   async (input) => {
-    const { output } = await prompt(input);
-    return output!;
+
+    // Robust error handling for the AI call.
+    try {
+      const { output } = await prompt(input);
+      return output!;
+    } catch (error) {
+      console.error("AI flow failed:", error);
+      // Return a user-friendly error response instead of crashing.
+      return {
+        title: "AI Generation Failed",
+        description: `The AI service could not be reached. This is often due to an invalid or missing GEMINI_API_KEY in your production environment. Please verify your API key and permissions. The original error was: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        category: "error",
+      };
+    }
   }
 );
+
+export async function createProductDescription(
+  input: ProductDescriptionInput
+): Promise<ProductDescriptionOutput> {
+  return createProductDescriptionFlow(input);
+}
