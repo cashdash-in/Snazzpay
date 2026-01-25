@@ -6,17 +6,21 @@ import { ai } from '@/ai/genkit';
 import {
   ProductListingInputSchema,
   ProductListingOutputSchema,
+  ProductListingInput,
+  ProductListingOutput,
 } from '@/ai/schemas/product-listing';
-import { z } from 'zod';
 
 export async function createProductListing(
-  input: z.infer<typeof ProductListingInputSchema>
-): Promise<z.infer<typeof ProductListingOutputSchema>> {
-  const prompt = ai.definePrompt({
-    name: 'productListingPrompt',
-    input: { schema: ProductListingInputSchema },
-    output: { schema: ProductListingOutputSchema },
-    prompt: `You are an expert e-commerce merchandiser. Your task is to take the provided product images, a raw text description, a base cost, and a desired profit margin, and generate a complete, professional product listing.
+  input: ProductListingInput
+): Promise<ProductListingOutput> {
+  return createProductListingFlow(input);
+}
+
+const prompt = ai.definePrompt({
+  name: 'productListingPrompt',
+  input: { schema: ProductListingInputSchema },
+  output: { schema: ProductListingOutputSchema },
+  prompt: `You are an expert e-commerce merchandiser. Your task is to take the provided product images, a raw text description, a base cost, and a desired profit margin, and generate a complete, professional product listing.
 
       - The title should be catchy and SEO-friendly.
       - The description should be well-structured, using Markdown for formatting.
@@ -32,8 +36,16 @@ export async function createProductListing(
       Base Cost: {{{cost}}}
       Profit Margin: {{{margin}}}%
       `,
-  });
+});
 
-  const { output } = await prompt(input);
-  return output!;
-}
+const createProductListingFlow = ai.defineFlow(
+  {
+    name: 'createProductListingFlow',
+    inputSchema: ProductListingInputSchema,
+    outputSchema: ProductListingOutputSchema,
+  },
+  async (input) => {
+    const { output } = await prompt(input);
+    return output!;
+  }
+);

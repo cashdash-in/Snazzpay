@@ -11,9 +11,16 @@ export const WhatsAppParserInputSchema = z.object({
   chatText: z
     .string()
     .describe('The full text content of an exported WhatsApp chat.'),
-  startDate: z.string().optional().describe('An optional ISO 8601 start date to filter messages.'),
-  endDate: z.string().optional().describe('An optional ISO 8601 end date to filter messages.'),
+  startDate: z
+    .string()
+    .optional()
+    .describe('An optional ISO 8601 start date to filter messages.'),
+  endDate: z
+    .string()
+    .optional()
+    .describe('An optional ISO 8601 end date to filter messages.'),
 });
+export type WhatsAppParserInput = z.infer<typeof WhatsAppParserInputSchema>;
 
 export const WhatsAppParserOutputSchema = z.object({
   products: z
@@ -22,15 +29,19 @@ export const WhatsAppParserOutputSchema = z.object({
       'An array of product listings found within the provided chat text.'
     ),
 });
+export type WhatsAppParserOutput = z.infer<typeof WhatsAppParserOutputSchema>;
 
 export async function parseWhatsAppChat(
-  input: z.infer<typeof WhatsAppParserInputSchema>
-): Promise<z.infer<typeof WhatsAppParserOutputSchema>> {
-  const prompt = ai.definePrompt({
-    name: 'whatsAppParserPrompt',
-    input: { schema: WhatsAppParserInputSchema },
-    output: { schema: WhatsAppParserOutputSchema },
-    prompt: `You are an expert in parsing unstructured text to find product information. Analyze the following WhatsApp chat export. Identify each distinct product being discussed and extract its details.
+  input: WhatsAppParserInput
+): Promise<WhatsAppParserOutput> {
+  return parseWhatsAppChatFlow(input);
+}
+
+const prompt = ai.definePrompt({
+  name: 'whatsAppParserPrompt',
+  input: { schema: WhatsAppParserInputSchema },
+  output: { schema: WhatsAppParserOutputSchema },
+  prompt: `You are an expert in parsing unstructured text to find product information. Analyze the following WhatsApp chat export. Identify each distinct product being discussed and extract its details.
 
       - A new product usually starts with a product name/code or an image.
       - Consolidate all messages related to a single product into one entry.
@@ -40,11 +51,20 @@ export async function parseWhatsAppChat(
       Date Range: {{#if startDate}}{{startDate}} to {{endDate}}{{else}}Not specified{{/if}}
 
       Chat Content:
-      '''
+      \'\'\'
       {{{chatText}}}
-      '''
+      \'\'\'
     `,
-  });
-  const { output } = await prompt(input);
-  return output!;
-}
+});
+
+const parseWhatsAppChatFlow = ai.defineFlow(
+  {
+    name: 'parseWhatsAppChatFlow',
+    inputSchema: WhatsAppParserInputSchema,
+    outputSchema: WhatsAppParserOutputSchema,
+  },
+  async (input) => {
+    const { output } = await prompt(input);
+    return output!;
+  }
+);
