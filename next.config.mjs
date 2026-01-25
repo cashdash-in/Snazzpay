@@ -1,15 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'picsum.photos',
-        port: '',
-        pathname: '/**',
-      },
-    ],
+  experimental: {
+    // This is required for Genkit to work.
+    instrumentationHook: true,
   },
 };
 
-export default nextConfig;
+export default nextCode;
