@@ -18,7 +18,7 @@ export const ai = genkit({
     googleAI({
       apiVersion: 'v1beta',
     }),
-    firebase(), // Enable Firebase telemetry and other integrations
+    firebase, // Enable Firebase telemetry and other integrations
   ],
   // Do not enable flow state in localStorage for server-side code.
   // enableAppFlowState: true,
