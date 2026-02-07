@@ -15,9 +15,7 @@ import { googleAI } from '@genkit-ai/google-genai';
 
 export const ai = genkit({
   plugins: [
-    googleAI({
-      apiVersion: 'v1beta',
-    }),
+    googleAI(),
     // firebase, // REMOVED to fix build errors
   ],
   // Do not enable flow state in localStorage for server-side code.
