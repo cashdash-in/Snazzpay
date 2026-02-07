@@ -18,6 +18,7 @@ export async function createProductListing(
 
 const prompt = ai.definePrompt({
   name: 'productListingPrompt',
+  model: 'googleai/gemini-pro-vision',
   input: { schema: ProductListingInputSchema },
   output: { schema: ProductListingOutputSchema },
   prompt: `You are an expert e-commerce merchandiser. Your task is to take the provided product images, a raw text description, a base cost, and a desired profit margin, and generate a complete, professional product listing.
