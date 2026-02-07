@@ -5,7 +5,7 @@
  */
 import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
-import firebase from '@genkit-ai/firebase';
+// import firebase from '@genkit-ai/firebase'; // REMOVED to fix build errors
 
 // IMPORTANT: Production Environment Configuration
 // For AI features to work in deployed environments (e.g., Vercel, Firebase),
@@ -18,7 +18,7 @@ export const ai = genkit({
     googleAI({
       apiVersion: 'v1beta',
     }),
-    firebase, // Enable Firebase telemetry and other integrations
+    // firebase, // REMOVED to fix build errors
   ],
   // Do not enable flow state in localStorage for server-side code.
   // enableAppFlowState: true,
