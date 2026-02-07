@@ -4,32 +4,12 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { ProductListingOutputSchema } from '@/ai/schemas/product-listing';
-import { z } from 'zod';
-
-export const WhatsAppParserInputSchema = z.object({
-  chatText: z
-    .string()
-    .describe('The full text content of an exported WhatsApp chat.'),
-  startDate: z
-    .string()
-    .optional()
-    .describe('An optional ISO 8601 start date to filter messages.'),
-  endDate: z
-    .string()
-    .optional()
-    .describe('An optional ISO 8601 end date to filter messages.'),
-});
-export type WhatsAppParserInput = z.infer<typeof WhatsAppParserInputSchema>;
-
-export const WhatsAppParserOutputSchema = z.object({
-  products: z
-    .array(ProductListingOutputSchema)
-    .describe(
-      'An array of product listings found within the provided chat text.'
-    ),
-});
-export type WhatsAppParserOutput = z.infer<typeof WhatsAppParserOutputSchema>;
+import {
+  WhatsAppParserInputSchema,
+  WhatsAppParserOutputSchema,
+  type WhatsAppParserInput,
+  type WhatsAppParserOutput,
+} from '@/ai/schemas/whatsapp-parser';
 
 export async function parseWhatsAppChat(
   input: WhatsAppParserInput
