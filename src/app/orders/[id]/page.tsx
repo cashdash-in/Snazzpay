@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2, Save, ExternalLink, CreditCard, Send, Loader2 as ButtonLoader, Mail, Printer, Copy, ShieldAlert, AlertTriangle, MessageSquare, Rocket, Facebook, Instagram, Share2, Package } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import type { EditableOrder } from '../page';
+import type { EditableOrder } from '@/types/order';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from 'date-fns';
 import {
@@ -211,7 +211,7 @@ function OrderDetailContent() {
                 description: error.message,
             });
         } finally {
-            setIsSendingLink(false);
+            setIsSendingLink(null);
         }
     };
 

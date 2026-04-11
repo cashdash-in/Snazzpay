@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState } from 'react';
@@ -15,7 +16,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { saveDocument } from '@/services/firestore';
-import type { EditableOrder } from '../page';
+import type { EditableOrder } from '@/types/order';
 
 export default function NewOrderPage() {
     const router = useRouter();

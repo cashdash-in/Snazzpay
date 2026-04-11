@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -10,12 +11,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useState, useEffect, useCallback } from "react";
 import { Save, Loader2, Mail, MessageSquare } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import type { EditableOrder } from '@/app/orders/page';
+import type { EditableOrder, OrderStatus } from '@/types/order';
 import { useAuth } from "@/hooks/use-auth";
 import { getCollection, saveDocument } from "@/services/firestore";
 import { sanitizePhoneNumber } from "@/lib/utils";
-
-type OrderStatus = 'pending' | 'packed' | 'dispatched' | 'out-for-delivery' | 'delivered' | 'rto';
 
 export default function VendorLogisticsPage() {
     const [orders, setOrders] = useState<EditableOrder[]>([]);

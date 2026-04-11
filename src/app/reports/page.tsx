@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState } from 'react';
@@ -14,7 +15,7 @@ import { format, startOfDay, endOfDay, isWithinInterval } from "date-fns";
 import type { DateRange } from "react-day-picker";
 import * as XLSX from 'xlsx';
 import { useToast } from '@/hooks/use-toast';
-import type { EditableOrder } from '../orders/page';
+import type { EditableOrder } from '@/types/order';
 import { getOrders } from '@/services/shopify';
 import type { ShaktiCardData } from '@/components/shakti-card';
 

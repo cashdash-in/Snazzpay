@@ -1,4 +1,5 @@
 
+
 'use client';
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
@@ -6,7 +7,7 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
 import { MandateStatus } from "@/components/mandate-status";
 import { format } from "date-fns";
 import { useEffect, useState, useCallback } from "react";
-import type { EditableOrder } from "../orders/page";
+import type { EditableOrder } from "@/types/order";
 import { Loader2, MessageSquare } from "lucide-react";
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';

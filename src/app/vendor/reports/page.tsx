@@ -1,4 +1,5 @@
 
+
 'use client';
 import { useState } from 'react';
 import { AppShell } from "@/components/layout/app-shell";
@@ -9,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { Calendar as CalendarIcon, Download, Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
-import type { EditableOrder } from '@/app/orders/page';
+import type { EditableOrder } from '@/types/order';
 import { getCollection } from '@/services/firestore';
 import * as XLSX from 'xlsx';
 import { format, startOfDay, endOfDay, isWithinInterval } from 'date-fns';

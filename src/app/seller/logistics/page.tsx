@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -9,7 +10,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Loader2, MessageSquare } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/hooks/use-auth';
-import type { EditableOrder } from '@/app/orders/page';
+import type { EditableOrder } from '@/types/order';
 import { Badge } from "@/components/ui/badge";
 import { sanitizePhoneNumber } from "@/lib/utils";
 import { getCollection } from "@/services/firestore";

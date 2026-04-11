@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -12,7 +13,7 @@ import { PlusCircle, Save, Loader2, Trash2, MoreVertical, Search, Check, X, Shie
 import { getOrders, type Order as ShopifyOrder } from "@/services/shopify";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
-import type { EditableOrder, OrderStatus } from '../orders/page';
+import type { EditableOrder, OrderStatus } from '@/types/order';
 import { format } from "date-fns";
 import { v4 as uuidv4 } from 'uuid';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose, DialogDescription } from "@/components/ui/dialog";

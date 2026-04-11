@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -17,53 +18,8 @@ import { Badge } from "@/components/ui/badge";
 import { sanitizePhoneNumber } from "@/lib/utils";
 import { getCollection, saveDocument, deleteDocument, getDocument, batchUpdateDocuments } from "@/services/firestore";
 import Image from 'next/image';
+import type { EditableOrder } from '@/types/order';
 
-export type OrderStatus = 'pending' | 'dispatched' | 'out-for-delivery' | 'delivered' | 'failed' | 'rto';
-
-export type EditableOrder = {
-  id: string;
-  orderId: string;
-  customerName: string;
-  customerEmail?: string;
-  customerAddress: string;
-  pincode: string;
-  contactNo: string;
-  vendorContactNo?: string;
-  productOrdered: string;
-  quantity: number;
-  size?: string;
-  color?: string;
-  price: string;
-  originalPrice?: string;
-  discountPercentage?: number;
-  discountAmount?: number;
-  paymentStatus: string;
-  date: string;
-  sellerId?: string;
-  sellerName?: string;
-  vendorId?: string;
-  vendorName?: string;
-  cancellationFee?: string;
-  paymentMethod?: 'Prepaid' | 'Secure Charge on Delivery' | 'Cash on Delivery';
-  trackingNumber?: string;
-  courierCompanyName?: string;
-  deliveryStatus?: OrderStatus;
-  estDelivery?: string;
-  readyForDispatchDate?: string;
-  cancellationId?: string;
-  cancellationReason?: string;
-  cancellationStatus?: 'Pending' | 'Processed' | 'Failed';
-  refundAmount?: string;
-  refundReason?: string;
-  refundStatus?: 'Pending' | 'Processed' | 'Failed';
-  source?: 'Shopify' | 'Manual' | 'Seller' | 'Catalogue' | 'SmartMagazine';
-  guestVendorName?: string;
-  guestFulfillmentToken?: string;
-  packageImageUrls?: string[];
-  imageDataUris?: string[];
-  vendorPaymentReceived?: 'Yes' | 'No';
-  isRead?: boolean;
-};
 
 type PaymentInfo = {
     paymentId: string;

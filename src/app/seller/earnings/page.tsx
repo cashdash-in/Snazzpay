@@ -1,10 +1,11 @@
 
+
 'use client';
 import { useState, useEffect, useMemo } from 'react';
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { useAuth } from '@/hooks/use-auth';
-import type { EditableOrder } from '@/app/orders/page';
+import type { EditableOrder } from '@/types/order';
 import { getCollection } from '@/services/firestore';
 import { Loader2, DollarSign, TrendingUp, TrendingDown, BarChart3 } from 'lucide-react';
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';

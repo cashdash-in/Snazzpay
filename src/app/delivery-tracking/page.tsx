@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -12,7 +13,7 @@ import { Trash2, PlusCircle, Save, Loader2 as ButtonLoader, Mail, Copy, MessageS
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
-import type { EditableOrder, OrderStatus } from '../orders/page';
+import type { EditableOrder, OrderStatus } from '@/types/order';
 import { sanitizePhoneNumber } from "@/lib/utils";
 import { getCollection, saveDocument, deleteDocument } from "@/services/firestore";
 import Image from 'next/image';

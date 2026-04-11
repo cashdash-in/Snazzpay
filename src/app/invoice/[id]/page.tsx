@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -7,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from '@/hooks/use-toast';
-import type { EditableOrder } from '@/app/orders/page';
+import type { EditableOrder } from '@/types/order';
 import { getOrders, type Order as ShopifyOrder } from '@/services/shopify';
 import { format } from 'date-fns';
 import { Loader2, Printer, ArrowLeft, ShieldCheck } from 'lucide-react';
