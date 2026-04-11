@@ -1,3 +1,4 @@
+
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -7,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useState, useEffect, useCallback } from "react";
 import { Loader2, Trash2, Send, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import type { EditableOrder } from '@/app/orders/page';
+import type { EditableOrder } from '@/types/order';
 import { format } from "date-fns";
 import { getCollection, deleteDocument, saveDocument } from "@/services/firestore";
 import { Badge } from "@/components/ui/badge";
