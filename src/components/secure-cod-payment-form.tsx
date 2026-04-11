@@ -273,8 +273,12 @@ export function SecureCodPaymentForm() {
                     name: "Verify Your Order",
                     description: "A ₹1 charge to confirm your payment method.",
                     handler: async () => {
-                         await saveDocument('leads', { ...orderData, id: internalOrderId, paymentStatus: 'Intent Verified', source: 'Shopify' }, internalOrderId);
-                         resolve();
+                        try {
+                            await saveDocument('leads', { ...orderData, id: internalOrderId, paymentStatus: 'Intent Verified', source: 'Shopify' }, internalOrderId);
+                            resolve();
+                        } catch (e: any) {
+                            reject(new Error(`Failed to save lead: ${e.message}`));
+                        }
                     },
                     modal: { ondismiss: () => reject(new Error('Verification payment was closed.')) },
                     prefill: { name, email, contact },
@@ -485,5 +489,3 @@ export function SecureCodPaymentForm() {
         </div>
     );
 }
-
-    
