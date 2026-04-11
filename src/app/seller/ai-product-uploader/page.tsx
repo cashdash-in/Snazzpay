@@ -23,6 +23,10 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import { createProductDescription } from '@/ai/flows/create-product-description';
+import { useAuth } from '@/hooks/use-auth';
+import { saveDocument } from '@/services/firestore';
+import { v4 as uuidv4 } from 'uuid';
+
 
 const MAX_IMAGE_SIZE_MB = 1;
 const MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024;
@@ -43,6 +47,7 @@ export type SellerProduct = {
 
 export default function AiProductUploaderPage() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [isPushing, setIsPushing] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -50,6 +55,10 @@ export default function AiProductUploaderPage() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
+  const [price, setPrice] = useState('');
+  const [sizes, setSizes] = useState('');
+  const [colors, setColors] = useState('');
+
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -108,31 +117,68 @@ export default function AiProductUploaderPage() {
   };
 
   const handlePushToProducts = async () => {
-    if (!title || !description || !category || !imageDataUri) {
+    if (!title || !description || !category || !imageDataUri || !price) {
         toast({
             variant: 'destructive',
             title: 'Missing Information',
-            description: 'Please generate and review all product details before pushing.',
+            description: 'Please generate and review all product details, including price, before pushing.',
         });
         return;
     }
-    setIsPushing(true);
-    // In a real app, you'd have an API route to add this to a DB.
-    // We'll simulate it with a timeout.
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    setIsPushing(false);
-    toast({
-        title: 'Product Pushed!',
-        description: `"${title}" has been added to your products.`
-    })
+    if (!user) {
+        toast({
+            variant: 'destructive',
+            title: 'Not Authenticated',
+            description: 'You must be logged in to add products.',
+        });
+        return;
+    }
 
-    // Reset form
-    setTitle('');
-    setDescription('');
-    setCategory('');
-    setImageDataUri(null);
-    setImagePreview(null);
+    setIsPushing(true);
+
+    try {
+        const newProduct: SellerProduct = {
+            id: uuidv4(),
+            sellerId: user.uid,
+            sellerName: user.displayName || 'Unknown Seller',
+            title,
+            description,
+            category,
+            price: parseFloat(price),
+            sizes: sizes.split(',').map(s => s.trim()).filter(s => s),
+            colors: colors.split(',').map(c => c.trim()).filter(c => c),
+            imageDataUris: [imageDataUri], // Storing as an array to match type
+            createdAt: new Date().toISOString(),
+        };
+
+        await saveDocument('seller_products', newProduct, newProduct.id);
+
+        toast({
+            title: 'Product Pushed!',
+            description: `"${title}" has been added to your "My Products" list.`
+        });
+        
+        // Reset form
+        setTitle('');
+        setDescription('');
+        setCategory('');
+        setImageDataUri(null);
+        setImagePreview(null);
+        setPrice('');
+        setSizes('');
+        setColors('');
+
+    } catch (error: any) {
+        toast({
+            variant: 'destructive',
+            title: 'Failed to Push Product',
+            description: error.message || "There was an error saving your product."
+        });
+    } finally {
+        setIsPushing(false);
+    }
   };
+
 
   return (
     <AppShell title="AI Product Uploader (Seller)">
@@ -208,6 +254,37 @@ export default function AiProductUploaderPage() {
                     onChange={(e) => setCategory(e.target.value)}
                     placeholder="AI-generated category will appear here"
                 />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                    <Label htmlFor="price">Selling Price (INR)</Label>
+                    <Input
+                        id="price"
+                        type="number"
+                        value={price}
+                        onChange={(e) => setPrice(e.target.value)}
+                        placeholder="e.g., 499"
+                        required
+                    />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="sizes">Sizes (comma-separated)</Label>
+                    <Input
+                        id="sizes"
+                        value={sizes}
+                        onChange={(e) => setSizes(e.target.value)}
+                        placeholder="e.g., M, L, XL"
+                    />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="colors">Colors (comma-separated)</Label>
+                    <Input
+                        id="colors"
+                        value={colors}
+                        onChange={(e) => setColors(e.target.value)}
+                        placeholder="e.g., Red, Blue, Black"
+                    />
+                </div>
             </div>
           </div>
         </CardContent>
