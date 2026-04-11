@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import Image from 'next/image';
 import { useAuth } from '@/hooks/use-auth';
-import { Loader2, Wand2, AlertTriangle } from 'lucide-react';
+import { Loader2, Wand2, AlertTriangle, Facebook, Instagram, MessageSquare } from 'lucide-react';
 import { createProductDescription } from '@/ai/flows/create-product-description';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { v4 as uuidv4 } from 'uuid';
@@ -136,6 +136,26 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
             setIsGenerating(false);
         }
     };
+    
+    const getCatalogueLink = () => {
+        const params = new URLSearchParams();
+        params.set('id', product.id);
+        params.set('title', product.title);
+        params.set('price', productPrice.toString());
+        if(product.imageDataUris.length > 0) params.set('image', product.imageDataUris[0]);
+        const role = getCookie('userRole');
+        if (role === 'seller' && user) {
+            params.set('sellerId', user.uid);
+            params.set('sellerName', user.displayName || 'Seller');
+        } else {
+             params.set('sellerName', product.sellerName || product.vendorName || 'Snazzify');
+             if(product.sellerId) params.set('sellerId', product.sellerId);
+        }
+        if (product.sizes?.length) params.set('sizes', product.sizes.join(','));
+        if (product.colors?.length) params.set('colors', product.colors.join(','));
+        return `${appUrl}/catalogue?${params.toString()}`;
+    };
+
 
     const handleShareMobile = async () => {
         try {
@@ -171,6 +191,20 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
             duration: 8000,
         });
         navigator.clipboard.writeText(shareText);
+    };
+
+    const handleShareOnFacebook = () => {
+        const catalogueLink = getCatalogueLink();
+        const fbShareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(catalogueLink)}`;
+        window.open(fbShareUrl, '_blank', 'width=600,height=400');
+    };
+
+    const handleShareOnInstagram = () => {
+        navigator.clipboard.writeText(shareText);
+        toast({
+            title: "Copied for Instagram!",
+            description: "Message and link copied. Open Instagram and paste it in your story or post.",
+        });
     };
 
 
@@ -224,9 +258,11 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
                 <DialogClose asChild>
                     <Button variant="outline">Cancel</Button>
                 </DialogClose>
-                <div className='flex gap-2'>
+                <div className='flex gap-2 flex-wrap justify-end'>
                     <Button onClick={handleShareMobile} disabled={!isPriceValid}>Share (Mobile)</Button>
-                    <Button onClick={handleShareWeb} disabled={!isPriceValid}>Share (Web)</Button>
+                    <Button variant="secondary" onClick={handleShareWeb} disabled={!isPriceValid}><MessageSquare className="mr-2 h-4 w-4"/>WhatsApp</Button>
+                    <Button variant="outline" onClick={handleShareOnFacebook} disabled={!isPriceValid}><Facebook className="mr-2 h-4 w-4"/> Facebook</Button>
+                    <Button variant="outline" onClick={handleShareOnInstagram} disabled={!isPriceValid}><Instagram className="mr-2 h-4 w-4"/> Instagram</Button>
                 </div>
             </DialogFooter>
         </DialogContent>
