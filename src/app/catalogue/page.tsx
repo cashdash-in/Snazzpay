@@ -186,8 +186,6 @@ function CatalogueOrderPageContent() {
         setIsSubmitting(true);
         const leadId = uuidv4();
 
-        const finalDiscountAmount = (paymentMethod === 'Secure Charge on Delivery' && appliedDiscount) ? originalPrice - totalPrice : undefined;
-
         const newLead: EditableOrder = {
             id: leadId,
             orderId: '#SMRT-' + Math.floor(1000 + Math.random() * 9000),
@@ -202,8 +200,6 @@ function CatalogueOrderPageContent() {
             color: selectedColor,
             price: totalPrice.toString(),
             originalPrice: originalPrice.toString(),
-            discountPercentage: paymentMethod === 'Secure Charge on Delivery' ? appliedDiscount?.discount : undefined,
-            discountAmount: finalDiscountAmount,
             date: new Date().toISOString(),
             paymentStatus: 'Lead',
             paymentMethod,
@@ -213,6 +209,11 @@ function CatalogueOrderPageContent() {
             isRead: false,
             imageDataUris: product.imageDataUris,
         };
+
+        if (paymentMethod === 'Secure Charge on Delivery' && appliedDiscount) {
+            newLead.discountPercentage = appliedDiscount.discount;
+            newLead.discountAmount = originalPrice - totalPrice;
+        }
 
         try {
             await saveDocument('leads', newLead, leadId);
