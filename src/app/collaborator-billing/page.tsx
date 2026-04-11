@@ -10,7 +10,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { getCollection, getDocument } from '@/services/firestore';
 import { format, parseISO } from 'date-fns';
 import { getCookie } from 'cookies-next';
-import type { EditableOrder } from '@/app/orders/page';
+import type { EditableOrder } from '@/types/order';
 import { type CommissionSettings, type Collaborator } from '@/app/collaborators/page';
 
 type Commission = {
