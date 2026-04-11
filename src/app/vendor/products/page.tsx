@@ -6,7 +6,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Loader2, Trash2, Package, MessageSquare, BookOpen } from "lucide-react";
+import { Loader2, Trash2, Package, MessageSquare, BookOpen, Edit } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/hooks/use-auth';
 import type { ProductDrop } from '@/app/vendor/product-drops/page';
@@ -23,10 +23,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Dialog, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { ShareComposerDialog } from '@/components/share-composer-dialog';
-import { getCollection, deleteDocument } from '@/services/firestore';
+import { getCollection, deleteDocument, saveDocument } from '@/services/firestore';
 import Link from 'next/link';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 
 export default function VendorProductsPage() {
     const { user } = useAuth();
@@ -65,6 +67,17 @@ export default function VendorProductsPage() {
         }
         loadProducts();
     }, [user, toast]);
+
+    const handleSavePrice = async (productToUpdate: ProductDrop, newPrice: number) => {
+        try {
+            const updatedProduct = { ...productToUpdate, costPrice: newPrice };
+            await saveDocument(storageKey, updatedProduct, productToUpdate.id);
+            setProducts(prev => prev.map(p => p.id === productToUpdate.id ? updatedProduct : p));
+            toast({ title: 'Price Updated!' });
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Error updating price' });
+        }
+    }
 
     const handleDeleteProduct = async (id: string) => {
         try {
@@ -141,6 +154,42 @@ export default function VendorProductsPage() {
                                             </Button>
                                         </DialogTrigger>
                                         <ShareComposerDialog product={product} />
+                                    </Dialog>
+                                    <Dialog>
+                                        <DialogTrigger asChild>
+                                            <Button variant="outline" size="icon">
+                                                <Edit className="h-4 w-4" />
+                                            </Button>
+                                        </DialogTrigger>
+                                        <DialogContent>
+                                            <DialogHeader>
+                                                <DialogTitle>Edit Cost Price for {product.title}</DialogTitle>
+                                            </DialogHeader>
+                                            <div className="py-4 space-y-2">
+                                                <Label htmlFor={`price-${product.id}`}>New Cost Price (INR)</Label>
+                                                <Input
+                                                    id={`price-${product.id}`}
+                                                    type="number"
+                                                    defaultValue={product.costPrice.toFixed(2)}
+                                                />
+                                            </div>
+                                            <DialogFooter>
+                                                <DialogClose asChild>
+                                                    <Button variant="outline">Cancel</Button>
+                                                </DialogClose>
+                                                <DialogClose asChild>
+                                                    <Button onClick={() => {
+                                                        const input = document.getElementById(`price-${product.id}`) as HTMLInputElement;
+                                                        const newProductPrice = parseFloat(input.value);
+                                                        if (!isNaN(newProductPrice) && newProductPrice >= 0) {
+                                                            handleSavePrice(product, newProductPrice);
+                                                        } else {
+                                                            toast({variant: 'destructive', title: 'Invalid Price'});
+                                                        }
+                                                    }}>Save Price</Button>
+                                                </DialogClose>
+                                            </DialogFooter>
+                                        </DialogContent>
                                     </Dialog>
                                     <AlertDialog>
                                         <AlertDialogTrigger asChild>

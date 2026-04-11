@@ -14,8 +14,9 @@ import { useAuth } from '@/hooks/use-auth';
 import type { EditableOrder } from '@/app/orders/page';
 import { Badge } from "@/components/ui/badge";
 import { sanitizePhoneNumber } from "@/lib/utils";
-import { getCollection, saveDocument, deleteDocument } from "@/services/firestore";
+import { getCollection, saveDocument, deleteDocument, getDocument } from "@/services/firestore";
 import Image from 'next/image';
+import type { ProductDrop } from '@/app/vendor/product-drops/page';
 
 export default function SellerOrdersPage() {
   const [orders, setOrders] = useState<EditableOrder[]>([]);
@@ -65,7 +66,6 @@ export default function SellerOrdersPage() {
   const handlePushToVendor = async (orderToPush: EditableOrder) => {
     if (!user) return;
     
-    // The vendorId should already be on the order object when it was created
     const vendorId = orderToPush.vendorId;
     
     if (!vendorId) {
@@ -78,10 +78,28 @@ export default function SellerOrdersPage() {
     }
 
     try {
-        const orderForVendor = { ...orderToPush, vendorId: vendorId };
+        // --- START NEW LOGIC ---
+        // By default, the vendor sees the price the seller set.
+        let finalVendorPrice = orderToPush.price;
+
+        // If the order originated from a product drop, find the original cost price.
+        if (orderToPush.productId) {
+            const originalDrop = await getDocument<ProductDrop>('product_drops', orderToPush.productId);
+            // Ensure the drop belongs to the target vendor to avoid mix-ups.
+            if (originalDrop && originalDrop.vendorId === vendorId) {
+                finalVendorPrice = originalDrop.costPrice.toString();
+            }
+        }
+        // --- END NEW LOGIC ---
+
+        const orderForVendor = { 
+            ...orderToPush, 
+            vendorId: vendorId,
+            price: finalVendorPrice // Overwrite price for vendor's view
+        };
         await saveDocument('vendor_orders', orderForVendor, orderToPush.id);
 
-        const updatedOrder = { ...orderToPush, paymentStatus: 'Pushed to Vendor' };
+        const updatedOrder = { ...orderToPush, paymentStatus: 'Pushed to Vendor' as const };
         await saveDocument('orders', { paymentStatus: 'Pushed to Vendor' }, orderToPush.id);
         
         setOrders(prev => prev.map(o => o.id === orderToPush.id ? updatedOrder : o));

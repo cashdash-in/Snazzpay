@@ -5,7 +5,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Loader2, Trash2, Package, MessageSquare, BookOpen } from "lucide-react";
+import { Loader2, Trash2, Package, MessageSquare, BookOpen, Edit } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/hooks/use-auth';
 import type { SellerProduct } from '@/app/seller/ai-product-uploader/page';
@@ -22,12 +22,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Dialog, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { ShareComposerDialog } from '@/components/share-composer-dialog';
 import { getCollection, saveDocument, deleteDocument } from '@/services/firestore';
 import type { ProductDrop } from '@/app/vendor/product-drops/page';
 import type { SellerUser } from '@/app/seller-accounts/page';
 import Link from 'next/link';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 
 export default function SellerProductsPage() {
     const { user } = useAuth();
@@ -63,6 +65,18 @@ export default function SellerProductsPage() {
         loadProducts();
 
     }, [user, toast]);
+
+    const handleSavePrice = async (productToUpdate: SellerProduct, newPrice: number) => {
+        try {
+            const updatedProduct = { ...productToUpdate, price: newPrice };
+            await saveDocument('seller_products', updatedProduct, productToUpdate.id);
+            setProducts(prev => prev.map(p => p.id === productToUpdate.id ? updatedProduct : p));
+            toast({ title: 'Price Updated!' });
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Error updating price' });
+        }
+    };
+
 
     const handleDeleteProduct = async (id: string) => {
         if (!user) return;
@@ -135,6 +149,42 @@ export default function SellerProductsPage() {
                                             </Button>
                                         </DialogTrigger>
                                         <ShareComposerDialog product={product} />
+                                    </Dialog>
+                                    <Dialog>
+                                        <DialogTrigger asChild>
+                                            <Button variant="outline" size="icon">
+                                                <Edit className="h-4 w-4" />
+                                            </Button>
+                                        </DialogTrigger>
+                                        <DialogContent>
+                                            <DialogHeader>
+                                                <DialogTitle>Edit Price for {product.title}</DialogTitle>
+                                            </DialogHeader>
+                                            <div className="py-4 space-y-2">
+                                                <Label htmlFor={`price-${product.id}`}>New Selling Price (INR)</Label>
+                                                <Input
+                                                    id={`price-${product.id}`}
+                                                    type="number"
+                                                    defaultValue={product.price.toFixed(2)}
+                                                />
+                                            </div>
+                                            <DialogFooter>
+                                                <DialogClose asChild>
+                                                    <Button variant="outline">Cancel</Button>
+                                                </DialogClose>
+                                                <DialogClose asChild>
+                                                    <Button onClick={() => {
+                                                        const input = document.getElementById(`price-${product.id}`) as HTMLInputElement;
+                                                        const newProductPrice = parseFloat(input.value);
+                                                        if (!isNaN(newProductPrice) && newProductPrice >= 0) {
+                                                            handleSavePrice(product, newProductPrice);
+                                                        } else {
+                                                            toast({variant: 'destructive', title: 'Invalid Price'});
+                                                        }
+                                                    }}>Save Price</Button>
+                                                </DialogClose>
+                                            </DialogFooter>
+                                        </DialogContent>
                                     </Dialog>
                                     <AlertDialog>
                                         <AlertDialogTrigger asChild>

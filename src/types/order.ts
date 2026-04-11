@@ -10,6 +10,7 @@ export type EditableOrder = {
   contactNo: string;
   vendorContactNo?: string;
   productOrdered: string;
+  productId?: string;
   quantity: number;
   size?: string;
   color?: string;

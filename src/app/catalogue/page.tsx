@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { saveDocument, getDocument, getCollection } from '@/services/firestore';
-import type { EditableOrder } from '@/types/order';
+import type { EditableOrder } from '@/app/orders/page';
 import { v4 as uuidv4 } from 'uuid';
 import type { SellerProduct } from '../seller/ai-product-uploader/page';
 import type { ProductDrop } from '../vendor/product-drops/page';
@@ -195,6 +195,7 @@ function CatalogueOrderPageContent() {
         const newLead: EditableOrder = {
             id: leadId,
             orderId: '#SMRT-' + Math.floor(1000 + Math.random() * 9000),
+            productId: product.productId,
             customerName: name,
             customerEmail: customerDetails.email,
             customerAddress: address,
@@ -425,5 +426,3 @@ export default function CataloguePage() {
         </Suspense>
     );
 }
-
-    
