@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -7,16 +6,18 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import Image from 'next/image';
-import { Loader2, Package, Sparkles, MessageSquare, CheckCircle } from 'lucide-react';
+import { Loader2, Package, Sparkles, MessageSquare, CheckCircle, PlusCircle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useRouter } from 'next/navigation';
-import { Dialog, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useAuth } from '@/hooks/use-auth';
 import type { SellerUser } from '@/app/seller-accounts/page';
 import { ShareComposerDialog } from '@/components/share-composer-dialog';
 import type { ProductDrop } from '@/app/vendor/product-drops/page';
-import { getCollection, saveDocument } from '@/services/firestore';
+import { getCollection, saveDocument, getDocument } from '@/services/firestore';
 import type { SellerProduct } from '@/app/seller/ai-product-uploader/page';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 
 export default function SellerProductDropsPage() {
     const { toast } = useToast();
@@ -24,6 +25,10 @@ export default function SellerProductDropsPage() {
     const [drops, setDrops] = useState<ProductDrop[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const { user } = useAuth();
+    const [addedProductIds, setAddedProductIds] = new Set());
+    const [selectedDropForPricing, setSelectedDropForPricing] = useState<ProductDrop | null>(null);
+    const [sellingPrice, setSellingPrice] = useState('');
+    const [currentSeller, setCurrentSeller] = useState<SellerUser | null>(null);
     
     useEffect(() => {
         if (!user) {
@@ -33,10 +38,10 @@ export default function SellerProductDropsPage() {
 
         async function loadData() {
             try {
-                // Get the seller's vendor ID
-                const allSellers = await getCollection<SellerUser>('seller_users');
-                const currentSeller = allSellers.find(s => s.id === user?.uid);
-                const sellerVendorId = currentSeller?.vendorId;
+                // Get the seller's vendor ID and full details
+                const sellerDoc = await getDocument<SellerUser>('seller_users', user.uid);
+                setCurrentSeller(sellerDoc);
+                const sellerVendorId = sellerDoc?.vendorId;
 
                 // Load all drops
                 const storedDrops = await getCollection<ProductDrop>('product_drops');
@@ -46,32 +51,12 @@ export default function SellerProductDropsPage() {
                     drop.vendorId === sellerVendorId || drop.vendorId === 'admin_snazzify'
                 );
                 
-                setDrops(relevantDrops);
+                setDrops(relevantDrops.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
 
-                // Automatically add new drops to seller's products
-                if (user && currentSeller) {
-                    const sellerProducts = await getCollection<SellerProduct>('seller_products');
-                    const myProductsIds = new Set(sellerProducts.filter(p => p.sellerId === user.uid).map(p => p.id));
-                    
-                    for (const drop of relevantDrops) {
-                        if (!myProductsIds.has(drop.id)) {
-                            const newSellerProduct: SellerProduct = {
-                                id: drop.id, // Use drop ID to link them
-                                sellerId: user.uid,
-                                sellerName: currentSeller.companyName,
-                                title: drop.title,
-                                description: drop.description,
-                                category: drop.category || 'Uncategorized',
-                                price: drop.costPrice, // Seller can adjust this later
-                                sizes: [],
-                                colors: [],
-                                imageDataUris: drop.imageDataUris,
-                                createdAt: new Date().toISOString(),
-                            };
-                            await saveDocument('seller_products', newSellerProduct, newSellerProduct.id);
-                        }
-                    }
-                }
+                // Get IDs of products already added by the seller
+                const sellerProducts = await getCollection<SellerProduct>('seller_products');
+                const myProductIds = new Set(sellerProducts.filter(p => p.sellerId === user.uid).map(p => p.id));
+                setAddedProductIds(myProductIds);
 
             } catch (error) {
                 toast({
@@ -86,6 +71,37 @@ export default function SellerProductDropsPage() {
         loadData();
 
     }, [toast, user]);
+
+    const handleSaveToMyProducts = async () => {
+        if (!selectedDropForPricing || !sellingPrice || !user || !currentSeller) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Missing information to add product.' });
+            return;
+        }
+
+        const newSellerProduct: SellerProduct = {
+            id: selectedDropForPricing.id, // Use drop ID to link them
+            sellerId: user.uid,
+            sellerName: currentSeller.companyName,
+            title: selectedDropForPricing.title,
+            description: selectedDropForPricing.description,
+            category: selectedDropForPricing.category || 'Uncategorized',
+            price: parseFloat(sellingPrice),
+            sizes: selectedDropForPricing.sizes || [],
+            colors: selectedDropForPricing.colors || [],
+            imageDataUris: selectedDropForPricing.imageDataUris,
+            createdAt: new Date().toISOString(),
+        };
+
+        try {
+            await saveDocument('seller_products', newSellerProduct, newSellerProduct.id);
+            setAddedProductIds(prev => new Set(prev).add(newSellerProduct.id));
+            toast({ title: 'Product Added!', description: `${newSellerProduct.title} is now in your "My Products" list.` });
+            setSelectedDropForPricing(null);
+            setSellingPrice('');
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Failed to Add Product', description: error.message });
+        }
+    };
     
     return (
         <AppShell title="Product Drops">
@@ -94,7 +110,7 @@ export default function SellerProductDropsPage() {
                     <CardHeader>
                         <CardTitle>Incoming Product Drops from Your Vendor</CardTitle>
                         <CardDescription>
-                            This is your feed of new products shared by your approved vendor. These are automatically added to your "My Products" page.
+                            This is your feed of new products shared by your approved vendor. Add them to your catalog to start selling.
                         </CardDescription>
                     </CardHeader>
                 </Card>
@@ -113,34 +129,75 @@ export default function SellerProductDropsPage() {
                     </Card>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {drops.map(drop => (
-                            <Card key={drop.id} className="flex flex-col">
-                                <CardHeader>
-                                    <div className="flex justify-center mb-4 h-40">
-                                        <Image src={drop.imageDataUris[0]} alt={drop.title} width={200} height={200} className="object-contain rounded-md"/>
-                                    </div>
-                                    <CardTitle>{drop.title}</CardTitle>
-                                    <CardDescription>From: {drop.vendorName} &bull; {formatDistanceToNow(new Date(drop.createdAt), { addSuffix: true })}</CardDescription>
-                                </CardHeader>
-                                <CardContent className="flex-grow">
-                                    <p className="text-sm text-muted-foreground line-clamp-3">{drop.description}</p>
-                                    <div className="mt-4">
-                                        <p className="text-lg font-bold">Cost: ₹{drop.costPrice.toFixed(2)}</p>
-                                    </div>
-                                </CardContent>
-                                <CardFooter className="flex-col items-stretch space-y-2">
-                                    <Dialog>
-                                        <DialogTrigger asChild>
-                                            <Button className="w-full" variant="secondary">
-                                                <MessageSquare className="mr-2 h-4 w-4" />
-                                                Share on WhatsApp
-                                            </Button>
-                                        </DialogTrigger>
-                                        <ShareComposerDialog product={drop} />
-                                    </Dialog>
-                                </CardFooter>
-                            </Card>
-                        ))}
+                        {drops.map(drop => {
+                            const isAdded = addedProductIds.has(drop.id);
+                            return (
+                                <Card key={drop.id} className="flex flex-col">
+                                    <CardHeader>
+                                        <div className="flex justify-center mb-4 h-40">
+                                            <Image src={drop.imageDataUris[0]} alt={drop.title} width={200} height={200} className="object-contain rounded-md"/>
+                                        </div>
+                                        <CardTitle>{drop.title}</CardTitle>
+                                        <CardDescription>From: {drop.vendorName} &bull; {formatDistanceToNow(new Date(drop.createdAt), { addSuffix: true })}</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="flex-grow">
+                                        <p className="text-sm text-muted-foreground line-clamp-3">{drop.description}</p>
+                                        <div className="mt-4">
+                                            <p className="text-lg font-bold">Your Cost: ₹{drop.costPrice.toFixed(2)}</p>
+                                        </div>
+                                    </CardContent>
+                                    <CardFooter className="flex-col items-stretch space-y-2">
+                                        <Dialog onOpenChange={(isOpen) => { if(!isOpen) setSelectedDropForPricing(null)}}>
+                                            <DialogTrigger asChild>
+                                                <Button className="w-full" disabled={isAdded} onClick={() => {
+                                                    setSelectedDropForPricing(drop);
+                                                    setSellingPrice((drop.costPrice * 2).toFixed(2)); // Default to 100% margin
+                                                }}>
+                                                    {isAdded ? <CheckCircle className="mr-2"/> : <PlusCircle className="mr-2"/>}
+                                                    {isAdded ? 'Added to My Products' : 'Add & Set Price'}
+                                                </Button>
+                                            </DialogTrigger>
+                                            {selectedDropForPricing && selectedDropForPricing.id === drop.id && (
+                                                <DialogContent>
+                                                    <DialogHeader>
+                                                        <DialogTitle>Set Your Selling Price</DialogTitle>
+                                                        <DialogDescription>Set the price at which you want to sell "{selectedDropForPricing.title}".</DialogDescription>
+                                                    </DialogHeader>
+                                                    <div className="py-4 space-y-4">
+                                                        <div className="p-4 border rounded-lg bg-muted">
+                                                            <p className="text-sm">Your Cost Price from Vendor:</p>
+                                                            <p className="font-bold text-lg">₹{selectedDropForPricing.costPrice.toFixed(2)}</p>
+                                                        </div>
+                                                        <div className="space-y-2">
+                                                            <Label htmlFor="selling-price">Your Selling Price (INR)</Label>
+                                                            <Input 
+                                                                id="selling-price" 
+                                                                type="number" 
+                                                                value={sellingPrice} 
+                                                                onChange={(e) => setSellingPrice(e.target.value)}
+                                                                placeholder="e.g., 499"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <DialogFooter>
+                                                        <Button onClick={handleSaveToMyProducts}>Save to My Products</Button>
+                                                    </DialogFooter>
+                                                </DialogContent>
+                                            )}
+                                        </Dialog>
+                                        <Dialog>
+                                            <DialogTrigger asChild>
+                                                <Button className="w-full" variant="secondary">
+                                                    <MessageSquare className="mr-2 h-4 w-4" />
+                                                    Share
+                                                </Button>
+                                            </DialogTrigger>
+                                            <ShareComposerDialog product={drop} />
+                                        </Dialog>
+                                    </CardFooter>
+                                </Card>
+                            )
+                        })}
                     </div>
                 )}
             </div>
