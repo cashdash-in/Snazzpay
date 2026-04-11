@@ -119,13 +119,19 @@ export default function ShareMagazinePage() {
         const newMagazine: Magazine = {
             id: magazineId,
             title: magazineTitle,
-            vendorTitle: isAdmin && vendorTitle ? vendorTitle : undefined,
             productIds: selectedProductIds,
             creatorId: user.uid,
             creatorName: creatorName,
             createdAt: new Date().toISOString(),
-            discount: discount > 0 ? discount : undefined,
         };
+
+        if (isAdmin && vendorTitle) {
+            newMagazine.vendorTitle = vendorTitle;
+        }
+        if (discount > 0) {
+            newMagazine.discount = discount;
+        }
+
 
         try {
             await saveDocument('smart_magazines', newMagazine, magazineId);
