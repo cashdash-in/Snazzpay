@@ -22,13 +22,19 @@ const prompt = ai.definePrompt({
   name: 'createProductFromTextPrompt',
   model: 'googleai/gemini-pro',
   input: { schema: ProductFromTextInputSchema },
-  output: { schema: ProductFromTextOutputSchema },
+  output: {
+    schema: ProductFromTextOutputSchema,
+    format: 'json',
+  },
+  config: {
+    response_mime_type: 'application/json',
+  },
   prompt: `You are a text-parsing expert. Analyze the following text, which might be messy and from a chat message. Extract a clean product title and a well-structured description.
 
     Input Text:
-    '''
+    ---
     {{{text}}}
-    '''
+    ---
     `,
 });
 

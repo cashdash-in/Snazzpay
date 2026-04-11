@@ -296,7 +296,7 @@ export function SecureCodPaymentForm() {
             if (authResult.error) throw new Error(`Authorization Failed: ${authResult.error}`);
             
             const rzp2 = new (window as any).Razorpay({
-                key: authResult.key_id,
+                key: razorpayKeyId,
                 order_id: authResult.order_id,
                 amount: totalPrice * 100,
                 name: "Authorize Secure COD Payment",
@@ -485,3 +485,5 @@ export function SecureCodPaymentForm() {
         </div>
     );
 }
+
+    

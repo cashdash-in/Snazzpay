@@ -21,7 +21,13 @@ const prompt = ai.definePrompt({
   name: 'whatsAppParserPrompt',
   model: 'googleai/gemini-pro',
   input: { schema: WhatsAppParserInputSchema },
-  output: { schema: WhatsAppParserOutputSchema },
+  output: {
+    schema: WhatsAppParserOutputSchema,
+    format: 'json',
+  },
+  config: {
+    response_mime_type: 'application/json',
+  },
   prompt: `You are an expert in parsing unstructured text to find product information. Analyze the following WhatsApp chat export. Identify each distinct product being discussed and extract its details.
 
       - A new product usually starts with a product name/code or an image.
@@ -32,9 +38,9 @@ const prompt = ai.definePrompt({
       Date Range: {{#if startDate}}{{startDate}} to {{endDate}}{{else}}Not specified{{/if}}
 
       Chat Content:
-      \'\'\'
+      ---
       {{{chatText}}}
-      \'\'\'
+      ---
     `,
 });
 
