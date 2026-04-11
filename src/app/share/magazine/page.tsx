@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -220,7 +221,7 @@ export default function ShareMagazinePage() {
                                                 <Image src={product.imageDataUris[0]} alt={product.title} width={60} height={60} className="rounded-md object-contain aspect-square bg-muted" />
                                                 <div className="flex-grow">
                                                     <p className="font-semibold">{product.title}</p>
-                                                    <p className="text-sm text-muted-foreground">Price: ₹{((product as SellerProduct).price || (product as ProductDrop).costPrice).toFixed(2)}</p>
+                                                    <p className="text-sm text-muted-foreground">Price: ₹{(((product as SellerProduct).price || (product as ProductDrop).costPrice) ?? 0).toFixed(2)}</p>
                                                 </div>
                                             </label>
                                             <Dialog>
