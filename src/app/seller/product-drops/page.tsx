@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -25,7 +26,7 @@ export default function SellerProductDropsPage() {
     const [drops, setDrops] = useState<ProductDrop[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const { user } = useAuth();
-    const [addedProductIds, setAddedProductIds] = new Set());
+    const [addedProductIds, setAddedProductIds] = useState(new Set<string>());
     const [selectedDropForPricing, setSelectedDropForPricing] = useState<ProductDrop | null>(null);
     const [sellingPrice, setSellingPrice] = useState('');
     const [currentSeller, setCurrentSeller] = useState<SellerUser | null>(null);
