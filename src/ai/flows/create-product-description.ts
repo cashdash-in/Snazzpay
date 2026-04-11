@@ -37,7 +37,7 @@ export type ProductDescriptionOutput = z.infer<
 
 const prompt = ai.definePrompt({
   name: 'productDescriptionPrompt',
-  model: 'googleai/gemini-pro-vision',
+  model: 'googleai/gemini-1.5-flash',
   input: { schema: ProductDescriptionInputSchema },
   output: { schema: ProductDescriptionOutputSchema },
   prompt: `You are an expert e-commerce merchandiser. Your task is to analyze the provided product image and generate a compelling title, description, and category.
@@ -52,8 +52,15 @@ const createProductDescriptionFlow = ai.defineFlow(
     outputSchema: ProductDescriptionOutputSchema,
   },
   async (input) => {
-    const { output } = await prompt(input);
-    return output!;
+    try {
+      const { output } = await prompt(input);
+      return output!;
+    } catch (error: any) {
+        console.error("Error in createProductDescriptionFlow:", error);
+        // It's better to throw a more specific error or handle it gracefully
+        // For now, re-throwing to see the original error in logs.
+        throw new Error(`AI generation failed: ${error.message}`);
+    }
   }
 );
 
