@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, DragEvent, ClipboardEvent } from 'react';
@@ -535,3 +536,5 @@ export default function AiProductUploaderPage() {
     </AppShell>
   );
 }
+
+    
