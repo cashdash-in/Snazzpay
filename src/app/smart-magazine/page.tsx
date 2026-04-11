@@ -120,17 +120,31 @@ function SmartMagazineContent() {
     }, [searchParams]);
     
     const handleOrderClick = (product: DisplayProduct) => {
-        const params = new URLSearchParams(searchParams); // Preserve existing params like discount
-        params.set('id', product.id);
-
-        if ((product as SellerProduct).sizes && (product as SellerProduct).sizes.length > 0) {
-            params.set('sizes', (product as SellerProduct).sizes.join(','));
+        const catalogueParams = new URLSearchParams();
+        
+        // Set product ID
+        catalogueParams.set('id', product.id);
+    
+        // Pass the current Smart Magazine URL as the return URL
+        catalogueParams.set('return_url', window.location.href);
+    
+        // Carry over the discount from the magazine URL
+        const discountFromMagazine = searchParams.get('discount');
+        if (discountFromMagazine) {
+            catalogueParams.set('discount', discountFromMagazine);
         }
-        if ((product as SellerProduct).colors && (product as SellerProduct).colors.length > 0) {
-            params.set('colors', (product as SellerProduct).colors.join(','));
+        
+        // Pass product-specific details like sizes and colors
+        const productSizes = (product as SellerProduct).sizes || [];
+        if (productSizes.length > 0) {
+            catalogueParams.set('sizes', productSizes.join(','));
         }
-
-        router.push(`/catalogue?${params.toString()}`);
+        const productColors = (product as SellerProduct).colors || [];
+        if (productColors.length > 0) {
+            catalogueParams.set('colors', productColors.join(','));
+        }
+    
+        router.push(`/catalogue?${catalogueParams.toString()}`);
     };
 
     if (isLoading) {
@@ -215,3 +229,5 @@ export default function SmartMagazinePage() {
         </Suspense>
     );
 }
+
+    

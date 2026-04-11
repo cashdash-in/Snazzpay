@@ -67,6 +67,7 @@ function CatalogueOrderPageContent() {
     const [totalPrice, setTotalPrice] = useState(0);
     const [originalPrice, setOriginalPrice] = useState(0);
     const [appliedDiscount, setAppliedDiscount] = useState<DiscountRule | null>(null);
+    const [returnUrl, setReturnUrl] = useState('https://www.snazzify.co.in');
     
     const availableSizes = searchParams.get('sizes')?.split(',').filter(s => s) || [];
     const availableColors = searchParams.get('colors')?.split(',').filter(c => c) || [];
@@ -98,6 +99,11 @@ function CatalogueOrderPageContent() {
     }, []);
 
     useEffect(() => {
+        const redirectUrl = searchParams.get('return_url');
+        if (redirectUrl) {
+            setReturnUrl(redirectUrl);
+        }
+        
         async function fetchProduct() {
             const productId = searchParams.get('id');
             const discountParam = searchParams.get('discount');
@@ -277,7 +283,7 @@ function CatalogueOrderPageContent() {
                         <p className="text-muted-foreground">The seller has received your request and will contact you shortly via WhatsApp or phone to confirm the order and arrange payment.</p>
                     </CardContent>
                      <CardFooter>
-                         <a href="https://www.snazzify.co.in" className="w-full"><Button className="w-full" variant="outline">Continue Shopping</Button></a>
+                         <a href={returnUrl} className="w-full"><Button className="w-full" variant="outline">Continue Shopping</Button></a>
                     </CardFooter>
                  </Card>
             </div>
