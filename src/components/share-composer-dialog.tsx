@@ -25,6 +25,7 @@ type ShareableProduct = {
     price?: number;
     category?: string;
     vendorName?: string;
+    vendorId?: string;
     sellerId?: string;
     sellerName?: string;
     sizes?: string[];
@@ -54,44 +55,40 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
     const productPrice = useMemo(() => product.price || product.costPrice || 0, [product]);
     const isPriceValid = productPrice > 0;
 
-    useEffect(() => {
+    const getCatalogueLink = () => {
         const currentUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
-        setAppUrl(currentUrl);
-
         const params = new URLSearchParams();
         params.set('id', product.id);
-        
-        // The catalogue page will fetch all details by ID, so we don't need to pass them all.
-        // We only pass what's needed for a rich preview.
-        params.set('title', product.title);
-        params.set('price', productPrice.toString());
-        if(product.imageDataUris.length > 0) {
-            params.set('image', product.imageDataUris[0]); 
-        }
-        
+
         const role = getCookie('userRole');
+
+        // If a seller is sharing, they are the seller for attribution.
         if (role === 'seller' && user) {
             params.set('sellerId', user.uid);
             params.set('sellerName', user.displayName || 'Seller');
         } else {
-             params.set('sellerName', product.sellerName || product.vendorName || 'Snazzify');
-             if(product.sellerId) params.set('sellerId', product.sellerId);
+            // Otherwise, attribute to the product's original owner (seller or vendor)
+            const sellerId = product.sellerId || product.vendorId;
+            const sellerName = product.sellerName || product.vendorName;
+            if (sellerId && sellerName) {
+                params.set('sellerId', sellerId);
+                params.set('sellerName', sellerName);
+            }
         }
+        
+        return `${currentUrl}/catalogue?${params.toString()}`;
+    };
 
-        if (product.sizes?.length) {
-            params.set('sizes', product.sizes.join(','));
-        }
-        if (product.colors?.length) {
-            params.set('colors', product.colors.join(','));
-        }
+    useEffect(() => {
+        const currentUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+        setAppUrl(currentUrl);
 
-
-        const catalogueLink = `${currentUrl}/catalogue?${params.toString()}`;
+        const catalogueLink = getCatalogueLink();
         
         setShareText(
             `Check out this new product!\n\n*${product.title}*\n\n*Price:* ₹${(productPrice).toFixed(2)}\n\nClick here to view & order: ${catalogueLink}`
         );
-    }, [product, user, productPrice, appUrl]);
+    }, [product, user, productPrice]);
         
     const handleImageSelection = (imageUri: string) => {
         setSelectedImages(prev => 
@@ -106,18 +103,7 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
                 imageDataUri: product.imageDataUris[0],
             });
             
-            const params = new URLSearchParams();
-            params.set('id', product.id);
-            // Rebuild the link with the new description included
-            params.set('title', product.title);
-            // The description is not passed in the URL, the catalogue page fetches it.
-            // But we update the share text
-            params.set('price', productPrice.toString());
-            if(product.imageDataUris.length > 0) {
-                 params.set('image', product.imageDataUris[0]);
-            }
-
-            const catalogueLink = `${appUrl}/catalogue?${params.toString()}`;
+            const catalogueLink = getCatalogueLink();
 
             setShareText(
                 `Check out this new product!\n\n*${product.title}*\n${newDescription}\n\n*Price:* ₹${(productPrice).toFixed(2)}\n\nClick here to view & order: ${catalogueLink}`
@@ -136,26 +122,6 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
             setIsGenerating(false);
         }
     };
-    
-    const getCatalogueLink = () => {
-        const params = new URLSearchParams();
-        params.set('id', product.id);
-        params.set('title', product.title);
-        params.set('price', productPrice.toString());
-        if(product.imageDataUris.length > 0) params.set('image', product.imageDataUris[0]);
-        const role = getCookie('userRole');
-        if (role === 'seller' && user) {
-            params.set('sellerId', user.uid);
-            params.set('sellerName', user.displayName || 'Seller');
-        } else {
-             params.set('sellerName', product.sellerName || product.vendorName || 'Snazzify');
-             if(product.sellerId) params.set('sellerId', product.sellerId);
-        }
-        if (product.sizes?.length) params.set('sizes', product.sizes.join(','));
-        if (product.colors?.length) params.set('colors', product.colors.join(','));
-        return `${appUrl}/catalogue?${params.toString()}`;
-    };
-
 
     const handleShareMobile = async () => {
         try {

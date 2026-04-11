@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { Suspense, useState, useEffect } from 'react';
@@ -70,8 +68,8 @@ function CatalogueOrderPageContent() {
     const [appliedDiscount, setAppliedDiscount] = useState<DiscountRule | null>(null);
     const [returnUrl, setReturnUrl] = useState('https://www.snazzify.co.in');
     
-    const availableSizes = searchParams.get('sizes')?.split(',').filter(s => s) || [];
-    const availableColors = searchParams.get('colors')?.split(',').filter(c => c) || [];
+    const [availableSizes, setAvailableSizes] = useState<string[]>([]);
+    const [availableColors, setAvailableColors] = useState<string[]>([]);
 
     useEffect(() => {
         // Track session start
@@ -107,6 +105,8 @@ function CatalogueOrderPageContent() {
         
         async function fetchProduct() {
             const productId = searchParams.get('id');
+            const urlSellerId = searchParams.get('sellerId'); // Get from URL
+            const urlSellerName = searchParams.get('sellerName'); // Get from URL
             const discountParam = searchParams.get('discount');
             
             if (!productId) {
@@ -129,13 +129,20 @@ function CatalogueOrderPageContent() {
                     const displayProduct: DisplayProduct = {
                         ...fetchedProduct,
                         price: price,
-                        sellerName: (fetchedProduct as SellerProduct).sellerName ?? (fetchedProduct as ProductDrop).vendorName,
-                        sellerId: (fetchedProduct as SellerProduct).sellerId ?? (fetchedProduct as ProductDrop).vendorId,
+                        sellerName: urlSellerName || (fetchedProduct as SellerProduct).sellerName || (fetchedProduct as ProductDrop).vendorName,
+                        sellerId: urlSellerId || (fetchedProduct as SellerProduct).sellerId || (fetchedProduct as any).vendorId,
                         productId: fetchedProduct.id,
                         vendor: productType === 'product_drop' ? (fetchedProduct as ProductDrop).vendorName : ((fetchedProduct as SellerProduct).sellerName || ''),
                         collection: (fetchedProduct as any).category || '',
                     };
                     setProduct(displayProduct);
+
+                    const sizes = (fetchedProduct as any).sizes || [];
+                    const colors = (fetchedProduct as any).colors || [];
+                    setAvailableSizes(sizes);
+                    setAvailableColors(colors);
+                    if (sizes.length > 0) setSelectedSize(sizes[0]);
+                    if (colors.length > 0) setSelectedColor(colors[0]);
 
                     let bestDiscount: DiscountRule | null = null;
                     if(discountParam && parseFloat(discountParam) > 0) {
@@ -150,8 +157,6 @@ function CatalogueOrderPageContent() {
 
                     setAppliedDiscount(bestDiscount);
 
-                    if (availableSizes.length > 0) setSelectedSize(availableSizes[0]);
-                    if (availableColors.length > 0) setSelectedColor(availableColors[0]);
                 } else {
                     toast({ variant: 'destructive', title: "Product not found", description: "We couldn't find details for this product." });
                 }
