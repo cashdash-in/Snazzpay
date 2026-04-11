@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState, FormEvent } from 'react';
@@ -76,6 +75,10 @@ export function SecureCodPaymentForm() {
     const [originalPrice, setOriginalPrice] = useState(0);
     const [appliedDiscount, setAppliedDiscount] = useState<DiscountRule | null>(null);
 
+    const [intentPaid, setIntentPaid] = useState(false);
+    const [returnUrl, setReturnUrl] = useState('https://www.snazzify.co.in');
+
+
     useEffect(() => {
         const script = document.createElement('script');
         script.src = 'https://checkout.razorpay.com/v1/checkout.js';
@@ -133,8 +136,13 @@ export function SecureCodPaymentForm() {
             address: searchParams.get('customerAddress') || '',
             pincode: searchParams.get('customerPincode') || '',
         });
+
+        const redirectUrl = searchParams.get('return_url');
+        if (redirectUrl) {
+            setReturnUrl(redirectUrl);
+        }
         
-        async function fetchKey() {
+        async function fetchKeyAndCheckLead() {
             try {
                 const response = await fetch('/api/get-key');
                 if (!response.ok) throw new Error('Failed to fetch key');
@@ -143,6 +151,16 @@ export function SecureCodPaymentForm() {
                     toast({ variant: 'destructive', title: "Configuration Error", description: "Razorpay Key ID is not set on the server." });
                 }
                 setRazorpayKeyId(keyId);
+                
+                const currentOrderId = searchParams.get('order_id');
+                if(currentOrderId) {
+                    const lead = await getDocument<EditableOrder>('leads', currentOrderId);
+                    if (lead && lead.paymentStatus === 'Intent Verified') {
+                        setIntentPaid(true);
+                        toast({ title: "Welcome back!", description: "You've already verified your intent. Please complete the full payment." });
+                    }
+                }
+
             } catch (error) {
                 console.error(error);
                 toast({ variant: 'destructive', title: "Network Error", description: "Could not fetch payment configuration." });
@@ -150,7 +168,7 @@ export function SecureCodPaymentForm() {
                 setLoading(false);
             }
         }
-        fetchKey();
+        fetchKeyAndCheckLead();
     }, [searchParams, toast, availableColors.length, availableSizes.length]);
 
     useEffect(() => {
@@ -158,7 +176,6 @@ export function SecureCodPaymentForm() {
             const baseTotal = orderDetails.amount * quantity;
             setOriginalPrice(baseTotal);
     
-            // Always find the best available discount, but only apply it if Secure COD is selected.
             try {
                 const discounts = await getCollection<DiscountRule>('discounts');
                 const productDiscount = discounts.find(d => d.id === `product_${orderDetails.productId}`);
@@ -201,21 +218,22 @@ export function SecureCodPaymentForm() {
 
         setIsSubmitting(true);
 
-        const finalDiscountAmount = (paymentMethod === 'Secure Charge on Delivery' && appliedDiscount) ? originalPrice - totalPrice : undefined;
-
         const orderData: Omit<EditableOrder, 'id' | 'paymentStatus' | 'source'> = {
             orderId: orderDetails.orderId, customerName: name, customerEmail: email, contactNo: contact, customerAddress: address, pincode,
             productOrdered: orderDetails.productName, quantity: quantity, price: totalPrice.toString(), date: new Date().toISOString(),
             sellerId: orderDetails.sellerId, sellerName: orderDetails.sellerName, paymentMethod,
             size: selectedSize, color: selectedColor,
             originalPrice: originalPrice.toString(),
-            discountPercentage: (paymentMethod === 'Secure Charge on Delivery' && appliedDiscount) ? appliedDiscount.discount : undefined,
-            discountAmount: finalDiscountAmount,
             imageDataUris: orderDetails.productImage ? [orderDetails.productImage] : [],
         };
         
+        if (paymentMethod === 'Secure Charge on Delivery' && appliedDiscount) {
+            orderData.discountPercentage = appliedDiscount.discount;
+            orderData.discountAmount = originalPrice - totalPrice;
+        }
+        
         if (paymentMethod === 'Cash on Delivery') {
-            const newOrder: EditableOrder = { ...orderData, id: uuidv4(), paymentStatus: 'Pending', source: 'Shopify' };
+            const newOrder: EditableOrder = { ...orderData, id: uuidv4(), paymentStatus: 'Pending', source: 'Shopify', isRead: false };
             await saveDocument('orders', newOrder, newOrder.id);
             toast({ title: "Order Placed!", description: `Your Cash on Delivery order ${newOrder.orderId} has been confirmed.` });
             setStep('complete');
@@ -223,7 +241,6 @@ export function SecureCodPaymentForm() {
             return;
         }
 
-        // --- Secure COD Flow ---
         if (!razorpayKeyId) {
             toast({ variant: 'destructive', title: "Razorpay Not Configured" });
             setIsSubmitting(false);
@@ -231,65 +248,49 @@ export function SecureCodPaymentForm() {
         }
 
         try {
-            const handleRazorpaySuccess = async (authResponse: any, orderId: string) => {
-                const finalOrder: EditableOrder = { ...orderData, id: orderId, paymentStatus: 'Authorized', source: 'Shopify' };
-                
-                await saveDocument('payment_info', {
-                    paymentId: authResponse.razorpay_payment_id,
-                    orderId: orderId,
-                    razorpayOrderId: authResponse.razorpay_order_id,
-                    signature: authResponse.razorpay_signature,
-                    status: 'authorized',
-                    authorizedAt: new Date().toISOString()
-                }, orderId);
+            let orderIdForFlow = orderDetails.orderId;
 
-                await saveDocument('orders', finalOrder, orderId);
+            if (!intentPaid) {
+                const intentResponse = await fetch('/api/create-mandate-order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ amount: 1, productName: `Verification for ${orderDetails.productName}`, isAuthorization: false, name, email, contact, address, pincode })
+                });
+                const intentResult = await intentResponse.json();
+                if (intentResult.error) throw new Error(`Intent Verification Failed: ${intentResult.error}`);
                 
-                const leadDoc = await getDocument('leads', orderId);
-                if (leadDoc) await deleteDocument('leads', orderId);
+                orderIdForFlow = intentResult.internal_order_id;
                 
-                const card = await getOrCreateShaktiCard(finalOrder);
-                if (card) setNewlyCreatedCard(card);
-                
-                toast({ title: "Authorization Successful!", description: `Order ${finalOrder.orderId} is confirmed.` });
-                setStep('complete');
-            };
-
-            const intentResponse = await fetch('/api/create-mandate-order', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ amount: 1, productName: `Verification for ${orderDetails.productName}`, isAuthorization: false, name, email, contact, address, pincode })
-            });
-            const intentResult = await intentResponse.json();
-            if (intentResult.error) throw new Error(`Intent Verification Failed: ${intentResult.error}`);
-            
-            const internalOrderId = intentResult.internal_order_id;
-            
-            const intentRzpPromise = new Promise<void>((resolve, reject) => {
-                const intentOptions = {
-                    key: razorpayKeyId,
-                    order_id: intentResult.order_id,
-                    amount: 100,
-                    name: "Verify Your Order",
-                    description: "A ₹1 charge to confirm your payment method.",
-                    handler: async () => {
-                        try {
-                            await saveDocument('leads', { ...orderData, id: internalOrderId, paymentStatus: 'Intent Verified', source: 'Shopify' }, internalOrderId);
-                            resolve();
-                        } catch (e: any) {
-                            reject(new Error(`Failed to save lead: ${e.message}`));
-                        }
-                    },
-                    modal: { ondismiss: () => reject(new Error('Verification payment was closed.')) },
-                    prefill: { name, email, contact },
-                    theme: { color: "#663399" }
-                };
-                const rzp1 = new (window as any).Razorpay(intentOptions);
-                rzp1.open();
-            });
-
-            await intentRzpPromise;
-            toast({ title: 'Verification Successful!', description: 'Now proceeding to final authorization.' });
+                const intentRzpPromise = new Promise<void>((resolve, reject) => {
+                    const intentOptions = {
+                        key: razorpayKeyId,
+                        order_id: intentResult.order_id,
+                        amount: 100,
+                        name: "Verify Your Order",
+                        description: "A ₹1 charge to confirm your payment method.",
+                        handler: async () => {
+                            try {
+                                const leadData: EditableOrder = { ...orderData, id: orderIdForFlow, paymentStatus: 'Intent Verified', source: 'Shopify', isRead: false };
+                                await saveDocument('leads', leadData, orderIdForFlow);
+                                setIntentPaid(true);
+                                toast({ title: 'Verification Successful!', description: 'Now proceeding to final authorization.' });
+                                resolve();
+                            } catch (e: any) {
+                                reject(new Error(`Failed to save lead: ${e.message}`));
+                            }
+                        },
+                        modal: { ondismiss: () => {
+                            setIsSubmitting(false);
+                            reject(new Error('Verification payment was closed.'));
+                        } },
+                        prefill: { name, email, contact },
+                        theme: { color: "#663399" }
+                    };
+                    const rzp1 = new (window as any).Razorpay(intentOptions);
+                    rzp1.open();
+                });
+                await intentRzpPromise;
+            }
 
             const authResponse = await fetch('/api/create-mandate-order', {
                 method: 'POST',
@@ -299,13 +300,35 @@ export function SecureCodPaymentForm() {
             const authResult = await authResponse.json();
             if (authResult.error) throw new Error(`Authorization Failed: ${authResult.error}`);
             
+            const finalOrderId = authResult.internal_order_id;
+            
             const rzp2 = new (window as any).Razorpay({
                 key: razorpayKeyId,
                 order_id: authResult.order_id,
                 amount: totalPrice * 100,
                 name: "Authorize Secure COD Payment",
                 description: `Securely authorize ₹${totalPrice.toFixed(2)} for your order`,
-                handler: (response: any) => handleRazorpaySuccess(response, authResult.internal_order_id),
+                handler: async (response: any) => {
+                    const finalOrder: EditableOrder = { ...orderData, id: finalOrderId, paymentStatus: 'Authorized', source: 'Shopify', isRead: false };
+                    
+                    await saveDocument('payment_info', {
+                        paymentId: response.razorpay_payment_id,
+                        orderId: finalOrderId,
+                        razorpayOrderId: response.razorpay_order_id,
+                        signature: response.razorpay_signature,
+                        status: 'authorized',
+                        authorizedAt: new Date().toISOString()
+                    }, finalOrderId);
+
+                    await saveDocument('orders', finalOrder, finalOrderId);
+                    await deleteDocument('leads', orderIdForFlow).catch(console.warn);
+                    
+                    const card = await getOrCreateShaktiCard(finalOrder);
+                    if (card) setNewlyCreatedCard(card);
+                    
+                    toast({ title: "Authorization Successful!", description: `Order ${finalOrder.orderId} is confirmed.` });
+                    setStep('complete');
+                },
                 modal: { ondismiss: () => setIsSubmitting(false) },
                 prefill: { name, email, contact },
                 theme: { color: "#663399" }
@@ -344,7 +367,7 @@ export function SecureCodPaymentForm() {
                     </CardContent>
                      <CardFooter className="flex-col gap-2">
                         <Link href="/customer/login" className="w-full"><Button className="w-full">Go to Customer Portal</Button></Link>
-                         <a href="https://www.snazzify.co.in" className="w-full"><Button className="w-full" variant="outline">Continue Shopping</Button></a>
+                         <a href={returnUrl} className="w-full"><Button className="w-full" variant="outline">Continue Shopping</Button></a>
                     </CardFooter>
                  </Card>
             </div>
@@ -471,7 +494,11 @@ export function SecureCodPaymentForm() {
                     <CardFooter className="flex-col gap-2">
                         <Button type="submit" className="w-full" disabled={isSubmitting || loading}>
                             {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                            {paymentMethod === 'Cash on Delivery' ? 'Place COD Order' : 'Proceed to Secure Payment'}
+                            {intentPaid 
+                                ? `Authorize Full Payment: ₹${totalPrice.toFixed(2)}`
+                                : paymentMethod === 'Cash on Delivery' 
+                                    ? 'Place COD Order' 
+                                    : 'Proceed to Secure Payment'}
                         </Button>
                         <p className="text-xs text-muted-foreground text-center">
                             {paymentMethod === 'Secure Charge on Delivery' 
