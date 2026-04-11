@@ -27,6 +27,20 @@ import { createProductDescription } from '@/ai/flows/create-product-description'
 const MAX_IMAGE_SIZE_MB = 1;
 const MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024;
 
+export type SellerProduct = {
+    id: string;
+    sellerId: string;
+    sellerName: string;
+    title: string;
+    description: string;
+    category: string;
+    price: number;
+    sizes: string[];
+    colors: string[];
+    imageDataUris: string[];
+    createdAt: string;
+};
+
 export default function AiProductUploaderPage() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
