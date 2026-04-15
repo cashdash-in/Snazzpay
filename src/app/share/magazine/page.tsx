@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/hooks/use-auth';
 import type { SellerProduct } from '@/app/seller/ai-product-uploader/page';
 import Image from 'next/image';
-import { Loader2, Share2, Copy, MessageSquare, BookOpen, Percent, Factory, Edit } from 'lucide-react';
+import { Loader2, Share2, Copy, MessageSquare, BookOpen, Percent, Factory, Edit, Wand2 } from 'lucide-react';
 import { getCollection, saveDocument } from '@/services/firestore';
 import { getCookie } from 'cookies-next';
 import { Label } from '@/components/ui/label';
@@ -21,6 +21,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { formatDistanceToNow } from 'date-fns';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Textarea } from '@/components/ui/textarea';
+import { parseWhatsAppChat } from '@/ai/flows/whatsapp-product-parser';
 
 
 type Magazine = {
@@ -41,6 +42,7 @@ export default function ShareMagazinePage() {
     const [magazines, setMagazines] = useState<Magazine[]>([]);
     const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isPasting, setIsPasting] = useState(false);
     const [magazineLink, setMagazineLink] = useState('');
     const [magazineTitle, setMagazineTitle] = useState('Our Latest Collection');
     const [vendorTitle, setVendorTitle] = useState('');
@@ -187,6 +189,78 @@ export default function ShareMagazinePage() {
         }
     };
 
+    const handleMagicPaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+        const pastedText = e.clipboardData.getData('text');
+        if (pastedText.trim().length < 10) return;
+        if (e.clipboardData.files.length > 0) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        setIsPasting(true);
+        try {
+            const result = await parseWhatsAppChat({ chatText: pastedText });
+            
+            if (!result.products || result.products.length === 0) {
+                toast({
+                    variant: 'destructive',
+                    title: 'No Products Found',
+                    description: 'The AI could not find any products in the pasted text.',
+                });
+                setIsPasting(false);
+                return;
+            }
+
+            const role = getCookie('userRole');
+            const creatorId = user!.uid;
+            const creatorName = user!.displayName || 'Creator';
+
+            const newProductsFromPaste: Array<SellerProduct | ProductDrop> = result.products.map(p => {
+                const baseProduct = {
+                    id: uuidv4(),
+                    title: p.title,
+                    description: p.description,
+                    imageDataUris: [],
+                    createdAt: new Date().toISOString(),
+                    category: p.category,
+                    sizes: p.sizes,
+                    colors: p.colors,
+                };
+
+                if (role === 'seller') {
+                    return {
+                        ...baseProduct,
+                        sellerId: creatorId,
+                        sellerName: creatorName,
+                        price: p.price,
+                    } as SellerProduct;
+                } else {
+                    return {
+                        ...baseProduct,
+                        vendorId: creatorId,
+                        vendorName: creatorName,
+                        costPrice: p.price,
+                    } as ProductDrop;
+                }
+            });
+
+            setProducts(prev => [...newProductsFromPaste, ...prev]);
+            
+            toast({
+                title: "AI Parsing Complete!",
+                description: `${newProductsFromPaste.length} products have been extracted and added to your list below. You can now edit their details.`,
+            });
+        } catch (error: any) {
+             toast({
+                variant: 'destructive',
+                title: 'AI Parsing Failed',
+                description: error.message || 'Could not process the pasted text.',
+            });
+        } finally {
+            setIsPasting(false);
+        }
+    };
+
     return (
         <AppShell title="Smart Magazine Hub">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -197,6 +271,19 @@ export default function ShareMagazinePage() {
                             <CardDescription>Select the products you want to feature in this collection.</CardDescription>
                         </CardHeader>
                         <CardContent>
+                             <div className="relative space-y-2 mb-6">
+                                <Label htmlFor="magic-paste" className="flex items-center gap-2">
+                                    <Wand2 className="h-4 w-4 text-purple-600" />
+                                    Magic Paste Box (AI-Powered)
+                                </Label>
+                                {isPasting && <Loader2 className="absolute top-8 right-2 h-4 w-4 animate-spin text-primary" />}
+                                <Textarea
+                                    id="magic-paste"
+                                    placeholder="Paste a WhatsApp chat here. The AI will extract products and add them to the list below."
+                                    onPaste={handleMagicPaste}
+                                    className="bg-purple-50/50 border-purple-200 focus-visible:ring-purple-400"
+                                />
+                            </div>
                             {isLoading ? (
                                 <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>
                             ) : (
@@ -218,7 +305,11 @@ export default function ShareMagazinePage() {
                                                 checked={selectedProductIds.includes(product.id)}
                                             />
                                             <label htmlFor={`product-${product.id}`} className="flex items-center gap-4 cursor-pointer flex-grow">
-                                                <Image src={product.imageDataUris[0]} alt={product.title} width={60} height={60} className="rounded-md object-contain aspect-square bg-muted" />
+                                                {product.imageDataUris && product.imageDataUris.length > 0 ? (
+                                                    <Image src={product.imageDataUris[0]} alt={product.title} width={60} height={60} className="rounded-md object-contain aspect-square bg-muted" />
+                                                ) : (
+                                                    <div className="w-[60px] h-[60px] bg-muted rounded-md flex items-center justify-center text-muted-foreground text-xs p-1 text-center">No Image</div>
+                                                )}
                                                 <div className="flex-grow">
                                                     <p className="font-semibold">{product.title}</p>
                                                     <p className="text-sm text-muted-foreground">Price: ₹{(((product as SellerProduct).price || (product as ProductDrop).costPrice) ?? 0).toFixed(2)}</p>
