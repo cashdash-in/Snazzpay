@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { formatDistanceToNow } from 'date-fns';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Textarea } from '@/components/ui/textarea';
-import { parseWhatsAppChat } from '@/ai/flows/whatsapp-product-parser';
+import { parseTextForMagazine } from '@/ai/flows/magazine-paste-parser';
 
 
 type Magazine = {
@@ -199,7 +199,7 @@ export default function ShareMagazinePage() {
 
         setIsPasting(true);
         try {
-            const result = await parseWhatsAppChat({ chatText: pastedText });
+            const result = await parseTextForMagazine({ chatText: pastedText });
             
             if (!result.products || result.products.length === 0) {
                 toast({
@@ -222,9 +222,9 @@ export default function ShareMagazinePage() {
                     description: p.description,
                     imageDataUris: [],
                     createdAt: new Date().toISOString(),
-                    category: p.category,
-                    sizes: p.sizes,
-                    colors: p.colors,
+                    category: '',
+                    sizes: [],
+                    colors: [],
                 };
 
                 if (role === 'seller') {
