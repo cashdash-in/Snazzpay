@@ -37,7 +37,7 @@ export type ProductDescriptionOutput = z.infer<
 
 const prompt = ai.definePrompt({
   name: 'productDescriptionPrompt',
-  model: 'googleai/gemini-1.0-pro-vision',
+  model: 'googleai/gemini-2.5-flash',
   input: { schema: ProductDescriptionInputSchema },
   output: { schema: ProductDescriptionOutputSchema },
   prompt: `You are an expert e-commerce merchandiser. Your task is to analyze the provided product image and generate a compelling title, description, and category.

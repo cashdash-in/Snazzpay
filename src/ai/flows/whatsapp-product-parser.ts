@@ -19,14 +19,11 @@ export async function parseWhatsAppChat(
 
 const prompt = ai.definePrompt({
   name: 'whatsAppParserPrompt',
-  model: 'googleai/gemini-pro',
+  model: 'googleai/gemini-2.5-flash',
   input: { schema: WhatsAppParserInputSchema },
   output: {
     schema: WhatsAppParserOutputSchema,
     format: 'json',
-  },
-  config: {
-    response_mime_type: 'application/json',
   },
   prompt: `You are an expert in parsing unstructured text to find product information. Analyze the following WhatsApp chat export. Identify each distinct product being discussed and extract its details.
 

@@ -18,14 +18,11 @@ export async function parseTextForMagazine(
 
 const prompt = ai.definePrompt({
   name: 'magazinePastePrompt',
-  model: 'googleai/gemini-pro',
+  model: 'googleai/gemini-2.5-flash',
   input: { schema: MagazinePasteInputSchema },
   output: {
     schema: MagazinePasteOutputSchema,
     format: 'json',
-  },
-  config: {
-    response_mime_type: 'application/json',
   },
   prompt: `You are an expert in parsing unstructured text to find product information. Analyze the following chat text. Identify each distinct product being discussed and extract its details. For each product, provide a title, a detailed description, and a price.
 
