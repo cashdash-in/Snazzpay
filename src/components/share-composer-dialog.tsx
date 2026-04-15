@@ -62,8 +62,8 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
 
         const role = getCookie('userRole');
 
-        // If a seller is sharing, they are the seller for attribution.
-        if (role === 'seller' && user) {
+        // If a seller or collaborator is sharing, they are the seller for attribution.
+        if ((role === 'seller' || role === 'collaborator') && user) {
             params.set('sellerId', user.uid);
             params.set('sellerName', user.displayName || 'Seller');
         } else {

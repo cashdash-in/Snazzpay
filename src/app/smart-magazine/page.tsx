@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
@@ -19,6 +18,7 @@ type Magazine = {
     title: string;
     vendorTitle?: string;
     productIds: string[];
+    creatorId: string;
     creatorName: string;
     createdAt: string;
     discount?: number;
@@ -122,26 +122,17 @@ function SmartMagazineContent() {
     const handleOrderClick = (product: DisplayProduct) => {
         const catalogueParams = new URLSearchParams();
         
-        // Set product ID
         catalogueParams.set('id', product.id);
-    
-        // Pass the current Smart Magazine URL as the return URL
         catalogueParams.set('return_url', window.location.href);
-    
-        // Carry over the discount from the magazine URL
+
+        if (magazine?.creatorId && magazine.creatorName) {
+            catalogueParams.set('sellerId', magazine.creatorId);
+            catalogueParams.set('sellerName', magazine.creatorName);
+        }
+
         const discountFromMagazine = searchParams.get('discount');
         if (discountFromMagazine) {
             catalogueParams.set('discount', discountFromMagazine);
-        }
-        
-        // Pass product-specific details like sizes and colors
-        const productSizes = (product as SellerProduct).sizes || [];
-        if (productSizes.length > 0) {
-            catalogueParams.set('sizes', productSizes.join(','));
-        }
-        const productColors = (product as SellerProduct).colors || [];
-        if (productColors.length > 0) {
-            catalogueParams.set('colors', productColors.join(','));
         }
     
         router.push(`/catalogue?${catalogueParams.toString()}`);
@@ -229,5 +220,3 @@ export default function SmartMagazinePage() {
         </Suspense>
     );
 }
-
-    
