@@ -155,6 +155,26 @@ export default function ShareMagazinePage() {
         toast({ title: 'Images added!' });
     }
 
+    const handlePaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
+        const items = event.clipboardData?.items;
+        if (!items) return;
+        
+        const files = [];
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf('image') !== -1) {
+                const file = items[i].getAsFile();
+                if (file) {
+                    files.push(file);
+                }
+            }
+        }
+        if(files.length > 0) {
+            event.preventDefault();
+            handleNewProductImages(files);
+            toast({ title: 'Image(s) Pasted!', description: 'The images have been added to your product.' });
+        }
+    };
+
     const handleCreateProduct = async () => {
         if (!newProduct.title || !newProduct.description || !newProduct.price || newProduct.imageDataUris.length === 0) {
             toast({
@@ -447,6 +467,12 @@ export default function ShareMagazinePage() {
                                                 >
                                                     <div className="text-center"><ImagePlus className="mx-auto h-6 w-6 text-muted-foreground" /><p className="mt-1 text-xs text-muted-foreground">Click or drag & drop</p></div>
                                                 </div>
+                                                <Textarea
+                                                    placeholder="Or paste images here."
+                                                    onPaste={handlePaste}
+                                                    className="text-center placeholder:text-muted-foreground"
+                                                    rows={2}
+                                                />
                                                 <Input id="new-product-image-input" type="file" accept="image/*" onChange={(e) => handleNewProductImages(e.target.files!)} className="hidden" multiple />
                                                 {newProduct.imagePreviews.length > 0 && (
                                                     <div className="mt-2 grid grid-cols-4 gap-2">
