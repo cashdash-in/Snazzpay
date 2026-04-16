@@ -1,8 +1,7 @@
 
-
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, DragEvent, ClipboardEvent } from 'react';
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/hooks/use-auth';
 import type { SellerProduct } from '@/app/seller/ai-product-uploader/page';
 import Image from 'next/image';
-import { Loader2, Share2, Copy, MessageSquare, BookOpen, Percent, Factory, Edit, Wand2 } from 'lucide-react';
+import { Loader2, Share2, Copy, MessageSquare, BookOpen, Percent, Factory, Edit, Wand2, PlusCircle, ImagePlus } from 'lucide-react';
 import { getCollection, saveDocument } from '@/services/firestore';
 import { getCookie } from 'cookies-next';
 import { Label } from '@/components/ui/label';
@@ -35,6 +34,8 @@ type Magazine = {
     discount?: number;
 };
 
+const MAX_IMAGE_SIZE_PX = 800; // Max width/height for resizing
+
 export default function ShareMagazinePage() {
     const { user } = useAuth();
     const { toast } = useToast();
@@ -50,9 +51,20 @@ export default function ShareMagazinePage() {
     const [isAdmin, setIsAdmin] = useState(false);
     const [editingProduct, setEditingProduct] = useState<SellerProduct | ProductDrop | null>(null);
 
+    const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+    const [isCreatingProduct, setIsCreatingProduct] = useState(false);
+    const [newProduct, setNewProduct] = useState({
+        title: '',
+        description: '',
+        price: '',
+        imageDataUris: [] as string[],
+        imagePreviews: [] as string[],
+    });
+
+    const userRole = useMemo(() => getCookie('userRole'), []);
+
     useEffect(() => {
-        const role = getCookie('userRole');
-        setIsAdmin(role === 'admin');
+        setIsAdmin(userRole === 'admin');
 
         async function loadData() {
             if (!user) {
@@ -62,10 +74,10 @@ export default function ShareMagazinePage() {
             try {
                 let productsCollection: Array<SellerProduct | ProductDrop> = [];
                 
-                if (role === 'seller') {
+                if (userRole === 'seller') {
                     const sellerProducts = await getCollection<SellerProduct>('seller_products');
                     productsCollection = sellerProducts.filter(p => p.sellerId === user.uid);
-                } else if (role === 'vendor') {
+                } else if (userRole === 'vendor') {
                     const allDrops = await getCollection<ProductDrop>('product_drops');
                     productsCollection = allDrops.filter(p => p.vendorId === user.uid);
                 } else { // admin
@@ -85,7 +97,139 @@ export default function ShareMagazinePage() {
             }
         }
         loadData();
-    }, [user, toast]);
+    }, [user, toast, userRole]);
+
+    const resizeImage = (file: File): Promise<string> => {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = document.createElement('img');
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let { width, height } = img;
+
+                    if (width > height) {
+                        if (width > MAX_IMAGE_SIZE_PX) {
+                            height *= MAX_IMAGE_SIZE_PX / width;
+                            width = MAX_IMAGE_SIZE_PX;
+                        }
+                    } else {
+                        if (height > MAX_IMAGE_SIZE_PX) {
+                            width *= MAX_IMAGE_SIZE_PX / height;
+                            height = MAX_IMAGE_SIZE_PX;
+                        }
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx?.drawImage(img, 0, 0, width, height);
+                    resolve(canvas.toDataURL('image/jpeg', 0.7));
+                };
+                img.src = e.target?.result as string;
+            };
+            reader.readAsDataURL(file);
+        });
+    };
+    
+    const handleNewProductImages = async (files: FileList | File[]) => {
+        const fileArray = Array.from(files).filter(f => f.type.startsWith('image/'));
+        if (fileArray.length === 0) return;
+
+        toast({ title: 'Processing images...', description: 'Resizing and compressing images.' });
+        
+        const newPreviews: string[] = [];
+        const newDataUris: string[] = [];
+
+        for (const file of fileArray) {
+            const resizedDataUri = await resizeImage(file);
+            newPreviews.push(resizedDataUri);
+            newDataUris.push(resizedDataUri);
+        }
+        
+        setNewProduct(prev => ({
+            ...prev,
+            imagePreviews: [...prev.imagePreviews, ...newPreviews],
+            imageDataUris: [...prev.imageDataUris, ...newDataUris],
+        }));
+        
+        toast({ title: 'Images added!' });
+    }
+
+    const handleCreateProduct = async () => {
+        if (!newProduct.title || !newProduct.description || !newProduct.price || newProduct.imageDataUris.length === 0) {
+            toast({
+                variant: 'destructive',
+                title: 'Missing Information',
+                description: 'Please fill out all fields and upload at least one image.',
+            });
+            return;
+        }
+        if (!user) {
+            toast({ variant: 'destructive', title: 'Authentication Error' });
+            return;
+        }
+
+        setIsCreatingProduct(true);
+
+        const newProductId = uuidv4();
+        let productToSave: SellerProduct | ProductDrop;
+        let collectionName: string;
+
+        if (userRole === 'seller') {
+            collectionName = 'seller_products';
+            productToSave = {
+                id: newProductId,
+                sellerId: user.uid,
+                sellerName: user.displayName || 'Seller',
+                title: newProduct.title,
+                description: newProduct.description,
+                price: parseFloat(newProduct.price),
+                imageDataUris: newProduct.imageDataUris,
+                createdAt: new Date().toISOString(),
+                category: '',
+                sizes: [],
+                colors: [],
+            } as SellerProduct;
+        } else { // admin or vendor
+            collectionName = 'product_drops';
+            productToSave = {
+                id: newProductId,
+                vendorId: userRole === 'admin' ? 'admin_snazzify' : user.uid,
+                vendorName: userRole === 'admin' ? 'SnazzifyOfficial' : user.displayName || 'Vendor',
+                title: newProduct.title,
+                description: newProduct.description,
+                costPrice: parseFloat(newProduct.price),
+                imageDataUris: newProduct.imageDataUris,
+                createdAt: new Date().toISOString(),
+                category: '',
+                sizes: [],
+                colors: [],
+            } as ProductDrop;
+        }
+
+        try {
+            await saveDocument(collectionName, productToSave, newProductId);
+            setProducts(prev => [productToSave, ...prev]);
+            setSelectedProductIds(prev => [newProductId, ...prev]);
+
+            toast({
+                title: 'Product Created!',
+                description: 'Your new product has been added to the list and selected.',
+            });
+
+            setNewProduct({ title: '', description: '', price: '', imageDataUris: [], imagePreviews: [] });
+            setIsCreateDialogOpen(false);
+        } catch (error: any) {
+            toast({
+                variant: 'destructive',
+                title: 'Error Creating Product',
+                description: error.message || 'Could not save the product.',
+            });
+        } finally {
+            setIsCreatingProduct(false);
+        }
+    };
+
 
     const handleSelectAll = (checked: boolean) => {
         if (checked) {
@@ -115,8 +259,7 @@ export default function ShareMagazinePage() {
             return;
         }
 
-        const role = getCookie('userRole');
-        const creatorName = role === 'admin' ? 'SnazzifyOfficial' : user.displayName || 'Unknown Creator';
+        const creatorName = userRole === 'admin' ? 'SnazzifyOfficial' : user.displayName || 'Unknown Creator';
 
         const magazineId = uuidv4();
         const newMagazine: Magazine = {
@@ -176,8 +319,7 @@ export default function ShareMagazinePage() {
     const handleUpdateProduct = async () => {
         if (!editingProduct) return;
         
-        const role = getCookie('userRole');
-        const collectionName = role === 'seller' ? 'seller_products' : 'product_drops';
+        const collectionName = userRole === 'seller' ? 'seller_products' : 'product_drops';
 
         try {
             await saveDocument(collectionName, editingProduct, editingProduct.id);
@@ -211,7 +353,6 @@ export default function ShareMagazinePage() {
                 return;
             }
 
-            const role = getCookie('userRole');
             const creatorId = user!.uid;
             const creatorName = user!.displayName || 'Creator';
 
@@ -227,7 +368,7 @@ export default function ShareMagazinePage() {
                     colors: [],
                 };
 
-                if (role === 'seller') {
+                if (userRole === 'seller') {
                     return {
                         ...baseProduct,
                         sellerId: creatorId,
@@ -267,8 +408,65 @@ export default function ShareMagazinePage() {
                 <div className="lg:col-span-2">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Build Your Smart Magazine</CardTitle>
-                            <CardDescription>Select the products you want to feature in this collection.</CardDescription>
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <CardTitle>Build Your Smart Magazine</CardTitle>
+                                    <CardDescription>Select the products you want to feature in this collection.</CardDescription>
+                                </div>
+                                <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+                                    <DialogTrigger asChild>
+                                        <Button variant="outline" className="shrink-0">
+                                            <PlusCircle className="mr-2 h-4 w-4"/> Create New Product
+                                        </Button>
+                                    </DialogTrigger>
+                                     <DialogContent className="sm:max-w-[600px]">
+                                        <DialogHeader>
+                                            <DialogTitle>Create New Product</DialogTitle>
+                                            <DialogDescription>Add a new product to your catalog. It will be available for selection immediately.</DialogDescription>
+                                        </DialogHeader>
+                                        <div className="py-4 space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="new-title">Product Title</Label>
+                                                <Input id="new-title" value={newProduct.title} onChange={(e) => setNewProduct(p => ({...p, title: e.target.value}))}/>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="new-desc">Description</Label>
+                                                <Textarea id="new-desc" value={newProduct.description} onChange={(e) => setNewProduct(p => ({...p, description: e.target.value}))} rows={4}/>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="new-price">{userRole === 'seller' ? 'Your Selling Price' : 'Your Cost Price'} (INR)</Label>
+                                                <Input id="new-price" type="number" value={newProduct.price} onChange={(e) => setNewProduct(p => ({...p, price: e.target.value}))}/>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label>Product Images</Label>
+                                                <div 
+                                                    className="relative flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-muted/50"
+                                                    onDrop={(e) => { e.preventDefault(); handleNewProductImages(e.dataTransfer.files); }}
+                                                    onDragOver={(e) => e.preventDefault()}
+                                                    onClick={() => document.getElementById('new-product-image-input')?.click()}
+                                                >
+                                                    <div className="text-center"><ImagePlus className="mx-auto h-6 w-6 text-muted-foreground" /><p className="mt-1 text-xs text-muted-foreground">Click or drag & drop</p></div>
+                                                </div>
+                                                <Input id="new-product-image-input" type="file" accept="image/*" onChange={(e) => handleNewProductImages(e.target.files!)} className="hidden" multiple />
+                                                {newProduct.imagePreviews.length > 0 && (
+                                                    <div className="mt-2 grid grid-cols-4 gap-2">
+                                                        {newProduct.imagePreviews.map((src, index) => (
+                                                            <Image key={index} src={src} alt={`preview ${index}`} width={100} height={100} className="object-contain rounded-md aspect-square"/>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <DialogFooter>
+                                            <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>Cancel</Button>
+                                            <Button onClick={handleCreateProduct} disabled={isCreatingProduct}>
+                                                {isCreatingProduct && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                                                Save Product
+                                            </Button>
+                                        </DialogFooter>
+                                    </DialogContent>
+                                </Dialog>
+                            </div>
                         </CardHeader>
                         <CardContent>
                              <div className="relative space-y-2 mb-6">
