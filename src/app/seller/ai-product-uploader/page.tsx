@@ -28,8 +28,7 @@ import { saveDocument } from '@/services/firestore';
 import { v4 as uuidv4 } from 'uuid';
 
 
-const MAX_IMAGE_SIZE_MB = 1;
-const MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024;
+const MAX_IMAGE_SIZE_PX = 800; // Max width/height for resizing
 
 export type SellerProduct = {
     id: string;
@@ -59,26 +58,46 @@ export default function AiProductUploaderPage() {
   const [sizes, setSizes] = useState('');
   const [colors, setColors] = useState('');
 
+  const resizeImage = (file: File): Promise<string> => {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = document.createElement('img');
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let { width, height } = img;
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+                if (width > height) {
+                    if (width > MAX_IMAGE_SIZE_PX) {
+                        height *= MAX_IMAGE_SIZE_PX / width;
+                        width = MAX_IMAGE_SIZE_PX;
+                    }
+                } else {
+                    if (height > MAX_IMAGE_SIZE_PX) {
+                        width *= MAX_IMAGE_SIZE_PX / height;
+                        height = MAX_IMAGE_SIZE_PX;
+                    }
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', 0.7));
+            };
+            img.src = e.target?.result as string;
+        };
+        reader.readAsDataURL(file);
+    });
+  };
+
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > MAX_IMAGE_SIZE_BYTES) {
-        toast({
-          variant: 'destructive',
-          title: 'Image too large',
-          description: `Please select an image smaller than ${MAX_IMAGE_SIZE_MB}MB.`,
-        });
-        return;
-      }
-
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const result = event.target?.result as string;
-        setImagePreview(result);
-        setImageDataUri(result);
-      };
-      reader.readAsDataURL(file);
+      toast({ title: 'Processing image...', description: 'Resizing and compressing image.' });
+      const resizedDataUri = await resizeImage(file);
+      setImagePreview(resizedDataUri);
+      setImageDataUri(resizedDataUri);
+      toast({ title: 'Image Added!'});
     }
   };
 

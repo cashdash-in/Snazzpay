@@ -97,7 +97,6 @@ export default function VendorProductDropsPage() {
 
         for (const file of fileArray) {
             const resizedDataUri = await resizeImage(file);
-            // For product drops, use the resized URI for preview to avoid blob cleanup issues
             newPreviews.push(resizedDataUri);
             newDataUris.push(resizedDataUri);
         }
