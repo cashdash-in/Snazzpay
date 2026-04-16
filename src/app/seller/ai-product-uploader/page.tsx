@@ -1,3 +1,4 @@
+
 'use client';
 import { useState } from 'react';
 import { AppShell } from '@/components/layout/app-shell';
@@ -26,6 +27,7 @@ import { createProductDescription } from '@/ai/flows/create-product-description'
 import { useAuth } from '@/hooks/use-auth';
 import { saveDocument } from '@/services/firestore';
 import { v4 as uuidv4 } from 'uuid';
+import { Checkbox } from '@/components/ui/checkbox';
 
 
 const MAX_IMAGE_SIZE_PX = 800; // Max width/height for resizing
@@ -42,6 +44,7 @@ export type SellerProduct = {
     colors: string[];
     imageDataUris: string[];
     createdAt: string;
+    allowedPaymentMethods?: ('Secure COD' | 'Cash on Delivery' | 'Prepaid')[];
 };
 
 export default function AiProductUploaderPage() {
@@ -57,6 +60,17 @@ export default function AiProductUploaderPage() {
   const [price, setPrice] = useState('');
   const [sizes, setSizes] = useState('');
   const [colors, setColors] = useState('');
+  const [allowedPaymentMethods, setAllowedPaymentMethods] = useState<('Secure COD' | 'Cash on Delivery' | 'Prepaid')[]>(['Secure COD', 'Cash on Delivery', 'Prepaid']);
+
+  const handlePaymentMethodChange = (method: 'Secure COD' | 'Cash on Delivery' | 'Prepaid', checked: boolean) => {
+    setAllowedPaymentMethods(prev => {
+        if (checked) {
+            return [...prev, method];
+        } else {
+            return prev.filter(m => m !== method);
+        }
+    });
+  };
 
   const resizeImage = (file: File): Promise<string> => {
     return new Promise((resolve) => {
@@ -168,6 +182,7 @@ export default function AiProductUploaderPage() {
             colors: colors.split(',').map(c => c.trim()).filter(c => c),
             imageDataUris: [imageDataUri], // Storing as an array to match type
             createdAt: new Date().toISOString(),
+            allowedPaymentMethods,
         };
 
         await saveDocument('seller_products', newProduct, newProduct.id);
@@ -186,6 +201,7 @@ export default function AiProductUploaderPage() {
         setPrice('');
         setSizes('');
         setColors('');
+        setAllowedPaymentMethods(['Secure COD', 'Cash on Delivery', 'Prepaid']);
 
     } catch (error: any) {
         toast({
@@ -303,6 +319,23 @@ export default function AiProductUploaderPage() {
                         onChange={(e) => setColors(e.target.value)}
                         placeholder="e.g., Red, Blue, Black"
                     />
+                </div>
+            </div>
+             <div className="space-y-2">
+                <Label>Allowed Payment Methods</Label>
+                <div className="flex flex-wrap gap-4 pt-2">
+                    <div className="flex items-center space-x-2">
+                        <Checkbox id="secure-cod" onCheckedChange={(checked) => handlePaymentMethodChange('Secure COD', checked as boolean)} checked={allowedPaymentMethods.includes('Secure COD')} />
+                        <Label htmlFor="secure-cod">Secure COD</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <Checkbox id="cod" onCheckedChange={(checked) => handlePaymentMethodChange('Cash on Delivery', checked as boolean)} checked={allowedPaymentMethods.includes('Cash on Delivery')} />
+                        <Label htmlFor="cod">Cash on Delivery</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <Checkbox id="prepaid" onCheckedChange={(checked) => handlePaymentMethodChange('Prepaid', checked as boolean)} checked={allowedPaymentMethods.includes('Prepaid')} />
+                        <Label htmlFor="prepaid">Prepaid</Label>
+                    </div>
                 </div>
             </div>
           </div>

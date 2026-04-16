@@ -59,6 +59,7 @@ export default function ShareMagazinePage() {
         price: '',
         imageDataUris: [] as string[],
         imagePreviews: [] as string[],
+        allowedPaymentMethods: ['Secure COD', 'Cash on Delivery', 'Prepaid'] as ('Secure COD' | 'Cash on Delivery' | 'Prepaid')[],
     });
 
     const userRole = useMemo(() => getCookie('userRole'), []);
@@ -174,6 +175,17 @@ export default function ShareMagazinePage() {
             toast({ title: 'Image(s) Pasted!', description: 'The images have been added to your product.' });
         }
     };
+    
+    const handlePaymentMethodChange = (method: 'Secure COD' | 'Cash on Delivery' | 'Prepaid', checked: boolean) => {
+        setNewProduct(prev => {
+            const currentMethods = prev.allowedPaymentMethods;
+            if (checked) {
+                return { ...prev, allowedPaymentMethods: [...currentMethods, method] };
+            } else {
+                return { ...prev, allowedPaymentMethods: currentMethods.filter(m => m !== method) };
+            }
+        });
+    };
 
     const handleCreateProduct = async () => {
         if (!newProduct.title || !newProduct.description || !newProduct.price || newProduct.imageDataUris.length === 0) {
@@ -209,6 +221,7 @@ export default function ShareMagazinePage() {
                 category: '',
                 sizes: [],
                 colors: [],
+                allowedPaymentMethods: newProduct.allowedPaymentMethods,
             } as SellerProduct;
         } else { // admin or vendor
             collectionName = 'product_drops';
@@ -224,6 +237,7 @@ export default function ShareMagazinePage() {
                 category: '',
                 sizes: [],
                 colors: [],
+                allowedPaymentMethods: newProduct.allowedPaymentMethods,
             } as ProductDrop;
         }
 
@@ -237,7 +251,7 @@ export default function ShareMagazinePage() {
                 description: 'Your new product has been added to the list and selected.',
             });
 
-            setNewProduct({ title: '', description: '', price: '', imageDataUris: [], imagePreviews: [] });
+            setNewProduct({ title: '', description: '', price: '', imageDataUris: [], imagePreviews: [], allowedPaymentMethods: ['Secure COD', 'Cash on Delivery', 'Prepaid'] });
             setIsCreateDialogOpen(false);
         } catch (error: any) {
             toast({
@@ -386,6 +400,7 @@ export default function ShareMagazinePage() {
                     category: '',
                     sizes: [],
                     colors: [],
+                    allowedPaymentMethods: ['Secure COD', 'Cash on Delivery', 'Prepaid'],
                 };
 
                 if (userRole === 'seller') {
@@ -456,6 +471,23 @@ export default function ShareMagazinePage() {
                                             <div className="space-y-2">
                                                 <Label htmlFor="new-price">{userRole === 'seller' ? 'Your Selling Price' : 'Your Cost Price'} (INR)</Label>
                                                 <Input id="new-price" type="number" value={newProduct.price} onChange={(e) => setNewProduct(p => ({...p, price: e.target.value}))}/>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label>Allowed Payment Methods</Label>
+                                                <div className="flex flex-wrap gap-4 pt-2">
+                                                    <div className="flex items-center space-x-2">
+                                                        <Checkbox id="new-secure-cod" onCheckedChange={(checked) => handlePaymentMethodChange('Secure COD', checked as boolean)} checked={newProduct.allowedPaymentMethods.includes('Secure COD')} />
+                                                        <Label htmlFor="new-secure-cod">Secure COD</Label>
+                                                    </div>
+                                                    <div className="flex items-center space-x-2">
+                                                        <Checkbox id="new-cod" onCheckedChange={(checked) => handlePaymentMethodChange('Cash on Delivery', checked as boolean)} checked={newProduct.allowedPaymentMethods.includes('Cash on Delivery')} />
+                                                        <Label htmlFor="new-cod">Cash on Delivery</Label>
+                                                    </div>
+                                                    <div className="flex items-center space-x-2">
+                                                        <Checkbox id="new-prepaid" onCheckedChange={(checked) => handlePaymentMethodChange('Prepaid', checked as boolean)} checked={newProduct.allowedPaymentMethods.includes('Prepaid')} />
+                                                        <Label htmlFor="new-prepaid">Prepaid</Label>
+                                                    </div>
+                                                </div>
                                             </div>
                                             <div className="space-y-2">
                                                 <Label>Product Images</Label>

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, DragEvent, ClipboardEvent } from 'react';
@@ -18,6 +19,7 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { getCollection, saveDocument, getDocument } from '@/services/firestore';
 import { getCookie } from 'cookies-next';
 import { createProductFromText } from '@/ai/flows/create-product-from-text';
+import { Checkbox } from '@/components/ui/checkbox';
 
 export interface ProductDrop {
     id: string;
@@ -31,6 +33,7 @@ export interface ProductDrop {
     createdAt: string;
     sizes: string[];
     colors: string[];
+    allowedPaymentMethods?: ('Secure COD' | 'Cash on Delivery' | 'Prepaid')[];
 }
 
 const PRODUCT_DROP_LIMIT = 50;
@@ -52,6 +55,17 @@ export default function VendorProductDropsPage() {
     const [isLimitReached, setIsLimitReached] = useState(false);
     const [showShareDialog, setShowShareDialog] = useState(false);
     const [createdProduct, setCreatedProduct] = useState<ProductDrop | null>(null);
+    const [allowedPaymentMethods, setAllowedPaymentMethods] = useState<('Secure COD' | 'Cash on Delivery' | 'Prepaid')[]>(['Secure COD', 'Cash on Delivery', 'Prepaid']);
+
+    const handlePaymentMethodChange = (method: 'Secure COD' | 'Cash on Delivery' | 'Prepaid', checked: boolean) => {
+        setAllowedPaymentMethods(prev => {
+            if (checked) {
+                return [...prev, method];
+            } else {
+                return prev.filter(m => m !== method);
+            }
+        });
+    };
 
     const resizeImage = (file: File): Promise<string> => {
         return new Promise((resolve) => {
@@ -214,6 +228,7 @@ export default function VendorProductDropsPage() {
             createdAt: new Date().toISOString(),
             sizes: [], // Default to empty array
             colors: [], // Default to empty array
+            allowedPaymentMethods,
         };
 
         try {
@@ -234,6 +249,7 @@ export default function VendorProductDropsPage() {
             setCostPrice('');
             setImagePreviews([]);
             setResizedImageDataUris([]);
+            setAllowedPaymentMethods(['Secure COD', 'Cash on Delivery', 'Prepaid']);
 
         } catch (error: any) {
             toast({
@@ -312,9 +328,28 @@ export default function VendorProductDropsPage() {
                         <Label htmlFor="description">Product Description</Label>
                         <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Include details like material, available sizes, colors, and key features." rows={5}/>
                     </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="costPrice">Your Cost Price (INR)</Label>
-                        <Input id="costPrice" type="number" value={costPrice} onChange={(e) => setCostPrice(e.target.value)} placeholder="e.g., 250"/>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="costPrice">Your Cost Price (INR)</Label>
+                            <Input id="costPrice" type="number" value={costPrice} onChange={(e) => setCostPrice(e.target.value)} placeholder="e.g., 250"/>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Allowed Payment Methods</Label>
+                            <div className="flex flex-wrap gap-4 pt-2">
+                                <div className="flex items-center space-x-2">
+                                    <Checkbox id="secure-cod" onCheckedChange={(checked) => handlePaymentMethodChange('Secure COD', checked as boolean)} checked={allowedPaymentMethods.includes('Secure COD')} />
+                                    <Label htmlFor="secure-cod">Secure COD</Label>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    <Checkbox id="cod" onCheckedChange={(checked) => handlePaymentMethodChange('Cash on Delivery', checked as boolean)} checked={allowedPaymentMethods.includes('Cash on Delivery')} />
+                                    <Label htmlFor="cod">Cash on Delivery</Label>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    <Checkbox id="prepaid" onCheckedChange={(checked) => handlePaymentMethodChange('Prepaid', checked as boolean)} checked={allowedPaymentMethods.includes('Prepaid')} />
+                                    <Label htmlFor="prepaid">Prepaid</Label>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <div className="space-y-2">
                         <Label>Product Images</Label>

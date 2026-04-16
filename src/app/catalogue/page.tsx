@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Suspense, useState, useEffect } from 'react';
@@ -27,6 +28,7 @@ type DisplayProduct = (SellerProduct | ProductDrop) & {
     productId: string;
     vendor: string;
     collection: string;
+    allowedPaymentMethods?: string[];
 };
 
 type CustomerDetails = {
@@ -56,7 +58,7 @@ function CatalogueOrderPageContent() {
     const [customerDetails, setCustomerDetails] = useState<CustomerDetails>({
         name: '', email: '', contact: '', address: '', pincode: ''
     });
-    const [paymentMethod, setPaymentMethod] = useState<'Secure Charge on Delivery' | 'Cash on Delivery'>('Secure Charge on Delivery');
+    const [paymentMethod, setPaymentMethod] = useState<'Secure COD' | 'Cash on Delivery' | 'Prepaid'>('Secure COD');
     const [quantity, setQuantity] = useState(1);
     const [selectedSize, setSelectedSize] = useState('');
     const [selectedColor, setSelectedColor] = useState('');
@@ -70,6 +72,7 @@ function CatalogueOrderPageContent() {
     
     const [availableSizes, setAvailableSizes] = useState<string[]>([]);
     const [availableColors, setAvailableColors] = useState<string[]>([]);
+    const [allowedPaymentMethods, setAllowedPaymentMethods] = useState<string[]>([]);
 
     useEffect(() => {
         // Track session start
@@ -134,8 +137,20 @@ function CatalogueOrderPageContent() {
                         productId: fetchedProduct.id,
                         vendor: productType === 'product_drop' ? (fetchedProduct as ProductDrop).vendorName : ((fetchedProduct as SellerProduct).sellerName || ''),
                         collection: (fetchedProduct as any).category || '',
+                        allowedPaymentMethods: (fetchedProduct as any).allowedPaymentMethods,
                     };
                     setProduct(displayProduct);
+
+                    const productMethods = (fetchedProduct as any).allowedPaymentMethods || ['Secure COD', 'Cash on Delivery'];
+                    setAllowedPaymentMethods(productMethods);
+
+                    if (productMethods.includes('Secure COD')) {
+                        setPaymentMethod('Secure COD');
+                    } else if (productMethods.includes('Cash on Delivery')) {
+                        setPaymentMethod('Cash on Delivery');
+                    } else if (productMethods.includes('Prepaid')) {
+                        setPaymentMethod('Prepaid');
+                    }
 
                     const sizes = (fetchedProduct as any).sizes || [];
                     const colors = (fetchedProduct as any).colors || [];
@@ -175,7 +190,7 @@ function CatalogueOrderPageContent() {
             const baseTotal = ((product as SellerProduct).price || (product as ProductDrop).costPrice) * quantity;
             setOriginalPrice(baseTotal);
             
-            if (appliedDiscount && paymentMethod === 'Secure Charge on Delivery') {
+            if (appliedDiscount && paymentMethod === 'Secure COD') {
                 const discountedTotal = baseTotal - (baseTotal * (appliedDiscount.discount / 100));
                 setTotalPrice(discountedTotal);
             } else {
@@ -223,7 +238,7 @@ function CatalogueOrderPageContent() {
             imageDataUris: product.imageDataUris,
         };
 
-        if (paymentMethod === 'Secure Charge on Delivery' && appliedDiscount) {
+        if (paymentMethod === 'Secure COD' && appliedDiscount) {
             newLead.discountPercentage = appliedDiscount.discount;
             newLead.discountAmount = originalPrice - totalPrice;
         }
@@ -387,26 +402,47 @@ function CatalogueOrderPageContent() {
                                 </div>
                                 <div className="space-y-3">
                                     <Label>Payment Method</Label>
-                                    <RadioGroup value={paymentMethod} onValueChange={(value: 'Secure Charge on Delivery' | 'Cash on Delivery') => setPaymentMethod(value)} className="grid grid-cols-2 gap-4">
-                                        <Label htmlFor="r-scod" className={cn("flex flex-col items-center justify-center rounded-md border-2 p-4 cursor-pointer", paymentMethod === 'Secure Charge on Delivery' && 'border-primary')}>
-                                            <RadioGroupItem value="Secure Charge on Delivery" id="r-scod" className="sr-only"/>
-                                            <span className="font-bold">Secure COD</span>
-                                            <span className={cn("text-sm text-center", appliedDiscount ? 'text-green-600' : 'text-muted-foreground')}>
-                                                {appliedDiscount ? `${appliedDiscount.discount}% discount!` : 'Pay online now, safely.'}
-                                            </span>
-                                        </Label>
-                                        <Label htmlFor="r-cod" className={cn("flex flex-col items-center justify-center rounded-md border-2 p-4 cursor-pointer", paymentMethod === 'Cash on Delivery' && 'border-primary')}>
-                                            <RadioGroupItem value="Cash on Delivery" id="r-cod" className="sr-only"/>
-                                            <span className="font-bold">Cash on Delivery</span>
-                                            <span className="text-sm text-muted-foreground text-center">Pay cash to the courier.</span>
-                                        </Label>
-                                    </RadioGroup>
+                                    {allowedPaymentMethods.length > 1 ? (
+                                        <RadioGroup value={paymentMethod} onValueChange={(value: 'Secure COD' | 'Cash on Delivery' | 'Prepaid') => setPaymentMethod(value)} className="grid grid-cols-2 gap-4">
+                                            {allowedPaymentMethods.includes('Secure COD') && (
+                                                <Label htmlFor="r-scod" className={cn("flex flex-col items-center justify-center rounded-md border-2 p-4 cursor-pointer", paymentMethod === 'Secure COD' && 'border-primary')}>
+                                                    <RadioGroupItem value="Secure COD" id="r-scod" className="sr-only"/>
+                                                    <span className="font-bold">Secure COD</span>
+                                                    <span className={cn("text-sm text-center", appliedDiscount ? 'text-green-600' : 'text-muted-foreground')}>
+                                                        {appliedDiscount ? `${appliedDiscount.discount}% discount!` : 'Pay online now, safely.'}
+                                                    </span>
+                                                </Label>
+                                            )}
+                                            {allowedPaymentMethods.includes('Cash on Delivery') && (
+                                                <Label htmlFor="r-cod" className={cn("flex flex-col items-center justify-center rounded-md border-2 p-4 cursor-pointer", paymentMethod === 'Cash on Delivery' && 'border-primary')}>
+                                                    <RadioGroupItem value="Cash on Delivery" id="r-cod" className="sr-only"/>
+                                                    <span className="font-bold">Cash on Delivery</span>
+                                                    <span className="text-sm text-muted-foreground text-center">Pay cash to the courier.</span>
+                                                </Label>
+                                            )}
+                                            {allowedPaymentMethods.includes('Prepaid') && (
+                                                <Label htmlFor="r-prepaid" className={cn("flex flex-col items-center justify-center rounded-md border-2 p-4 cursor-pointer", paymentMethod === 'Prepaid' && 'border-primary')}>
+                                                    <RadioGroupItem value="Prepaid" id="r-prepaid" className="sr-only"/>
+                                                    <span className="font-bold">Prepaid</span>
+                                                    <span className="text-sm text-muted-foreground text-center">Pay full amount now.</span>
+                                                </Label>
+                                            )}
+                                        </RadioGroup>
+                                    ) : allowedPaymentMethods.length === 1 ? (
+                                        <div className="p-4 border rounded-md bg-muted">
+                                            <p className="font-semibold text-center">{allowedPaymentMethods[0]}</p>
+                                        </div>
+                                    ) : (
+                                        <div className="p-4 border rounded-md bg-destructive/10 text-destructive text-center">
+                                            <p className="font-semibold">No payment methods available.</p>
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="text-3xl font-bold flex justify-between items-center pt-2 border-t">
                                     <span>Total:</span>
                                     <div className="text-right">
-                                        <span className={cn('transition-colors', appliedDiscount && paymentMethod === 'Secure Charge on Delivery' ? 'text-destructive' : 'text-foreground')}>₹{totalPrice.toFixed(2)}</span>
-                                        {appliedDiscount && paymentMethod === 'Secure Charge on Delivery' && <span className="text-sm font-normal text-muted-foreground ml-2 line-through">₹{originalPrice.toFixed(2)}</span>}
+                                        <span className={cn('transition-colors', appliedDiscount && paymentMethod === 'Secure COD' ? 'text-destructive' : 'text-foreground')}>₹{totalPrice.toFixed(2)}</span>
+                                        {appliedDiscount && paymentMethod === 'Secure COD' && <span className="text-sm font-normal text-muted-foreground ml-2 line-through">₹{originalPrice.toFixed(2)}</span>}
                                     </div>
                                 </div>
                             </div>
@@ -414,7 +450,7 @@ function CatalogueOrderPageContent() {
                         </div>
                     </CardContent>
                     <CardFooter>
-                        <Button type="submit" className="w-full" size="lg" disabled={isSubmitting}>
+                        <Button type="submit" className="w-full" size="lg" disabled={isSubmitting || allowedPaymentMethods.length === 0}>
                             {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShoppingCart className="mr-2 h-5 w-5" />}
                             Place Order Request
                         </Button>
