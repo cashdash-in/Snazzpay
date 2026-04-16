@@ -1,6 +1,5 @@
 'use client';
-
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { AppShell } from '@/components/layout/app-shell';
 import {
   Card,
@@ -30,6 +29,12 @@ import { useAuth } from '@/hooks/use-auth';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Dialog, DialogTrigger } from '@/components/ui/dialog';
 import { ShareComposerDialog } from '@/components/share-composer-dialog';
+import { Checkbox } from '@/components/ui/checkbox';
+
+type GeneratedListingWithPayments = ProductListingOutput & { 
+    allowedPaymentMethods?: ('Secure COD' | 'Cash on Delivery' | 'Prepaid')[]
+};
+
 
 export default function VendorAiProductUploaderPage() {
   const { toast } = useToast();
@@ -41,7 +46,7 @@ export default function VendorAiProductUploaderPage() {
   const [cost, setCost] = useState('');
   const [margin, setMargin] = useState('100'); // Default 100% margin
   const [generatedListing, setGeneratedListing] =
-    useState<ProductListingOutput | null>(null);
+    useState<GeneratedListingWithPayments | null>(null);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -83,7 +88,7 @@ export default function VendorAiProductUploaderPage() {
         cost: parseFloat(cost),
         margin: parseFloat(margin),
       });
-      setGeneratedListing(result);
+      setGeneratedListing({...result, allowedPaymentMethods: ['Secure COD', 'Cash on Delivery', 'Prepaid']});
       toast({
         title: 'Listing Generated!',
         description: 'Review the AI-generated details below.',
@@ -100,6 +105,18 @@ export default function VendorAiProductUploaderPage() {
       setIsLoading(false);
     }
   };
+  
+    const handlePaymentMethodChange = (method: 'Secure COD' | 'Cash on Delivery' | 'Prepaid', checked: boolean) => {
+        setGeneratedListing(prev => {
+            if (!prev) return null;
+            const currentMethods = prev.allowedPaymentMethods || [];
+            if (checked) {
+                return { ...prev, allowedPaymentMethods: [...currentMethods, method] };
+            } else {
+                return { ...prev, allowedPaymentMethods: currentMethods.filter(m => m !== method) };
+            }
+        });
+    };
 
   return (
     <AppShell title="AI Product Uploader">
@@ -248,21 +265,19 @@ export default function VendorAiProductUploaderPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="generated-sizes">Sizes</Label>
+                    <Label htmlFor="generated-sizes">Sizes (comma-separated)</Label>
                     <Input
                       id="generated-sizes"
                       value={generatedListing.sizes.join(', ')}
-                      readOnly
-                      className="bg-muted"
+                      onChange={(e) => setGeneratedListing(p => p ? { ...p, sizes: e.target.value.split(',').map(s => s.trim()) } : null)}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="generated-colors">Colors</Label>
+                    <Label htmlFor="generated-colors">Colors (comma-separated)</Label>
                     <Input
                       id="generated-colors"
                       value={generatedListing.colors.join(', ')}
-                      readOnly
-                      className="bg-muted"
+                      onChange={(e) => setGeneratedListing(p => p ? { ...p, colors: e.target.value.split(',').map(c => c.trim()) } : null)}
                     />
                   </div>
                 </div>
@@ -293,6 +308,23 @@ export default function VendorAiProductUploaderPage() {
                         )
                         }
                     />
+                    </div>
+                </div>
+                 <div className="space-y-2">
+                    <Label>Allowed Payment Methods</Label>
+                    <div className="flex flex-wrap gap-4 pt-2">
+                        <div className="flex items-center space-x-2">
+                            <Checkbox id="secure-cod" onCheckedChange={(checked) => handlePaymentMethodChange('Secure COD', checked as boolean)} checked={generatedListing.allowedPaymentMethods?.includes('Secure COD')} />
+                            <Label htmlFor="secure-cod">Secure COD</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <Checkbox id="cod" onCheckedChange={(checked) => handlePaymentMethodChange('Cash on Delivery', checked as boolean)} checked={generatedListing.allowedPaymentMethods?.includes('Cash on Delivery')} />
+                            <Label htmlFor="cod">Cash on Delivery</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <Checkbox id="prepaid" onCheckedChange={(checked) => handlePaymentMethodChange('Prepaid', checked as boolean)} checked={generatedListing.allowedPaymentMethods?.includes('Prepaid')} />
+                            <Label htmlFor="prepaid">Prepaid</Label>
+                        </div>
                     </div>
                 </div>
               </CardContent>

@@ -348,9 +348,12 @@ export default function ShareMagazinePage() {
     };
 
     const handleUpdateProduct = async () => {
-        if (!editingProduct) return;
+        if (!editingProduct || !user) return;
         
-        const collectionName = userRole === 'seller' ? 'seller_products' : 'product_drops';
+        let collectionName = 'product_drops'; // default for admin/vendor
+        if (userRole === 'seller') {
+            collectionName = 'seller_products';
+        }
 
         try {
             await saveDocument(collectionName, editingProduct, editingProduct.id);
@@ -578,9 +581,9 @@ export default function ShareMagazinePage() {
                                                     <p className="text-sm text-muted-foreground">Price: ₹{(((product as SellerProduct).price || (product as ProductDrop).costPrice) ?? 0).toFixed(2)}</p>
                                                 </div>
                                             </label>
-                                            <Dialog>
+                                             <Dialog onOpenChange={(open) => !open && setEditingProduct(null)}>
                                                 <DialogTrigger asChild>
-                                                    <Button variant="outline" size="sm" onClick={() => setEditingProduct(product)}>
+                                                    <Button variant="outline" size="icon" onClick={() => setEditingProduct(product)}>
                                                         <Edit className="h-4 w-4" />
                                                     </Button>
                                                 </DialogTrigger>
@@ -694,13 +697,13 @@ export default function ShareMagazinePage() {
             </div>
              {editingProduct && (
                 <Dialog open={!!editingProduct} onOpenChange={(isOpen) => !isOpen && setEditingProduct(null)}>
-                    <DialogContent>
+                    <DialogContent className="sm:max-w-[600px]">
                         <DialogHeader>
                             <DialogTitle>Edit Product: {editingProduct.title}</DialogTitle>
                             <DialogDescription>Make changes to the product details below.</DialogDescription>
                         </DialogHeader>
-                        <div className="py-4 space-y-4">
-                             <div className="space-y-2">
+                        <div className="py-4 space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+                            <div className="space-y-2">
                                 <Label htmlFor="edit-title">Title</Label>
                                 <Input 
                                     id="edit-title" 
@@ -735,6 +738,51 @@ export default function ShareMagazinePage() {
                                         return updatedProduct;
                                     })}
                                 />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="edit-sizes">Sizes (comma-separated)</Label>
+                                    <Input id="edit-sizes" value={editingProduct.sizes?.join(', ')} onChange={(e) => setEditingProduct(p => p ? { ...p, sizes: e.target.value.split(',').map(s=>s.trim()) } : null)} />
+                                </div>
+                                 <div className="space-y-2">
+                                    <Label htmlFor="edit-colors">Colors (comma-separated)</Label>
+                                    <Input id="edit-colors" value={editingProduct.colors?.join(', ')} onChange={(e) => setEditingProduct(p => p ? { ...p, colors: e.target.value.split(',').map(c=>c.trim()) } : null)} />
+                                </div>
+                            </div>
+                             <div className="space-y-2">
+                                <Label>Allowed Payment Methods</Label>
+                                <div className="flex flex-wrap gap-4 pt-2">
+                                     <div className="flex items-center space-x-2">
+                                        <Checkbox id="edit-secure-cod" onCheckedChange={(checked) => {
+                                            setEditingProduct(p => {
+                                                if(!p) return null;
+                                                const methods = p.allowedPaymentMethods || [];
+                                                return checked ? {...p, allowedPaymentMethods: [...methods, 'Secure COD']} : {...p, allowedPaymentMethods: methods.filter(m => m !== 'Secure COD')}
+                                            })
+                                        }} checked={editingProduct.allowedPaymentMethods?.includes('Secure COD')} />
+                                        <Label htmlFor="edit-secure-cod">Secure COD</Label>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <Checkbox id="edit-cod" onCheckedChange={(checked) => {
+                                            setEditingProduct(p => {
+                                                if(!p) return null;
+                                                const methods = p.allowedPaymentMethods || [];
+                                                return checked ? {...p, allowedPaymentMethods: [...methods, 'Cash on Delivery']} : {...p, allowedPaymentMethods: methods.filter(m => m !== 'Cash on Delivery')}
+                                            })
+                                        }} checked={editingProduct.allowedPaymentMethods?.includes('Cash on Delivery')} />
+                                        <Label htmlFor="edit-cod">Cash on Delivery</Label>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <Checkbox id="edit-prepaid" onCheckedChange={(checked) => {
+                                            setEditingProduct(p => {
+                                                if(!p) return null;
+                                                const methods = p.allowedPaymentMethods || [];
+                                                return checked ? {...p, allowedPaymentMethods: [...methods, 'Prepaid']} : {...p, allowedPaymentMethods: methods.filter(m => m !== 'Prepaid')}
+                                            })
+                                        }} checked={editingProduct.allowedPaymentMethods?.includes('Prepaid')} />
+                                        <Label htmlFor="edit-prepaid">Prepaid</Label>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         <DialogFooter>

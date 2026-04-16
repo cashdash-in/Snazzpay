@@ -35,10 +35,12 @@ import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 
 type ParsedProduct = ProductListingOutput & {
     id: string; // Add a temporary client-side ID
     vendorName?: string;
+    allowedPaymentMethods?: ('Secure COD' | 'Cash on Delivery' | 'Prepaid')[];
 };
 
 export default function WhatsAppUploaderPage() {
@@ -83,6 +85,7 @@ export default function WhatsAppUploaderPage() {
             id: uuidv4(),
             vendorName: defaultVendor || 'Snazzify AI', // Apply defaults
             category: defaultCategory || p.category,
+            allowedPaymentMethods: ['Secure COD', 'Cash on Delivery', 'Prepaid'],
         }));
         setParsedProducts(productsWithIds);
         toast({ title: `${result.products.length} Products Found!`, description: 'AI has parsed the chat. Review the products below.'});
@@ -93,7 +96,7 @@ export default function WhatsAppUploaderPage() {
     }
   };
 
-  const handleProductChange = (id: string, field: keyof ParsedProduct, value: string | number | string[]) => {
+  const handleProductChange = (id: string, field: keyof ParsedProduct, value: string | number | string[] | ParsedProduct['allowedPaymentMethods']) => {
     setParsedProducts(prev =>
       prev.map(p => (p.id === id ? { ...p, [field]: value } : p))
     );
@@ -141,6 +144,7 @@ export default function WhatsAppUploaderPage() {
                 category: product.category,
                 sizes: product.sizes,
                 colors: product.colors,
+                allowedPaymentMethods: product.allowedPaymentMethods,
             };
             await saveDocument('product_drops', newProductDrop, newProductDrop.id);
 
@@ -320,6 +324,32 @@ export default function WhatsAppUploaderPage() {
                                                 value={p.price}
                                                 onChange={(e) => handleProductChange(p.id, 'price', parseFloat(e.target.value))}
                                             />
+                                        </div>
+                                         <div className="space-y-1 pt-2">
+                                            <Label>Payment Methods</Label>
+                                            <div className="flex gap-4 pt-1">
+                                                <div className="flex items-center space-x-2">
+                                                    <Checkbox id={`scod-${p.id}`} checked={p.allowedPaymentMethods?.includes('Secure COD')} onCheckedChange={checked => {
+                                                        const newMethods = checked ? [...(p.allowedPaymentMethods || []), 'Secure COD'] : (p.allowedPaymentMethods || []).filter(m => m !== 'Secure COD');
+                                                        handleProductChange(p.id, 'allowedPaymentMethods', newMethods);
+                                                    }} />
+                                                    <Label htmlFor={`scod-${p.id}`} className="text-xs">Secure COD</Label>
+                                                </div>
+                                                <div className="flex items-center space-x-2">
+                                                    <Checkbox id={`cod-${p.id}`} checked={p.allowedPaymentMethods?.includes('Cash on Delivery')} onCheckedChange={checked => {
+                                                        const newMethods = checked ? [...(p.allowedPaymentMethods || []), 'Cash on Delivery'] : (p.allowedPaymentMethods || []).filter(m => m !== 'Cash on Delivery');
+                                                        handleProductChange(p.id, 'allowedPaymentMethods', newMethods);
+                                                    }} />
+                                                    <Label htmlFor={`cod-${p.id}`} className="text-xs">COD</Label>
+                                                </div>
+                                                <div className="flex items-center space-x-2">
+                                                    <Checkbox id={`prepaid-${p.id}`} checked={p.allowedPaymentMethods?.includes('Prepaid')} onCheckedChange={checked => {
+                                                        const newMethods = checked ? [...(p.allowedPaymentMethods || []), 'Prepaid'] : (p.allowedPaymentMethods || []).filter(m => m !== 'Prepaid');
+                                                        handleProductChange(p.id, 'allowedPaymentMethods', newMethods);
+                                                    }} />
+                                                    <Label htmlFor={`prepaid-${p.id}`} className="text-xs">Prepaid</Label>
+                                                </div>
+                                            </div>
                                         </div>
                                     </CardContent>
                                 </Card>

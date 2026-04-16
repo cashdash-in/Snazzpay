@@ -33,9 +33,13 @@ import { createProductFromText } from '@/ai/flows/create-product-from-text';
 import { saveDocument } from '@/services/firestore';
 import { v4 as uuidv4 } from 'uuid';
 import type { ProductDrop } from '@/app/vendor/product-drops/page';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const MAX_IMAGE_SIZE_PX = 800; // Max width/height for resizing
 
+type GeneratedListingWithPayments = ProductListingOutput & { 
+    allowedPaymentMethods?: ('Secure COD' | 'Cash on Delivery' | 'Prepaid')[]
+};
 
 export default function AiProductUploaderPage() {
   const { toast } = useToast();
@@ -48,8 +52,20 @@ export default function AiProductUploaderPage() {
   const [cost, setCost] = useState('');
   const [margin, setMargin] = useState('100'); // Default 100% margin
   const [generatedListing, setGeneratedListing] =
-    useState<ProductListingOutput | null>(null);
+    useState<GeneratedListingWithPayments | null>(null);
   const [vendorName, setVendorName] = useState('Snazzify AI');
+
+  const handlePaymentMethodChange = (method: 'Secure COD' | 'Cash on Delivery' | 'Prepaid', checked: boolean) => {
+    setGeneratedListing(prev => {
+        if (!prev) return null;
+        const currentMethods = prev.allowedPaymentMethods || [];
+        if (checked) {
+            return { ...prev, allowedPaymentMethods: [...currentMethods, method] };
+        } else {
+            return { ...prev, allowedPaymentMethods: currentMethods.filter(m => m !== method) };
+        }
+    });
+  };
 
   const resizeImage = (file: File): Promise<string> => {
     return new Promise((resolve) => {
@@ -179,7 +195,7 @@ export default function AiProductUploaderPage() {
         cost: parseFloat(cost),
         margin: parseFloat(margin),
       });
-      setGeneratedListing(result);
+      setGeneratedListing({...result, allowedPaymentMethods: ['Secure COD', 'Cash on Delivery', 'Prepaid']});
       toast({
         title: 'Listing Generated!',
         description: 'Review the AI-generated details on the right.',
@@ -214,6 +230,7 @@ export default function AiProductUploaderPage() {
             category: generatedListing.category,
             sizes: generatedListing.sizes,
             colors: generatedListing.colors,
+            allowedPaymentMethods: generatedListing.allowedPaymentMethods,
         };
 
         await saveDocument('product_drops', newProductDrop, newProductDrop.id);
@@ -516,6 +533,23 @@ export default function AiProductUploaderPage() {
                     />
                     </div>
                 </div>
+                <div className="space-y-2">
+                    <Label>Allowed Payment Methods</Label>
+                    <div className="flex flex-wrap gap-4 pt-2">
+                        <div className="flex items-center space-x-2">
+                            <Checkbox id="secure-cod" onCheckedChange={(checked) => handlePaymentMethodChange('Secure COD', checked as boolean)} checked={generatedListing.allowedPaymentMethods?.includes('Secure COD')} />
+                            <Label htmlFor="secure-cod">Secure COD</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <Checkbox id="cod" onCheckedChange={(checked) => handlePaymentMethodChange('Cash on Delivery', checked as boolean)} checked={generatedListing.allowedPaymentMethods?.includes('Cash on Delivery')} />
+                            <Label htmlFor="cod">Cash on Delivery</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <Checkbox id="prepaid" onCheckedChange={(checked) => handlePaymentMethodChange('Prepaid', checked as boolean)} checked={generatedListing.allowedPaymentMethods?.includes('Prepaid')} />
+                            <Label htmlFor="prepaid">Prepaid</Label>
+                        </div>
+                    </div>
+                </div>
               </CardContent>
               <CardFooter>
                  <Button onClick={handlePushToShopify} className="w-full" disabled={isPushing}>
@@ -534,5 +568,3 @@ export default function AiProductUploaderPage() {
     </AppShell>
   );
 }
-
-    

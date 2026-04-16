@@ -30,6 +30,7 @@ import { type ProductListingOutput } from '@/ai/schemas/product-listing';
 import { v4 as uuidv4 } from 'uuid';
 import { saveDocument } from '@/services/firestore';
 import type { ProductDrop } from '@/app/vendor/product-drops/page';
+import { Checkbox } from '@/components/ui/checkbox';
 
 
 type GeneratedProduct = ProductListingOutput & {
@@ -37,6 +38,7 @@ type GeneratedProduct = ProductListingOutput & {
   imageDataUri: string;
   vendorName?: string;
   costPrice?: number;
+  allowedPaymentMethods?: ('Secure COD' | 'Cash on Delivery' | 'Prepaid')[];
 };
 
 const MAX_IMAGE_SIZE_PX = 800; // Max width/height for resizing
@@ -134,6 +136,7 @@ export default function ImageBulkUploaderPage() {
                 colors: [], // Default colors
                 vendorName: defaultVendor || 'Snazzify AI', // Apply default vendor
                 category: defaultCategory || result.category, // Apply default category
+                allowedPaymentMethods: ['Secure COD', 'Cash on Delivery', 'Prepaid'],
             });
             // Update progress if needed
         } catch (error: any) {
@@ -154,7 +157,7 @@ export default function ImageBulkUploaderPage() {
     });
   };
 
-  const handleProductChange = (id: string, field: keyof GeneratedProduct, value: string | number | string[]) => {
+  const handleProductChange = (id: string, field: keyof GeneratedProduct, value: string | number | string[] | GeneratedProduct['allowedPaymentMethods']) => {
     setGeneratedProducts(prev =>
       prev.map(p => (p.id === id ? { ...p, [field]: value } : p))
     );
@@ -182,6 +185,7 @@ export default function ImageBulkUploaderPage() {
                 category: product.category,
                 sizes: product.sizes,
                 colors: product.colors,
+                allowedPaymentMethods: product.allowedPaymentMethods,
             };
             await saveDocument('product_drops', newProductDrop, newProductDrop.id);
 
@@ -347,6 +351,32 @@ export default function ImageBulkUploaderPage() {
                                 <div className="space-y-1">
                                     <Label htmlFor={`colors-${p.id}`}>Colors (comma-separated)</Label>
                                     <Input id={`colors-${p.id}`} value={p.colors.join(', ')} onChange={e => handleProductChange(p.id, 'colors', e.target.value.split(',').map(s=>s.trim()))} />
+                                </div>
+                                <div className="space-y-1">
+                                    <Label>Payment Methods</Label>
+                                    <div className="flex gap-4 pt-1">
+                                        <div className="flex items-center space-x-2">
+                                            <Checkbox id={`scod-${p.id}`} checked={p.allowedPaymentMethods?.includes('Secure COD')} onCheckedChange={checked => {
+                                                const newMethods = checked ? [...(p.allowedPaymentMethods || []), 'Secure COD'] : (p.allowedPaymentMethods || []).filter(m => m !== 'Secure COD');
+                                                handleProductChange(p.id, 'allowedPaymentMethods', newMethods);
+                                            }} />
+                                            <Label htmlFor={`scod-${p.id}`} className="text-xs">Secure COD</Label>
+                                        </div>
+                                         <div className="flex items-center space-x-2">
+                                            <Checkbox id={`cod-${p.id}`} checked={p.allowedPaymentMethods?.includes('Cash on Delivery')} onCheckedChange={checked => {
+                                                const newMethods = checked ? [...(p.allowedPaymentMethods || []), 'Cash on Delivery'] : (p.allowedPaymentMethods || []).filter(m => m !== 'Cash on Delivery');
+                                                handleProductChange(p.id, 'allowedPaymentMethods', newMethods);
+                                            }} />
+                                            <Label htmlFor={`cod-${p.id}`} className="text-xs">COD</Label>
+                                        </div>
+                                         <div className="flex items-center space-x-2">
+                                            <Checkbox id={`prepaid-${p.id}`} checked={p.allowedPaymentMethods?.includes('Prepaid')} onCheckedChange={checked => {
+                                                const newMethods = checked ? [...(p.allowedPaymentMethods || []), 'Prepaid'] : (p.allowedPaymentMethods || []).filter(m => m !== 'Prepaid');
+                                                handleProductChange(p.id, 'allowedPaymentMethods', newMethods);
+                                            }} />
+                                            <Label htmlFor={`prepaid-${p.id}`} className="text-xs">Prepaid</Label>
+                                        </div>
+                                    </div>
                                 </div>
                             </CardContent>
                         </Card>
