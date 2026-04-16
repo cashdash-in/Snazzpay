@@ -471,21 +471,19 @@ export default function AiProductUploaderPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="generated-sizes">Sizes</Label>
+                    <Label htmlFor="generated-sizes">Sizes (comma-separated)</Label>
                     <Input
                       id="generated-sizes"
                       value={generatedListing.sizes.join(', ')}
-                      readOnly
-                      className="bg-muted"
+                      onChange={(e) => setGeneratedListing(p => p ? { ...p, sizes: e.target.value.split(',').map(s => s.trim()) } : null)}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="generated-colors">Colors</Label>
+                    <Label htmlFor="generated-colors">Colors (comma-separated)</Label>
                     <Input
                       id="generated-colors"
                       value={generatedListing.colors.join(', ')}
-                      readOnly
-                      className="bg-muted"
+                      onChange={(e) => setGeneratedListing(p => p ? { ...p, colors: e.target.value.split(',').map(c => c.trim()) } : null)}
                     />
                   </div>
                 </div>

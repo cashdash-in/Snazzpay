@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, DragEvent, ClipboardEvent } from 'react';
@@ -48,6 +47,8 @@ export default function VendorProductDropsPage() {
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [costPrice, setCostPrice] = useState('');
+    const [sizes, setSizes] = useState('');
+    const [colors, setColors] = useState('');
     const [imagePreviews, setImagePreviews] = useState<string[]>([]);
     const [resizedImageDataUris, setResizedImageDataUris] = useState<string[]>([]);
     const [usageCount, setUsageCount] = useState(0);
@@ -226,8 +227,8 @@ export default function VendorProductDropsPage() {
             costPrice: parseFloat(costPrice),
             imageDataUris: resizedImageDataUris, // Use resized data
             createdAt: new Date().toISOString(),
-            sizes: [], // Default to empty array
-            colors: [], // Default to empty array
+            sizes: sizes.split(',').map(s => s.trim()).filter(s => s),
+            colors: colors.split(',').map(c => c.trim()).filter(c => c),
             allowedPaymentMethods,
         };
 
@@ -247,6 +248,8 @@ export default function VendorProductDropsPage() {
             setTitle('');
             setDescription('');
             setCostPrice('');
+            setSizes('');
+            setColors('');
             setImagePreviews([]);
             setResizedImageDataUris([]);
             setAllowedPaymentMethods(['Secure COD', 'Cash on Delivery', 'Prepaid']);
@@ -333,21 +336,31 @@ export default function VendorProductDropsPage() {
                             <Label htmlFor="costPrice">Your Cost Price (INR)</Label>
                             <Input id="costPrice" type="number" value={costPrice} onChange={(e) => setCostPrice(e.target.value)} placeholder="e.g., 250"/>
                         </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label>Allowed Payment Methods</Label>
-                            <div className="flex flex-wrap gap-4 pt-2">
-                                <div className="flex items-center space-x-2">
-                                    <Checkbox id="secure-cod" onCheckedChange={(checked) => handlePaymentMethodChange('Secure COD', checked as boolean)} checked={allowedPaymentMethods.includes('Secure COD')} />
-                                    <Label htmlFor="secure-cod">Secure COD</Label>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                    <Checkbox id="cod" onCheckedChange={(checked) => handlePaymentMethodChange('Cash on Delivery', checked as boolean)} checked={allowedPaymentMethods.includes('Cash on Delivery')} />
-                                    <Label htmlFor="cod">Cash on Delivery</Label>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                    <Checkbox id="prepaid" onCheckedChange={(checked) => handlePaymentMethodChange('Prepaid', checked as boolean)} checked={allowedPaymentMethods.includes('Prepaid')} />
-                                    <Label htmlFor="prepaid">Prepaid</Label>
-                                </div>
+                            <Label htmlFor="sizes">Sizes (comma-separated)</Label>
+                            <Input id="sizes" value={sizes} onChange={(e) => setSizes(e.target.value)} placeholder="e.g., S, M, L" />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="colors">Colors (comma-separated)</Label>
+                            <Input id="colors" value={colors} onChange={(e) => setColors(e.target.value)} placeholder="e.g., Red, Blue" />
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Allowed Payment Methods</Label>
+                        <div className="flex flex-wrap gap-4 pt-2">
+                            <div className="flex items-center space-x-2">
+                                <Checkbox id="secure-cod" onCheckedChange={(checked) => handlePaymentMethodChange('Secure COD', checked as boolean)} checked={allowedPaymentMethods.includes('Secure COD')} />
+                                <Label htmlFor="secure-cod">Secure COD</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <Checkbox id="cod" onCheckedChange={(checked) => handlePaymentMethodChange('Cash on Delivery', checked as boolean)} checked={allowedPaymentMethods.includes('Cash on Delivery')} />
+                                <Label htmlFor="cod">Cash on Delivery</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <Checkbox id="prepaid" onCheckedChange={(checked) => handlePaymentMethodChange('Prepaid', checked as boolean)} checked={allowedPaymentMethods.includes('Prepaid')} />
+                                <Label htmlFor="prepaid">Prepaid</Label>
                             </div>
                         </div>
                     </div>

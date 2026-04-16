@@ -56,6 +56,8 @@ export default function ShareMagazinePage() {
         title: '',
         description: '',
         price: '',
+        sizes: '',
+        colors: '',
         imageDataUris: [] as string[],
         imagePreviews: [] as string[],
         allowedPaymentMethods: ['Secure COD', 'Cash on Delivery', 'Prepaid'] as ('Secure COD' | 'Cash on Delivery' | 'Prepaid')[],
@@ -206,37 +208,33 @@ export default function ShareMagazinePage() {
         let productToSave: SellerProduct | ProductDrop;
         let collectionName: string;
 
+        const baseProduct = {
+            id: newProductId,
+            title: newProduct.title,
+            description: newProduct.description,
+            imageDataUris: newProduct.imageDataUris,
+            createdAt: new Date().toISOString(),
+            category: '',
+            sizes: newProduct.sizes.split(',').map(s => s.trim()).filter(s => s),
+            colors: newProduct.colors.split(',').map(c => c.trim()).filter(c => c),
+            allowedPaymentMethods: newProduct.allowedPaymentMethods,
+        };
+
         if (userRole === 'seller') {
             collectionName = 'seller_products';
             productToSave = {
-                id: newProductId,
+                ...baseProduct,
                 sellerId: user.uid,
                 sellerName: user.displayName || 'Seller',
-                title: newProduct.title,
-                description: newProduct.description,
                 price: parseFloat(newProduct.price),
-                imageDataUris: newProduct.imageDataUris,
-                createdAt: new Date().toISOString(),
-                category: '',
-                sizes: [],
-                colors: [],
-                allowedPaymentMethods: newProduct.allowedPaymentMethods,
             } as SellerProduct;
         } else { // admin or vendor
             collectionName = 'product_drops';
             productToSave = {
-                id: newProductId,
+                ...baseProduct,
                 vendorId: userRole === 'admin' ? 'admin_snazzify' : user.uid,
                 vendorName: userRole === 'admin' ? 'SnazzifyOfficial' : user.displayName || 'Vendor',
-                title: newProduct.title,
-                description: newProduct.description,
                 costPrice: parseFloat(newProduct.price),
-                imageDataUris: newProduct.imageDataUris,
-                createdAt: new Date().toISOString(),
-                category: '',
-                sizes: [],
-                colors: [],
-                allowedPaymentMethods: newProduct.allowedPaymentMethods,
             } as ProductDrop;
         }
 
@@ -250,7 +248,7 @@ export default function ShareMagazinePage() {
                 description: 'Your new product has been added to the list and selected.',
             });
 
-            setNewProduct({ title: '', description: '', price: '', imageDataUris: [], imagePreviews: [], allowedPaymentMethods: ['Secure COD', 'Cash on Delivery', 'Prepaid'] });
+            setNewProduct({ title: '', description: '', price: '', sizes: '', colors: '', imageDataUris: [], imagePreviews: [], allowedPaymentMethods: ['Secure COD', 'Cash on Delivery', 'Prepaid'] });
             setIsCreateDialogOpen(false);
         } catch (error: any) {
             toast({
@@ -470,6 +468,16 @@ export default function ShareMagazinePage() {
                                             <div className="space-y-2">
                                                 <Label htmlFor="new-price">{userRole === 'seller' ? 'Your Selling Price' : 'Your Cost Price'} (INR)</Label>
                                                 <Input id="new-price" type="number" value={newProduct.price} onChange={(e) => setNewProduct(p => ({...p, price: e.target.value}))}/>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="new-sizes">Sizes (comma-separated)</Label>
+                                                    <Input id="new-sizes" value={newProduct.sizes} onChange={(e) => setNewProduct(p => ({ ...p, sizes: e.target.value }))} placeholder="e.g., S, M, L"/>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="new-colors">Colors (comma-separated)</Label>
+                                                    <Input id="new-colors" value={newProduct.colors} onChange={(e) => setNewProduct(p => ({ ...p, colors: e.target.value }))} placeholder="e.g., Red, Blue"/>
+                                                </div>
                                             </div>
                                             <div className="space-y-2">
                                                 <Label>Allowed Payment Methods</Label>
