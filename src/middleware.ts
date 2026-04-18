@@ -8,6 +8,7 @@ export function middleware(request: NextRequest) {
   const token = request.cookies.get('firebaseAuthToken');
   const { pathname } = request.nextUrl;
 
+  // Paths that are publicly accessible without login
   const publicPaths = [
     '/',
     '/auth/login',
@@ -20,10 +21,6 @@ export function middleware(request: NextRequest) {
     '/secure-cod-info', 
     '/faq', 
     '/terms-and-conditions', 
-    '/terms/customer', 
-    '/terms/partner-pay', 
-    '/terms/logistics',
-    '/terms/seller',
     '/customer/login', 
     '/partner-pay/login', 
     '/partner-pay/signup', 
@@ -31,18 +28,20 @@ export function middleware(request: NextRequest) {
     '/logistics-secure/signup',
     '/collaborator/login',
     '/collaborator/signup',
-    '/collaborator/dashboard',
-    '/collaborator/magazines',
-    '/collaborator/commissions',
-    '/collaborator/orders',
-    '/guest-fulfillment',
     '/catalogue',
     '/smart-magazine',
   ];
 
+  // Prefixes for public paths that have dynamic sub-routes (e.g., /terms/customer)
+  const publicPrefixes = ['/guest-fulfillment', '/terms'];
+
+  const isPublic =
+    publicPaths.includes(pathname) ||
+    publicPrefixes.some((prefix) => pathname.startsWith(prefix));
+
   // Allow access to public paths, API routes, and static files
   if (
-    publicPaths.some(path => pathname === path || (path !== '/' && pathname.startsWith(path + '/'))) ||
+    isPublic ||
     pathname.startsWith('/api/') ||
     pathname.startsWith('/_next/') ||
     pathname.includes('.') // for static files like favicon.ico, images etc.
@@ -50,14 +49,11 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // If there's no auth token, redirect to the default login page
+  // If there's no auth token for a private path, redirect to the login page
   if (!token) {
-    let loginUrl = '/auth/login';
-    // Append the original path as a query parameter for redirection after login
-    const url = request.nextUrl.clone()
-    url.pathname = loginUrl
-    url.search = `redirectedFrom=${pathname}`
-    return NextResponse.redirect(url);
+    const loginUrl = new URL('/auth/login', request.url);
+    loginUrl.searchParams.set('redirectedFrom', pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
   // If a token exists, let the request through.
