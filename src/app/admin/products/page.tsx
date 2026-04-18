@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -5,9 +6,12 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Loader2, Trash2, Package, MessageSquare, BookOpen } from "lucide-react";
+import { Loader2, Trash2, Package, MessageSquare, BookOpen, DollarSign, ShoppingCart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { ProductDrop } from '@/app/vendor/product-drops/page';
+import type { SellerProduct } from '@/app/seller/ai-product-uploader/page';
+import type { SellerUser } from '@/app/seller-accounts/page';
+import type { EditableOrder } from '@/types/order';
 import Image from 'next/image';
 import { formatDistanceToNow } from 'date-fns';
 import {
@@ -21,17 +25,27 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Dialog, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogTrigger, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ShareComposerDialog } from '@/components/share-composer-dialog';
 import { getCollection, deleteDocument } from '@/services/firestore';
 import Link from 'next/link';
 import { Checkbox } from '@/components/ui/checkbox';
+
+
+type ProductStats = {
+    sellers: SellerUser[];
+    totalUnitsSold: number;
+    totalRevenue: number;
+};
 
 export default function AdminProductsPage() {
     const { toast } = useToast();
     const [products, setProducts] = useState<ProductDrop[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
+    const [selectedProductForStats, setSelectedProductForStats] = useState<ProductDrop | null>(null);
+    const [productStats, setProductStats] = useState<ProductStats | null>(null);
+    const [isStatsLoading, setIsStatsLoading] = useState(false);
 
     const storageKey = 'product_drops';
 
@@ -52,6 +66,45 @@ export default function AdminProductsPage() {
         }
         loadProducts();
     }, [toast]);
+    
+    const handleViewStats = async (product: ProductDrop) => {
+        setSelectedProductForStats(product);
+        setIsStatsLoading(true);
+
+        try {
+            const [allSellerProducts, allSellers, allOrders] = await Promise.all([
+                getCollection<SellerProduct>('seller_products'),
+                getCollection<SellerUser>('seller_users'),
+                getCollection<EditableOrder>('orders'),
+            ]);
+
+            // Find sellers who have added this product
+            const sellerProductEntries = allSellerProducts.filter(sp => sp.id === product.id);
+            const sellerIds = new Set(sellerProductEntries.map(sp => sp.sellerId));
+            const sellersWhoAdded = allSellers.filter(s => sellerIds.has(s.id));
+
+            // Calculate sales stats
+            const productOrders = allOrders.filter(o => 
+                o.productId === product.id && 
+                o.paymentStatus === 'Paid'
+            );
+            
+            const totalUnitsSold = productOrders.reduce((sum, o) => sum + o.quantity, 0);
+            const totalRevenue = productOrders.reduce((sum, o) => sum + parseFloat(o.price), 0);
+
+            setProductStats({
+                sellers: sellersWhoAdded,
+                totalUnitsSold,
+                totalRevenue
+            });
+
+        } catch (error) {
+            toast({ variant: 'destructive', title: "Error loading stats", description: "Could not load analytics for this product." });
+        } finally {
+            setIsStatsLoading(false);
+        }
+    };
+
 
     const handleSelectAll = (checked: boolean) => {
         if (checked) {
@@ -149,6 +202,9 @@ export default function AdminProductsPage() {
                                 <TableCell className="max-w-xs truncate text-sm text-muted-foreground">{product.description}</TableCell>
                                 <TableCell>{formatDistanceToNow(new Date(product.createdAt), { addSuffix: true })}</TableCell>
                                 <TableCell className="text-right space-x-1">
+                                     <Button variant="outline" size="sm" onClick={() => handleViewStats(product)}>
+                                        View Stats
+                                    </Button>
                                     <Dialog>
                                         <DialogTrigger asChild>
                                              <Button variant="secondary" size="sm">
@@ -187,6 +243,45 @@ export default function AdminProductsPage() {
                 )}
             </CardContent>
         </Card>
+        <Dialog open={!!selectedProductForStats} onOpenChange={(open) => !open && setSelectedProductForStats(null)}>
+            <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                    <DialogTitle>Stats for: {selectedProductForStats?.title}</DialogTitle>
+                    <DialogDescription>Performance of this product across your seller network.</DialogDescription>
+                </DialogHeader>
+                {isStatsLoading ? (
+                    <div className="flex justify-center items-center h-48"><Loader2 className="h-8 w-8 animate-spin" /></div>
+                ) : productStats ? (
+                    <div className="space-y-4 py-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <Card>
+                                <CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Total Units Sold</CardTitle><ShoppingCart className="h-4 w-4 text-muted-foreground" /></CardHeader>
+                                <CardContent><div className="text-2xl font-bold">{productStats.totalUnitsSold}</div></CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Total Revenue</CardTitle><DollarSign className="h-4 w-4 text-muted-foreground" /></CardHeader>
+                                <CardContent><div className="text-2xl font-bold">₹{productStats.totalRevenue.toFixed(2)}</div></CardContent>
+                            </Card>
+                        </div>
+                        <Card>
+                            <CardHeader><CardTitle className="text-lg">Sellers with this Product</CardTitle></CardHeader>
+                            <CardContent>
+                                <Table>
+                                    <TableHeader><TableRow><TableHead>Seller Name</TableHead><TableHead>Contact</TableHead></TableRow></TableHeader>
+                                    <TableBody>
+                                        {productStats.sellers.length > 0 ? productStats.sellers.map(seller => (
+                                            <TableRow key={seller.id}><TableCell>{seller.companyName}</TableCell><TableCell>{seller.phone || seller.email}</TableCell></TableRow>
+                                        )) : (
+                                            <TableRow><TableCell colSpan={2} className="text-center">No sellers have added this product yet.</TableCell></TableRow>
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </CardContent>
+                        </Card>
+                    </div>
+                ) : null}
+            </DialogContent>
+        </Dialog>
     </AppShell>
   );
 }
