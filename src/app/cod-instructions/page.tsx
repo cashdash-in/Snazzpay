@@ -1,3 +1,4 @@
+
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -30,6 +31,7 @@ export default function CodInstructionsPage() {
         <input type="hidden" name="collection" id="snazzpay-p-collection" />
         <input type="hidden" name="sizes" id="snazzpay-p-sizes" />
         <input type="hidden" name="colors" id="snazzpay-p-colors" />
+        <input type="hidden" name="return_url" id="snazzpay-p-return-url" />
 
         <button 
             id="snazzpay-submit-button"
@@ -97,7 +99,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Track button click
         if(submitButton) {
             submitButton.addEventListener('click', function() {
-                 fetch('/api/track', { // CORRECTED: Use relative path
+                 fetch('${appUrl}/api/track', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ event: 'secureCodClick' }),
@@ -107,7 +109,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Fetch discounts from your app's API
-        fetch('/api/discounts') // CORRECTED: Use relative path
+        fetch('${appUrl}/api/discounts')
             .then(response => {
                 if (!response.ok) { throw new Error('Network response was not ok'); }
                 return response.json();
@@ -164,6 +166,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const allColors = productData.options_with_values.find(o => o.name.toLowerCase() === 'color')?.values || [];
             document.getElementById('snazzpay-p-colors').value = allColors.join(',');
+
+             // Set the return URL to the current page
+            document.getElementById('snazzpay-p-return-url').value = window.location.href;
         }
 
         // Initial update on page load
