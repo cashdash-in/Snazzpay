@@ -692,7 +692,7 @@ export default function ShareMagazinePage() {
                                         </Button>
                                         {showCover && coverImageUrl && (
                                             <div className="mt-4 space-y-2 text-center">
-                                                <p className="text-sm text-muted-foreground">Right-click or long-press to save your cover!</p>
+                                                <p className="text-sm text-muted-foreground">Right-click or long-press the image below and choose 'Save Image As...' to download your cover.</p>
                                                 <div className="flex justify-center">
                                                      <MagazineCover 
                                                         imageUrl={coverImageUrl} 
