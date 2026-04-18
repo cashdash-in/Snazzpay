@@ -20,7 +20,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Textarea } from '@/components/ui/textarea';
 import { parseTextForMagazine } from '@/ai/flows/magazine-paste-parser';
-import { createMagazineCover } from '@/ai/flows/create-magazine-cover';
+import { MagazineCover } from '@/components/magazine-cover';
 
 
 type Magazine = {
@@ -64,8 +64,9 @@ export default function ShareMagazinePage() {
         allowedPaymentMethods: ['Secure COD', 'Cash on Delivery', 'Prepaid'] as ('Secure COD' | 'Cash on Delivery' | 'Prepaid')[],
     });
 
-    const [generatedCover, setGeneratedCover] = useState<string | null>(null);
-    const [isGeneratingCover, setIsGeneratingCover] = useState(false);
+    const [showCover, setShowCover] = useState(false);
+    const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
+
 
     const userRole = useMemo(() => getCookie('userRole'), []);
 
@@ -441,38 +442,24 @@ export default function ShareMagazinePage() {
         }
     };
 
-    const handleGenerateCover = async () => {
+    const handleGenerateCover = () => {
         if (selectedProductIds.length === 0) {
             toast({ variant: 'destructive', title: 'No products selected' });
             return;
         }
-        setIsGeneratingCover(true);
-        setGeneratedCover(null);
+        setShowCover(false);
+        const selectedProducts = products.filter(p => selectedProductIds.includes(p.id));
+        const firstImageUrl = selectedProducts[0]?.imageDataUris[0];
 
-        try {
-            const selectedProducts = products.filter(p => selectedProductIds.includes(p.id));
-            const imageUrls = selectedProducts.flatMap(p => p.imageDataUris).slice(0, 5); // Limit to 5 images
-
-            if (imageUrls.length === 0) {
-                toast({ variant: 'destructive', title: 'No Images Found', description: 'Selected products must have images to generate a cover.' });
-                setIsGeneratingCover(false);
-                return;
-            }
-
-            const result = await createMagazineCover({
-                imageUrls,
-                title: magazineTitle,
-            });
-            
-            setGeneratedCover(result.coverImageDataUri);
-            toast({ title: "Magazine Cover Generated!", description: "You can now save and share your new cover image." });
-
-        } catch (error: any) {
-            toast({ variant: 'destructive', title: 'Cover Generation Failed', description: error.message });
-        } finally {
-            setIsGeneratingCover(false);
+        if (!firstImageUrl) {
+            toast({ variant: 'destructive', title: 'No Images Found', description: 'The first selected product must have an image to generate a cover.' });
+            return;
         }
+
+        setCoverImageUrl(firstImageUrl);
+        setShowCover(true);
     };
+
 
     return (
         <AppShell title="Smart Magazine Hub">
@@ -697,17 +684,22 @@ export default function ShareMagazinePage() {
                                         <Label>3. Generate a Sharable Image</Label>
                                         <Button 
                                             onClick={handleGenerateCover} 
-                                            disabled={isGeneratingCover} 
                                             className="w-full" 
                                             variant="outline"
                                         >
-                                            {isGeneratingCover ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <ImageIcon className="mr-2 h-4 w-4"/>}
-                                            Generate Magazine Cover with AI
+                                            <ImageIcon className="mr-2 h-4 w-4"/>
+                                            Generate Magazine Cover
                                         </Button>
-                                        {generatedCover && (
+                                        {showCover && coverImageUrl && (
                                             <div className="mt-4 space-y-2 text-center">
                                                 <p className="text-sm text-muted-foreground">Right-click or long-press to save your cover!</p>
-                                                <Image src={generatedCover} alt="Generated Magazine Cover" width={400} height={400} className="rounded-lg border shadow-md mx-auto" />
+                                                <div className="flex justify-center">
+                                                     <MagazineCover 
+                                                        imageUrl={coverImageUrl} 
+                                                        title={magazineTitle} 
+                                                        vendorTitle={isAdmin ? vendorTitle : undefined}
+                                                    />
+                                                </div>
                                             </div>
                                         )}
                                     </div>
