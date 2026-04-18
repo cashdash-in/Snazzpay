@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/hooks/use-auth';
 import type { SellerProduct } from '@/app/seller/ai-product-uploader/page';
 import Image from 'next/image';
-import { Loader2, Share2, Copy, MessageSquare, BookOpen, Percent, Factory, Edit, Wand2, PlusCircle, ImagePlus, ImageIcon, Facebook, Instagram } from 'lucide-react';
+import { Loader2, Share2, Copy, MessageSquare, BookOpen, Percent, Factory, Edit, Wand2, PlusCircle, ImagePlus, ImageIcon, Facebook, Instagram, Download } from 'lucide-react';
 import { getCollection, saveDocument } from '@/services/firestore';
 import { getCookie } from 'cookies-next';
 import { Label } from '@/components/ui/label';
@@ -66,6 +66,7 @@ export default function ShareMagazinePage() {
 
     const [showCover, setShowCover] = useState(false);
     const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
+    const [jpegDataUrl, setJpegDataUrl] = useState<string | null>(null);
 
 
     const userRole = useMemo(() => getCookie('userRole'), []);
@@ -463,7 +464,6 @@ export default function ShareMagazinePage() {
             toast({ variant: 'destructive', title: 'No products selected' });
             return;
         }
-        setShowCover(false);
         const selectedProducts = products.filter(p => selectedProductIds.includes(p.id));
         const firstImageUrl = selectedProducts[0]?.imageDataUris[0];
 
@@ -474,6 +474,7 @@ export default function ShareMagazinePage() {
 
         setCoverImageUrl(firstImageUrl);
         setShowCover(true);
+        setJpegDataUrl(null);
     };
 
 
@@ -713,16 +714,30 @@ export default function ShareMagazinePage() {
                                             <ImageIcon className="mr-2 h-4 w-4"/>
                                             Generate Magazine Cover
                                         </Button>
-                                        {showCover && coverImageUrl && (
+                                         {showCover && coverImageUrl && (
                                             <div className="mt-4 space-y-2 text-center">
-                                                <p className="text-sm text-muted-foreground">Right-click or long-press the image below and choose 'Save Image As...' to download your cover.</p>
+                                                <p className="text-sm text-muted-foreground">Your cover is ready. Click below to download it.</p>
                                                 <div className="flex justify-center">
-                                                     <MagazineCover 
+                                                    <MagazineCover 
                                                         imageUrl={coverImageUrl} 
                                                         title={magazineTitle} 
                                                         vendorTitle={isAdmin ? vendorTitle : undefined}
+                                                        onCanvasUpdate={setJpegDataUrl}
                                                     />
                                                 </div>
+                                                {jpegDataUrl ? (
+                                                    <a href={jpegDataUrl} download={`${magazineTitle.replace(/\s+/g, '_')}_cover.jpg`}>
+                                                        <Button variant="secondary" className="mt-2">
+                                                            <Download className="mr-2 h-4 w-4"/>
+                                                            Download as JPEG
+                                                        </Button>
+                                                    </a>
+                                                ) : (
+                                                    <div className="flex items-center justify-center gap-2 text-muted-foreground mt-2">
+                                                        <Loader2 className="h-4 w-4 animate-spin"/>
+                                                        <p>Preparing download...</p>
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
                                     </div>
