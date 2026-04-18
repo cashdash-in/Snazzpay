@@ -13,13 +13,17 @@ import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { saveDocument, getDocument, getCollection } from '@/services/firestore';
-import type { EditableOrder } from '@/types/order';
+import type { EditableOrder } from '../orders/page';
 import { v4 as uuidv4 } from 'uuid';
 import type { SellerProduct } from '../seller/ai-product-uploader/page';
 import type { ProductDrop } from '../vendor/product-drops/page';
 import type { SellerUser } from '../seller-accounts/page';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { format, addYears } from 'date-fns';
+import { sanitizePhoneNumber } from '@/lib/utils';
+import { ShaktiCard, ShaktiCardData } from '@/components/shakti-card';
+import Link from 'next/link';
 
 type DisplayProduct = (SellerProduct | ProductDrop) & { 
     price: number; 
@@ -47,6 +51,39 @@ type DiscountRule = {
 };
 
 
+const createNewShaktiCard = async (order: EditableOrder): Promise<ShaktiCardData | null> => {
+    if (!order.contactNo || !order.customerEmail) return null;
+    const sanitizedMobile = sanitizePhoneNumber(order.contactNo);
+    try {
+        const existingCards = await getCollection<ShaktiCardData>('shakti_cards');
+        const cardExists = existingCards.find(card => card.customerPhone === sanitizedMobile);
+        if (cardExists) {
+            console.log("Shakti Card already exists for this customer.");
+            return cardExists;
+        }
+
+        const newCard: ShaktiCardData = {
+            cardNumber: `SHAKTI-${uuidv4().substring(0, 4).toUpperCase()}-${uuidv4().substring(0, 4).toUpperCase()}`,
+            customerName: order.customerName,
+            customerPhone: order.contactNo,
+            customerEmail: order.customerEmail,
+            customerAddress: order.customerAddress,
+            validFrom: format(new Date(), 'MM/yy'),
+            validThru: format(addYears(new Date(), 2), 'MM/yy'),
+            points: 100,
+            cashback: 0,
+            sellerId: order.sellerId || 'snazzify',
+            sellerName: order.sellerName || 'Snazzify',
+        };
+        
+        await saveDocument('shakti_cards', newCard, newCard.cardNumber);
+        return newCard;
+    } catch(e) {
+        console.error("Failed to save or find Shakti Card", e);
+        return null;
+    }
+};
+
 function CatalogueOrderPageContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
@@ -73,8 +110,15 @@ function CatalogueOrderPageContent() {
     const [availableSizes, setAvailableSizes] = useState<string[]>([]);
     const [availableColors, setAvailableColors] = useState<string[]>([]);
     const [allowedPaymentMethods, setAllowedPaymentMethods] = useState<string[]>([]);
+    const [razorpayKeyId, setRazorpayKeyId] = useState<string | null>(null);
+    const [newlyCreatedCard, setNewlyCreatedCard] = useState<ShaktiCardData | null>(null);
 
     useEffect(() => {
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.async = true;
+        document.body.appendChild(script);
+
         // Track session start
         fetch('/api/track', {
             method: 'POST',
@@ -106,19 +150,23 @@ function CatalogueOrderPageContent() {
             setReturnUrl(redirectUrl);
         }
         
-        async function fetchProduct() {
+        async function fetchProductAndKey() {
             const productId = searchParams.get('id');
-            const urlSellerId = searchParams.get('sellerId'); // Get from URL
-            const urlSellerName = searchParams.get('sellerName'); // Get from URL
+            const urlSellerId = searchParams.get('sellerId');
+            const urlSellerName = searchParams.get('sellerName');
             const discountParam = searchParams.get('discount');
-            
-            if (!productId) {
-                setIsLoadingProduct(false);
-                toast({ variant: 'destructive', title: "Product not found", description: "The product ID is missing from the link." });
-                return;
-            }
 
             try {
+                const response = await fetch('/api/get-key');
+                if (!response.ok) throw new Error('Failed to fetch Razorpay key');
+                const { keyId } = await response.json();
+                setRazorpayKeyId(keyId);
+
+                if (!productId) {
+                    toast({ variant: 'destructive', title: "Product not found" });
+                    return;
+                }
+
                 let fetchedProduct: SellerProduct | ProductDrop | null = await getDocument<SellerProduct>('seller_products', productId);
                 let productType = 'seller_product';
                 if (!fetchedProduct) {
@@ -141,16 +189,12 @@ function CatalogueOrderPageContent() {
                     };
                     setProduct(displayProduct);
 
-                    const productMethods = (fetchedProduct as any).allowedPaymentMethods || ['Secure COD', 'Cash on Delivery'];
+                    const productMethods = (fetchedProduct as any).allowedPaymentMethods || ['Secure COD', 'Cash on Delivery', 'Prepaid'];
                     setAllowedPaymentMethods(productMethods);
 
-                    if (productMethods.includes('Secure COD')) {
-                        setPaymentMethod('Secure COD');
-                    } else if (productMethods.includes('Cash on Delivery')) {
-                        setPaymentMethod('Cash on Delivery');
-                    } else if (productMethods.includes('Prepaid')) {
-                        setPaymentMethod('Prepaid');
-                    }
+                    if (productMethods.includes('Secure COD')) setPaymentMethod('Secure COD');
+                    else if (productMethods.includes('Cash on Delivery')) setPaymentMethod('Cash on Delivery');
+                    else if (productMethods.includes('Prepaid')) setPaymentMethod('Prepaid');
 
                     const sizes = (fetchedProduct as any).sizes || [];
                     const colors = (fetchedProduct as any).colors || [];
@@ -169,20 +213,18 @@ function CatalogueOrderPageContent() {
                         const collectionDiscount = discounts.find(d => d.id === 'collection_' + displayProduct.collection);
                         bestDiscount = productDiscount || vendorDiscount || collectionDiscount || null;
                     }
-
                     setAppliedDiscount(bestDiscount);
-
                 } else {
-                    toast({ variant: 'destructive', title: "Product not found", description: "We couldn't find details for this product." });
+                    toast({ variant: 'destructive', title: "Product not found" });
                 }
             } catch (e) {
-                console.error("Error fetching product:", e);
-                toast({ variant: 'destructive', title: "Error", description: "There was a problem loading the product." });
+                console.error("Error fetching data:", e);
+                toast({ variant: 'destructive', title: "Error", description: "There was a problem loading the product or payment gateway." });
             } finally {
                 setIsLoadingProduct(false);
             }
         }
-        fetchProduct();
+        fetchProductAndKey();
     }, [searchParams, toast]);
 
     useEffect(() => {
@@ -203,7 +245,7 @@ function CatalogueOrderPageContent() {
         e.preventDefault();
         if (!product) return;
 
-        const { name, contact, address, pincode } = customerDetails;
+        const { name, contact, address, pincode, email } = customerDetails;
         
         if (!name || !contact || !address || !pincode) {
             toast({ variant: 'destructive', title: "Missing Details", description: "Please fill out your name, contact, address, and pincode." });
@@ -211,79 +253,105 @@ function CatalogueOrderPageContent() {
         }
 
         setIsSubmitting(true);
-        const leadId = uuidv4();
+        const orderId = uuidv4();
 
-        const newLead: EditableOrder = {
-            id: leadId,
+        const orderData: EditableOrder = {
+            id: orderId,
             orderId: '#SMRT-' + Math.floor(1000 + Math.random() * 9000),
             productId: product.productId,
-            customerName: name,
-            customerEmail: customerDetails.email,
-            customerAddress: address,
-            pincode,
-            contactNo: contact,
-            productOrdered: product.title,
-            quantity,
-            size: selectedSize,
-            color: selectedColor,
-            price: totalPrice.toString(),
-            originalPrice: originalPrice.toString(),
-            date: new Date().toISOString(),
-            paymentStatus: 'Lead',
-            paymentMethod,
-            source: 'Catalogue',
-            sellerId: product.sellerId,
-            sellerName: product.sellerName,
-            isRead: false,
+            customerName: name, customerEmail: email, customerAddress: address, pincode, contactNo: contact,
+            productOrdered: product.title, quantity, size: selectedSize, color: selectedColor,
+            price: totalPrice.toString(), originalPrice: originalPrice.toString(),
+            date: new Date().toISOString(), paymentStatus: 'Lead', paymentMethod, source: 'Catalogue',
+            sellerId: product.sellerId, sellerName: product.sellerName, isRead: false,
             imageDataUris: product.imageDataUris,
         };
 
-        if (paymentMethod === 'Secure COD' && appliedDiscount) {
-            newLead.discountPercentage = appliedDiscount.discount;
-            newLead.discountAmount = originalPrice - totalPrice;
+        if ((paymentMethod === 'Secure COD' || paymentMethod === 'Prepaid') && appliedDiscount) {
+            orderData.discountPercentage = appliedDiscount.discount;
+            orderData.discountAmount = originalPrice - totalPrice;
         }
 
-        try {
-            await saveDocument('leads', newLead, leadId);
-            toast({
-                title: 'Order Request Sent!',
-                description: `The seller, ${product.sellerName}, has received your request and will contact you shortly to confirm.`,
-            });
-            
-            let recipientEmail = 'customer.service@snazzify.co.in'; // Admin fallback
-            if (product.sellerId) {
-                const seller = await getDocument<SellerUser>('seller_users', product.sellerId);
-                if (seller?.email) {
-                    recipientEmail = seller.email;
+        // --- Handle Different Payment Methods ---
+
+        if (paymentMethod === 'Cash on Delivery') {
+            orderData.paymentStatus = 'Pending';
+            await saveDocument('orders', orderData, orderData.id);
+            toast({ title: 'Order Placed!', description: `Your Cash on Delivery order has been confirmed.` });
+            setIsOrderComplete(true);
+            setIsSubmitting(false);
+            return;
+        }
+
+        if (paymentMethod === 'Secure COD') {
+            await saveDocument('leads', orderData, orderData.id);
+            const secureCodUrl = new URL(`${window.location.origin}/secure-cod`);
+            for (const key in orderDetails) {
+                if (orderDetails[key as keyof typeof orderDetails]) {
+                    secureCodUrl.searchParams.set(key, orderDetails[key as keyof typeof orderDetails] as string);
                 }
             }
-            
-            await fetch('/api/send-notification', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    type: 'internal_alert',
-                    recipientEmail: recipientEmail,
-                    subject: `New Lead from ${name} for ${product.title}`,
-                    body: `
-                        <div style="font-family: Arial, sans-serif; line-height: 1.6;">
-                            <h2>New Lead Alert!</h2>
-                            <p>You have a new order request from your Smart Magazine.</p>
-                            <ul>
-                                <li><strong>Customer:</strong> ${name}</li>
-                                <li><strong>Product:</strong> ${product.title}</li>
-                                <li><strong>Value:</strong> ₹${totalPrice.toFixed(2)}</li>
-                            </ul>
-                            <p>Please log in to your dashboard to view the lead and take action.</p>
-                        </div>
-                    `
-                })
-            });
+            secureCodUrl.searchParams.set('amount', totalPrice.toString());
+            secureCodUrl.searchParams.set('order_id', orderData.id); // pass the new lead ID
+            Object.entries(customerDetails).forEach(([key, value]) => value && secureCodUrl.searchParams.set(`customer${key.charAt(0).toUpperCase() + key.slice(1)}`, value));
+            router.push(secureCodUrl.toString());
+            return;
+        }
 
-            setIsOrderComplete(true);
-        } catch (error: any) {
-            toast({ variant: 'destructive', title: 'Submission Failed', description: error.message });
-            setIsSubmitting(false);
+        if (paymentMethod === 'Prepaid') {
+            if (!razorpayKeyId) {
+                toast({ variant: 'destructive', title: "Payment Gateway Error", description: "Could not initialize payment. Please try again later." });
+                setIsSubmitting(false);
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/create-mandate-order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ amount: totalPrice, productName: orderDetails.productName, isAuthorization: false, name, email, contact, address, pincode })
+                });
+                const result = await response.json();
+                if (result.error) throw new Error(result.error);
+
+                const options = {
+                    key: razorpayKeyId, order_id: result.order_id, amount: totalPrice * 100, name: "Snazzify Purchase", description: `Payment for ${orderDetails.productName}`,
+                    handler: async (response: any) => {
+                        const paidOrder: EditableOrder = { ...orderData, paymentStatus: 'Paid' };
+                        await saveDocument('orders', paidOrder, paidOrder.id);
+                        
+                        let recipientEmail = 'customer.service@snazzify.co.in';
+                        if (product.sellerId) {
+                            const seller = await getDocument<SellerUser>('seller_users', product.sellerId);
+                            if (seller?.email) recipientEmail = seller.email;
+                        }
+                        await fetch('/api/send-notification', {
+                            method: 'POST', headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ type: 'internal_alert', recipientEmail, subject: `✅ New PREPAID Order from ${name}`, body: `<p>A new prepaid order for ${orderDetails.productName} (₹${totalPrice.toFixed(2)}) has been placed.</p>` })
+                        });
+
+                        const card = await createNewShaktiCard(paidOrder);
+                        if (card) setNewlyCreatedCard(card);
+                        
+                        toast({ title: "Payment Successful!", description: `Your payment is confirmed.` });
+                        setIsOrderComplete(true);
+                    },
+                    modal: { 
+                        ondismiss: async () => {
+                            await saveDocument('leads', orderData, orderData.id);
+                            toast({ variant: 'destructive', title: 'Payment Incomplete', description: 'Your order has been saved as a lead. The seller may contact you to complete the purchase.' });
+                            setIsSubmitting(false);
+                        }
+                    },
+                    prefill: { name, email, contact }, theme: { color: "#5a31f4" },
+                };
+                const rzp = new (window as any).Razorpay(options);
+                rzp.open();
+                // ondismiss handles setIsSubmitting(false)
+            } catch (error: any) {
+                toast({ variant: 'destructive', title: 'Error', description: error.message });
+                setIsSubmitting(false);
+            }
         }
     };
 
@@ -299,10 +367,18 @@ function CatalogueOrderPageContent() {
                     <CardHeader>
                          <CheckCircle className="mx-auto h-12 w-12 text-green-500" />
                         <CardTitle>Thank You!</CardTitle>
-                        <CardDescription>Your Order Request Has Been Sent</CardDescription>
+                        <CardDescription>{paymentMethod === 'Cash on Delivery' ? 'Your Order Has Been Placed' : 'Your Order Request Has Been Sent'}</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <p className="text-muted-foreground">The seller has received your request and will contact you shortly via WhatsApp or phone to confirm the order and arrange payment.</p>
+                        <p className="text-muted-foreground">{paymentMethod === 'Cash on Delivery' ? 'You will receive a confirmation call or message shortly.' : 'The seller has received your request and will contact you shortly to confirm the order and arrange payment.'}</p>
+                         {newlyCreatedCard && (
+                            <div className="pt-4 border-t">
+                                <h4 className="font-semibold mb-2">Your Shakti Card is Ready!</h4>
+                                <div className="flex justify-center">
+                                    <ShaktiCard card={newlyCreatedCard} />
+                                </div>
+                            </div>
+                        )}
                     </CardContent>
                      <CardFooter>
                          <a href={returnUrl} className="w-full"><Button className="w-full" variant="outline">Continue Shopping</Button></a>
@@ -402,8 +478,8 @@ function CatalogueOrderPageContent() {
                                 </div>
                                 <div className="space-y-3">
                                     <Label>Payment Method</Label>
-                                    {allowedPaymentMethods.length > 1 ? (
-                                        <RadioGroup value={paymentMethod} onValueChange={(value: 'Secure COD' | 'Cash on Delivery' | 'Prepaid') => setPaymentMethod(value)} className="grid grid-cols-2 gap-4">
+                                    {allowedPaymentMethods.length > 0 ? (
+                                        <RadioGroup value={paymentMethod} onValueChange={(value: any) => setPaymentMethod(value)} className="grid grid-cols-2 gap-4">
                                             {allowedPaymentMethods.includes('Secure COD') && (
                                                 <Label htmlFor="r-scod" className={cn("flex flex-col items-center justify-center rounded-md border-2 p-4 cursor-pointer", paymentMethod === 'Secure COD' && 'border-primary')}>
                                                     <RadioGroupItem value="Secure COD" id="r-scod" className="sr-only"/>
@@ -428,10 +504,6 @@ function CatalogueOrderPageContent() {
                                                 </Label>
                                             )}
                                         </RadioGroup>
-                                    ) : allowedPaymentMethods.length === 1 ? (
-                                        <div className="p-4 border rounded-md bg-muted">
-                                            <p className="font-semibold text-center">{allowedPaymentMethods[0]}</p>
-                                        </div>
                                     ) : (
                                         <div className="p-4 border rounded-md bg-destructive/10 text-destructive text-center">
                                             <p className="font-semibold">No payment methods available.</p>
