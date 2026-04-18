@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -6,7 +7,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Loader2, MessageSquare, Check, X, Send, Settings } from "lucide-react";
+import { PlusCircle, Loader2, MessageSquare, Check, X, Send, Settings, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { v4 as uuidv4 } from 'uuid';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
@@ -17,6 +18,9 @@ import { getCollection, saveDocument, createChat, getDocument } from '@/services
 import type { ProductDrop } from '@/app/vendor/product-drops/page';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
+import type { SellerUser } from '@/app/seller-accounts/page';
+import type { EditableOrder } from '@/types/order';
+
 
 export type Vendor = {
     id: string;
@@ -26,6 +30,8 @@ export type Vendor = {
     email: string;
     status: 'pending' | 'approved' | 'rejected';
     dropCount?: number;
+    sellerCount?: number;
+    totalSales?: number;
 };
 
 type UserPermissions = {
@@ -47,21 +53,49 @@ export default function VendorsPage() {
     const loadVendors = async () => {
         setIsLoading(true);
         try {
-            const allVendors = await getCollection<Vendor>('vendors');
-            const productDrops = await getCollection<ProductDrop>('product_drops');
+            const [allVendors, productDrops, allSellers, allOrders] = await Promise.all([
+                getCollection<Vendor>('vendors'),
+                getCollection<ProductDrop>('product_drops'),
+                getCollection<SellerUser>('seller_users'),
+                getCollection<EditableOrder>('orders'),
+            ]);
 
             const dropCounts = productDrops.reduce((acc, drop) => {
                 acc[drop.vendorId] = (acc[drop.vendorId] || 0) + 1;
                 return acc;
             }, {} as Record<string, number>);
 
-            const vendorsWithCounts = allVendors.map(vendor => ({
+            const sellerCounts = allSellers.reduce((acc, seller) => {
+                if (seller.vendorId) {
+                    acc[seller.vendorId] = (acc[seller.vendorId] || 0) + 1;
+                }
+                return acc;
+            }, {} as Record<string, number>);
+
+            const salesBySeller = allOrders.reduce((acc, order) => {
+                if (order.sellerId && order.paymentStatus === 'Paid') {
+                    acc[order.sellerId] = (acc[order.sellerId] || 0) + parseFloat(order.price);
+                }
+                return acc;
+            }, {} as Record<string, number>);
+
+            const salesByVendor = allSellers.reduce((acc, seller) => {
+                if (seller.vendorId && salesBySeller[seller.id]) {
+                    acc[seller.vendorId] = (acc[seller.vendorId] || 0) + salesBySeller[seller.id];
+                }
+                return acc;
+            }, {} as Record<string, number>);
+
+
+            const vendorsWithData = allVendors.map(vendor => ({
                 ...vendor,
-                dropCount: dropCounts[vendor.id] || 0
+                dropCount: dropCounts[vendor.id] || 0,
+                sellerCount: sellerCounts[vendor.id] || 0,
+                totalSales: salesByVendor[vendor.id] || 0,
             }));
 
-            setPendingVendors(vendorsWithCounts.filter(v => v.status === 'pending'));
-            setApprovedVendors(vendorsWithCounts.filter(v => v.status === 'approved'));
+            setPendingVendors(vendorsWithData.filter(v => v.status === 'pending'));
+            setApprovedVendors(vendorsWithData.filter(v => v.status === 'approved'));
 
         } catch (error) {
             toast({ variant: 'destructive', title: "Error loading data", description: "Could not load vendors from Firestore." });
@@ -235,6 +269,8 @@ export default function VendorsPage() {
                                         <TableHead>Vendor Name</TableHead>
                                         <TableHead>Contact</TableHead>
                                         <TableHead>Drops</TableHead>
+                                        <TableHead>Sellers</TableHead>
+                                        <TableHead>Total Sales</TableHead>
                                         <TableHead>Status</TableHead>
                                         <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
@@ -253,6 +289,12 @@ export default function VendorsPage() {
                                                     <Send className="h-4 w-4 text-muted-foreground"/> {vendor.dropCount || 0}
                                                 </div>
                                             </TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center gap-1 text-sm">
+                                                    <Users className="h-4 w-4 text-muted-foreground"/> {vendor.sellerCount || 0}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="font-medium">₹{vendor.totalSales?.toFixed(2) || '0.00'}</TableCell>
                                             <TableCell><Badge className="bg-green-100 text-green-800">{vendor.status}</Badge></TableCell>
                                             <TableCell className="text-right space-x-1">
                                                  <Dialog onOpenChange={(open) => !open && setSelectedVendor(null)}>
@@ -294,7 +336,7 @@ export default function VendorsPage() {
                                         </TableRow>
                                     )) : (
                                         <TableRow>
-                                            <TableCell colSpan={7} className="text-center h-24">No vendors have been added yet.</TableCell>
+                                            <TableCell colSpan={8} className="text-center h-24">No vendors have been added yet.</TableCell>
                                         </TableRow>
                                     )}
                                 </TableBody>

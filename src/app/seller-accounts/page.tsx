@@ -10,13 +10,14 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
-import { Check, X, MessageSquare, Factory, Sparkles, Send, Loader2, Settings } from "lucide-react";
+import { Check, X, MessageSquare, Factory, Sparkles, Send, Loader2, Settings, ShoppingCart } from "lucide-react";
 import { getCollection, saveDocument, createChat, getDocument, type ChatUser } from "@/services/firestore";
 import type { SellerProduct } from "@/app/seller/ai-product-uploader/page";
 import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import type { EditableOrder } from "@/types/order";
 
 export type SellerUser = {
     id: string;
@@ -28,6 +29,8 @@ export type SellerUser = {
     vendorName?: string;
     // Usage stats
     aiUploads?: number;
+    totalSales?: number;
+    orderCount?: number;
 };
 
 type UserPermissions = {
@@ -47,21 +50,37 @@ export default function SellerAccountsPage() {
     const loadSellers = async () => {
         setIsLoading(true);
         try {
-            const allSellers = await getCollection<SellerUser>('seller_users');
-            const aiProducts = await getCollection<SellerProduct>('seller_products');
+            const [allSellers, aiProducts, allOrders] = await Promise.all([
+                getCollection<SellerUser>('seller_users'),
+                getCollection<SellerProduct>('seller_products'),
+                getCollection<EditableOrder>('orders'),
+            ]);
 
             const usageMap = aiProducts.reduce((acc, product) => {
                 acc[product.sellerId] = (acc[product.sellerId] || 0) + 1;
                 return acc;
             }, {} as Record<string, number>);
+            
+            const salesMap = allOrders.reduce((acc, order) => {
+                if (order.sellerId && order.paymentStatus === 'Paid') {
+                    if (!acc[order.sellerId]) {
+                        acc[order.sellerId] = { totalSales: 0, orderCount: 0 };
+                    }
+                    acc[order.sellerId].totalSales += parseFloat(order.price);
+                    acc[order.sellerId].orderCount += 1;
+                }
+                return acc;
+            }, {} as Record<string, { totalSales: number, orderCount: number}>);
 
-            const sellersWithUsage = allSellers.map(seller => ({
+            const sellersWithData = allSellers.map(seller => ({
                 ...seller,
                 aiUploads: usageMap[seller.id] || 0,
+                totalSales: salesMap[seller.id]?.totalSales || 0,
+                orderCount: salesMap[seller.id]?.orderCount || 0,
             }));
             
-            setSellerRequests(sellersWithUsage.filter(s => s.status === 'pending'));
-            setApprovedSellers(sellersWithUsage.filter(s => s.status === 'approved'));
+            setSellerRequests(sellersWithData.filter(s => s.status === 'pending'));
+            setApprovedSellers(sellersWithData.filter(s => s.status === 'approved'));
 
         } catch (error) {
             console.error("Error loading sellers:", error);
@@ -192,8 +211,10 @@ export default function SellerAccountsPage() {
                                     <TableRow>
                                         <TableHead>Company</TableHead>
                                         <TableHead>Email / Phone</TableHead>
-                                        <TableHead>Vendor ID</TableHead>
+                                        <TableHead>Vendor</TableHead>
                                         <TableHead>AI Uploads</TableHead>
+                                        <TableHead>Total Sales</TableHead>
+                                        <TableHead>Orders</TableHead>
                                         <TableHead>Status</TableHead>
                                         <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
@@ -207,11 +228,17 @@ export default function SellerAccountsPage() {
                                                 <div className="text-xs text-muted-foreground">{seller.phone || 'No phone provided'}</div>
                                             </TableCell>
                                             <TableCell>
-                                                 <div className="text-sm font-mono text-muted-foreground">{seller.vendorId || 'N/A'}</div>
+                                                 <div className="text-sm text-muted-foreground">{seller.vendorName || 'N/A'}</div>
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex items-center gap-1 text-sm">
                                                     <Sparkles className="h-4 w-4 text-muted-foreground"/> {seller.aiUploads || 0}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="font-medium">₹{seller.totalSales?.toFixed(2) || '0.00'}</TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center gap-1 text-sm">
+                                                    <ShoppingCart className="h-4 w-4 text-muted-foreground"/> {seller.orderCount || 0}
                                                 </div>
                                             </TableCell>
                                             <TableCell><Badge className="bg-green-100 text-green-800">{seller.status}</Badge></TableCell>
@@ -254,7 +281,7 @@ export default function SellerAccountsPage() {
                                             </TableCell>
                                         </TableRow>
                                    )) : (
-                                     <TableRow><TableCell colSpan={6} className="text-center h-24 text-muted-foreground">No approved sellers yet.</TableCell></TableRow>
+                                     <TableRow><TableCell colSpan={8} className="text-center h-24 text-muted-foreground">No approved sellers yet.</TableCell></TableRow>
                                    )}
                                 </TableBody>
                            </Table>
