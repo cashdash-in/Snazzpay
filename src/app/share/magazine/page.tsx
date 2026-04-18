@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/hooks/use-auth';
 import type { SellerProduct } from '@/app/seller/ai-product-uploader/page';
 import Image from 'next/image';
-import { Loader2, Share2, Copy, MessageSquare, BookOpen, Percent, Factory, Edit, Wand2, PlusCircle, ImagePlus, ImageIcon } from 'lucide-react';
+import { Loader2, Share2, Copy, MessageSquare, BookOpen, Percent, Factory, Edit, Wand2, PlusCircle, ImagePlus, ImageIcon, Facebook, Instagram } from 'lucide-react';
 import { getCollection, saveDocument } from '@/services/firestore';
 import { getCookie } from 'cookies-next';
 import { Label } from '@/components/ui/label';
@@ -352,6 +352,22 @@ export default function ShareMagazinePage() {
         window.open(whatsappUrl, '_blank');
     };
 
+    const handleShareOnFacebook = () => {
+        if (!magazineLink) return;
+        const fbShareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(magazineLink)}`;
+        window.open(fbShareUrl, '_blank', 'width=600,height=400');
+    };
+
+    const handleShareOnInstagram = () => {
+        if (!magazineLink) return;
+        const shareText = `Check out our new collection: ${magazineTitle}\n${magazineLink}`;
+        navigator.clipboard.writeText(shareText);
+        toast({
+            title: "Copied for Instagram!",
+            description: "Message and link copied. Open Instagram and paste it in your story or post.",
+        });
+    };
+
     const handleUpdateProduct = async () => {
         if (!editingProduct || !user) return;
         
@@ -676,10 +692,17 @@ export default function ShareMagazinePage() {
                                         <Input id="magazine-link" readOnly value={magazineLink} className="w-full text-xs p-2 border rounded-md bg-muted" />
                                         <Button size="icon" variant="outline" onClick={() => handleCopyLink(magazineLink)}><Copy className="h-4 w-4"/></Button>
                                     </div>
-                                    <Button onClick={() => handleShareOnWhatsApp(magazineTitle, magazineLink)} className="w-full" variant="secondary">
-                                        <MessageSquare className="mr-2 h-4 w-4"/>
-                                        Share on WhatsApp
-                                    </Button>
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                        <Button onClick={() => handleShareOnWhatsApp(magazineTitle, magazineLink)} variant="secondary">
+                                            <MessageSquare className="mr-2 h-4 w-4"/>WhatsApp
+                                        </Button>
+                                        <Button onClick={handleShareOnFacebook} variant="secondary">
+                                            <Facebook className="mr-2 h-4 w-4"/> Facebook
+                                        </Button>
+                                        <Button onClick={handleShareOnInstagram} variant="secondary">
+                                            <Instagram className="mr-2 h-4 w-4"/> Instagram
+                                        </Button>
+                                    </div>
                                     <div className="pt-4 space-y-2">
                                         <Label>3. Generate a Sharable Image</Label>
                                         <Button 
