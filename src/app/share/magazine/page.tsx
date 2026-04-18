@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/hooks/use-auth';
 import type { SellerProduct } from '@/app/seller/ai-product-uploader/page';
 import Image from 'next/image';
-import { Loader2, Share2, Copy, MessageSquare, BookOpen, Percent, Factory, Edit, Wand2, PlusCircle, ImagePlus } from 'lucide-react';
+import { Loader2, Share2, Copy, MessageSquare, BookOpen, Percent, Factory, Edit, Wand2, PlusCircle, ImagePlus, ImageIcon } from 'lucide-react';
 import { getCollection, saveDocument } from '@/services/firestore';
 import { getCookie } from 'cookies-next';
 import { Label } from '@/components/ui/label';
@@ -20,6 +20,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Textarea } from '@/components/ui/textarea';
 import { parseTextForMagazine } from '@/ai/flows/magazine-paste-parser';
+import { createMagazineCover } from '@/ai/flows/create-magazine-cover';
 
 
 type Magazine = {
@@ -62,6 +63,9 @@ export default function ShareMagazinePage() {
         imagePreviews: [] as string[],
         allowedPaymentMethods: ['Secure COD', 'Cash on Delivery', 'Prepaid'] as ('Secure COD' | 'Cash on Delivery' | 'Prepaid')[],
     });
+
+    const [generatedCover, setGeneratedCover] = useState<string | null>(null);
+    const [isGeneratingCover, setIsGeneratingCover] = useState(false);
 
     const userRole = useMemo(() => getCookie('userRole'), []);
 
@@ -437,6 +441,39 @@ export default function ShareMagazinePage() {
         }
     };
 
+    const handleGenerateCover = async () => {
+        if (selectedProductIds.length === 0) {
+            toast({ variant: 'destructive', title: 'No products selected' });
+            return;
+        }
+        setIsGeneratingCover(true);
+        setGeneratedCover(null);
+
+        try {
+            const selectedProducts = products.filter(p => selectedProductIds.includes(p.id));
+            const imageUrls = selectedProducts.flatMap(p => p.imageDataUris).slice(0, 5); // Limit to 5 images
+
+            if (imageUrls.length === 0) {
+                toast({ variant: 'destructive', title: 'No Images Found', description: 'Selected products must have images to generate a cover.' });
+                setIsGeneratingCover(false);
+                return;
+            }
+
+            const result = await createMagazineCover({
+                imageUrls,
+                title: magazineTitle,
+            });
+            
+            setGeneratedCover(result.coverImageDataUri);
+            toast({ title: "Magazine Cover Generated!", description: "You can now save and share your new cover image." });
+
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Cover Generation Failed', description: error.message });
+        } finally {
+            setIsGeneratingCover(false);
+        }
+    };
+
     return (
         <AppShell title="Smart Magazine Hub">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -656,6 +693,24 @@ export default function ShareMagazinePage() {
                                         <MessageSquare className="mr-2 h-4 w-4"/>
                                         Share on WhatsApp
                                     </Button>
+                                    <div className="pt-4 space-y-2">
+                                        <Label>3. Generate a Sharable Image</Label>
+                                        <Button 
+                                            onClick={handleGenerateCover} 
+                                            disabled={isGeneratingCover} 
+                                            className="w-full" 
+                                            variant="outline"
+                                        >
+                                            {isGeneratingCover ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <ImageIcon className="mr-2 h-4 w-4"/>}
+                                            Generate Magazine Cover with AI
+                                        </Button>
+                                        {generatedCover && (
+                                            <div className="mt-4 space-y-2 text-center">
+                                                <p className="text-sm text-muted-foreground">Right-click or long-press to save your cover!</p>
+                                                <Image src={generatedCover} alt="Generated Magazine Cover" width={400} height={400} className="rounded-lg border shadow-md mx-auto" />
+                                            </div>
+                                        )}
+                                    </div>
                                     <p className="text-xs text-muted-foreground">Share this link on WhatsApp, Instagram, or anywhere else!</p>
                                 </div>
                             )}
