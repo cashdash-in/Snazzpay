@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Suspense, useState, useEffect } from 'react';
@@ -272,8 +271,6 @@ function CatalogueOrderPageContent() {
             orderData.discountAmount = originalPrice - totalPrice;
         }
 
-        // --- Handle Different Payment Methods ---
-
         if (paymentMethod === 'Cash on Delivery') {
             orderData.paymentStatus = 'Pending';
             await saveDocument('orders', orderData, orderData.id);
@@ -282,18 +279,25 @@ function CatalogueOrderPageContent() {
             setIsSubmitting(false);
             return;
         }
-
+        
         if (paymentMethod === 'Secure COD') {
             await saveDocument('leads', orderData, orderData.id);
             const secureCodUrl = new URL(`${window.location.origin}/secure-cod`);
-            for (const key in orderDetails) {
-                if (orderDetails[key as keyof typeof orderDetails]) {
-                    secureCodUrl.searchParams.set(key, orderDetails[key as keyof typeof orderDetails] as string);
-                }
-            }
+            
             secureCodUrl.searchParams.set('amount', totalPrice.toString());
+            secureCodUrl.searchParams.set('name', product.title);
             secureCodUrl.searchParams.set('order_id', orderData.id); // pass the new lead ID
-            Object.entries(customerDetails).forEach(([key, value]) => value && secureCodUrl.searchParams.set(`customer${key.charAt(0).toUpperCase() + key.slice(1)}`, value));
+            if (product.imageDataUris && product.imageDataUris.length > 0) {
+              secureCodUrl.searchParams.set('image', product.imageDataUris[0]);
+            }
+            if(selectedSize) secureCodUrl.searchParams.set('sizes', selectedSize);
+            if(selectedColor) secureCodUrl.searchParams.set('colors', selectedColor);
+
+            Object.entries(customerDetails).forEach(([key, value]) => {
+                if (value) {
+                    secureCodUrl.searchParams.set(`customer${key.charAt(0).toUpperCase() + key.slice(1)}`, value);
+                }
+            });
             router.push(secureCodUrl.toString());
             return;
         }
@@ -309,13 +313,13 @@ function CatalogueOrderPageContent() {
                 const response = await fetch('/api/create-mandate-order', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ amount: totalPrice, productName: orderDetails.productName, isAuthorization: false, name, email, contact, address, pincode })
+                    body: JSON.stringify({ amount: totalPrice, productName: product.title, isAuthorization: false, name, email, contact, address, pincode })
                 });
                 const result = await response.json();
                 if (result.error) throw new Error(result.error);
 
                 const options = {
-                    key: razorpayKeyId, order_id: result.order_id, amount: totalPrice * 100, name: "Snazzify Purchase", description: `Payment for ${orderDetails.productName}`,
+                    key: razorpayKeyId, order_id: result.order_id, amount: totalPrice * 100, name: "Snazzify Purchase", description: `Payment for ${product.title}`,
                     handler: async (response: any) => {
                         const paidOrder: EditableOrder = { ...orderData, paymentStatus: 'Paid' };
                         await saveDocument('orders', paidOrder, paidOrder.id);
@@ -327,7 +331,7 @@ function CatalogueOrderPageContent() {
                         }
                         await fetch('/api/send-notification', {
                             method: 'POST', headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ type: 'internal_alert', recipientEmail, subject: `✅ New PREPAID Order from ${name}`, body: `<p>A new prepaid order for ${orderDetails.productName} (₹${totalPrice.toFixed(2)}) has been placed.</p>` })
+                            body: JSON.stringify({ type: 'internal_alert', recipientEmail, subject: `✅ New PREPAID Order from ${name}`, body: `<p>A new prepaid order for ${product.title} (₹${totalPrice.toFixed(2)}) has been placed.</p>` })
                         });
 
                         const card = await createNewShaktiCard(paidOrder);
@@ -347,7 +351,6 @@ function CatalogueOrderPageContent() {
                 };
                 const rzp = new (window as any).Razorpay(options);
                 rzp.open();
-                // ondismiss handles setIsSubmitting(false)
             } catch (error: any) {
                 toast({ variant: 'destructive', title: 'Error', description: error.message });
                 setIsSubmitting(false);
