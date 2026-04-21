@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -25,13 +24,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Dialog, DialogTrigger, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogTrigger, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ShareComposerDialog } from '@/components/share-composer-dialog';
 import { getCollection, deleteDocument, saveDocument } from '@/services/firestore';
 import Link from 'next/link';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { generateProductVideo } from '@/ai/flows/generate-product-video';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 
 
 type ProductStats = {
@@ -48,7 +48,8 @@ export default function AdminProductsPage() {
     const [selectedProductForStats, setSelectedProductForStats] = useState<ProductDrop | null>(null);
     const [productStats, setProductStats] = useState<ProductStats | null>(null);
     const [isStatsLoading, setIsStatsLoading] = useState(false);
-    const [generatingVideoId, setGeneratingVideoId] = useState<string | null>(null);
+    const [editingProduct, setEditingProduct] = useState<ProductDrop | null>(null);
+    const [videoUrlInput, setVideoUrlInput] = useState('');
 
     const storageKey = 'product_drops';
 
@@ -70,30 +71,25 @@ export default function AdminProductsPage() {
         loadProducts();
     }, [toast]);
     
-    const handleGenerateVideo = async (product: ProductDrop) => {
-        if (!product.imageDataUris?.[0]) {
-            toast({ variant: 'destructive', title: 'Missing Image', description: 'Cannot generate a video without a product image.' });
-            return;
-        }
-        setGeneratingVideoId(product.id);
+    const handleOpenVideoDialog = (product: ProductDrop) => {
+        setEditingProduct(product);
+        setVideoUrlInput(product.videoDataUri || '');
+    };
+
+    const handleSaveVideoUrl = async () => {
+        if (!editingProduct) return;
+
         try {
-            const { videoDataUri } = await generateProductVideo({
-                title: product.title,
-                description: product.description,
-                imageDataUri: product.imageDataUris[0],
-            });
+            const updatedProduct = { ...editingProduct, videoDataUri: videoUrlInput };
+            await saveDocument('product_drops', { videoDataUri: videoUrlInput }, editingProduct.id);
 
-            const updatedProduct = { ...product, videoDataUri };
-            await saveDocument('product_drops', { videoDataUri }, product.id);
-
-            setProducts(prev => prev.map(p => p.id === product.id ? updatedProduct : p));
-
-            toast({ title: 'Video Generated!', description: `A video for ${product.title} has been created.` });
+            setProducts(prev => prev.map(p => p.id === editingProduct.id ? updatedProduct : p));
+            toast({ title: 'Video URL Saved!', description: `The video for ${editingProduct.title} has been updated.` });
+            setEditingProduct(null);
+            setVideoUrlInput('');
         } catch (error: any) {
-            console.error("Error generating video:", error);
-            toast({ variant: 'destructive', title: 'Video Generation Failed', description: error.message });
-        } finally {
-            setGeneratingVideoId(null);
+            console.error("Error saving video URL:", error);
+            toast({ variant: 'destructive', title: 'Save Failed', description: error.message });
         }
     };
 
@@ -236,21 +232,18 @@ export default function AdminProductsPage() {
                                 <TableCell>
                                     {product.videoDataUri ? (
                                         <Badge variant="default" className="bg-green-100 text-green-800">Ready</Badge>
-                                    ) : generatingVideoId === product.id ? (
-                                        <Badge variant="secondary"><Loader2 className="mr-1 h-3 w-3 animate-spin" />Generating</Badge>
                                     ) : (
-                                        <Badge variant="outline">Not Generated</Badge>
+                                        <Badge variant="outline">No Video</Badge>
                                     )}
                                 </TableCell>
                                 <TableCell className="text-right space-x-1">
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        onClick={() => handleGenerateVideo(product)}
-                                        disabled={generatingVideoId === product.id}
+                                        onClick={() => handleOpenVideoDialog(product)}
                                     >
                                         <Video className="mr-2 h-4 w-4" />
-                                        {generatingVideoId === product.id ? 'Generating...' : (product.videoDataUri ? 'Re-generate' : 'Generate Video')}
+                                        {product.videoDataUri ? 'Edit Video' : 'Add Video'}
                                     </Button>
                                      <Button variant="outline" size="sm" onClick={() => handleViewStats(product)}>
                                         View Stats
@@ -330,6 +323,29 @@ export default function AdminProductsPage() {
                         </Card>
                     </div>
                 ) : null}
+            </DialogContent>
+        </Dialog>
+        <Dialog open={!!editingProduct} onOpenChange={(open) => {if (!open) {setEditingProduct(null); setVideoUrlInput('')}}}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Add/Edit Video for {editingProduct?.title}</DialogTitle>
+                    <DialogDescription>
+                        Paste a direct link (.mp4, .webm) to your video. You can host it on any public server.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                    <Label htmlFor="video-url">Video URL</Label>
+                    <Input
+                        id="video-url"
+                        value={videoUrlInput}
+                        onChange={(e) => setVideoUrlInput(e.target.value)}
+                        placeholder="https://example.com/video.mp4"
+                    />
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setEditingProduct(null)}>Cancel</Button>
+                    <Button onClick={handleSaveVideoUrl}>Save Video URL</Button>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
     </AppShell>
