@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Suspense, useState, useEffect } from 'react';
@@ -23,6 +24,13 @@ import { format, addYears } from 'date-fns';
 import { sanitizePhoneNumber } from '@/lib/utils';
 import { ShaktiCard, ShaktiCardData } from '@/components/shakti-card';
 import Link from 'next/link';
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
 
 type DisplayProduct = (SellerProduct | ProductDrop) & { 
     price: number; 
@@ -421,13 +429,27 @@ function CatalogueOrderPageContent() {
                     </CardHeader>
                     <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
                         <div className="space-y-4">
-                             <Image
-                                src={product.imageDataUris[0]}
-                                alt={product.title}
-                                width={500}
-                                height={500}
-                                className="rounded-lg object-cover w-full aspect-square shadow-md"
-                            />
+                             <Carousel className="w-full rounded-lg shadow-md">
+                                <CarouselContent>
+                                    {product.imageDataUris.map((uri, index) => (
+                                        <CarouselItem key={index}>
+                                            <Image
+                                                src={uri}
+                                                alt={`${product.title} image ${index + 1}`}
+                                                width={500}
+                                                height={500}
+                                                className="object-cover w-full aspect-square rounded-lg"
+                                            />
+                                        </CarouselItem>
+                                    ))}
+                                </CarouselContent>
+                                {product.imageDataUris.length > 1 && (
+                                    <>
+                                        <CarouselPrevious className="absolute left-2" />
+                                        <CarouselNext className="absolute right-2" />
+                                    </>
+                                )}
+                            </Carousel>
                             <div>
                                 <h3 className="font-semibold text-lg">Product Description</h3>
                                 <p className="text-muted-foreground text-sm mt-1">{product.description}</p>

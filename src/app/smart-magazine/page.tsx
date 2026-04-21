@@ -11,6 +11,13 @@ import type { SellerProduct } from '../seller/ai-product-uploader/page';
 import { getCollection, getDocument } from '@/services/firestore';
 import type { ProductDrop } from '../vendor/product-drops/page';
 import { Badge } from '@/components/ui/badge';
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
 
 type DisplayProduct = SellerProduct | ProductDrop;
 
@@ -172,21 +179,33 @@ function SmartMagazineContent() {
 
                         return (
                         <Card key={product.id} className="shadow-md hover:shadow-xl transition-shadow overflow-hidden flex flex-col group rounded-lg">
-                             <div className="overflow-hidden relative">
-                                <Image
-                                    src={product.imageDataUris[0]}
-                                    alt={product.title}
-                                    width={400}
-                                    height={400}
-                                    className="object-cover w-full h-48 sm:h-64 group-hover:scale-105 transition-transform duration-300"
-                                />
-                                {discount > 0 && (
-                                    <Badge className="absolute top-2 right-2 bg-destructive text-destructive-foreground">
+                            <Carousel className="w-full relative group/carousel">
+                                <CarouselContent>
+                                    {product.imageDataUris.map((uri, index) => (
+                                        <CarouselItem key={index}>
+                                            <Image
+                                                src={uri}
+                                                alt={`${product.title} image ${index + 1}`}
+                                                width={400}
+                                                height={400}
+                                                className="object-cover w-full h-48 sm:h-64"
+                                            />
+                                        </CarouselItem>
+                                    ))}
+                                </CarouselContent>
+                                {product.imageDataUris.length > 1 && (
+                                    <>
+                                        <CarouselPrevious className="absolute left-2 top-1/2 -translate-y-1/2 opacity-0 group-hover/carousel:opacity-100 transition-opacity" />
+                                        <CarouselNext className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover/carousel:opacity-100 transition-opacity" />
+                                    </>
+                                )}
+                                 {discount > 0 && (
+                                    <Badge className="absolute top-2 right-2 z-10 bg-destructive text-destructive-foreground">
                                         <Percent className="h-3 w-3 mr-1" />
                                         {discount}% OFF
                                     </Badge>
                                 )}
-                            </div>
+                            </Carousel>
                              <CardContent className="p-4 flex-grow flex flex-col">
                                 <h3 className="text-base font-semibold mb-1 line-clamp-2 flex-grow">{product.title}</h3>
                                 <div className="mt-2">
