@@ -5,7 +5,6 @@
 import { ai } from '@/ai/genkit';
 import { googleAI } from '@genkit-ai/google-genai';
 import { z } from 'zod';
-import { Readable } from 'stream';
 import type { MediaPart } from 'genkit';
 
 const GenerateProductVideoInputSchema = z.object({
@@ -26,20 +25,44 @@ async function downloadVideo(video: MediaPart): Promise<string> {
     if (!video.media?.url) {
         throw new Error('Video URL not found in media part');
     }
-    // The URL from Veo doesn't include the API key, so we need to add it.
-    const videoDownloadUrl = `${video.media.url}&key=${process.env.GEMINI_API_KEY}`;
-  
-    const videoDownloadResponse = await fetch(videoDownloadUrl);
-    
-    if (!videoDownloadResponse.ok || !videoDownloadResponse.body) {
-        const errorBody = await videoDownloadResponse.text();
-        throw new Error(`Failed to download video: ${videoDownloadResponse.status} ${videoDownloadResponse.statusText} - ${errorBody}`);
+    if (!process.env.GEMINI_API_KEY) {
+        console.error("GEMINI_API_KEY is not set in the environment.");
+        throw new Error('Server configuration error: Gemini API key is missing.');
     }
 
-    const videoBuffer = Buffer.from(await videoDownloadResponse.arrayBuffer());
-    const base64Video = videoBuffer.toString('base64');
+    const videoDownloadUrl = `${video.media.url}&key=${process.env.GEMINI_API_KEY}`;
     
-    return `data:video/mp4;base64,${base64Video}`;
+    let videoDownloadResponse;
+    try {
+        videoDownloadResponse = await fetch(videoDownloadUrl);
+    } catch (networkError: any) {
+        console.error("Network error during video download fetch:", networkError);
+        throw new Error(`Network error while fetching video: ${networkError.message}`);
+    }
+    
+    if (!videoDownloadResponse.ok) {
+        const errorBody = await videoDownloadResponse.text().catch(() => "Could not read error body");
+        console.error("Failed to download video. Status:", videoDownloadResponse.status, "Body:", errorBody);
+        
+        if (videoDownloadResponse.status === 403 || videoDownloadResponse.status === 401) {
+             throw new Error(`Authentication error downloading video. Please check if your API key is valid.`);
+        }
+        throw new Error(`Failed to download video file: ${videoDownloadResponse.status} ${videoDownloadResponse.statusText}`);
+    }
+
+    if (!videoDownloadResponse.body) {
+        throw new Error('Failed to download video: Response body is empty.');
+    }
+
+    try {
+        const videoBuffer = Buffer.from(await videoDownloadResponse.arrayBuffer());
+        const base64Video = videoBuffer.toString('base64');
+        
+        return `data:video/mp4;base64,${base64Video}`;
+    } catch(e: any) {
+        console.error("Error processing video buffer:", e);
+        throw new Error(`Failed to process video stream: ${e.message}`);
+    }
 }
 
 const generateProductVideoFlow = ai.defineFlow(
