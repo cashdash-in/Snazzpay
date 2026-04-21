@@ -33,6 +33,7 @@ export interface ProductDrop {
     sizes: string[];
     colors: string[];
     allowedPaymentMethods?: ('Secure COD' | 'Cash on Delivery' | 'Prepaid')[];
+    videoDataUri?: string;
 }
 
 const PRODUCT_DROP_LIMIT = 50;

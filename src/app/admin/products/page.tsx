@@ -6,7 +6,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Loader2, Trash2, Package, MessageSquare, BookOpen, DollarSign, ShoppingCart } from "lucide-react";
+import { Loader2, Trash2, Package, MessageSquare, BookOpen, DollarSign, ShoppingCart, Video } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { ProductDrop } from '@/app/vendor/product-drops/page';
 import type { SellerProduct } from '@/app/seller/ai-product-uploader/page';
@@ -27,9 +27,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Dialog, DialogTrigger, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ShareComposerDialog } from '@/components/share-composer-dialog';
-import { getCollection, deleteDocument } from '@/services/firestore';
+import { getCollection, deleteDocument, saveDocument } from '@/services/firestore';
 import Link from 'next/link';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
+import { generateProductVideo } from '@/ai/flows/generate-product-video';
 
 
 type ProductStats = {
@@ -46,6 +48,7 @@ export default function AdminProductsPage() {
     const [selectedProductForStats, setSelectedProductForStats] = useState<ProductDrop | null>(null);
     const [productStats, setProductStats] = useState<ProductStats | null>(null);
     const [isStatsLoading, setIsStatsLoading] = useState(false);
+    const [generatingVideoId, setGeneratingVideoId] = useState<string | null>(null);
 
     const storageKey = 'product_drops';
 
@@ -67,6 +70,34 @@ export default function AdminProductsPage() {
         loadProducts();
     }, [toast]);
     
+    const handleGenerateVideo = async (product: ProductDrop) => {
+        if (!product.imageDataUris?.[0]) {
+            toast({ variant: 'destructive', title: 'Missing Image', description: 'Cannot generate a video without a product image.' });
+            return;
+        }
+        setGeneratingVideoId(product.id);
+        try {
+            const { videoDataUri } = await generateProductVideo({
+                title: product.title,
+                description: product.description,
+                imageDataUri: product.imageDataUris[0],
+            });
+
+            const updatedProduct = { ...product, videoDataUri };
+            await saveDocument('product_drops', { videoDataUri }, product.id);
+
+            setProducts(prev => prev.map(p => p.id === product.id ? updatedProduct : p));
+
+            toast({ title: 'Video Generated!', description: `A video for ${product.title} has been created.` });
+        } catch (error: any) {
+            console.error("Error generating video:", error);
+            toast({ variant: 'destructive', title: 'Video Generation Failed', description: error.message });
+        } finally {
+            setGeneratingVideoId(null);
+        }
+    };
+
+
     const handleViewStats = async (product: ProductDrop) => {
         setSelectedProductForStats(product);
         setIsStatsLoading(true);
@@ -181,6 +212,7 @@ export default function AdminProductsPage() {
                             <TableHead>Cost Price</TableHead>
                             <TableHead>Description</TableHead>
                             <TableHead>Created</TableHead>
+                            <TableHead>Video</TableHead>
                             <TableHead className="text-right">Action</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -201,7 +233,25 @@ export default function AdminProductsPage() {
                                 <TableCell>₹{product.costPrice.toFixed(2)}</TableCell>
                                 <TableCell className="max-w-xs truncate text-sm text-muted-foreground">{product.description}</TableCell>
                                 <TableCell>{formatDistanceToNow(new Date(product.createdAt), { addSuffix: true })}</TableCell>
+                                <TableCell>
+                                    {product.videoDataUri ? (
+                                        <Badge variant="default" className="bg-green-100 text-green-800">Ready</Badge>
+                                    ) : generatingVideoId === product.id ? (
+                                        <Badge variant="secondary"><Loader2 className="mr-1 h-3 w-3 animate-spin" />Generating</Badge>
+                                    ) : (
+                                        <Badge variant="outline">Not Generated</Badge>
+                                    )}
+                                </TableCell>
                                 <TableCell className="text-right space-x-1">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleGenerateVideo(product)}
+                                        disabled={generatingVideoId === product.id}
+                                    >
+                                        <Video className="mr-2 h-4 w-4" />
+                                        {generatingVideoId === product.id ? 'Generating...' : (product.videoDataUri ? 'Re-generate' : 'Generate Video')}
+                                    </Button>
                                      <Button variant="outline" size="sm" onClick={() => handleViewStats(product)}>
                                         View Stats
                                     </Button>

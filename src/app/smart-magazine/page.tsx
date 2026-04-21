@@ -176,36 +176,50 @@ function SmartMagazineContent() {
                     {products.map(product => {
                          const price = ((product as SellerProduct).price || (product as ProductDrop).costPrice);
                          const discountedPrice = discount > 0 ? price - (price * (discount / 100)) : price;
+                         const hasVideo = !!(product as any).videoDataUri;
 
                         return (
                         <Card key={product.id} className="shadow-md hover:shadow-xl transition-shadow overflow-hidden flex flex-col group rounded-lg">
-                            <Carousel className="w-full relative group/carousel">
-                                <CarouselContent>
-                                    {product.imageDataUris.map((uri, index) => (
-                                        <CarouselItem key={index}>
-                                            <Image
-                                                src={uri}
-                                                alt={`${product.title} image ${index + 1}`}
-                                                width={400}
-                                                height={400}
-                                                className="object-cover w-full h-48 sm:h-64"
-                                            />
-                                        </CarouselItem>
-                                    ))}
-                                </CarouselContent>
-                                {product.imageDataUris.length > 1 && (
-                                    <>
-                                        <CarouselPrevious className="absolute left-2 top-1/2 -translate-y-1/2 opacity-0 group-hover/carousel:opacity-100 transition-opacity" />
-                                        <CarouselNext className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover/carousel:opacity-100 transition-opacity" />
-                                    </>
-                                )}
-                                 {discount > 0 && (
-                                    <Badge className="absolute top-2 right-2 z-10 bg-destructive text-destructive-foreground">
-                                        <Percent className="h-3 w-3 mr-1" />
-                                        {discount}% OFF
-                                    </Badge>
-                                )}
-                            </Carousel>
+                            {hasVideo ? (
+                                <video
+                                    src={(product as any).videoDataUri}
+                                    width="400"
+                                    height="400"
+                                    autoPlay
+                                    loop
+                                    muted
+                                    playsInline // Important for iOS
+                                    className="object-cover w-full h-48 sm:h-64"
+                                />
+                            ) : (
+                                <Carousel className="w-full relative group/carousel">
+                                    <CarouselContent>
+                                        {product.imageDataUris.map((uri, index) => (
+                                            <CarouselItem key={index}>
+                                                <Image
+                                                    src={uri}
+                                                    alt={`${product.title} image ${index + 1}`}
+                                                    width={400}
+                                                    height={400}
+                                                    className="object-cover w-full h-48 sm:h-64"
+                                                />
+                                            </CarouselItem>
+                                        ))}
+                                    </CarouselContent>
+                                    {product.imageDataUris.length > 1 && (
+                                        <>
+                                            <CarouselPrevious className="absolute left-2 top-1/2 -translate-y-1/2 opacity-0 group-hover/carousel:opacity-100 transition-opacity" />
+                                            <CarouselNext className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover/carousel:opacity-100 transition-opacity" />
+                                        </>
+                                    )}
+                                    {discount > 0 && (
+                                        <Badge className="absolute top-2 right-2 z-10 bg-destructive text-destructive-foreground">
+                                            <Percent className="h-3 w-3 mr-1" />
+                                            {discount}% OFF
+                                        </Badge>
+                                    )}
+                                </Carousel>
+                            )}
                              <CardContent className="p-4 flex-grow flex flex-col">
                                 <h3 className="text-base font-semibold mb-1 line-clamp-2 flex-grow">{product.title}</h3>
                                 <div className="mt-2">

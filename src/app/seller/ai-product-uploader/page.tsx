@@ -45,6 +45,7 @@ export type SellerProduct = {
     imageDataUris: string[];
     createdAt: string;
     allowedPaymentMethods?: ('Secure COD' | 'Cash on Delivery' | 'Prepaid')[];
+    videoDataUri?: string;
 };
 
 export default function AiProductUploaderPage() {

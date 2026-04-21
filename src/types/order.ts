@@ -42,6 +42,7 @@ export type EditableOrder = {
   guestFulfillmentToken?: string;
   packageImageUrls?: string[];
   imageDataUris?: string[];
+  videoDataUri?: string;
   vendorPaymentReceived?: 'Yes' | 'No';
   isRead?: boolean;
 };
