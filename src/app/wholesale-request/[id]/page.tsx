@@ -15,6 +15,7 @@ import { Loader2, CheckCircle2, XCircle, Send, ImagePlus, RefreshCw, Package, Ar
 import Image from 'next/image';
 import type { WholesaleInquiry, AlternateProduct } from '@/types/wholesale';
 import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
 
 const MAX_IMAGE_SIZE_PX = 800;
 
@@ -336,7 +337,7 @@ function WholesaleResponseContent() {
                             </Button>
                         </CardFooter>
                     </Card>
-                    <p className="text-center text-[10px] text-muted-foreground uppercase tracking-widest">Secure Wholesale Platform &bull; SnazzPay</p>
+                    <p className="text-center text-[10px] text-muted-foreground uppercase tracking-widest">Secure Wholesale Platform & bull; SnazzPay</p>
                 </div>
             </main>
         </div>
@@ -345,7 +346,7 @@ function WholesaleResponseContent() {
 
 export default function WholesaleResponsePage() {
     return (
-        <Suspense fallback={<div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
+        <Suspense fallback={<div className="flex items-center justify-center h-screen"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>}>
             <WholesaleResponseContent />
         </Suspense>
     );

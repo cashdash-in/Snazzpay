@@ -17,7 +17,7 @@ export type WholesaleInquiry = {
     vendorId: string;
     vendorName: string;
     productImage: string;
-    category: string; // Added to support multiple product types
+    category: string;
     quantityRequested: number;
     descriptionRequested: string;
     status: WholesaleStatus;

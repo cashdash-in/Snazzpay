@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -16,7 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { getCollection, saveDocument, batchUpdateDocuments } from "@/services/firestore";
 import { v4 as uuidv4 } from 'uuid';
-import { Loader2, PlusCircle, ImagePlus, FileSpreadsheet, Send, Search, CheckCircle2, AlertTriangle, Eye, Copy, Clock, Tag } from "lucide-react";
+import { Loader2, PlusCircle, ImagePlus, FileSpreadsheet, Send, Search, CheckCircle2, Eye, Copy, Clock, Tag } from "lucide-react";
 import Image from 'next/image';
 import { format, formatDistanceToNow } from 'date-fns';
 import * as XLSX from 'xlsx';
@@ -421,4 +420,3 @@ export default function WholesaleInquiriesPage() {
         </AppShell>
     );
 }
-
