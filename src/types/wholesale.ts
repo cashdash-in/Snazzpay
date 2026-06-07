@@ -8,6 +8,7 @@ export type AlternateProduct = {
     estimatedMRP: number;
     availableQuantity: number;
     description: string;
+    category?: string;
 };
 
 export type WholesaleInquiry = {
@@ -16,6 +17,7 @@ export type WholesaleInquiry = {
     vendorId: string;
     vendorName: string;
     productImage: string;
+    category: string; // Added to support multiple product types
     quantityRequested: number;
     descriptionRequested: string;
     status: WholesaleStatus;

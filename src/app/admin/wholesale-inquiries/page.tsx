@@ -16,12 +16,13 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { getCollection, saveDocument, batchUpdateDocuments, addDocument } from "@/services/firestore";
 import { v4 as uuidv4 } from 'uuid';
-import { Loader2, PlusCircle, ImagePlus, FileSpreadsheet, Send, Search, CheckCircle2, AlertTriangle, Eye, Trash2 } from "lucide-react";
+import { Loader2, PlusCircle, ImagePlus, FileSpreadsheet, Send, Search, CheckCircle2, AlertTriangle, Eye, Trash2, Tag } from "lucide-react";
 import Image from 'next/image';
 import { format } from 'date-fns';
 import * as XLSX from 'xlsx';
 import type { WholesaleInquiry, WholesaleStatus } from '@/types/wholesale';
 import type { Vendor } from '@/app/vendors/page';
+import { cn } from '@/lib/utils';
 
 const MAX_IMAGE_SIZE_PX = 800;
 
@@ -37,6 +38,7 @@ export default function WholesaleInquiriesPage() {
     // Form State
     const [newInquiry, setNewInquiry] = useState({
         vendorId: '',
+        category: '',
         quantity: '',
         description: '',
         image: '',
@@ -112,8 +114,8 @@ export default function WholesaleInquiriesPage() {
     };
 
     const handleSendInquiry = async () => {
-        if (!newInquiry.vendorId || !newInquiry.image || !newInquiry.quantity) {
-            toast({ variant: 'destructive', title: "Missing Fields", description: "Please provide a vendor, image, and quantity." });
+        if (!newInquiry.vendorId || !newInquiry.image || !newInquiry.quantity || !newInquiry.category) {
+            toast({ variant: 'destructive', title: "Missing Fields", description: "Please provide a vendor, category, image, and quantity." });
             return;
         }
         setIsSubmitting(true);
@@ -124,6 +126,7 @@ export default function WholesaleInquiriesPage() {
             adminId: user?.uid || 'admin',
             vendorId: newInquiry.vendorId,
             vendorName: selectedVendor?.name || 'Unknown Vendor',
+            category: newInquiry.category,
             productImage: newInquiry.image,
             quantityRequested: parseInt(newInquiry.quantity),
             descriptionRequested: newInquiry.description,
@@ -136,8 +139,8 @@ export default function WholesaleInquiriesPage() {
         try {
             await saveDocument('wholesale_inquiries', inquiryData, inquiryData.id);
             setInquiries(prev => [inquiryData, ...prev]);
-            setNewInquiry({ vendorId: '', quantity: '', description: '', image: '' });
-            toast({ title: "Inquiry Sent!", description: `wholesale request sent to ${inquiryData.vendorName}.` });
+            setNewInquiry({ vendorId: '', category: '', quantity: '', description: '', image: '' });
+            toast({ title: "Inquiry Sent!", description: `Wholesale request sent to ${inquiryData.vendorName}.` });
         } catch (error) {
             toast({ variant: 'destructive', title: "Failed to send inquiry" });
         } finally {
@@ -173,6 +176,7 @@ export default function WholesaleInquiriesPage() {
         
         const data = inquiries.map(i => ({
             'Date': format(new Date(i.createdAt), 'PP'),
+            'Category': i.category,
             'Vendor': i.vendorName,
             'Status': i.status,
             'Qty Requested': i.quantityRequested,
@@ -192,7 +196,8 @@ export default function WholesaleInquiriesPage() {
 
     const filteredInquiries = inquiries.filter(i => 
         i.vendorName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        i.status.toLowerCase().includes(searchQuery.toLowerCase())
+        i.status.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        i.category.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     return (
@@ -205,7 +210,7 @@ export default function WholesaleInquiriesPage() {
                             <PlusCircle className="text-primary" />
                             New Stock Inquiry
                         </CardTitle>
-                        <CardDescription>Send a picture and details to a vendor to ask for pricing.</CardDescription>
+                        <CardDescription>Request quotes from vendors for any product type.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="space-y-2">
@@ -224,6 +229,20 @@ export default function WholesaleInquiriesPage() {
                                 )}
                             </div>
                             <input id="inquiry-image" type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="category">Category / Product Type</Label>
+                            <div className="relative">
+                                <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input 
+                                    id="category" 
+                                    placeholder="e.g., Religious Articles, Apparel, Electronics" 
+                                    value={newInquiry.category} 
+                                    onChange={e => setNewInquiry({...newInquiry, category: e.target.value})}
+                                    className="pl-9"
+                                />
+                            </div>
                         </div>
 
                         <div className="space-y-2">
@@ -274,7 +293,7 @@ export default function WholesaleInquiriesPage() {
                          <div className="relative flex-grow">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input 
-                                placeholder="Search by vendor or status..." 
+                                placeholder="Search by vendor, category or status..." 
                                 className="pl-9" 
                                 value={searchQuery}
                                 onChange={e => setSearchQuery(e.target.value)}
@@ -296,6 +315,7 @@ export default function WholesaleInquiriesPage() {
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Article</TableHead>
+                                        <TableHead>Category</TableHead>
                                         <TableHead>Vendor</TableHead>
                                         <TableHead>Qty</TableHead>
                                         <TableHead>Status</TableHead>
@@ -305,9 +325,9 @@ export default function WholesaleInquiriesPage() {
                                 </TableHeader>
                                 <TableBody>
                                     {isLoading ? (
-                                        <TableRow><TableCell colSpan={6} className="text-center h-24"><Loader2 className="animate-spin mx-auto"/></TableCell></TableRow>
+                                        <TableRow><TableCell colSpan={7} className="text-center h-24"><Loader2 className="animate-spin mx-auto"/></TableCell></TableRow>
                                     ) : filteredInquiries.length === 0 ? (
-                                        <TableRow><TableCell colSpan={6} className="text-center h-24 text-muted-foreground">No inquiries found.</TableCell></TableRow>
+                                        <TableRow><TableCell colSpan={7} className="text-center h-24 text-muted-foreground">No inquiries found.</TableCell></TableRow>
                                     ) : (
                                         filteredInquiries.map(item => (
                                             <TableRow key={item.id}>
@@ -317,6 +337,7 @@ export default function WholesaleInquiriesPage() {
                                                         <span className="text-xs truncate max-w-[100px]">{item.descriptionRequested}</span>
                                                     </div>
                                                 </TableCell>
+                                                <TableCell><Badge variant="secondary" className="text-[10px]">{item.category}</Badge></TableCell>
                                                 <TableCell className="font-medium text-xs">{item.vendorName}</TableCell>
                                                 <TableCell className="text-xs">{item.quantityRequested}</TableCell>
                                                 <TableCell>
@@ -354,8 +375,11 @@ export default function WholesaleInquiriesPage() {
                                                                         <div className="mt-2 aspect-square relative rounded-lg border overflow-hidden">
                                                                             <Image src={item.productImage} alt="Requested" fill className="object-contain" />
                                                                         </div>
-                                                                        <p className="mt-2 text-sm italic">"{item.descriptionRequested}"</p>
-                                                                        <p className="text-sm font-bold">Qty: {item.quantityRequested}</p>
+                                                                        <div className="mt-2 space-y-1">
+                                                                            <Badge variant="secondary">{item.category}</Badge>
+                                                                            <p className="text-sm italic">"{item.descriptionRequested}"</p>
+                                                                            <p className="text-sm font-bold">Qty: {item.quantityRequested}</p>
+                                                                        </div>
                                                                     </div>
                                                                 </div>
                                                                 <div className="space-y-4">
@@ -372,6 +396,7 @@ export default function WholesaleInquiriesPage() {
                                                                              </div>
                                                                              <div className="mt-4 space-y-2 text-sm">
                                                                                 <p className="font-bold">{item.alternateProduct.title}</p>
+                                                                                {item.alternateProduct.category && <Badge variant="outline">{item.alternateProduct.category}</Badge>}
                                                                                 <p className="text-xs">{item.alternateProduct.description}</p>
                                                                                 <div className="flex justify-between font-bold">
                                                                                     <span>Wholesale: ₹{item.alternateProduct.wholesalePrice}</span>

@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -7,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect, useCallback, ClipboardEvent } from "react";
-import { Loader2, Trash2, Send, Loader2 as ButtonLoader, ArrowRight, Store, Factory, ShoppingCart } from "lucide-react";
+import { Loader2, Trash2, Send, Loader2 as ButtonLoader, ArrowRight, Store, Factory, ShoppingCart, MessageCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { EditableOrder } from '@/types/order';
 import { format } from "date-fns";
@@ -33,7 +32,7 @@ export default function LeadsPage() {
     setLoading(true);
     try {
         const loadedLeads = await getCollection<EditableOrder>('leads');
-        let filteredLeads = loadedLeads.filter(lead => ['Intent Verified', 'Lead'].includes(lead.paymentStatus));
+        let filteredLeads = loadedLeads.filter(lead => ['Intent Verified', 'Lead', 'Enquiry'].includes(lead.paymentStatus));
         
         if (user) {
             const userRole = localStorage.getItem('userRole');
@@ -57,7 +56,7 @@ export default function LeadsPage() {
         toast({
             variant: 'destructive',
             title: "Error loading leads",
-            description: "Could not load leads from Firestore. Please check console for details.",
+            description: "Could not load leads from Firestore.",
         });
     }
     setLoading(false);
@@ -88,7 +87,6 @@ export default function LeadsPage() {
   const handleSendLink = async (lead: EditableOrder) => {
     setSendingLinkId(lead.id);
     try {
-        // Use the generic send-auth-link endpoint now
         const response = await fetch('/api/send-auth-link', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -125,7 +123,6 @@ export default function LeadsPage() {
             img.onload = () => {
                 const canvas = document.createElement('canvas');
                 let { width, height } = img;
-
                 if (width > height) {
                     if (width > MAX_IMAGE_SIZE_PX) {
                         height *= MAX_IMAGE_SIZE_PX / width;
@@ -141,7 +138,7 @@ export default function LeadsPage() {
                 canvas.height = height;
                 const ctx = canvas.getContext('2d');
                 ctx?.drawImage(img, 0, 0, width, height);
-                resolve(canvas.toDataURL('image/jpeg', 0.7)); // Compress to JPEG
+                resolve(canvas.toDataURL('image/jpeg', 0.7));
             };
             img.src = e.target?.result as string;
         };
@@ -162,7 +159,7 @@ export default function LeadsPage() {
                 setLeads(prevLeads => prevLeads.map(lead =>
                     lead.id === leadId ? { ...lead, imageDataUris: [resizedDataUri] } : lead
                 ));
-                toast({ title: "Image Pasted & Resized!", description: "Image added to the lead. Remember to save if needed." });
+                toast({ title: "Image Pasted!", description: "Image added to the lead." });
             }
         }
     }
@@ -173,14 +170,12 @@ export default function LeadsPage() {
         const { isRead, ...orderData } = lead;
         const newOrder: EditableOrder = {
             ...orderData,
-            paymentStatus: 'Pending', // Set as a pending manual order
+            paymentStatus: 'Pending',
             source: 'Manual' as const,
             isRead: false,
         };
         
         await saveDocument('orders', newOrder, newOrder.id);
-        
-        // Instead of deleting, we update the lead's status so it doesn't show up again
         await saveDocument('leads', { ...lead, paymentStatus: 'Converted' }, lead.id);
         
         setLeads(prev => prev.filter(l => l.id !== lead.id));
@@ -202,13 +197,11 @@ export default function LeadsPage() {
   };
 
   return (
-    <AppShell title="Leads from Secure COD">
+    <AppShell title="Leads & Enquiries">
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>Leads</CardTitle>
-              <CardDescription>Customers who started the order process but did not complete the final payment.</CardDescription>
-            </div>
+        <CardHeader>
+            <CardTitle>Sales Leads</CardTitle>
+            <CardDescription>Customers who showed interest or started orders. Includes "Enquiries" from Smart Magazines.</CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -221,20 +214,18 @@ export default function LeadsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Captured On</TableHead>
-                  <TableHead>Product(s)</TableHead>
+                  <TableHead>Product</TableHead>
                   <TableHead>Customer</TableHead>
                   <TableHead>Value</TableHead>
-                  <TableHead>Payment Method</TableHead>
-                  <TableHead>Source / Actors</TableHead>
+                  <TableHead>Source</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="text-center">Actions</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {leads.map((lead) => {
+                {leads.length > 0 ? leads.map((lead) => {
                     const imageUrl = lead.imageDataUris?.[0];
-                    let sourceName = lead.source || 'Manual';
-                    if (sourceName === 'Catalogue') sourceName = 'SmartMagazine';
+                    const isEnquiry = lead.paymentStatus === 'Enquiry';
                     
                     return (
                   <TableRow key={lead.id} onPaste={(e) => handleImagePaste(e, lead.id)}>
@@ -244,9 +235,9 @@ export default function LeadsPage() {
                            {imageUrl ? (
                                 <Image src={imageUrl} alt={lead.productOrdered} width={40} height={40} className="rounded-md object-cover aspect-square"/>
                             ) : (
-                                <div className="h-10 w-10 bg-muted rounded-md flex items-center justify-center text-muted-foreground text-xs text-center p-1">Paste Image Here</div>
+                                <div className="h-10 w-10 bg-muted rounded-md flex items-center justify-center text-muted-foreground text-[10px] text-center p-1">Paste Image</div>
                             )}
-                            <span className="font-medium max-w-xs truncate">{lead.productOrdered}</span>
+                            <span className="font-medium max-w-[150px] truncate">{lead.productOrdered}</span>
                         </div>
                     </TableCell>
                     <TableCell>
@@ -254,46 +245,30 @@ export default function LeadsPage() {
                       <div className='text-xs text-muted-foreground'>{lead.contactNo}</div>
                     </TableCell>
                     <TableCell>₹{lead.price}</TableCell>
+                     <TableCell>
+                      <Badge variant="outline" className="text-[10px] capitalize">
+                        {lead.source || 'Manual'}
+                      </Badge>
+                    </TableCell>
                     <TableCell>
-                        <Badge variant={lead.paymentMethod === 'Cash on Delivery' ? 'secondary' : 'outline'}>
-                            {lead.paymentMethod || 'Prepaid'}
+                        <Badge variant={isEnquiry ? "secondary" : "default"} className={cn(isEnquiry && "bg-purple-100 text-purple-800")}>
+                            {isEnquiry ? <MessageCircle className="mr-1 h-3 w-3"/> : null}
+                            {lead.paymentStatus}
                         </Badge>
                     </TableCell>
-                     <TableCell>
-                      <div className="space-y-1 text-xs">
-                           <div className="flex items-center gap-1 font-medium">
-                                <ShoppingCart className="h-3 w-3" />
-                                {sourceName}
-                           </div>
-                           {lead.vendorName && (
-                                <div className="text-muted-foreground flex items-center gap-1">
-                                    <Factory className="h-3 w-3" /> {lead.vendorName}
-                                </div>
-                            )}
-                            {lead.sellerName && (
-                                <div className="text-muted-foreground flex items-center gap-1">
-                                    <Store className="h-3 w-3" /> {lead.sellerName}
-                                </div>
-                            )}
-                            {sourceName === 'Manual' && !lead.sellerName && !lead.vendorName && (
-                                <div className="text-muted-foreground flex items-center gap-1">
-                                    <Store className="h-3 w-3" /> Snazzify
-                                </div>
-                            )}
-                      </div>
-                    </TableCell>
-                    <TableCell>{lead.paymentStatus}</TableCell>
-                    <TableCell className="text-center space-x-2">
-                        <Button 
-                            variant="default" 
-                            size="sm" 
-                            onClick={() => handleSendLink(lead)}
-                            disabled={sendingLinkId === lead.id || !lead.customerEmail}
-                            title={!lead.customerEmail ? 'Email is required to send link' : 'Send Payment Link'}
-                        >
-                            {sendingLinkId === lead.id ? <ButtonLoader className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                            Send Payment Link
-                        </Button>
+                    <TableCell className="text-right space-x-2">
+                        {!isEnquiry && (
+                            <Button 
+                                variant="default" 
+                                size="sm" 
+                                onClick={() => handleSendLink(lead)}
+                                disabled={sendingLinkId === lead.id || !lead.customerEmail}
+                                title="Send Payment Link"
+                            >
+                                {sendingLinkId === lead.id ? <ButtonLoader className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                                Send Link
+                            </Button>
+                        )}
                         <Button 
                             variant="outline" 
                             size="sm" 
@@ -306,7 +281,11 @@ export default function LeadsPage() {
                         </Button>
                     </TableCell>
                   </TableRow>
-                )})}
+                )}) : (
+                    <TableRow>
+                        <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">No active leads or enquiries found.</TableCell>
+                    </TableRow>
+                )}
               </TableBody>
             </Table>
             </div>
@@ -316,7 +295,3 @@ export default function LeadsPage() {
     </AppShell>
   );
 }
-
-    
-
-    

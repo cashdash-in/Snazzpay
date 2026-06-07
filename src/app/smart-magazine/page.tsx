@@ -1,13 +1,14 @@
+
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, ShoppingCart, Percent } from 'lucide-react';
+import { Loader2, ShoppingCart, Percent, MessageCircle, Send } from 'lucide-react';
 import Image from 'next/image';
 import type { SellerProduct } from '../seller/ai-product-uploader/page';
-import { getCollection, getDocument } from '@/services/firestore';
+import { getCollection, getDocument, saveDocument } from '@/services/firestore';
 import type { ProductDrop } from '../vendor/product-drops/page';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -17,6 +18,12 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { v4 as uuidv4 } from 'uuid';
+import { useToast } from '@/hooks/use-toast';
 
 type DisplayProduct = SellerProduct | ProductDrop;
 
@@ -36,10 +43,16 @@ type Magazine = {
 function SmartMagazineContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
+    const { toast } = useToast();
     const [products, setProducts] = useState<DisplayProduct[]>([]);
     const [magazine, setMagazine] = useState<Magazine | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [discount, setDiscount] = useState<number>(0);
+    
+    // Enquiry State
+    const [enquiryProduct, setEnquiryProduct] = useState<DisplayProduct | null>(null);
+    const [enquiryForm, setEnquiryForm] = useState({ name: '', phone: '', message: '' });
+    const [isEnquiring, setIsEnquiring] = useState(false);
 
     useEffect(() => {
         const discountParam = searchParams.get('discount');
@@ -146,6 +159,48 @@ function SmartMagazineContent() {
         router.push(`/catalogue?${catalogueParams.toString()}`);
     };
 
+    const handleSendEnquiry = async () => {
+        if (!enquiryProduct || !enquiryForm.name || !enquiryForm.phone) {
+            toast({ variant: 'destructive', title: "Details Required", description: "Please provide your name and phone number." });
+            return;
+        }
+
+        setIsEnquiring(true);
+        const leadId = uuidv4();
+        const price = ((enquiryProduct as SellerProduct).price || (enquiryProduct as ProductDrop).costPrice);
+        const finalPrice = discount > 0 ? price - (price * (discount / 100)) : price;
+
+        try {
+            const leadData = {
+                id: leadId,
+                orderId: `ENQ-${uuidv4().substring(0, 6).toUpperCase()}`,
+                customerName: enquiryForm.name,
+                contactNo: enquiryForm.phone,
+                productOrdered: enquiryProduct.title,
+                productId: enquiryProduct.id,
+                price: finalPrice.toString(),
+                paymentStatus: 'Enquiry',
+                date: new Date().toISOString(),
+                sellerId: magazine?.creatorId || 'admin',
+                sellerName: magazine?.creatorName || 'Admin',
+                source: 'SmartMagazine',
+                message: enquiryForm.message,
+                isRead: false,
+                imageDataUris: enquiryProduct.imageDataUris,
+            };
+
+            await saveDocument('leads', leadData, leadId);
+            
+            toast({ title: "Enquiry Sent!", description: "We have received your interest. Our team will contact you shortly." });
+            setEnquiryProduct(null);
+            setEnquiryForm({ name: '', phone: '', message: '' });
+        } catch (error) {
+            toast({ variant: 'destructive', title: "Failed to send enquiry" });
+        } finally {
+            setIsEnquiring(false);
+        }
+    };
+
     if (isLoading) {
         return <div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
     }
@@ -202,7 +257,7 @@ function SmartMagazineContent() {
                                     autoPlay
                                     loop
                                     muted
-                                    playsInline // Important for iOS
+                                    playsInline
                                     className="object-cover w-full h-48 sm:h-64"
                                 />
                             ) : (
@@ -247,11 +302,49 @@ function SmartMagazineContent() {
                                     </p>
                                 </div>
                             </CardContent>
-                            <CardFooter className="p-2 bg-slate-50">
+                            <CardFooter className="p-2 bg-slate-50 flex flex-col gap-2">
                                 <Button className="w-full" size="sm" onClick={() => handleOrderClick(product)}>
-                                    Click to Order
-                                    <ShoppingCart className="ml-2 h-4 w-4" />
+                                    <ShoppingCart className="mr-2 h-4 w-4" />
+                                    Order Now
                                 </Button>
+                                <Dialog onOpenChange={(open) => !open && setEnquiryProduct(null)}>
+                                    <DialogTrigger asChild>
+                                        <Button className="w-full" variant="outline" size="sm" onClick={() => setEnquiryProduct(product)}>
+                                            <MessageCircle className="mr-2 h-4 w-4" />
+                                            Enquire
+                                        </Button>
+                                    </DialogTrigger>
+                                    {enquiryProduct?.id === product.id && (
+                                        <DialogContent className="sm:max-w-md">
+                                            <DialogHeader>
+                                                <DialogTitle>Enquire about this product</DialogTitle>
+                                                <DialogDescription>
+                                                    Interested in {product.title}? Send us your details and we'll get back to you.
+                                                </DialogDescription>
+                                            </DialogHeader>
+                                            <div className="space-y-4 py-4">
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="enq-name">Your Name</Label>
+                                                    <Input id="enq-name" value={enquiryForm.name} onChange={e => setEnquiryForm({...enquiryForm, name: e.target.value})} />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="enq-phone">Phone Number</Label>
+                                                    <Input id="enq-phone" type="tel" value={enquiryForm.phone} onChange={e => setEnquiryForm({...enquiryForm, phone: e.target.value})} />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="enq-msg">Message (Optional)</Label>
+                                                    <Textarea id="enq-msg" placeholder="Tell us what you'd like to know..." value={enquiryForm.message} onChange={e => setEnquiryForm({...enquiryForm, message: e.target.value})} />
+                                                </div>
+                                            </div>
+                                            <DialogFooter>
+                                                <Button onClick={handleSendEnquiry} disabled={isEnquiring} className="w-full">
+                                                    {isEnquiring ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <Send className="mr-2 h-4 w-4" />}
+                                                    Send Enquiry
+                                                </Button>
+                                            </DialogFooter>
+                                        </DialogContent>
+                                    )}
+                                </Dialog>
                             </CardFooter>
                         </Card>
                     )})}

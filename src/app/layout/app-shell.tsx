@@ -64,6 +64,8 @@ import {
   UserPlus,
   Briefcase,
   ImageIcon,
+  ShoppingBasket,
+  BadgeCheck,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { getCookie } from 'cookies-next';
@@ -76,12 +78,13 @@ type MenuItem = {
     href: string;
     label: string;
     icon: React.ElementType;
-    notificationKey?: 'orders' | 'leads';
+    notificationKey?: 'orders' | 'leads' | 'wholesale';
 };
 
 
 const adminCoreMenuItems: MenuItem[] = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/admin/wholesale-inquiries', label: 'Wholesale Requests', icon: ShoppingBasket, notificationKey: 'wholesale' },
   { href: '/mandates', label: 'Mandates', icon: WalletCards },
   { href: '/orders', label: 'Orders', icon: ShoppingCart, notificationKey: 'orders' as const },
   { href: '/leads', label: 'Leads', icon: Users, notificationKey: 'leads' as const },
@@ -132,6 +135,7 @@ const sellerMenuItems: MenuItem[] = [
 
 const vendorMenuItems: MenuItem[] = [
     { href: '/vendor/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/vendor/wholesale-inquiries', label: 'Wholesale Requests', icon: BadgeCheck, notificationKey: 'wholesale' },
     { href: '/vendor/product-drops', label: 'Product Drops', icon: PackagePlus },
     { href: '/vendor/products', label: 'My Products', icon: Package },
     { href: '/share/magazine', label: 'Smart Magazine', icon: BookOpen },
@@ -162,7 +166,7 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
   const { user, signOut } = useAuth();
   
   const [role, setRole] = useState<string | undefined>(undefined);
-  const [notificationCounts, setNotificationCounts] = useState({ orders: 0, leads: 0 });
+  const [notificationCounts, setNotificationCounts] = useState({ orders: 0, leads: 0, wholesale: 0 });
 
   useEffect(() => {
     setRole(getCookie('userRole'));
@@ -171,25 +175,30 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
         if (!user) return;
 
         try {
-            const [allOrders, allLeads] = await Promise.all([
+            const [allOrders, allLeads, allWholesale] = await Promise.all([
                 getCollection<EditableOrder>('orders'),
-                getCollection<EditableOrder>('leads')
+                getCollection<EditableOrder>('leads'),
+                getCollection<any>('wholesale_inquiries')
             ]);
             
             let newOrdersCount = 0;
             let newLeadsCount = 0;
+            let newWholesaleCount = 0;
 
             const currentRole = getCookie('userRole');
 
             if (currentRole === 'admin') {
                 newOrdersCount = allOrders.filter(o => o.isRead === false).length;
-                newLeadsCount = allLeads.filter(l => l.isRead === false && ['Lead', 'Intent Verified'].includes(l.paymentStatus)).length;
+                newLeadsCount = allLeads.filter(l => l.isRead === false && ['Lead', 'Intent Verified', 'Enquiry'].includes(l.paymentStatus)).length;
+                newWholesaleCount = allWholesale.filter((w: any) => w.isReadByAdmin === false).length;
             } else if (currentRole === 'seller') {
                  newOrdersCount = allOrders.filter(o => o.sellerId === user.uid && o.isRead === false).length;
-                 newLeadsCount = allLeads.filter(l => l.sellerId === user.uid && l.isRead === false && ['Lead', 'Intent Verified'].includes(l.paymentStatus)).length;
+                 newLeadsCount = allLeads.filter(l => l.sellerId === user.uid && l.isRead === false && ['Lead', 'Intent Verified', 'Enquiry'].includes(l.paymentStatus)).length;
+            } else if (currentRole === 'vendor') {
+                newWholesaleCount = allWholesale.filter((w: any) => w.vendorId === user.uid && w.status === 'Pending').length;
             }
 
-            setNotificationCounts({ orders: newOrdersCount, leads: newLeadsCount });
+            setNotificationCounts({ orders: newOrdersCount, leads: newLeadsCount, wholesale: newWholesaleCount });
         } catch (error) {
             console.error("Failed to fetch notification counts", error);
         }

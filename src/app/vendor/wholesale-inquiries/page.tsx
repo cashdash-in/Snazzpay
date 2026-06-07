@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { getCollection, saveDocument } from "@/services/firestore";
-import { Loader2, Package, CheckCircle2, XCircle, RefreshCw, Send, ImagePlus, AlertCircle } from "lucide-react";
+import { Loader2, Package, CheckCircle2, XCircle, RefreshCw, Send, ImagePlus, AlertCircle, Tag } from "lucide-react";
 import Image from 'next/image';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -45,6 +45,7 @@ export default function VendorWholesalePage() {
         estimatedMRP: 0,
         availableQuantity: 0,
         description: '',
+        category: '',
     });
 
     const loadInquiries = useCallback(async () => {
@@ -126,13 +127,19 @@ export default function VendorWholesalePage() {
             };
 
             if (isOOS && hasAlternate) {
-                updatedInquiry.alternateProduct = alternate;
+                updatedInquiry.alternateProduct = {
+                    ...alternate,
+                    category: alternate.category || activeInquiry.category
+                };
             }
 
             await saveDocument('wholesale_inquiries', updatedInquiry, activeInquiry.id);
             setInquiries(prev => prev.map(i => i.id === activeInquiry.id ? { ...i, ...updatedInquiry } : i));
             toast({ title: "Response Saved", description: "The admin has been notified." });
             setActiveInquiry(null);
+            
+            // Reset alternate form
+            setAlternate({ title: '', imageDataUri: '', wholesalePrice: 0, estimatedMRP: 0, availableQuantity: 0, description: '', category: '' });
         } catch (error) {
             toast({ variant: 'destructive', title: "Failed to save" });
         } finally {
@@ -148,7 +155,7 @@ export default function VendorWholesalePage() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Incoming Stock Inquiries</CardTitle>
-                        <CardDescription>Price requests from the shop owner. Provide quotes or suggest alternates.</CardDescription>
+                        <CardDescription>Price requests from the shop owner. You can suggest alternates for any category.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <Table>
@@ -156,6 +163,7 @@ export default function VendorWholesalePage() {
                                 <TableRow>
                                     <TableHead>Date</TableHead>
                                     <TableHead>Article</TableHead>
+                                    <TableHead>Category</TableHead>
                                     <TableHead>Qty</TableHead>
                                     <TableHead>Status</TableHead>
                                     <TableHead className="text-right">Action</TableHead>
@@ -163,7 +171,7 @@ export default function VendorWholesalePage() {
                             </TableHeader>
                             <TableBody>
                                 {inquiries.length === 0 ? (
-                                    <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No inquiries found.</TableCell></TableRow>
+                                    <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No inquiries found.</TableCell></TableRow>
                                 ) : (
                                     inquiries.map(item => (
                                         <TableRow key={item.id} className={cn(activeInquiry?.id === item.id && "bg-primary/5")}>
@@ -174,6 +182,7 @@ export default function VendorWholesalePage() {
                                                     <span className="text-xs truncate max-w-[80px]">{item.descriptionRequested}</span>
                                                 </div>
                                             </TableCell>
+                                            <TableCell><Badge variant="secondary" className="text-[10px]">{item.category}</Badge></TableCell>
                                             <TableCell className="text-xs">{item.quantityRequested}</TableCell>
                                             <TableCell>
                                                 <Badge variant="outline" className="text-[10px]">{item.status}</Badge>
@@ -195,12 +204,13 @@ export default function VendorWholesalePage() {
                     <Card className="shadow-lg border-primary/30">
                         <CardHeader className="bg-primary/5">
                             <CardTitle className="text-lg">Respond to Inquiry</CardTitle>
-                            <CardDescription>Review the requested article and provide your wholesale quote.</CardDescription>
+                            <CardDescription>Category: {activeInquiry.category}</CardDescription>
                         </CardHeader>
                         <CardContent className="pt-6 space-y-6">
                             <div className="flex gap-4 items-start p-4 bg-muted/30 rounded-lg border">
                                 <Image src={activeInquiry.productImage} alt="Requested" width={100} height={100} className="rounded-lg object-contain bg-white border" />
                                 <div className="space-y-1">
+                                    <Badge variant="outline" className="mb-1">{activeInquiry.category}</Badge>
                                     <p className="text-sm font-bold">Qty Requested: {activeInquiry.quantityRequested}</p>
                                     <p className="text-xs text-muted-foreground">Note: {activeInquiry.descriptionRequested}</p>
                                 </div>
@@ -271,7 +281,7 @@ export default function VendorWholesalePage() {
                                                 </div>
                                                 <div className="space-y-4">
                                                     <div className="space-y-2"><Label>Product Title</Label><Input value={alternate.title} onChange={e => setAlternate({...alternate, title: e.target.value})} /></div>
-                                                    <div className="space-y-2"><Label>Available Qty</Label><Input type="number" value={alternate.availableQuantity} onChange={e => setAlternate({...alternate, availableQuantity: parseInt(e.target.value) || 0})} /></div>
+                                                    <div className="space-y-2"><Label>Category</Label><Input value={alternate.category} placeholder={activeInquiry.category} onChange={e => setAlternate({...alternate, category: e.target.value})} /></div>
                                                 </div>
                                             </div>
                                             
@@ -279,6 +289,8 @@ export default function VendorWholesalePage() {
                                                 <div className="space-y-2"><Label>Wholesale Price (₹)</Label><Input type="number" value={alternate.wholesalePrice} onChange={e => setAlternate({...alternate, wholesalePrice: parseFloat(e.target.value) || 0})} /></div>
                                                 <div className="space-y-2"><Label>Estimated MRP (₹)</Label><Input type="number" value={alternate.estimatedMRP} onChange={e => setAlternate({...alternate, estimatedMRP: parseFloat(e.target.value) || 0})} /></div>
                                             </div>
+                                            
+                                            <div className="space-y-2"><Label>Available Qty</Label><Input type="number" value={alternate.availableQuantity} onChange={e => setAlternate({...alternate, availableQuantity: parseInt(e.target.value) || 0})} /></div>
 
                                             <div className="space-y-2"><Label>Description of Alternate</Label><Textarea value={alternate.description} onChange={e => setAlternate({...alternate, description: e.target.value})} rows={3} /></div>
                                         </div>
@@ -298,7 +310,7 @@ export default function VendorWholesalePage() {
                     <div className="flex flex-col items-center justify-center text-center p-12 h-full bg-muted/10 border border-dashed rounded-xl">
                         <Package className="h-16 w-16 text-muted-foreground/30 mb-4" />
                         <h3 className="text-lg font-medium text-muted-foreground">Select an inquiry from the list to respond</h3>
-                        <p className="text-sm text-muted-foreground max-w-xs mx-auto mt-2">You can provide wholesale pricing or propose alternates if the item is unavailable.</p>
+                        <p className="text-sm text-muted-foreground max-w-xs mx-auto mt-2">You can provide wholesale pricing or propose alternates for any product type.</p>
                     </div>
                 )}
             </div>
