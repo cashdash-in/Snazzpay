@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
@@ -30,6 +29,7 @@ type Magazine = {
     creatorName: string;
     createdAt: string;
     discount?: number;
+    logoDataUri?: string;
 };
 
 
@@ -166,11 +166,25 @@ function SmartMagazineContent() {
     return (
         <div className="min-h-screen bg-gray-50 p-4 sm:p-8">
             <div className="max-w-6xl mx-auto">
-                 <header className="text-center mb-12">
-                    <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-gray-900">{magazine.title}</h1>
-                    <p className="mt-4 text-lg text-muted-foreground">
-                        {magazine.vendorTitle || `A curated collection by ${magazine.creatorName}`}
-                    </p>
+                 <header className="text-center mb-12 space-y-6">
+                    {magazine.logoDataUri && (
+                        <div className="flex justify-center mb-6">
+                            <div className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-full overflow-hidden border-4 border-white shadow-xl bg-white">
+                                <Image 
+                                    src={magazine.logoDataUri} 
+                                    alt="Brand Logo" 
+                                    fill 
+                                    className="object-contain p-2"
+                                />
+                            </div>
+                        </div>
+                    )}
+                    <div>
+                        <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-gray-900">{magazine.title}</h1>
+                        <p className="mt-4 text-lg text-muted-foreground">
+                            {magazine.vendorTitle || `A curated collection by ${magazine.creatorName}`}
+                        </p>
+                    </div>
                 </header>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                     {products.map(product => {

@@ -8,6 +8,7 @@ interface MagazineCoverProps {
   url?: string;
   showQrCode?: boolean;
   vendorTitle?: string;
+  logoDataUri?: string;
   width?: number;
   height?: number;
   onCanvasUpdate?: (dataUrl: string) => void;
@@ -19,6 +20,7 @@ export function MagazineCover({
   url,
   showQrCode = true,
   vendorTitle,
+  logoDataUri,
   width = 400,
   height = 500,
   onCanvasUpdate,
@@ -109,13 +111,36 @@ export function MagazineCover({
         ctx.globalAlpha = 1.0;
       }
 
-      // Reset shadows
+      // Reset shadows for other elements
       ctx.shadowColor = 'transparent';
       ctx.shadowBlur = 0;
       ctx.shadowOffsetX = 0;
       ctx.shadowOffsetY = 0;
       
-      // 4. Draw Badge
+      // 4. Draw Logo if provided
+      if (logoDataUri) {
+          const logoImg = new Image();
+          logoImg.src = logoDataUri;
+          await new Promise((resolve) => {
+              logoImg.onload = () => {
+                  const logoSize = 60;
+                  const logoX = 32;
+                  const logoY = 32;
+                  
+                  // Draw logo background
+                  ctx.fillStyle = 'white';
+                  ctx.beginPath();
+                  ctx.roundRect(logoX - 5, logoY - 5, logoSize + 10, logoSize + 10, 8);
+                  ctx.fill();
+                  
+                  ctx.drawImage(logoImg, logoX, logoY, logoSize, logoSize);
+                  resolve(null);
+              };
+              logoImg.onerror = () => resolve(null);
+          });
+      }
+
+      // 5. Draw Badge
       ctx.fillStyle = 'rgba(255,255,255,0.9)';
       const roundedRect = (x:number, y:number, w:number, h:number, r:number) => {
         ctx.beginPath();
@@ -135,7 +160,7 @@ export function MagazineCover({
       ctx.fillText('NEW COLLECTION', width - 68, 33);
       ctx.textAlign = 'left';
 
-      // 5. Draw QR Code if enabled
+      // 6. Draw QR Code if enabled
       if (showQrCode && url) {
           const qrSize = 80;
           const qrX = width - qrSize - 20;
@@ -178,7 +203,7 @@ export function MagazineCover({
     };
 
     drawCover();
-  }, [imageUrl, title, url, showQrCode, vendorTitle, width, height, onCanvasUpdate]);
+  }, [imageUrl, title, url, showQrCode, vendorTitle, logoDataUri, width, height, onCanvasUpdate]);
 
   return <canvas ref={canvasRef} width={width} height={height} className="rounded-lg shadow-md max-w-full h-auto" />;
 }

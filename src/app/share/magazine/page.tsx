@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/hooks/use-auth';
 import type { SellerProduct } from '@/app/seller/ai-product-uploader/page';
 import Image from 'next/image';
-import { Loader2, Share2, Copy, MessageSquare, BookOpen, Percent, Factory, Edit, Wand2, PlusCircle, ImagePlus, ImageIcon, Facebook, Instagram, Download, QrCode } from 'lucide-react';
+import { Loader2, Share2, Copy, MessageSquare, BookOpen, Percent, Factory, Edit, Wand2, PlusCircle, ImagePlus, ImageIcon, Facebook, Instagram, Download, QrCode, Trash2 } from 'lucide-react';
 import { getCollection, saveDocument } from '@/services/firestore';
 import { getCookie } from 'cookies-next';
 import { Label } from '@/components/ui/label';
@@ -27,12 +27,13 @@ import { Switch } from '@/components/ui/switch';
 type Magazine = {
     id: string;
     title: string;
-    vendorTitle?: string; // New field for admin
+    vendorTitle?: string;
     productIds: string[];
     creatorId: string;
     creatorName: string;
     createdAt: string;
     discount?: number;
+    logoDataUri?: string;
 };
 
 const MAX_IMAGE_SIZE_PX = 800; // Max width/height for resizing
@@ -49,6 +50,7 @@ export default function ShareMagazinePage() {
     const [magazineTitle, setMagazineTitle] = useState('Our Latest Collection');
     const [vendorTitle, setVendorTitle] = useState('');
     const [discount, setDiscount] = useState<number>(0);
+    const [logoDataUri, setLogoDataUri] = useState<string | null>(null);
     const [isAdmin, setIsAdmin] = useState(false);
     const [editingProduct, setEditingProduct] = useState<SellerProduct | ProductDrop | null>(null);
 
@@ -67,6 +69,7 @@ export default function ShareMagazinePage() {
 
     const [showCover, setShowCover] = useState(false);
     const [includeQrOnCover, setIncludeQrOnCover] = useState(true);
+    const [includeLogoOnCover, setIncludeLogoOnCover] = useState(true);
     const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
     const [jpegDataUrl, setJpegDataUrl] = useState<string | null>(null);
 
@@ -109,7 +112,7 @@ export default function ShareMagazinePage() {
         loadData();
     }, [user, toast, userRole]);
 
-    const resizeImage = (file: File): Promise<string> => {
+    const resizeImage = (file: File, maxSize: number = MAX_IMAGE_SIZE_PX): Promise<string> => {
         return new Promise((resolve) => {
             const reader = new FileReader();
             reader.onload = (e) => {
@@ -119,14 +122,14 @@ export default function ShareMagazinePage() {
                     let { width, height } = img;
 
                     if (width > height) {
-                        if (width > MAX_IMAGE_SIZE_PX) {
-                            height *= MAX_IMAGE_SIZE_PX / width;
-                            width = MAX_IMAGE_SIZE_PX;
+                        if (width > maxSize) {
+                            height *= maxSize / width;
+                            width = maxSize;
                         }
                     } else {
-                        if (height > MAX_IMAGE_SIZE_PX) {
-                            width *= MAX_IMAGE_SIZE_PX / height;
-                            height = MAX_IMAGE_SIZE_PX;
+                        if (height > maxSize) {
+                            width *= maxSize / height;
+                            height = maxSize;
                         }
                     }
                     canvas.width = width;
@@ -141,6 +144,15 @@ export default function ShareMagazinePage() {
         });
     };
     
+    const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const resized = await resizeImage(file, 400); // Logo can be smaller
+            setLogoDataUri(resized);
+            toast({ title: 'Brand Logo Added!' });
+        }
+    };
+
     const handleNewProductImages = async (files: FileList | File[]) => {
         const fileArray = Array.from(files).filter(f => f.type.startsWith('image/'));
         if (fileArray.length === 0) return;
@@ -315,6 +327,9 @@ export default function ShareMagazinePage() {
         }
         if (discount > 0) {
             newMagazine.discount = discount;
+        }
+        if (logoDataUri) {
+            newMagazine.logoDataUri = logoDataUri;
         }
 
 
@@ -642,7 +657,7 @@ export default function ShareMagazinePage() {
                     <Card className="sticky top-24">
                         <CardHeader>
                             <CardTitle>Generate & Share</CardTitle>
-                            <CardDescription>Give your collection a title and an optional discount, then generate a shareable link.</CardDescription>
+                            <CardDescription>Customize and share your collection.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="space-y-2">
@@ -654,6 +669,32 @@ export default function ShareMagazinePage() {
                                     placeholder="e.g., Summer Collection"
                                 />
                             </div>
+                            
+                            <div className="space-y-2">
+                                <Label>Brand Logo (Visible to Customers)</Label>
+                                <div className="flex items-center gap-4">
+                                    <div className="w-16 h-16 border rounded flex items-center justify-center bg-muted overflow-hidden relative">
+                                        {logoDataUri ? (
+                                            <>
+                                                <Image src={logoDataUri} alt="logo" fill className="object-contain" />
+                                                <Button 
+                                                    size="icon" 
+                                                    variant="destructive" 
+                                                    className="absolute top-0 right-0 h-4 w-4 rounded-none opacity-0 hover:opacity-100 transition-opacity"
+                                                    onClick={() => setLogoDataUri(null)}
+                                                >
+                                                    <Trash2 className="h-2 w-2"/>
+                                                </Button>
+                                            </>
+                                        ) : (
+                                            <Factory className="h-6 w-6 text-muted-foreground" />
+                                        )}
+                                    </div>
+                                    <Input type="file" accept="image/*" onChange={handleLogoUpload} className="text-xs" />
+                                </div>
+                                <p className="text-[10px] text-muted-foreground">This logo will appear in the magazine header and on the cover image.</p>
+                            </div>
+
                             {isAdmin && (
                                 <div className="space-y-2">
                                     <Label htmlFor="vendor-title">Vendor Title (Admin Only)</Label>
@@ -683,10 +724,10 @@ export default function ShareMagazinePage() {
                                     <Percent className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                 </div>
                             </div>
-                            <p className="font-medium">{selectedProductIds.length} product(s) selected.</p>
+                            <p className="font-medium text-sm">{selectedProductIds.length} product(s) selected.</p>
                              <Button onClick={handleGenerateLink} className="w-full" disabled={selectedProductIds.length === 0}>
                                 <Share2 className="mr-2 h-4 w-4" />
-                                Save Magazine & Generate Link
+                                Save & Generate Link
                             </Button>
                             {magazineLink && (
                                 <div className="space-y-2 pt-4 border-t">
@@ -696,27 +737,27 @@ export default function ShareMagazinePage() {
                                         <Button size="icon" variant="outline" onClick={() => handleCopyLink(magazineLink)}><Copy className="h-4 w-4"/></Button>
                                     </div>
                                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                                        <Button onClick={() => handleShareOnWhatsApp(magazineTitle, magazineLink)} variant="secondary">
-                                            <MessageSquare className="mr-2 h-4 w-4"/>WhatsApp
+                                        <Button onClick={() => handleShareOnWhatsApp(magazineTitle, magazineLink)} variant="secondary" size="sm">
+                                            <MessageSquare className="mr-2 h-4 w-4"/>WA
                                         </Button>
-                                        <Button onClick={handleShareOnFacebook} variant="secondary">
-                                            <Facebook className="mr-2 h-4 w-4"/> Facebook
+                                        <Button onClick={handleShareOnFacebook} variant="secondary" size="sm">
+                                            <Facebook className="mr-2 h-4 w-4"/> FB
                                         </Button>
-                                        <Button onClick={handleShareOnInstagram} variant="secondary">
-                                            <Instagram className="mr-2 h-4 w-4"/> Instagram
+                                        <Button onClick={handleShareOnInstagram} variant="secondary" size="sm">
+                                            <Instagram className="mr-2 h-4 w-4"/> IG
                                         </Button>
                                     </div>
                                     <div className="pt-4 space-y-4 border-t">
                                         <Label className="text-base font-bold">Magazine Cover Tool</Label>
-                                        <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
-                                            <div className="space-y-0.5">
-                                                <Label className="text-sm font-medium">Embed QR Code</Label>
-                                                <p className="text-xs text-muted-foreground">Adds a scan-to-shop QR on cover</p>
+                                        <div className="space-y-2">
+                                             <div className="flex items-center justify-between p-2 border rounded-lg bg-muted/30">
+                                                <Label className="text-xs font-medium">Embed QR Code</Label>
+                                                <Switch checked={includeQrOnCover} onCheckedChange={setIncludeQrOnCover} />
                                             </div>
-                                            <Switch 
-                                                checked={includeQrOnCover} 
-                                                onCheckedChange={setIncludeQrOnCover} 
-                                            />
+                                             <div className="flex items-center justify-between p-2 border rounded-lg bg-muted/30">
+                                                <Label className="text-xs font-medium">Include Logo on Cover</Label>
+                                                <Switch checked={includeLogoOnCover} onCheckedChange={setIncludeLogoOnCover} />
+                                            </div>
                                         </div>
                                         <Button 
                                             onClick={handleGenerateCover} 
@@ -728,7 +769,6 @@ export default function ShareMagazinePage() {
                                         </Button>
                                          {showCover && coverImageUrl && (
                                             <div className="mt-4 space-y-2 text-center">
-                                                <p className="text-sm text-muted-foreground">Your cover is ready with embedded QR code. Click below to download it.</p>
                                                 <div className="flex justify-center">
                                                     <MagazineCover 
                                                         imageUrl={coverImageUrl} 
@@ -736,6 +776,7 @@ export default function ShareMagazinePage() {
                                                         url={includeQrOnCover ? magazineLink : undefined}
                                                         showQrCode={includeQrOnCover}
                                                         vendorTitle={isAdmin ? vendorTitle : undefined}
+                                                        logoDataUri={includeLogoOnCover ? (logoDataUri || undefined) : undefined}
                                                         onCanvasUpdate={setJpegDataUrl}
                                                     />
                                                 </div>
@@ -749,13 +790,12 @@ export default function ShareMagazinePage() {
                                                 ) : (
                                                     <div className="flex items-center justify-center gap-2 text-muted-foreground mt-2">
                                                         <Loader2 className="h-4 w-4 animate-spin"/>
-                                                        <p>Preparing professional download...</p>
+                                                        <p className='text-xs'>Preparing professional download...</p>
                                                     </div>
                                                 )}
                                             </div>
                                         )}
                                     </div>
-                                    <p className="text-xs text-muted-foreground">Share this link on WhatsApp, Instagram, or anywhere else!</p>
                                 </div>
                             )}
                         </CardContent>
@@ -764,31 +804,28 @@ export default function ShareMagazinePage() {
                     <Card>
                         <CardHeader>
                             <CardTitle>Existing Magazines</CardTitle>
-                            <CardDescription>View and re-share previously created magazines.</CardDescription>
+                            <CardDescription>Re-share previously created magazines.</CardDescription>
                         </CardHeader>
-                        <CardContent className="max-h-[50vh] overflow-y-auto space-y-3">
+                        <CardContent className="max-h-[40vh] overflow-y-auto space-y-3">
                              {magazines.length > 0 ? magazines.map(mag => {
                                 const link = getShareLink(mag);
                                 return (
                                     <div key={mag.id} className="p-3 border rounded-lg">
                                         <div className="flex justify-between items-start">
-                                            <div>
-                                                <p className="font-semibold flex items-center gap-2"><BookOpen className="h-4 w-4 text-primary"/>{mag.title}</p>
-                                                <p className="text-xs text-muted-foreground">
-                                                    by {mag.creatorName} &bull; {formatDistanceToNow(new Date(mag.createdAt), { addSuffix: true })}
-                                                    {mag.discount && <span className="ml-2 font-bold text-destructive">({mag.discount}% off)</span>}
-                                                </p>
+                                            <div className="flex items-center gap-2 truncate">
+                                                {mag.logoDataUri && <div className="w-6 h-6 border rounded overflow-hidden relative shrink-0"><Image src={mag.logoDataUri} alt="logo" fill className="object-contain" /></div>}
+                                                <p className="font-semibold text-sm truncate">{mag.title}</p>
                                             </div>
-                                            <a href={link} target="_blank" className="text-xs text-primary hover:underline">View</a>
+                                            <a href={link} target="_blank" className="text-[10px] text-primary hover:underline shrink-0">View</a>
                                         </div>
                                         <div className="flex justify-end gap-2 mt-2">
-                                            <Button size="sm" variant="outline" onClick={() => handleCopyLink(link)}><Copy className="mr-2 h-3 w-3"/>Copy</Button>
-                                            <Button size="sm" variant="outline" onClick={() => handleShareOnWhatsApp(mag.title, link)}><MessageSquare className="mr-2 h-3 w-3"/>Share</Button>
+                                            <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={() => handleCopyLink(link)}><Copy className="mr-1 h-3 w-3"/>Copy</Button>
+                                            <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={() => handleShareOnWhatsApp(mag.title, link)}><MessageSquare className="mr-1 h-3 w-3"/>WA</Button>
                                         </div>
                                     </div>
                                 );
                             }) : (
-                                <p className="text-sm text-muted-foreground text-center py-4">No magazines created yet.</p>
+                                <p className="text-xs text-muted-foreground text-center py-4">No magazines created yet.</p>
                             )}
                         </CardContent>
                     </Card>
