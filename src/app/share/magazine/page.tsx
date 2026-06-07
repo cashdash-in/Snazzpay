@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, DragEvent, ClipboardEvent } from 'react';
@@ -9,8 +10,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/hooks/use-auth';
 import type { SellerProduct } from '@/app/seller/ai-product-uploader/page';
 import Image from 'next/image';
-import { Loader2, Share2, Copy, MessageSquare, BookOpen, Percent, Factory, Edit, Wand2, PlusCircle, ImagePlus, ImageIcon, Facebook, Instagram, Download, QrCode, Trash2 } from 'lucide-react';
-import { getCollection, saveDocument } from '@/services/firestore';
+import { Loader2, Share2, Copy, MessageSquare, BookOpen, Percent, Factory, Edit, Wand2, PlusCircle, ImagePlus, ImageIcon, Facebook, Instagram, Download, QrCode, Trash2, Globe } from 'lucide-react';
+import { getCollection, saveDocument, getDocument } from '@/services/firestore';
 import { getCookie } from 'cookies-next';
 import { Label } from '@/components/ui/label';
 import type { ProductDrop } from '@/app/vendor/product-drops/page';
@@ -48,6 +49,7 @@ export default function ShareMagazinePage() {
     const [isPasting, setIsPasting] = useState(false);
     const [magazineLink, setMagazineLink] = useState('');
     const [magazineTitle, setMagazineTitle] = useState('Our Latest Collection');
+    const [customSlug, setCustomSlug] = useState('');
     const [vendorTitle, setVendorTitle] = useState('');
     const [discount, setDiscount] = useState<number>(0);
     const [logoDataUri, setLogoDataUri] = useState<string | null>(null);
@@ -311,10 +313,23 @@ export default function ShareMagazinePage() {
         }
 
         const creatorName = userRole === 'admin' ? 'SnazzifyOfficial' : user.displayName || 'Unknown Creator';
+        
+        // Generate slugified ID from custom slug or default to UUID
+        const finalId = customSlug 
+            ? customSlug.toLowerCase().trim().replace(/\s+/g, '-') 
+            : uuidv4();
 
-        const magazineId = uuidv4();
+        // Check if custom ID already exists
+        if (customSlug) {
+            const existing = await getDocument('smart_magazines', finalId);
+            if (existing) {
+                toast({ variant: 'destructive', title: 'Name Taken', description: `The name "${customSlug}" is already in use. Please choose another.` });
+                return;
+            }
+        }
+
         const newMagazine: Magazine = {
-            id: magazineId,
+            id: finalId,
             title: magazineTitle,
             productIds: selectedProductIds,
             creatorId: user.uid,
@@ -334,17 +349,17 @@ export default function ShareMagazinePage() {
 
 
         try {
-            await saveDocument('smart_magazines', newMagazine, magazineId);
-            setMagazines(prev => [newMagazine, ...prev]); // Add to the list
+            await saveDocument('smart_magazines', newMagazine, finalId);
+            setMagazines(prev => [newMagazine, ...prev]);
             
             const baseUrl = window.location.origin;
-            let link = `${baseUrl}/smart-magazine?id=${magazineId}`;
+            let link = `${baseUrl}/collection/${finalId}`;
             if (discount > 0) {
-                link += `&discount=${discount}`;
+                link += `?discount=${discount}`;
             }
             setMagazineLink(link);
             
-            toast({ title: 'Magazine Created & Link Generated!', description: 'Your new magazine is saved and can be shared.' });
+            toast({ title: 'Magazine Created!', description: 'Your professional branded collection is ready to share.' });
         } catch (error) {
             toast({ variant: 'destructive', title: 'Failed to Save Magazine' });
         }
@@ -352,9 +367,9 @@ export default function ShareMagazinePage() {
     
     const getShareLink = (mag: Magazine) => {
         const baseUrl = window.location.origin;
-        let link = `${baseUrl}/smart-magazine?id=${mag.id}`;
+        let link = `${baseUrl}/collection/${mag.id}`;
         if (mag.discount) {
-            link += `&discount=${mag.discount}`;
+            link += `?discount=${mag.discount}`;
         }
         return link;
     };
@@ -668,6 +683,20 @@ export default function ShareMagazinePage() {
                                     onChange={(e) => setMagazineTitle(e.target.value)}
                                     placeholder="e.g., Summer Collection"
                                 />
+                            </div>
+
+                             <div className="space-y-2">
+                                <Label htmlFor="custom-slug" className="flex items-center gap-2">
+                                    <Globe className="h-4 w-4" />
+                                    Custom URL ID / Brand Name
+                                </Label>
+                                <Input 
+                                    id="custom-slug" 
+                                    value={customSlug} 
+                                    onChange={(e) => setCustomSlug(e.target.value)}
+                                    placeholder="e.g., saint-anne-collection"
+                                />
+                                <p className="text-[10px] text-muted-foreground italic">Your link will look like: snazzpay.netlify.app/collection/<strong>{customSlug || 'brand-name'}</strong></p>
                             </div>
                             
                             <div className="space-y-2">
