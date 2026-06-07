@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/hooks/use-auth';
 import type { SellerProduct } from '@/app/seller/ai-product-uploader/page';
 import Image from 'next/image';
-import { Loader2, Share2, Copy, MessageSquare, BookOpen, Percent, Factory, Edit, Wand2, PlusCircle, ImagePlus, ImageIcon, Facebook, Instagram, Download } from 'lucide-react';
+import { Loader2, Share2, Copy, MessageSquare, BookOpen, Percent, Factory, Edit, Wand2, PlusCircle, ImagePlus, ImageIcon, Facebook, Instagram, Download, QrCode } from 'lucide-react';
 import { getCollection, saveDocument } from '@/services/firestore';
 import { getCookie } from 'cookies-next';
 import { Label } from '@/components/ui/label';
@@ -21,6 +21,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Textarea } from '@/components/ui/textarea';
 import { parseTextForMagazine } from '@/ai/flows/magazine-paste-parser';
 import { MagazineCover } from '@/components/magazine-cover';
+import { Switch } from '@/components/ui/switch';
 
 
 type Magazine = {
@@ -65,6 +66,7 @@ export default function ShareMagazinePage() {
     });
 
     const [showCover, setShowCover] = useState(false);
+    const [includeQrOnCover, setIncludeQrOnCover] = useState(true);
     const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
     const [jpegDataUrl, setJpegDataUrl] = useState<string | null>(null);
 
@@ -704,30 +706,42 @@ export default function ShareMagazinePage() {
                                             <Instagram className="mr-2 h-4 w-4"/> Instagram
                                         </Button>
                                     </div>
-                                    <div className="pt-4 space-y-2">
-                                        <Label>3. Generate a Sharable Image</Label>
+                                    <div className="pt-4 space-y-4 border-t">
+                                        <Label className="text-base font-bold">Magazine Cover Tool</Label>
+                                        <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
+                                            <div className="space-y-0.5">
+                                                <Label className="text-sm font-medium">Embed QR Code</Label>
+                                                <p className="text-xs text-muted-foreground">Adds a scan-to-shop QR on cover</p>
+                                            </div>
+                                            <Switch 
+                                                checked={includeQrOnCover} 
+                                                onCheckedChange={setIncludeQrOnCover} 
+                                            />
+                                        </div>
                                         <Button 
                                             onClick={handleGenerateCover} 
                                             className="w-full" 
                                             variant="outline"
                                         >
                                             <ImageIcon className="mr-2 h-4 w-4"/>
-                                            Generate Magazine Cover
+                                            Generate Professional Cover
                                         </Button>
                                          {showCover && coverImageUrl && (
                                             <div className="mt-4 space-y-2 text-center">
-                                                <p className="text-sm text-muted-foreground">Your cover is ready. Click below to download it.</p>
+                                                <p className="text-sm text-muted-foreground">Your cover is ready with embedded QR code. Click below to download it.</p>
                                                 <div className="flex justify-center">
                                                     <MagazineCover 
                                                         imageUrl={coverImageUrl} 
                                                         title={magazineTitle} 
+                                                        url={includeQrOnCover ? magazineLink : undefined}
+                                                        showQrCode={includeQrOnCover}
                                                         vendorTitle={isAdmin ? vendorTitle : undefined}
                                                         onCanvasUpdate={setJpegDataUrl}
                                                     />
                                                 </div>
                                                 {jpegDataUrl ? (
                                                     <a href={jpegDataUrl} download={`${magazineTitle.replace(/\s+/g, '_')}_cover.jpg`}>
-                                                        <Button variant="secondary" className="mt-2">
+                                                        <Button variant="secondary" className="mt-2 w-full">
                                                             <Download className="mr-2 h-4 w-4"/>
                                                             Download as JPEG
                                                         </Button>
@@ -735,7 +749,7 @@ export default function ShareMagazinePage() {
                                                 ) : (
                                                     <div className="flex items-center justify-center gap-2 text-muted-foreground mt-2">
                                                         <Loader2 className="h-4 w-4 animate-spin"/>
-                                                        <p>Preparing download...</p>
+                                                        <p>Preparing professional download...</p>
                                                     </div>
                                                 )}
                                             </div>
