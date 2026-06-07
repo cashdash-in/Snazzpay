@@ -33,7 +33,7 @@ export function middleware(request: NextRequest) {
   ];
 
   // Prefixes for public paths that have dynamic sub-routes (e.g., /terms/customer)
-  const publicPrefixes = ['/guest-fulfillment', '/terms'];
+  const publicPrefixes = ['/guest-fulfillment', '/terms', '/wholesale-request'];
 
   const isPublic =
     publicPaths.includes(pathname) ||
@@ -69,6 +69,7 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      *
+     * This is a common pattern but we will handle it in the middleware logic above.
      * We want the middleware to run on most paths to check for the token.
      */
     '/((?!_next/static|_next/image|favicon.ico).*)',
