@@ -1,3 +1,4 @@
+
 'use client';
 import type {FC, PropsWithChildren} from 'react';
 import {
@@ -63,23 +64,27 @@ import {
   UserPlus,
   Briefcase,
   ImageIcon,
+  ShoppingBasket,
+  BadgeCheck,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { getCookie } from 'cookies-next';
 import { useEffect, useState } from 'react';
-import { Badge } from '../ui/badge';
+import { Badge } from '@/components/ui/badge';
 import { getCollection } from '@/services/firestore';
-import type { EditableOrder } from '@/app/orders/page';
+import type { EditableOrder } from '@/types/order';
 
-type SidebarMenuItemDef = {
-  href: string;
-  label: string;
-  icon: React.ElementType;
-  notificationKey?: 'orders' | 'leads';
+type MenuItem = {
+    href: string;
+    label: string;
+    icon: React.ElementType;
+    notificationKey?: 'orders' | 'leads' | 'wholesale';
 };
 
-const adminCoreMenuItems: SidebarMenuItemDef[] = [
+
+const adminCoreMenuItems: MenuItem[] = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/admin/wholesale-inquiries', label: 'Wholesale Requests', icon: ShoppingBasket, notificationKey: 'wholesale' },
   { href: '/mandates', label: 'Mandates', icon: WalletCards },
   { href: '/orders', label: 'Orders', icon: ShoppingCart, notificationKey: 'orders' as const },
   { href: '/leads', label: 'Leads', icon: Users, notificationKey: 'leads' as const },
@@ -89,7 +94,7 @@ const adminCoreMenuItems: SidebarMenuItemDef[] = [
   { href: '/reports', label: 'Reports', icon: FileSpreadsheet },
 ];
 
-const adminGrowthMenuItems: SidebarMenuItemDef[] = [
+const adminGrowthMenuItems: MenuItem[] = [
     { href: '/ai-product-uploader', label: 'AI Product Uploader', icon: Wand2 },
     { href: '/admin/whatsapp-uploader', label: 'WhatsApp Uploader', icon: MessageSquare },
     { href: '/admin/image-bulk-uploader', label: 'Image Bulk Uploader', icon: ImageIcon },
@@ -106,13 +111,13 @@ const adminGrowthMenuItems: SidebarMenuItemDef[] = [
     { href: '/logistics-secure', label: 'Logistics Hub', icon: Combine },
 ];
 
-const adminConfigMenuItems: SidebarMenuItemDef[] = [
+const adminConfigMenuItems: MenuItem[] = [
   { href: '/billing', label: 'Billing & Usage', icon: Receipt },
   { href: '/terms-and-conditions', label: 'Contracts', icon: FileText },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
-const sellerMenuItems: SidebarMenuItemDef[] = [
+const sellerMenuItems: MenuItem[] = [
     { href: '/seller/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/seller/leads', label: 'Leads', icon: Users, notificationKey: 'leads' as const },
     { href: '/seller/product-drops', label: 'Product Drops', icon: Send },
@@ -128,8 +133,9 @@ const sellerMenuItems: SidebarMenuItemDef[] = [
     { href: '/seller/settings', label: 'Settings', icon: Settings },
 ]
 
-const vendorMenuItems: SidebarMenuItemDef[] = [
+const vendorMenuItems: MenuItem[] = [
     { href: '/vendor/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/vendor/wholesale-inquiries', label: 'Wholesale Requests', icon: BadgeCheck },
     { href: '/vendor/product-drops', label: 'Product Drops', icon: PackagePlus },
     { href: '/vendor/products', label: 'My Products', icon: Package },
     { href: '/share/magazine', label: 'Smart Magazine', icon: BookOpen },
@@ -144,7 +150,7 @@ const vendorMenuItems: SidebarMenuItemDef[] = [
     { href: '/vendor/settings', label: 'Settings', icon: Settings },
 ];
 
-const collaboratorMenuItems: SidebarMenuItemDef[] = [
+const collaboratorMenuItems: MenuItem[] = [
     { href: '/collaborator/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/collaborator/magazines', label: 'Magazines', icon: BookOpen },
     { href: '/collaborator/orders', label: 'My Order Requests', icon: Package },
@@ -160,7 +166,7 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
   const { user, signOut } = useAuth();
   
   const [role, setRole] = useState<string | undefined>(undefined);
-  const [notificationCounts, setNotificationCounts] = useState({ orders: 0, leads: 0 });
+  const [notificationCounts, setNotificationCounts] = useState({ orders: 0, leads: 0, wholesale: 0 });
 
   useEffect(() => {
     setRole(getCookie('userRole'));
@@ -169,25 +175,28 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
         if (!user) return;
 
         try {
-            const [allOrders, allLeads] = await Promise.all([
+            const [allOrders, allLeads, allWholesale] = await Promise.all([
                 getCollection<EditableOrder>('orders'),
-                getCollection<EditableOrder>('leads')
+                getCollection<EditableOrder>('leads'),
+                getCollection<any>('wholesale_inquiries')
             ]);
             
             let newOrdersCount = 0;
             let newLeadsCount = 0;
+            let newWholesaleCount = 0;
 
             const currentRole = getCookie('userRole');
 
             if (currentRole === 'admin') {
                 newOrdersCount = allOrders.filter(o => o.isRead === false).length;
                 newLeadsCount = allLeads.filter(l => l.isRead === false && ['Lead', 'Intent Verified'].includes(l.paymentStatus)).length;
+                newWholesaleCount = allWholesale.filter((w: any) => w.isReadByAdmin === false).length;
             } else if (currentRole === 'seller') {
                  newOrdersCount = allOrders.filter(o => o.sellerId === user.uid && o.isRead === false).length;
                  newLeadsCount = allLeads.filter(l => l.sellerId === user.uid && l.isRead === false && ['Lead', 'Intent Verified'].includes(l.paymentStatus)).length;
             }
 
-            setNotificationCounts({ orders: newOrdersCount, leads: newLeadsCount });
+            setNotificationCounts({ orders: newOrdersCount, leads: newLeadsCount, wholesale: newWholesaleCount });
         } catch (error) {
             console.error("Failed to fetch notification counts", error);
         }
