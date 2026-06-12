@@ -1,4 +1,3 @@
-
 export type WholesaleStatus = 'Pending' | 'Available' | 'Out of Stock' | 'Alternate Proposed';
 
 export type AlternateProduct = {
@@ -16,7 +15,7 @@ export type WholesaleInquiry = {
     adminId: string;
     vendorId: string;
     vendorName: string;
-    productImage: string;
+    productImages: string[]; // Changed to plural/array for multiple images
     category: string;
     quantityRequested: number;
     descriptionRequested: string;
