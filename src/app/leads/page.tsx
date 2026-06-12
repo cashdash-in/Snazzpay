@@ -1,4 +1,3 @@
-
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -15,6 +14,7 @@ import { useRouter } from "next/navigation";
 import Image from 'next/image';
 import { useAuth } from "@/hooks/use-auth";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 const MAX_IMAGE_SIZE_PX = 800; // Max width/height for resizing
 
@@ -48,7 +48,11 @@ export default function LeadsPage() {
             }
         }
         
-        const sortedLeads = filteredLeads.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        const sortedLeads = filteredLeads.sort((a, b) => {
+            const dateA = a.date ? new Date(a.date).getTime() : 0;
+            const dateB = b.date ? new Date(b.date).getTime() : 0;
+            return dateB - dateA;
+        });
         setLeads(sortedLeads);
         
     } catch (error) {
