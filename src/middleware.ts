@@ -33,7 +33,7 @@ export function middleware(request: NextRequest) {
   ];
 
   // Prefixes for public paths that have dynamic sub-routes (e.g., /terms/customer)
-  const publicPrefixes = ['/guest-fulfillment', '/terms', '/wholesale-request'];
+  const publicPrefixes = ['/guest-fulfillment', '/terms', '/wholesale-request', '/collection'];
 
   const isPublic =
     publicPaths.includes(pathname) ||
