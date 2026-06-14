@@ -55,6 +55,9 @@ export default function WholesaleInquiriesPage() {
             const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WholesaleInquiry));
             setInquiries(data);
             setIsLoading(false);
+        }, (error) => {
+            console.error("Wholesale Real-time Sync Error:", error);
+            setIsLoading(false);
         });
         return () => unsubscribe();
     }, []);
@@ -123,14 +126,15 @@ export default function WholesaleInquiriesPage() {
         setIsSubmitting(true);
         const selectedVendor = vendors.find(v => v.id === newInquiry.vendorId);
         
+        const inquiryId = uuidv4();
         const inquiryData: WholesaleInquiry = {
-            id: uuidv4(),
+            id: inquiryId,
             adminId: user?.uid || 'admin',
             vendorId: newInquiry.vendorId,
             vendorName: selectedVendor?.name || 'Guest Vendor',
             category: newInquiry.category,
             productImages: newInquiry.images,
-            quantityRequested: parseInt(newInquiry.quantity),
+            quantityRequested: parseInt(newInquiry.quantity) || 1,
             descriptionRequested: newInquiry.description,
             status: 'Pending',
             createdAt: new Date().toISOString(),
@@ -139,7 +143,7 @@ export default function WholesaleInquiriesPage() {
         };
 
         try {
-            await saveDocument('wholesale_inquiries', inquiryData, inquiryData.id);
+            await saveDocument('wholesale_inquiries', inquiryData, inquiryId);
             setNewInquiry({ vendorId: '', category: '', quantity: '', description: '', images: [] });
             toast({ title: "Magazine Request Created!", description: `Share the link with ${inquiryData.vendorName} via WhatsApp.` });
         } catch (error) {
@@ -182,12 +186,12 @@ export default function WholesaleInquiriesPage() {
         if (inquiries.length === 0) return;
         
         const data = inquiries.map(i => ({
-            'Date': format(new Date(i.createdAt), 'PP'),
-            'Last Updated': format(new Date(i.updatedAt), 'PPp'),
-            'Category': i.category,
-            'Vendor': i.vendorName,
-            'Status': i.status,
-            'Qty Requested': i.quantityRequested,
+            'Date': i.createdAt ? format(new Date(i.createdAt), 'PP') : 'N/A',
+            'Last Updated': i.updatedAt ? format(new Date(i.updatedAt), 'PPp') : 'N/A',
+            'Category': i.category || 'N/A',
+            'Vendor': i.vendorName || 'N/A',
+            'Status': i.status || 'Pending',
+            'Qty Requested': i.quantityRequested || 0,
             'Wholesale Price (₹)': i.wholesalePrice || 'N/A',
             'Est. MRP (₹)': i.estimatedMRP || 'N/A',
             'Vendor Note': i.vendorDescription || 'N/A',
@@ -202,11 +206,25 @@ export default function WholesaleInquiriesPage() {
         toast({ title: "Excel Exported!" });
     };
 
-    const filteredInquiries = inquiries.filter(i => 
-        i.vendorName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        i.status.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        i.category.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filteredInquiries = inquiries.filter(i => {
+        const query = searchQuery.toLowerCase();
+        return (
+            (i.vendorName || '').toLowerCase().includes(query) ||
+            (i.status || '').toLowerCase().includes(query) ||
+            (i.category || '').toLowerCase().includes(query)
+        );
+    });
+
+    const safeFormatDistance = (dateString?: string) => {
+        if (!dateString) return 'Never';
+        try {
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) return 'Never';
+            return formatDistanceToNow(date, { addSuffix: true });
+        } catch (e) {
+            return 'Never';
+        }
+    };
 
     return (
         <AppShell title="Wholesale Coordination Hub">
@@ -335,30 +353,30 @@ export default function WholesaleInquiriesPage() {
                                 <Card key={item.id} className="overflow-hidden group hover:shadow-2xl transition-all duration-300 border-t-4 border-t-primary">
                                     <div className="relative h-56 w-full bg-slate-900 overflow-hidden">
                                         <Image 
-                                            src={item.productImages[0]} 
+                                            src={(item.productImages && item.productImages.length > 0) ? item.productImages[0] : 'https://picsum.photos/seed/placeholder/400/400'} 
                                             alt="Magazine Cover" 
                                             fill 
                                             className="object-cover opacity-80 group-hover:scale-110 transition-transform duration-500" 
                                         />
                                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
                                         <Badge className="absolute top-4 right-4 shadow-lg h-7" variant={item.status === 'Pending' ? 'secondary' : 'default'}>
-                                            {item.status}
+                                            {item.status || 'Pending'}
                                         </Badge>
-                                        {item.productImages.length > 1 && (
+                                        {(item.productImages && item.productImages.length > 1) && (
                                             <Badge variant="outline" className="absolute top-4 left-4 bg-black/50 text-white border-none">
                                                 +{item.productImages.length - 1} More Images
                                             </Badge>
                                         )}
                                         <div className="absolute bottom-4 left-4 text-white">
-                                            <h4 className="font-black italic text-xl tracking-tighter uppercase">{item.category}</h4>
-                                            <p className="text-[10px] text-slate-300">REQUESTED FROM {item.vendorName.toUpperCase()}</p>
+                                            <h4 className="font-black italic text-xl tracking-tighter uppercase">{item.category || 'General'}</h4>
+                                            <p className="text-[10px] text-slate-300">REQUESTED FROM {(item.vendorName || 'VEND').toUpperCase()}</p>
                                         </div>
                                     </div>
                                     <CardContent className="p-5 space-y-4">
                                         <div className="flex justify-between items-end">
                                             <div className="space-y-1">
-                                                <p className="text-sm font-bold">Qty: {item.quantityRequested} Units</p>
-                                                <p className="text-xs text-muted-foreground line-clamp-1 italic">"{item.descriptionRequested}"</p>
+                                                <p className="text-sm font-bold">Qty: {item.quantityRequested || 0} Units</p>
+                                                <p className="text-xs text-muted-foreground line-clamp-1 italic">"{item.descriptionRequested || ''}"</p>
                                             </div>
                                             <div className="text-right">
                                                 {item.wholesalePrice ? (
@@ -377,13 +395,13 @@ export default function WholesaleInquiriesPage() {
                                         
                                         <div className="flex items-center gap-2 text-[10px] font-medium text-muted-foreground bg-muted/40 p-2 rounded-lg border">
                                             <Clock className="h-3 w-3" />
-                                            <span>Quote Last Updated: {formatDistanceToNow(new Date(item.updatedAt), { addSuffix: true })}</span>
+                                            <span>Quote Last Updated: {safeFormatDistance(item.updatedAt)}</span>
                                         </div>
 
                                         {item.alternateProduct && (
                                             <div className="p-3 bg-blue-50/50 border border-blue-100 rounded-lg flex items-center gap-3">
                                                 <div className="relative h-10 w-10 shrink-0 rounded border bg-white overflow-hidden">
-                                                    <Image src={item.alternateProduct.imageDataUri} alt="alt" fill className="object-contain" />
+                                                    <Image src={item.alternateProduct.imageDataUri || 'https://picsum.photos/seed/alt/200/200'} alt="alt" fill className="object-contain" />
                                                 </div>
                                                 <div className="flex-grow overflow-hidden">
                                                     <p className="text-[10px] font-bold text-blue-800 uppercase">Alternate Proposed</p>
@@ -406,27 +424,27 @@ export default function WholesaleInquiriesPage() {
                                             <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                                                 <DialogHeader>
                                                     <DialogTitle className="text-2xl font-black italic tracking-tighter">WHOLESALE MAGAZINE REPORT</DialogTitle>
-                                                    <DialogDescription>Vendor: {item.vendorName} &bull; Created: {format(new Date(item.createdAt), 'PPP p')}</DialogDescription>
+                                                    <DialogDescription>Vendor: {item.vendorName} &bull; Created: {item.createdAt ? format(new Date(item.createdAt), 'PPP p') : 'N/A'}</DialogDescription>
                                                 </DialogHeader>
                                                 
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-6">
                                                     <div className="space-y-6">
                                                         <Label className="text-xs font-black uppercase tracking-widest text-primary/60">The Inquiry</Label>
                                                         <div className="grid grid-cols-2 gap-2">
-                                                            {item.productImages.map((uri, idx) => (
+                                                            {(item.productImages || []).map((uri, idx) => (
                                                                 <div key={idx} className="aspect-square relative rounded-xl border bg-white overflow-hidden shadow-sm">
                                                                     <Image src={uri} alt="Req" fill className="object-contain" />
                                                                 </div>
                                                             ))}
                                                         </div>
                                                         <div className="p-4 bg-muted/40 rounded-xl border italic text-sm">
-                                                            "{item.descriptionRequested}"
+                                                            "{item.descriptionRequested || ''}"
                                                         </div>
                                                     </div>
 
                                                     <div className="space-y-6">
                                                         <Label className="text-xs font-black uppercase tracking-widest text-primary/60">Vendor Live Quote</Label>
-                                                        {item.status === 'Pending' ? (
+                                                        {(item.status === 'Pending' || !item.status) ? (
                                                             <div className="flex flex-col items-center justify-center p-12 bg-muted/20 border-2 border-dashed rounded-2xl">
                                                                 <Loader2 className="animate-spin h-8 w-8 text-primary mb-4" />
                                                                 <p className="text-sm font-medium text-muted-foreground">Waiting for vendor response...</p>
@@ -437,18 +455,18 @@ export default function WholesaleInquiriesPage() {
                                                                 <div className="grid grid-cols-2 gap-4">
                                                                     <div className="p-4 bg-green-50/50 rounded-xl border border-green-100">
                                                                         <p className="text-[10px] uppercase font-bold text-green-700 mb-1">Wholesale Price</p>
-                                                                        <p className="text-2xl font-black text-slate-900">₹{item.wholesalePrice || item.alternateProduct?.wholesalePrice}</p>
+                                                                        <p className="text-2xl font-black text-slate-900">₹{item.wholesalePrice || item.alternateProduct?.wholesalePrice || 0}</p>
                                                                     </div>
                                                                     <div className="p-4 bg-blue-50/50 rounded-xl border border-blue-100">
                                                                         <p className="text-[10px] uppercase font-bold text-blue-700 mb-1">Estimated MRP</p>
-                                                                        <p className="text-2xl font-black text-slate-900">₹{item.estimatedMRP || item.alternateProduct?.estimatedMRP}</p>
+                                                                        <p className="text-2xl font-black text-slate-900">₹{item.estimatedMRP || item.alternateProduct?.estimatedMRP || 0}</p>
                                                                     </div>
                                                                 </div>
                                                                 
                                                                 {item.alternateProduct && (
                                                                     <Card className="border-blue-200 bg-blue-50/30 overflow-hidden">
                                                                         <div className="relative h-48 w-full bg-white border-b">
-                                                                            <Image src={item.alternateProduct.imageDataUri} alt="Alt" fill className="object-contain p-4" />
+                                                                            <Image src={item.alternateProduct.imageDataUri || 'https://picsum.photos/seed/alt/400/400'} alt="Alt" fill className="object-contain p-4" />
                                                                         </div>
                                                                         <CardContent className="p-4 space-y-2">
                                                                             <Badge className="bg-blue-600 mb-1">ALTERNATE PRODUCT</Badge>
