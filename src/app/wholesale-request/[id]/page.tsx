@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
@@ -12,9 +13,9 @@ import { useToast } from "@/hooks/use-toast";
 import { getDocument, saveDocument } from "@/services/firestore";
 import { Loader2, CheckCircle2, XCircle, Send, ImagePlus, RefreshCw, ShieldCheck, Factory, BookOpen, Layers, Info, Check } from "lucide-react";
 import Image from 'next/image';
-import type { WholesaleInquiry, WholesaleItem, AlternateProduct } from '@/types/wholesale';
-import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
+import type { WholesaleInquiry, WholesaleItem, AlternateProduct } from '@/types/wholesale';
 import {
   Carousel,
   CarouselContent,
@@ -117,30 +118,37 @@ function WholesaleResponseContent() {
 
             const updatedItems = [...(inquiry.items || [])];
             
-            // Clean alternate product object to remove any potential undefined/NaN
-            const sanitizedAlternate: AlternateProduct | undefined = isOOS ? {
-                title: alternate.title || 'Alternate Product',
-                imageDataUri: alternate.imageDataUri,
-                wholesalePrice: Number(alternate.wholesalePrice) || 0,
-                estimatedMRP: Number(alternate.estimatedMRP) || 0,
-                availableQuantity: Number(alternate.availableQuantity) || 0,
-                description: alternate.description || '',
-                category: activeItem.category
-            } : undefined;
-
-            updatedItems[itemIndex] = {
+            // Build the item update object carefully to avoid 'undefined'
+            const itemUpdate: any = {
                 ...activeItem,
                 status: isOOS ? 'Alternate Proposed' : 'Available',
-                wholesalePrice: isOOS ? undefined : wPrice,
-                estimatedMRP: isOOS ? undefined : mPrice,
                 vendorDescription: response.description || '',
-                alternateProduct: sanitizedAlternate,
             };
+
+            if (isOOS) {
+                itemUpdate.alternateProduct = {
+                    title: alternate.title || 'Alternate Product',
+                    imageDataUri: alternate.imageDataUri,
+                    wholesalePrice: Number(alternate.wholesalePrice) || 0,
+                    estimatedMRP: Number(alternate.estimatedMRP) || 0,
+                    availableQuantity: Number(alternate.availableQuantity) || 0,
+                    description: alternate.description || '',
+                    category: activeItem.category
+                };
+                // Use null instead of undefined to signal removal to Firestore
+                itemUpdate.wholesalePrice = null;
+                itemUpdate.estimatedMRP = null;
+            } else {
+                itemUpdate.wholesalePrice = wPrice;
+                itemUpdate.estimatedMRP = mPrice;
+                itemUpdate.alternateProduct = null;
+            }
+
+            updatedItems[itemIndex] = itemUpdate;
 
             const respondedCount = updatedItems.filter(it => it.status !== 'Pending').length;
             const newStatus = respondedCount === updatedItems.length ? 'Responded' : 'Partially Responded';
 
-            // Prepare a clean payload for Firestore
             const updatePayload = { 
                 items: updatedItems, 
                 status: newStatus,

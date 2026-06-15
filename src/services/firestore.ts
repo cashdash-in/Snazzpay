@@ -2,6 +2,16 @@
 import { db } from '@/lib/firebase';
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, DocumentData, writeBatch } from 'firebase/firestore';
 
+/**
+ * Utility to recursively remove 'undefined' values from an object,
+ * as Firestore does not support 'undefined'.
+ */
+const sanitizeForFirestore = (data: any): any => {
+  return JSON.parse(JSON.stringify(data, (key, value) => {
+    return value === undefined ? null : value;
+  }));
+};
+
 export const getCollection = async <T>(collectionName: string): Promise<T[]> => {
     if (!db) {
         console.error("Firestore is not initialized.");
@@ -37,17 +47,18 @@ export const saveDocument = async (collectionName: string, data: DocumentData, i
     if (!id) throw new Error("Document ID must be provided.");
     
     const docRef = doc(db, collectionName, id);
-    // Ensure the data object contains the id, then save the whole object.
-    const dataToSave = { ...data, id };
-    await setDoc(docRef, dataToSave, { merge: true });
+    // Sanitize data to remove any 'undefined' values which cause Firestore to crash
+    const sanitizedData = sanitizeForFirestore({ ...data, id });
+    
+    await setDoc(docRef, sanitizedData, { merge: true });
     return id;
 };
 
 export const addDocument = async (collectionName: string, data: DocumentData) => {
     if (!db) throw new Error("Firestore is not initialized.");
     const newDocRef = doc(collection(db, collectionName));
-    // Save the data along with the newly generated ID.
-    await setDoc(newDocRef, { ...data, id: newDocRef.id });
+    const sanitizedData = sanitizeForFirestore({ ...data, id: newDocRef.id });
+    await setDoc(newDocRef, sanitizedData);
     return newDocRef.id;
 };
 
@@ -56,9 +67,11 @@ export const batchUpdateDocuments = async (collectionName: string, docIds: strin
     if (docIds.length === 0) return;
 
     const batch = writeBatch(db);
+    const sanitizedUpdate = sanitizeForFirestore(updateData);
+    
     docIds.forEach(id => {
         const docRef = doc(db, collectionName, id);
-        batch.update(docRef, updateData);
+        batch.update(docRef, sanitizedUpdate);
     });
 
     await batch.commit();
@@ -68,7 +81,8 @@ export const batchUpdateDocuments = async (collectionName: string, docIds: strin
 export const updateDocument = async (collectionName: string, id: string, data: any) => {
     if (!db) throw new Error("Firestore is not initialized.");
     const docRef = doc(db, collectionName, id);
-    await updateDoc(docRef, data);
+    const sanitizedData = sanitizeForFirestore(data);
+    await updateDoc(docRef, sanitizedData);
 };
 
 export const deleteDocument = async (collectionName: string, id: string) => {
