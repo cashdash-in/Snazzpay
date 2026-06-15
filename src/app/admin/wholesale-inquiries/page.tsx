@@ -21,6 +21,7 @@ import type { WholesaleInquiry, WholesaleItem } from '@/types/wholesale';
 import type { Vendor } from '@/app/vendors/page';
 import { db } from "@/lib/firebase";
 import { onSnapshot, collection, query, orderBy, deleteDoc, doc, updateDoc } from "firebase/firestore";
+import { cn } from "@/lib/utils";
 
 const MAX_IMAGE_SIZE_PX = 800;
 
@@ -64,13 +65,6 @@ export default function WholesaleInquiriesPage() {
                 const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WholesaleInquiry));
                 setInquiries(data);
                 setIsLoading(false);
-                
-                // Mark unread responses as read by admin automatically when they open the page
-                data.forEach(async (inq) => {
-                    if (inq.isReadByAdmin === false) {
-                        await updateDoc(doc(db, 'wholesale_inquiries', inq.id), { isReadByAdmin: true });
-                    }
-                });
             }, (error) => {
                 console.error("Firestore error:", error);
                 setIsLoading(false);
@@ -81,6 +75,20 @@ export default function WholesaleInquiriesPage() {
             setIsLoading(false);
         }
     }, []);
+
+    // Mark as read separate from the main listener to avoid state/sync loops
+    useEffect(() => {
+        const unread = inquiries.filter(i => i.isReadByAdmin === false);
+        if (unread.length > 0 && db) {
+            unread.forEach(async (inq) => {
+                try {
+                    await updateDoc(doc(db, 'wholesale_inquiries', inq.id), { isReadByAdmin: true });
+                } catch (e) {
+                    console.error("Failed to mark unread:", e);
+                }
+            });
+        }
+    }, [inquiries]);
 
     useEffect(() => {
         async function loadVendors() {
