@@ -93,16 +93,14 @@ function WholesaleResponseContent() {
         if (!inquiry || !activeItem) return;
 
         const isOOS = response.availability === 'Out of Stock';
-        const wPrice = parseFloat(response.wholesalePrice);
-        const mPrice = parseFloat(response.estimatedMRP);
+        
+        // Sanitize numeric inputs to prevent NaN errors in Firestore
+        const wPrice = parseFloat(response.wholesalePrice) || 0;
+        const mPrice = parseFloat(response.estimatedMRP) || 0;
 
         if (!isOOS) {
             if (!response.wholesalePrice || !response.estimatedMRP) {
                 toast({ variant: 'destructive', title: "Pricing Required", description: "Please enter wholesale and MRP prices." });
-                return;
-            }
-            if (isNaN(wPrice) || isNaN(mPrice)) {
-                toast({ variant: 'destructive', title: "Invalid Pricing", description: "Please enter valid numeric values." });
                 return;
             }
         }
@@ -115,20 +113,34 @@ function WholesaleResponseContent() {
         setIsSaving(true);
         try {
             const itemIndex = inquiry.items.findIndex(it => it.id === activeItem.id);
+            if (itemIndex === -1) throw new Error("Article not found in list.");
+
             const updatedItems = [...(inquiry.items || [])];
             
+            // Clean alternate product object to remove any potential undefined/NaN
+            const sanitizedAlternate: AlternateProduct | undefined = isOOS ? {
+                title: alternate.title || 'Alternate Product',
+                imageDataUri: alternate.imageDataUri,
+                wholesalePrice: Number(alternate.wholesalePrice) || 0,
+                estimatedMRP: Number(alternate.estimatedMRP) || 0,
+                availableQuantity: Number(alternate.availableQuantity) || 0,
+                description: alternate.description || '',
+                category: activeItem.category
+            } : undefined;
+
             updatedItems[itemIndex] = {
                 ...activeItem,
                 status: isOOS ? 'Alternate Proposed' : 'Available',
                 wholesalePrice: isOOS ? undefined : wPrice,
                 estimatedMRP: isOOS ? undefined : mPrice,
-                vendorDescription: response.description,
-                alternateProduct: isOOS ? { ...alternate, category: activeItem.category } : undefined,
+                vendorDescription: response.description || '',
+                alternateProduct: sanitizedAlternate,
             };
 
             const respondedCount = updatedItems.filter(it => it.status !== 'Pending').length;
             const newStatus = respondedCount === updatedItems.length ? 'Responded' : 'Partially Responded';
 
+            // Prepare a clean payload for Firestore
             const updatePayload = { 
                 items: updatedItems, 
                 status: newStatus,
@@ -137,12 +149,13 @@ function WholesaleResponseContent() {
             };
 
             await saveDocument('wholesale_inquiries', updatePayload, inquiry.id);
-            setInquiry({ ...inquiry, items: updatedItems, status: newStatus });
+            setInquiry({ ...inquiry, ...updatePayload });
             
             toast({ title: "Product Quote Saved!", description: "Status updated instantly for the shop owner." });
             setActiveItem(null);
         } catch (error: any) {
-            toast({ variant: 'destructive', title: "Save Failed", description: "Could not save your response." });
+            console.error("Save Error:", error);
+            toast({ variant: 'destructive', title: "Save Failed", description: error.message || "Could not save your response." });
         } finally {
             setIsSaving(false);
         }

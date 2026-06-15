@@ -20,7 +20,7 @@ import * as XLSX from 'xlsx';
 import type { WholesaleInquiry, WholesaleItem } from '@/types/wholesale';
 import type { Vendor } from '@/app/vendors/page';
 import { db } from "@/lib/firebase";
-import { onSnapshot, collection, query, orderBy } from "firebase/firestore";
+import { onSnapshot, collection, query, orderBy, deleteDoc, doc, updateDoc } from "firebase/firestore";
 
 const MAX_IMAGE_SIZE_PX = 800;
 
@@ -67,6 +67,13 @@ export default function WholesaleInquiriesPage() {
                 const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WholesaleInquiry));
                 setInquiries(data);
                 setIsLoading(false);
+                
+                // Mark unread responses as read by admin automatically when they open the page
+                data.forEach(async (inq) => {
+                    if (inq.isReadByAdmin === false) {
+                        await updateDoc(doc(db, 'wholesale_inquiries', inq.id), { isReadByAdmin: true });
+                    }
+                });
             }, (error) => {
                 console.error("Firestore error:", error);
                 setIsLoading(false);
@@ -168,6 +175,15 @@ export default function WholesaleInquiriesPage() {
         const url = `${window.location.origin}/wholesale-request/${inquiryId}`;
         navigator.clipboard.writeText(url);
         toast({ title: "Link Copied!", description: "Send this magazine link to your vendor." });
+    };
+
+    const handleDeleteInquiry = async (id: string) => {
+        try {
+            await deleteDoc(doc(db, 'wholesale_inquiries', id));
+            toast({ title: "Magazine Deleted" });
+        } catch (e) {
+            toast({ variant: 'destructive', title: "Delete Failed" });
+        }
     };
 
     const handleExportExcel = () => {
@@ -283,19 +299,27 @@ export default function WholesaleInquiriesPage() {
                         {isLoading ? (
                             <div className="col-span-full h-48 flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>
                         ) : filteredInquiries.map(inq => (
-                            <Card key={inq.id} className="overflow-hidden group hover:shadow-2xl transition-all duration-300 border-t-4 border-t-primary">
+                            <Card key={inq.id} className="overflow-hidden group hover:shadow-2xl transition-all duration-300 border-t-4 border-t-primary relative">
+                                <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="absolute top-2 right-2 z-10 text-white hover:bg-white/20"
+                                    onClick={() => handleDeleteInquiry(inq.id)}
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
                                 <div className="relative h-48 w-full bg-slate-900">
                                     <Image src={(inq.items?.[0]?.images?.[0]) || 'https://picsum.photos/seed/mag/400/300'} fill alt="mag" className="object-cover opacity-60" />
                                     <div className="absolute bottom-4 left-4 text-white">
                                         <h4 className="font-black italic text-xl uppercase leading-none">{inq.title}</h4>
                                         <p className="text-[10px] font-bold text-primary-foreground uppercase mt-1">To: {inq.vendorName}</p>
                                     </div>
-                                    <Badge className="absolute top-4 right-4">{inq.status}</Badge>
+                                    <Badge className="absolute top-4 left-4">{inq.status}</Badge>
                                 </div>
                                 <CardContent className="p-5 space-y-4">
                                     <div className="flex justify-between text-xs border-b pb-2">
                                         <span className="font-bold flex items-center gap-1"><Layers className="h-3 w-3" /> {(inq.items || []).length} Products</span>
-                                        <span className="text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3" /> <SafeRelativeTime date={inq.createdAt} /></span>
+                                        <span className="text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3" /> <SafeRelativeTime date={inq.updatedAt || inq.createdAt} /></span>
                                     </div>
                                     <div className="space-y-2">
                                         {(inq.items || []).slice(0, 3).map((item, idx) => (
@@ -339,12 +363,16 @@ export default function WholesaleInquiriesPage() {
                                                                             <p className="font-bold text-blue-700">ALTERNATE PROPOSED:</p>
                                                                             <p>{item.alternateProduct?.title}</p>
                                                                             <p className="font-bold">Price: ₹{item.alternateProduct?.wholesalePrice}</p>
+                                                                            {item.alternateProduct?.imageDataUri && (
+                                                                                <Image src={item.alternateProduct.imageDataUri} width={100} height={100} className="rounded mt-2 object-contain" alt="alt" />
+                                                                            )}
                                                                         </div>
                                                                     ) : (
                                                                         <div className="space-y-1">
                                                                             <p className="font-bold text-green-700 uppercase">Live Quote:</p>
                                                                             <p>Wholesale: ₹{item.wholesalePrice}</p>
                                                                             <p>Est MRP: ₹{item.estimatedMRP}</p>
+                                                                            {item.vendorDescription && <p className="italic">Note: {item.vendorDescription}</p>}
                                                                         </div>
                                                                     )}
                                                                 </div>
