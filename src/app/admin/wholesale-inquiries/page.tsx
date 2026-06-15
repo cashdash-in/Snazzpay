@@ -12,15 +12,14 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { getCollection, saveDocument, batchUpdateDocuments } from "@/services/firestore";
+import { getCollection, saveDocument } from "@/services/firestore";
 import { v4 as uuidv4 } from 'uuid';
-import { Loader2, PlusCircle, ImagePlus, FileSpreadsheet, Send, Search, CheckCircle2, Eye, Copy, Clock, Tag, Package, Trash2, BookOpen } from "lucide-react";
+import { Loader2, PlusCircle, ImagePlus, FileSpreadsheet, Send, Search, CheckCircle2, Eye, Copy, Clock, Tag, Package, Trash2, BookOpen, Layers } from "lucide-react";
 import Image from 'next/image';
 import { format, formatDistanceToNow } from 'date-fns';
 import * as XLSX from 'xlsx';
-import type { WholesaleInquiry } from '@/types/wholesale';
+import type { WholesaleInquiry, WholesaleItem } from '@/types/wholesale';
 import type { Vendor } from '@/app/vendors/page';
-import { cn } from '@/lib/utils';
 import { db } from "@/lib/firebase";
 import { onSnapshot, collection, query, orderBy } from "firebase/firestore";
 
@@ -35,19 +34,17 @@ export default function WholesaleInquiriesPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
 
-    // Form State
-    const [newInquiry, setNewInquiry] = useState({
-        vendorId: '',
-        category: '',
-        quantity: '',
-        description: '',
-        images: [] as string[],
-    });
+    // Multi-Item Form State
+    const [magazineTitle, setMagazineTitle] = useState('New Inventory Request');
+    const [selectedVendorId, setSelectedVendorId] = useState('');
+    const [items, setItems] = useState<Omit<WholesaleItem, 'id' | 'status'>[]>([
+        { images: [], category: '', quantityRequested: 1, descriptionRequested: '' }
+    ]);
     
     // Quick Add Vendor State
     const [newVendor, setNewVendor] = useState({ name: '', phone: '', email: '' });
 
-    // Live sync for inquiries
+    // Live sync
     useEffect(() => {
         if (!db) return;
         const q = query(collection(db, 'wholesale_inquiries'), orderBy("createdAt", "desc"));
@@ -55,14 +52,10 @@ export default function WholesaleInquiriesPage() {
             const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WholesaleInquiry));
             setInquiries(data);
             setIsLoading(false);
-        }, (error) => {
-            console.error("Wholesale Real-time Sync Error:", error);
-            setIsLoading(false);
         });
         return () => unsubscribe();
     }, []);
 
-    // Load vendors
     useEffect(() => {
         async function loadVendors() {
             try {
@@ -84,18 +77,11 @@ export default function WholesaleInquiriesPage() {
                     const canvas = document.createElement('canvas');
                     let { width, height } = img;
                     if (width > height) {
-                        if (width > MAX_IMAGE_SIZE_PX) {
-                            height *= MAX_IMAGE_SIZE_PX / width;
-                            width = MAX_IMAGE_SIZE_PX;
-                        }
+                        if (width > MAX_IMAGE_SIZE_PX) { height *= MAX_IMAGE_SIZE_PX / width; width = MAX_IMAGE_SIZE_PX; }
                     } else {
-                        if (height > MAX_IMAGE_SIZE_PX) {
-                            width *= MAX_IMAGE_SIZE_PX / height;
-                            height = MAX_IMAGE_SIZE_PX;
-                        }
+                        if (height > MAX_IMAGE_SIZE_PX) { width *= MAX_IMAGE_SIZE_PX / height; height = MAX_IMAGE_SIZE_PX; }
                     }
-                    canvas.width = width;
-                    canvas.height = height;
+                    canvas.width = width; canvas.height = height;
                     const ctx = canvas.getContext('2d');
                     ctx?.drawImage(img, 0, 0, width, height);
                     resolve(canvas.toDataURL('image/jpeg', 0.7));
@@ -106,7 +92,7 @@ export default function WholesaleInquiriesPage() {
         });
     };
 
-    const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleItemImageChange = async (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
         if (files) {
             const newUris: string[] = [];
@@ -114,28 +100,29 @@ export default function WholesaleInquiriesPage() {
                 const resized = await resizeImage(file);
                 newUris.push(resized);
             }
-            setNewInquiry(prev => ({ ...prev, images: [...prev.images, ...newUris] }));
+            setItems(prev => prev.map((item, i) => i === index ? { ...item, images: [...item.images, ...newUris] } : item));
         }
     };
 
+    const addItem = () => setItems([...items, { images: [], category: '', quantityRequested: 1, descriptionRequested: '' }]);
+    const removeItem = (index: number) => setItems(items.filter((_, i) => i !== index));
+
     const handleSendInquiry = async () => {
-        if (!newInquiry.vendorId || newInquiry.images.length === 0 || !newInquiry.quantity || !newInquiry.category) {
-            toast({ variant: 'destructive', title: "Missing Fields", description: "Please provide a vendor, category, at least one image, and quantity." });
+        if (!selectedVendorId || items.some(item => item.images.length === 0 || !item.category)) {
+            toast({ variant: 'destructive', title: "Missing Fields", description: "Please select a vendor and ensure all products have a category and at least one image." });
             return;
         }
         setIsSubmitting(true);
-        const selectedVendor = vendors.find(v => v.id === newInquiry.vendorId);
+        const selectedVendor = vendors.find(v => v.id === selectedVendorId);
         
         const inquiryId = uuidv4();
         const inquiryData: WholesaleInquiry = {
             id: inquiryId,
             adminId: user?.uid || 'admin',
-            vendorId: newInquiry.vendorId,
+            vendorId: selectedVendorId,
             vendorName: selectedVendor?.name || 'Guest Vendor',
-            category: newInquiry.category,
-            productImages: newInquiry.images,
-            quantityRequested: parseInt(newInquiry.quantity) || 1,
-            descriptionRequested: newInquiry.description,
+            title: magazineTitle,
+            items: items.map(item => ({ ...item, id: uuidv4(), status: 'Pending' })),
             status: 'Pending',
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
@@ -144,8 +131,10 @@ export default function WholesaleInquiriesPage() {
 
         try {
             await saveDocument('wholesale_inquiries', inquiryData, inquiryId);
-            setNewInquiry({ vendorId: '', category: '', quantity: '', description: '', images: [] });
-            toast({ title: "Magazine Request Created!", description: `Share the link with ${inquiryData.vendorName} via WhatsApp.` });
+            setItems([{ images: [], category: '', quantityRequested: 1, descriptionRequested: '' }]);
+            setMagazineTitle('New Inventory Request');
+            setSelectedVendorId('');
+            toast({ title: "Wholesale Magazine Created!", description: "Share the link with your vendor via WhatsApp." });
         } catch (error) {
             toast({ variant: 'destructive', title: "Failed to create inquiry" });
         } finally {
@@ -156,346 +145,197 @@ export default function WholesaleInquiriesPage() {
     const handleCopyRequestLink = (inquiryId: string) => {
         const url = `${window.location.origin}/wholesale-request/${inquiryId}`;
         navigator.clipboard.writeText(url);
-        toast({ title: "Magazine Link Copied!", description: "Send this professional magazine link to your vendor." });
-    };
-
-    const handleAddVendor = async () => {
-        if (!newVendor.name || !newVendor.phone) {
-            toast({ variant: 'destructive', title: "Details Required" });
-            return;
-        }
-        const id = uuidv4();
-        const vendorData: Omit<Vendor, 'id'> = {
-            name: newVendor.name,
-            contactPerson: newVendor.name,
-            phone: newVendor.phone,
-            email: newVendor.email,
-            status: 'approved',
-        };
-        try {
-            await saveDocument('vendors', vendorData, id);
-            setVendors(prev => [...prev, { ...vendorData, id }]);
-            setNewVendor({ name: '', phone: '', email: '' });
-            toast({ title: "Vendor Added" });
-        } catch (error) {
-            toast({ variant: 'destructive', title: "Error adding vendor" });
-        }
+        toast({ title: "Link Copied!", description: "Send this magazine link to your vendor." });
     };
 
     const handleExportExcel = () => {
         if (inquiries.length === 0) return;
-        
-        const data = inquiries.map(i => ({
-            'Date': i.createdAt ? format(new Date(i.createdAt), 'PP') : 'N/A',
-            'Last Updated': i.updatedAt ? format(new Date(i.updatedAt), 'PPp') : 'N/A',
-            'Category': i.category || 'N/A',
-            'Vendor': i.vendorName || 'N/A',
-            'Status': i.status || 'Pending',
-            'Qty Requested': i.quantityRequested || 0,
-            'Wholesale Price (₹)': i.wholesalePrice || 'N/A',
-            'Est. MRP (₹)': i.estimatedMRP || 'N/A',
-            'Vendor Note': i.vendorDescription || 'N/A',
-            'Alternate Title': i.alternateProduct?.title || 'N/A',
-            'Alternate Price (₹)': i.alternateProduct?.wholesalePrice || 'N/A',
-        }));
-
+        const data = inquiries.flatMap(inq => inq.items.map(item => ({
+            'Magazine': inq.title,
+            'Vendor': inq.vendorName,
+            'Category': item.category,
+            'Status': item.status,
+            'Qty Requested': item.quantityRequested,
+            'Wholesale Price (₹)': item.wholesalePrice || (item.status === 'Alternate Proposed' ? item.alternateProduct?.wholesalePrice : 'N/A'),
+            'Est. MRP (₹)': item.estimatedMRP || (item.status === 'Alternate Proposed' ? item.alternateProduct?.estimatedMRP : 'N/A'),
+            'Note': item.vendorDescription || 'N/A',
+            'Date': format(new Date(inq.createdAt), 'PP'),
+        })));
         const ws = XLSX.utils.json_to_sheet(data);
         const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Wholesale Reports');
-        XLSX.writeFile(wb, `Wholesale_Magazine_Export_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
-        toast({ title: "Excel Exported!" });
+        XLSX.utils.book_append_sheet(wb, ws, 'Wholesale Report');
+        XLSX.writeFile(wb, `Wholesale_Export_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
     };
 
     const filteredInquiries = inquiries.filter(i => {
-        const query = searchQuery.toLowerCase();
-        return (
-            (i.vendorName || '').toLowerCase().includes(query) ||
-            (i.status || '').toLowerCase().includes(query) ||
-            (i.category || '').toLowerCase().includes(query)
-        );
+        const queryStr = searchQuery.toLowerCase();
+        return (i.vendorName || '').toLowerCase().includes(queryStr) || (i.title || '').toLowerCase().includes(queryStr);
     });
-
-    const safeFormatDistance = (dateString?: string) => {
-        if (!dateString) return 'Never';
-        try {
-            const date = new Date(dateString);
-            if (isNaN(date.getTime())) return 'Never';
-            return formatDistanceToNow(date, { addSuffix: true });
-        } catch (e) {
-            return 'Never';
-        }
-    };
 
     return (
         <AppShell title="Wholesale Coordination Hub">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Creation Section */}
-                <Card className="lg:col-span-1 shadow-xl border-primary/20 sticky top-24 h-fit">
+                <Card className="lg:col-span-1 shadow-xl border-primary/20 sticky top-24 h-fit max-h-[80vh] overflow-y-auto">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <BookOpen className="text-primary h-5 w-5" />
-                            Create Request Magazine
+                            Create Wholesale Magazine
                         </CardTitle>
-                        <CardDescription>Build a professional multi-image request for any vendor.</CardDescription>
+                        <CardDescription>Send a professional multi-product request to any vendor.</CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-5">
+                    <CardContent className="space-y-6">
                         <div className="space-y-2">
-                            <Label>Product Pictures (Add multiple)</Label>
-                            <div className="grid grid-cols-4 gap-2 mb-2">
-                                {newInquiry.images.map((src, idx) => (
-                                    <div key={idx} className="relative aspect-square rounded-md overflow-hidden border">
-                                        <Image src={src} alt="preview" fill className="object-cover" />
-                                        <Button 
-                                            size="icon" 
-                                            variant="destructive" 
-                                            className="absolute top-0 right-0 h-4 w-4 rounded-none opacity-80 hover:opacity-100"
-                                            onClick={() => setNewInquiry(prev => ({ ...prev, images: prev.images.filter((_, i) => i !== idx) }))}
-                                        >
-                                            <Trash2 className="h-2 w-2" />
-                                        </Button>
+                            <Label>Magazine/Collection Title</Label>
+                            <Input value={magazineTitle} onChange={e => setMagazineTitle(e.target.value)} placeholder="e.g., Diwali Stock Request" />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Assign to Vendor</Label>
+                            <Select value={selectedVendorId} onValueChange={setSelectedVendorId}>
+                                <SelectTrigger><SelectValue placeholder="Select vendor..." /></SelectTrigger>
+                                <SelectContent>
+                                    {vendors.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-6 border-t pt-4">
+                            {items.map((item, idx) => (
+                                <div key={idx} className="p-4 bg-muted/40 rounded-xl space-y-4 border relative">
+                                    <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-6 w-6" onClick={() => removeItem(idx)} disabled={items.length === 1}>
+                                        <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                    <div className="space-y-2">
+                                        <Label className="text-xs font-bold uppercase">Product Images</Label>
+                                        <div className="grid grid-cols-4 gap-2">
+                                            {item.images.map((src, i) => (
+                                                <div key={i} className="relative aspect-square rounded border overflow-hidden">
+                                                    <Image src={src} fill alt="preview" className="object-cover" />
+                                                </div>
+                                            ))}
+                                            {item.images.length < 5 && (
+                                                <button className="aspect-square flex items-center justify-center border-2 border-dashed rounded bg-white" onClick={() => document.getElementById(`img-in-${idx}`)?.click()}>
+                                                    <ImagePlus className="h-4 w-4 text-muted-foreground" />
+                                                </button>
+                                            )}
+                                        </div>
+                                        <input id={`img-in-${idx}`} type="file" multiple className="hidden" onChange={e => handleItemImageChange(idx, e)} />
                                     </div>
-                                ))}
-                                {newInquiry.images.length < 8 && (
-                                    <div 
-                                        className="aspect-square flex flex-col items-center justify-center border-2 border-dashed rounded-md cursor-pointer bg-muted hover:bg-muted/50"
-                                        onClick={() => document.getElementById('inquiry-images')?.click()}
-                                    >
-                                        <ImagePlus className="h-6 w-6 text-muted-foreground" />
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div className="space-y-1">
+                                            <Label className="text-[10px] uppercase">Category</Label>
+                                            <Input className="h-8 text-xs" value={item.category} onChange={e => setItems(prev => prev.map((it, i) => i === idx ? { ...it, category: e.target.value } : it))} />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label className="text-[10px] uppercase">Qty Needed</Label>
+                                            <Input type="number" className="h-8 text-xs" value={item.quantityRequested} onChange={e => setItems(prev => prev.map((it, i) => i === idx ? { ...it, quantityRequested: parseInt(e.target.value) || 1 } : it))} />
+                                        </div>
                                     </div>
-                                )}
-                            </div>
-                            <input id="inquiry-images" type="file" accept="image/*" multiple onChange={handleImageChange} className="hidden" />
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="category">Article Category</Label>
-                            <div className="relative">
-                                <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <Input 
-                                    id="category" 
-                                    placeholder="e.g., Religious Articles, Apparel" 
-                                    value={newInquiry.category} 
-                                    onChange={e => setNewInquiry({...newInquiry, category: e.target.value})}
-                                    className="pl-9"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="vendor">Assign to Vendor</Label>
-                                <Select value={newInquiry.vendorId} onValueChange={val => setNewInquiry({...newInquiry, vendorId: val})}>
-                                    <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
-                                    <SelectContent>
-                                        {vendors.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="qty">Quantity Needed</Label>
-                                <Input id="qty" type="number" placeholder="e.g., 50" value={newInquiry.quantity} onChange={e => setNewInquiry({...newInquiry, quantity: e.target.value})} />
-                            </div>
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="desc">Private Notes for Admin</Label>
-                            <Textarea id="desc" placeholder="Details about specific requirements..." value={newInquiry.description} onChange={e => setNewInquiry({...newInquiry, description: e.target.value})} />
+                                    <div className="space-y-1">
+                                        <Label className="text-[10px] uppercase">Note for Vendor</Label>
+                                        <Input className="h-8 text-xs" value={item.descriptionRequested} onChange={e => setItems(prev => prev.map((it, i) => i === idx ? { ...it, descriptionRequested: e.target.value } : it))} />
+                                    </div>
+                                </div>
+                            ))}
+                            <Button variant="outline" className="w-full h-8 border-dashed" onClick={addItem}><PlusCircle className="h-3 w-3 mr-2" /> Add Another Product</Button>
                         </div>
                     </CardContent>
-                    <CardFooter className="flex flex-col gap-2">
+                    <CardFooter>
                         <Button className="w-full h-12" onClick={handleSendInquiry} disabled={isSubmitting}>
                             {isSubmitting ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <Send className="mr-2 h-4 w-4" />}
-                            Generate & Send Request
+                            Create & Share Magazine
                         </Button>
-                        <Dialog>
-                            <DialogTrigger asChild><Button variant="link" size="sm" className="w-full">Wait, I have a new vendor!</Button></DialogTrigger>
-                            <DialogContent>
-                                <DialogHeader><DialogTitle>Quick Onboard Vendor</DialogTitle></DialogHeader>
-                                <div className="space-y-4 py-4">
-                                    <div className="space-y-2"><Label>Vendor Name</Label><Input value={newVendor.name} onChange={e => setNewVendor({...newVendor, name: e.target.value})} /></div>
-                                    <div className="space-y-2"><Label>Phone</Label><Input value={newVendor.phone} onChange={e => setNewVendor({...newVendor, phone: e.target.value})} /></div>
-                                    <div className="space-y-2"><Label>Email</Label><Input value={newVendor.email} onChange={e => setNewVendor({...newVendor, email: e.target.value})} /></div>
-                                </div>
-                                <DialogFooter><DialogClose asChild><Button onClick={handleAddVendor}>Save Vendor</Button></DialogClose></DialogFooter>
-                            </DialogContent>
-                        </Dialog>
                     </CardFooter>
                 </Card>
 
                 {/* Feed Section */}
                 <div className="lg:col-span-2 space-y-6">
                     <div className="flex justify-between items-center gap-4">
-                         <div className="relative flex-grow">
+                        <div className="relative flex-grow">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input 
-                                placeholder="Search magazines by vendor, category..." 
-                                className="pl-9" 
-                                value={searchQuery}
-                                onChange={e => setSearchQuery(e.target.value)}
-                            />
+                            <Input placeholder="Search magazines..." className="pl-9" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
                         </div>
-                        <Button variant="outline" onClick={handleExportExcel} disabled={inquiries.length === 0}>
-                            <FileSpreadsheet className="mr-2 h-4 w-4" />
-                            Export List
-                        </Button>
+                        <Button variant="outline" onClick={handleExportExcel}><FileSpreadsheet className="mr-2 h-4 w-4" /> Export Report</Button>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {isLoading ? (
                             <div className="col-span-full h-48 flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>
-                        ) : filteredInquiries.length === 0 ? (
-                            <div className="col-span-full text-center py-16 bg-muted/10 rounded-xl border-2 border-dashed">
-                                <Search className="mx-auto h-12 w-12 text-muted-foreground/50 mb-2" />
-                                <p className="text-muted-foreground">No active request magazines found.</p>
-                            </div>
-                        ) : (
-                            filteredInquiries.map(item => (
-                                <Card key={item.id} className="overflow-hidden group hover:shadow-2xl transition-all duration-300 border-t-4 border-t-primary">
-                                    <div className="relative h-56 w-full bg-slate-900 overflow-hidden">
-                                        <Image 
-                                            src={(item.productImages && item.productImages.length > 0) ? item.productImages[0] : 'https://picsum.photos/seed/placeholder/400/400'} 
-                                            alt="Magazine Cover" 
-                                            fill 
-                                            className="object-cover opacity-80 group-hover:scale-110 transition-transform duration-500" 
-                                        />
-                                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
-                                        <Badge className="absolute top-4 right-4 shadow-lg h-7" variant={item.status === 'Pending' ? 'secondary' : 'default'}>
-                                            {item.status || 'Pending'}
-                                        </Badge>
-                                        {(item.productImages && item.productImages.length > 1) && (
-                                            <Badge variant="outline" className="absolute top-4 left-4 bg-black/50 text-white border-none">
-                                                +{item.productImages.length - 1} More Images
-                                            </Badge>
-                                        )}
-                                        <div className="absolute bottom-4 left-4 text-white">
-                                            <h4 className="font-black italic text-xl tracking-tighter uppercase">{item.category || 'General'}</h4>
-                                            <p className="text-[10px] text-slate-300">REQUESTED FROM {(item.vendorName || 'VEND').toUpperCase()}</p>
-                                        </div>
+                        ) : filteredInquiries.map(inq => (
+                            <Card key={inq.id} className="overflow-hidden group hover:shadow-2xl transition-all duration-300 border-t-4 border-t-primary">
+                                <div className="relative h-48 w-full bg-slate-900">
+                                    <Image src={inq.items[0]?.images[0] || 'https://picsum.photos/seed/mag/400/300'} fill alt="mag" className="object-cover opacity-60" />
+                                    <div className="absolute bottom-4 left-4 text-white">
+                                        <h4 className="font-black italic text-xl uppercase leading-none">{inq.title}</h4>
+                                        <p className="text-[10px] font-bold text-primary-foreground uppercase mt-1">To: {inq.vendorName}</p>
                                     </div>
-                                    <CardContent className="p-5 space-y-4">
-                                        <div className="flex justify-between items-end">
-                                            <div className="space-y-1">
-                                                <p className="text-sm font-bold">Qty: {item.quantityRequested || 0} Units</p>
-                                                <p className="text-xs text-muted-foreground line-clamp-1 italic">"{item.descriptionRequested || ''}"</p>
+                                    <Badge className="absolute top-4 right-4">{inq.status}</Badge>
+                                </div>
+                                <CardContent className="p-5 space-y-4">
+                                    <div className="flex justify-between text-xs border-b pb-2">
+                                        <span className="font-bold flex items-center gap-1"><Layers className="h-3 w-3" /> {inq.items.length} Products</span>
+                                        <span className="text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3" /> {formatDistanceToNow(new Date(inq.createdAt))} ago</span>
+                                    </div>
+                                    <div className="space-y-2">
+                                        {inq.items.slice(0, 3).map((item, idx) => (
+                                            <div key={idx} className="flex justify-between items-center text-xs">
+                                                <span className="truncate max-w-[150px]">{item.category} ({item.quantityRequested})</span>
+                                                <Badge variant="outline" className="text-[8px] h-4">{item.status}</Badge>
                                             </div>
-                                            <div className="text-right">
-                                                {item.wholesalePrice ? (
-                                                    <div className="animate-in fade-in zoom-in duration-500">
-                                                        <p className="text-[10px] uppercase font-bold text-green-600">Live Quote</p>
-                                                        <p className="font-black text-lg text-primary">₹{item.wholesalePrice}</p>
-                                                    </div>
-                                                ) : (
-                                                    <div className="flex items-center gap-1 text-orange-500">
-                                                        <Loader2 className="h-3 w-3 animate-spin" />
-                                                        <span className="text-[10px] font-bold uppercase tracking-wider">Awaiting Quote</span>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                        
-                                        <div className="flex items-center gap-2 text-[10px] font-medium text-muted-foreground bg-muted/40 p-2 rounded-lg border">
-                                            <Clock className="h-3 w-3" />
-                                            <span>Quote Last Updated: {safeFormatDistance(item.updatedAt)}</span>
-                                        </div>
-
-                                        {item.alternateProduct && (
-                                            <div className="p-3 bg-blue-50/50 border border-blue-100 rounded-lg flex items-center gap-3">
-                                                <div className="relative h-10 w-10 shrink-0 rounded border bg-white overflow-hidden">
-                                                    <Image src={item.alternateProduct.imageDataUri || 'https://picsum.photos/seed/alt/200/200'} alt="alt" fill className="object-contain" />
-                                                </div>
-                                                <div className="flex-grow overflow-hidden">
-                                                    <p className="text-[10px] font-bold text-blue-800 uppercase">Alternate Proposed</p>
-                                                    <p className="text-xs font-semibold truncate">{item.alternateProduct.title}</p>
-                                                </div>
-                                                <div className="text-right shrink-0">
-                                                    <p className="text-xs font-bold text-blue-900">₹{item.alternateProduct.wholesalePrice}</p>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </CardContent>
-                                    <CardFooter className="p-4 pt-0 gap-3">
-                                        <Button variant="outline" size="sm" className="flex-1 rounded-xl" onClick={() => handleCopyRequestLink(item.id)}>
-                                            <Copy className="h-3 w-3 mr-2" /> Share Link
-                                        </Button>
-                                        <Dialog>
-                                            <DialogTrigger asChild>
-                                                <Button size="sm" className="flex-1 rounded-xl"><Eye className="h-3 w-3 mr-2" /> View Full View</Button>
-                                            </DialogTrigger>
-                                            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                                                <DialogHeader>
-                                                    <DialogTitle className="text-2xl font-black italic tracking-tighter">WHOLESALE MAGAZINE REPORT</DialogTitle>
-                                                    <DialogDescription>Vendor: {item.vendorName} &bull; Created: {item.createdAt ? format(new Date(item.createdAt), 'PPP p') : 'N/A'}</DialogDescription>
-                                                </DialogHeader>
-                                                
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-6">
-                                                    <div className="space-y-6">
-                                                        <Label className="text-xs font-black uppercase tracking-widest text-primary/60">The Inquiry</Label>
-                                                        <div className="grid grid-cols-2 gap-2">
-                                                            {(item.productImages || []).map((uri, idx) => (
-                                                                <div key={idx} className="aspect-square relative rounded-xl border bg-white overflow-hidden shadow-sm">
-                                                                    <Image src={uri} alt="Req" fill className="object-contain" />
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                        <div className="p-4 bg-muted/40 rounded-xl border italic text-sm">
-                                                            "{item.descriptionRequested || ''}"
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="space-y-6">
-                                                        <Label className="text-xs font-black uppercase tracking-widest text-primary/60">Vendor Live Quote</Label>
-                                                        {(item.status === 'Pending' || !item.status) ? (
-                                                            <div className="flex flex-col items-center justify-center p-12 bg-muted/20 border-2 border-dashed rounded-2xl">
-                                                                <Loader2 className="animate-spin h-8 w-8 text-primary mb-4" />
-                                                                <p className="text-sm font-medium text-muted-foreground">Waiting for vendor response...</p>
-                                                                <p className="text-[10px] text-muted-foreground mt-2 uppercase tracking-tighter">Share the link via WhatsApp to get a price</p>
+                                        ))}
+                                        {inq.items.length > 3 && <p className="text-[10px] text-center text-muted-foreground italic">+{inq.items.length - 3} more articles</p>}
+                                    </div>
+                                </CardContent>
+                                <CardFooter className="p-4 pt-0 gap-2">
+                                    <Button variant="outline" size="sm" className="flex-1 rounded-xl" onClick={() => handleCopyRequestLink(inq.id)}><Copy className="h-3 w-3 mr-2" /> Share</Button>
+                                    <Dialog>
+                                        <DialogTrigger asChild><Button size="sm" className="flex-1 rounded-xl"><Eye className="h-3 w-3 mr-2" /> View Status</Button></DialogTrigger>
+                                        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                                            <DialogHeader>
+                                                <DialogTitle className="text-2xl font-black italic">WHOLESALE MAGAZINE: {inq.title}</DialogTitle>
+                                            </DialogHeader>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
+                                                {inq.items.map((item, idx) => (
+                                                    <Card key={idx} className="border-2">
+                                                        <CardHeader className="p-3 bg-muted/20">
+                                                            <div className="flex justify-between items-center">
+                                                                <CardTitle className="text-sm">{item.category}</CardTitle>
+                                                                <Badge>{item.status}</Badge>
                                                             </div>
-                                                        ) : (
-                                                            <div className="space-y-4">
-                                                                <div className="grid grid-cols-2 gap-4">
-                                                                    <div className="p-4 bg-green-50/50 rounded-xl border border-green-100">
-                                                                        <p className="text-[10px] uppercase font-bold text-green-700 mb-1">Wholesale Price</p>
-                                                                        <p className="text-2xl font-black text-slate-900">₹{item.wholesalePrice || item.alternateProduct?.wholesalePrice || 0}</p>
-                                                                    </div>
-                                                                    <div className="p-4 bg-blue-50/50 rounded-xl border border-blue-100">
-                                                                        <p className="text-[10px] uppercase font-bold text-blue-700 mb-1">Estimated MRP</p>
-                                                                        <p className="text-2xl font-black text-slate-900">₹{item.estimatedMRP || item.alternateProduct?.estimatedMRP || 0}</p>
-                                                                    </div>
+                                                        </CardHeader>
+                                                        <CardContent className="p-3 space-y-3">
+                                                            <div className="flex gap-3">
+                                                                <Image src={item.images[0]} width={60} height={60} alt="p" className="rounded border object-cover" />
+                                                                <div className="text-xs space-y-1">
+                                                                    <p><strong>Qty Req:</strong> {item.quantityRequested}</p>
+                                                                    <p className="italic text-muted-foreground">"{item.descriptionRequested}"</p>
                                                                 </div>
-                                                                
-                                                                {item.alternateProduct && (
-                                                                    <Card className="border-blue-200 bg-blue-50/30 overflow-hidden">
-                                                                        <div className="relative h-48 w-full bg-white border-b">
-                                                                            <Image src={item.alternateProduct.imageDataUri || 'https://picsum.photos/seed/alt/400/400'} alt="Alt" fill className="object-contain p-4" />
+                                                            </div>
+                                                            {item.status !== 'Pending' && (
+                                                                <div className="p-2 bg-green-50 rounded border border-green-100 text-xs">
+                                                                    {item.status === 'Alternate Proposed' ? (
+                                                                        <div className="space-y-1">
+                                                                            <p className="font-bold text-blue-700">ALTERNATE PROPOSED:</p>
+                                                                            <p>{item.alternateProduct?.title}</p>
+                                                                            <p className="font-bold">Price: ₹{item.alternateProduct?.wholesalePrice}</p>
                                                                         </div>
-                                                                        <CardContent className="p-4 space-y-2">
-                                                                            <Badge className="bg-blue-600 mb-1">ALTERNATE PRODUCT</Badge>
-                                                                            <h4 className="font-bold text-lg">{item.alternateProduct.title}</h4>
-                                                                            <p className="text-xs text-muted-foreground">{item.alternateProduct.description}</p>
-                                                                            <div className="flex justify-between items-center pt-2 border-t border-blue-100">
-                                                                                <span className="text-xs font-bold">Qty Available: {item.alternateProduct.availableQuantity}</span>
-                                                                                <span className="text-[10px] text-muted-foreground uppercase">{item.alternateProduct.category}</span>
-                                                                            </div>
-                                                                        </CardContent>
-                                                                    </Card>
-                                                                )}
-
-                                                                {item.vendorDescription && (
-                                                                    <div className="p-4 bg-slate-900 text-white rounded-xl shadow-lg">
-                                                                        <p className="text-[10px] uppercase font-bold text-primary mb-2">Vendor Response Note</p>
-                                                                        <p className="text-xs leading-relaxed opacity-90">{item.vendorDescription}</p>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </DialogContent>
-                                        </Dialog>
-                                    </CardFooter>
-                                </Card>
-                            ))
-                        )}
+                                                                    ) : (
+                                                                        <div className="space-y-1">
+                                                                            <p className="font-bold text-green-700 uppercase">Live Quote:</p>
+                                                                            <p>Wholesale: ₹{item.wholesalePrice}</p>
+                                                                            <p>Est MRP: ₹{item.estimatedMRP}</p>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </CardContent>
+                                                    </Card>
+                                                ))}
+                                            </div>
+                                        </DialogContent>
+                                    </Dialog>
+                                </CardFooter>
+                            </Card>
+                        ))}
                     </div>
                 </div>
             </div>

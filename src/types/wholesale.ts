@@ -10,22 +10,29 @@ export type AlternateProduct = {
     category?: string;
 };
 
-export type WholesaleInquiry = {
+export type WholesaleItem = {
     id: string;
-    adminId: string;
-    vendorId: string;
-    vendorName: string;
-    productImages: string[]; // Changed to plural/array for multiple images
+    images: string[];
     category: string;
     quantityRequested: number;
     descriptionRequested: string;
     status: WholesaleStatus;
-    createdAt: string;
-    updatedAt: string;
-    isReadByAdmin: boolean;
     // Vendor Response Fields
     wholesalePrice?: number;
     estimatedMRP?: number;
     vendorDescription?: string;
     alternateProduct?: AlternateProduct;
+};
+
+export type WholesaleInquiry = {
+    id: string;
+    adminId: string;
+    vendorId: string;
+    vendorName: string;
+    title: string;
+    items: WholesaleItem[];
+    status: 'Pending' | 'Partially Responded' | 'Responded';
+    createdAt: string;
+    updatedAt: string;
+    isReadByAdmin: boolean;
 };
