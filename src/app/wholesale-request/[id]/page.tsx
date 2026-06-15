@@ -1,4 +1,4 @@
-'use client';
+'use server';
 
 import { useState, useEffect, Suspense } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -74,12 +74,23 @@ function WholesaleResponseContent() {
 
         const isOOS = response.availability === 'Out of Stock';
 
-        if (!isOOS && (!response.wholesalePrice || !response.estimatedMRP)) {
-            toast({ variant: 'destructive', title: "Pricing Required" });
-            return;
+        // Numeric parsing and validation
+        const wPrice = parseFloat(response.wholesalePrice);
+        const mPrice = parseFloat(response.estimatedMRP);
+
+        if (!isOOS) {
+            if (!response.wholesalePrice || !response.estimatedMRP) {
+                toast({ variant: 'destructive', title: "Pricing Required", description: "Please enter both wholesale and MRP prices." });
+                return;
+            }
+            if (isNaN(wPrice) || isNaN(mPrice)) {
+                toast({ variant: 'destructive', title: "Invalid Pricing", description: "Please enter valid numeric values for prices." });
+                return;
+            }
         }
+
         if (isOOS && !alternate.imageDataUri) {
-            toast({ variant: 'destructive', title: "Alternate Image Required" });
+            toast({ variant: 'destructive', title: "Alternate Required", description: "Please upload an image for the alternate product." });
             return;
         }
 
@@ -89,8 +100,8 @@ function WholesaleResponseContent() {
             const updatedItem: WholesaleItem = {
                 ...item,
                 status: isOOS ? 'Alternate Proposed' : 'Available',
-                wholesalePrice: isOOS ? undefined : parseFloat(response.wholesalePrice),
-                estimatedMRP: isOOS ? undefined : parseFloat(response.estimatedMRP),
+                wholesalePrice: isOOS ? undefined : wPrice,
+                estimatedMRP: isOOS ? undefined : mPrice,
                 vendorDescription: response.description,
                 alternateProduct: isOOS ? { ...alternate, category: item.category } : undefined,
             };
@@ -99,12 +110,14 @@ function WholesaleResponseContent() {
             const respondedCount = updatedItems.filter(it => it.status !== 'Pending').length;
             const newStatus = respondedCount === updatedItems.length ? 'Responded' : 'Partially Responded';
 
-            await saveDocument('wholesale_inquiries', { 
+            const updatePayload = { 
                 items: updatedItems, 
                 status: newStatus,
                 updatedAt: new Date().toISOString(),
                 isReadByAdmin: false 
-            }, inquiry.id);
+            };
+
+            await saveDocument('wholesale_inquiries', updatePayload, inquiry.id);
 
             setInquiry({ ...inquiry, items: updatedItems, status: newStatus });
             
@@ -116,8 +129,9 @@ function WholesaleResponseContent() {
             } else {
                 setIsMagazineSubmitted(true);
             }
-        } catch (error) {
-            toast({ variant: 'destructive', title: "Save Failed" });
+        } catch (error: any) {
+            console.error("Save error:", error);
+            toast({ variant: 'destructive', title: "Save Failed", description: "Could not save your response. Please check your network connection." });
         } finally {
             setIsSaving(false);
         }
@@ -209,11 +223,11 @@ function WholesaleResponseContent() {
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <Label className="text-[10px] font-black uppercase">Wholesale (₹)</Label>
-                                        <Input type="number" className="h-14 text-2xl font-black bg-slate-50 border-none rounded-xl px-4" value={response.wholesalePrice} onChange={e => setResponse({...response, wholesalePrice: e.target.value})} />
+                                        <Input type="number" step="0.01" className="h-14 text-2xl font-black bg-slate-50 border-none rounded-xl px-4" value={response.wholesalePrice} onChange={e => setResponse({...response, wholesalePrice: e.target.value})} />
                                     </div>
                                     <div className="space-y-2">
                                         <Label className="text-[10px] font-black uppercase">Est. MRP (₹)</Label>
-                                        <Input type="number" className="h-14 text-2xl font-black bg-slate-50 border-none rounded-xl px-4" value={response.estimatedMRP} onChange={e => setResponse({...response, estimatedMRP: e.target.value})} />
+                                        <Input type="number" step="0.01" className="h-14 text-2xl font-black bg-slate-50 border-none rounded-xl px-4" value={response.estimatedMRP} onChange={e => setResponse({...response, estimatedMRP: e.target.value})} />
                                     </div>
                                 </div>
                                 <div className="space-y-2">
