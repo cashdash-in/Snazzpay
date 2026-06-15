@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { getCollection, saveDocument } from "@/services/firestore";
 import { v4 as uuidv4 } from 'uuid';
-import { Loader2, PlusCircle, ImagePlus, FileSpreadsheet, Send, Search, CheckCircle2, Eye, Copy, Clock, Tag, Package, Trash2, BookOpen, Layers } from "lucide-react";
+import { Loader2, PlusCircle, ImagePlus, FileSpreadsheet, Send, Search, CheckCircle2, Eye, Copy, Clock, Tag, Package, Trash2, BookOpen, Layers, RefreshCw } from "lucide-react";
 import Image from 'next/image';
 import { format, formatDistanceToNow, isValid } from 'date-fns';
 import * as XLSX from 'xlsx';
@@ -55,9 +55,6 @@ export default function WholesaleInquiriesPage() {
         { images: [], category: '', quantityRequested: 1, descriptionRequested: '' }
     ]);
     
-    // Quick Add Vendor State
-    const [newVendor, setNewVendor] = useState({ name: '', phone: '', email: '' });
-
     // Live sync
     useEffect(() => {
         if (!db) return;
@@ -194,9 +191,11 @@ export default function WholesaleInquiriesPage() {
             'Category': item.category,
             'Status': item.status,
             'Qty Requested': item.quantityRequested,
-            'Wholesale Price (₹)': item.wholesalePrice || (item.status === 'Alternate Proposed' ? item.alternateProduct?.wholesalePrice : 'N/A'),
-            'Est. MRP (₹)': item.estimatedMRP || (item.status === 'Alternate Proposed' ? item.alternateProduct?.estimatedMRP : 'N/A'),
-            'Note': item.vendorDescription || 'N/A',
+            'Wholesale Price (₹)': item.status === 'Available' ? item.wholesalePrice : (item.status === 'Alternate Proposed' ? item.alternateProduct?.wholesalePrice : 'N/A'),
+            'Est. MRP (₹)': item.status === 'Available' ? item.estimatedMRP : (item.status === 'Alternate Proposed' ? item.alternateProduct?.estimatedMRP : 'N/A'),
+            'Alternate Title': item.status === 'Alternate Proposed' ? item.alternateProduct?.title : 'N/A',
+            'Alt Qty Available': item.status === 'Alternate Proposed' ? item.alternateProduct?.availableQuantity : 'N/A',
+            'Vendor Note': item.vendorDescription || 'N/A',
             'Date': inq.createdAt ? format(new Date(inq.createdAt), 'PP') : 'N/A',
         })));
         const ws = XLSX.utils.json_to_sheet(data);
@@ -325,7 +324,11 @@ export default function WholesaleInquiriesPage() {
                                         {(inq.items || []).slice(0, 3).map((item, idx) => (
                                             <div key={idx} className="flex justify-between items-center text-xs">
                                                 <span className="truncate max-w-[150px]">{item.category} ({item.quantityRequested})</span>
-                                                <Badge variant="outline" className="text-[8px] h-4">{item.status}</Badge>
+                                                <Badge variant="outline" className={cn(
+                                                    "text-[8px] h-4",
+                                                    item.status === 'Available' && "bg-green-50 text-green-700",
+                                                    item.status === 'Alternate Proposed' && "bg-blue-50 text-blue-700"
+                                                )}>{item.status}</Badge>
                                             </div>
                                         ))}
                                         {(inq.items || []).length > 3 && <p className="text-[10px] text-center text-muted-foreground italic">+{(inq.items || []).length - 3} more articles</p>}
@@ -341,38 +344,67 @@ export default function WholesaleInquiriesPage() {
                                             </DialogHeader>
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
                                                 {(inq.items || []).map((item, idx) => (
-                                                    <Card key={idx} className="border-2">
+                                                    <Card key={idx} className="border-2 overflow-hidden">
                                                         <CardHeader className="p-3 bg-muted/20">
                                                             <div className="flex justify-between items-center">
                                                                 <CardTitle className="text-sm">{item.category}</CardTitle>
-                                                                <Badge>{item.status}</Badge>
+                                                                <Badge variant={item.status === 'Pending' ? 'secondary' : 'default'} className={cn(
+                                                                    item.status === 'Available' && "bg-green-500",
+                                                                    item.status === 'Alternate Proposed' && "bg-blue-500"
+                                                                )}>{item.status}</Badge>
                                                             </div>
                                                         </CardHeader>
                                                         <CardContent className="p-3 space-y-3">
                                                             <div className="flex gap-3">
-                                                                {item.images?.[0] && <Image src={item.images[0]} width={60} height={60} alt="p" className="rounded border object-cover" />}
+                                                                <div className="relative w-[80px] h-[80px] shrink-0 border rounded overflow-hidden">
+                                                                    <Image src={item.images?.[0] || 'https://picsum.photos/seed/placeholder/100/100'} fill alt="p" className="object-cover" />
+                                                                </div>
                                                                 <div className="text-xs space-y-1">
                                                                     <p><strong>Qty Req:</strong> {item.quantityRequested}</p>
                                                                     <p className="italic text-muted-foreground">"{item.descriptionRequested}"</p>
                                                                 </div>
                                                             </div>
+                                                            
                                                             {item.status !== 'Pending' && (
-                                                                <div className="p-2 bg-green-50 rounded border border-green-100 text-xs">
+                                                                <div className={cn(
+                                                                    "p-3 rounded-lg border text-sm",
+                                                                    item.status === 'Alternate Proposed' ? "bg-blue-50 border-blue-100" : "bg-green-50 border-green-100"
+                                                                )}>
                                                                     {item.status === 'Alternate Proposed' ? (
-                                                                        <div className="space-y-1">
-                                                                            <p className="font-bold text-blue-700">ALTERNATE PROPOSED:</p>
-                                                                            <p>{item.alternateProduct?.title}</p>
-                                                                            <p className="font-bold">Price: ₹{item.alternateProduct?.wholesalePrice}</p>
-                                                                            {item.alternateProduct?.imageDataUri && (
-                                                                                <Image src={item.alternateProduct.imageDataUri} width={100} height={100} className="rounded mt-2 object-contain" alt="alt" />
+                                                                        <div className="space-y-3">
+                                                                            <div className="flex items-center gap-2 text-blue-700 font-bold uppercase text-[10px]">
+                                                                                <RefreshCw className="h-3 w-3" />
+                                                                                Alternate Proposed:
+                                                                            </div>
+                                                                            <div className="flex gap-3 items-start">
+                                                                                {item.alternateProduct?.imageDataUri && (
+                                                                                    <div className="relative w-[100px] h-[100px] shrink-0 border-2 border-white rounded-lg shadow-sm overflow-hidden bg-white">
+                                                                                        <Image src={item.alternateProduct.imageDataUri} fill className="object-contain p-1" alt="alt" />
+                                                                                    </div>
+                                                                                )}
+                                                                                <div className="space-y-1 flex-1">
+                                                                                    <p className="font-bold text-slate-900 leading-tight">{item.alternateProduct?.title}</p>
+                                                                                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                                                                                        <p><span className="text-muted-foreground">Wholesale:</span> <span className="font-bold text-blue-700">₹{item.alternateProduct?.wholesalePrice}</span></p>
+                                                                                        <p><span className="text-muted-foreground">MRP:</span> <span className="font-bold">₹{item.alternateProduct?.estimatedMRP}</span></p>
+                                                                                        <p className="col-span-2"><span className="text-muted-foreground">Avail. Qty:</span> <span className="font-bold">{item.alternateProduct?.availableQuantity}</span></p>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                            {item.alternateProduct?.description && (
+                                                                                <p className="text-[11px] text-slate-600 bg-white/50 p-2 rounded border border-white italic">"{item.alternateProduct.description}"</p>
                                                                             )}
                                                                         </div>
                                                                     ) : (
-                                                                        <div className="space-y-1">
-                                                                            <p className="font-bold text-green-700 uppercase">Live Quote:</p>
-                                                                            <p>Wholesale: ₹{item.wholesalePrice}</p>
-                                                                            <p>Est MRP: ₹{item.estimatedMRP}</p>
-                                                                            {item.vendorDescription && <p className="italic">Note: {item.vendorDescription}</p>}
+                                                                        <div className="space-y-2">
+                                                                            <p className="font-bold text-green-700 uppercase text-[10px]">Live Quote:</p>
+                                                                            <div className="grid grid-cols-2 gap-2 text-xs">
+                                                                                <p><span className="text-muted-foreground">Wholesale:</span> <span className="font-bold">₹{item.wholesalePrice}</span></p>
+                                                                                <p><span className="text-muted-foreground">Est MRP:</span> <span className="font-bold">₹{item.estimatedMRP}</span></p>
+                                                                            </div>
+                                                                            {item.vendorDescription && (
+                                                                                <p className="text-[11px] text-slate-600 bg-white/50 p-2 rounded border border-white italic">Note: "{item.vendorDescription}"</p>
+                                                                            )}
                                                                         </div>
                                                                     )}
                                                                 </div>
