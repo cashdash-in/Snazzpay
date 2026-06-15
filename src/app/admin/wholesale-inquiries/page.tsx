@@ -6,7 +6,6 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -16,7 +15,7 @@ import { getCollection, saveDocument } from "@/services/firestore";
 import { v4 as uuidv4 } from 'uuid';
 import { Loader2, PlusCircle, ImagePlus, FileSpreadsheet, Send, Search, CheckCircle2, Eye, Copy, Clock, Tag, Package, Trash2, BookOpen, Layers } from "lucide-react";
 import Image from 'next/image';
-import { format, formatDistanceToNow } from 'date-fns';
+import { format, formatDistanceToNow, isValid } from 'date-fns';
 import * as XLSX from 'xlsx';
 import type { WholesaleInquiry, WholesaleItem } from '@/types/wholesale';
 import type { Vendor } from '@/app/vendors/page';
@@ -24,6 +23,21 @@ import { db } from "@/lib/firebase";
 import { onSnapshot, collection, query, orderBy } from "firebase/firestore";
 
 const MAX_IMAGE_SIZE_PX = 800;
+
+function SafeRelativeTime({ date }: { date: string | undefined }) {
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => setMounted(true), []);
+
+    if (!mounted || !date) return null;
+    const d = new Date(date);
+    if (!isValid(d)) return null;
+
+    try {
+        return <>{formatDistanceToNow(d)} ago</>;
+    } catch (e) {
+        return null;
+    }
+}
 
 export default function WholesaleInquiriesPage() {
     const { user } = useAuth();
@@ -47,13 +61,21 @@ export default function WholesaleInquiriesPage() {
     // Live sync
     useEffect(() => {
         if (!db) return;
-        const q = query(collection(db, 'wholesale_inquiries'), orderBy("createdAt", "desc"));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WholesaleInquiry));
-            setInquiries(data);
+        try {
+            const q = query(collection(db, 'wholesale_inquiries'), orderBy("createdAt", "desc"));
+            const unsubscribe = onSnapshot(q, (snapshot) => {
+                const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WholesaleInquiry));
+                setInquiries(data);
+                setIsLoading(false);
+            }, (error) => {
+                console.error("Firestore error:", error);
+                setIsLoading(false);
+            });
+            return () => unsubscribe();
+        } catch (e) {
+            console.error("Failed to setup snapshot:", e);
             setIsLoading(false);
-        });
-        return () => unsubscribe();
+        }
     }, []);
 
     useEffect(() => {
@@ -108,7 +130,7 @@ export default function WholesaleInquiriesPage() {
     const removeItem = (index: number) => setItems(items.filter((_, i) => i !== index));
 
     const handleSendInquiry = async () => {
-        if (!selectedVendorId || items.some(item => item.images.length === 0 || !item.category)) {
+        if (!selectedVendorId || items.some(item => (item.images || []).length === 0 || !item.category)) {
             toast({ variant: 'destructive', title: "Missing Fields", description: "Please select a vendor and ensure all products have a category and at least one image." });
             return;
         }
@@ -150,7 +172,7 @@ export default function WholesaleInquiriesPage() {
 
     const handleExportExcel = () => {
         if (inquiries.length === 0) return;
-        const data = inquiries.flatMap(inq => inq.items.map(item => ({
+        const data = inquiries.flatMap(inq => (inq.items || []).map(item => ({
             'Magazine': inq.title,
             'Vendor': inq.vendorName,
             'Category': item.category,
@@ -159,7 +181,7 @@ export default function WholesaleInquiriesPage() {
             'Wholesale Price (₹)': item.wholesalePrice || (item.status === 'Alternate Proposed' ? item.alternateProduct?.wholesalePrice : 'N/A'),
             'Est. MRP (₹)': item.estimatedMRP || (item.status === 'Alternate Proposed' ? item.alternateProduct?.estimatedMRP : 'N/A'),
             'Note': item.vendorDescription || 'N/A',
-            'Date': format(new Date(inq.createdAt), 'PP'),
+            'Date': inq.createdAt ? format(new Date(inq.createdAt), 'PP') : 'N/A',
         })));
         const ws = XLSX.utils.json_to_sheet(data);
         const wb = XLSX.utils.book_new();
@@ -207,12 +229,12 @@ export default function WholesaleInquiriesPage() {
                                     <div className="space-y-2">
                                         <Label className="text-xs font-bold uppercase">Product Images</Label>
                                         <div className="grid grid-cols-4 gap-2">
-                                            {item.images.map((src, i) => (
+                                            {(item.images || []).map((src, i) => (
                                                 <div key={i} className="relative aspect-square rounded border overflow-hidden">
                                                     <Image src={src} fill alt="preview" className="object-cover" />
                                                 </div>
                                             ))}
-                                            {item.images.length < 5 && (
+                                            {(item.images || []).length < 5 && (
                                                 <button className="aspect-square flex items-center justify-center border-2 border-dashed rounded bg-white" onClick={() => document.getElementById(`img-in-${idx}`)?.click()}>
                                                     <ImagePlus className="h-4 w-4 text-muted-foreground" />
                                                 </button>
@@ -263,7 +285,7 @@ export default function WholesaleInquiriesPage() {
                         ) : filteredInquiries.map(inq => (
                             <Card key={inq.id} className="overflow-hidden group hover:shadow-2xl transition-all duration-300 border-t-4 border-t-primary">
                                 <div className="relative h-48 w-full bg-slate-900">
-                                    <Image src={inq.items[0]?.images[0] || 'https://picsum.photos/seed/mag/400/300'} fill alt="mag" className="object-cover opacity-60" />
+                                    <Image src={(inq.items?.[0]?.images?.[0]) || 'https://picsum.photos/seed/mag/400/300'} fill alt="mag" className="object-cover opacity-60" />
                                     <div className="absolute bottom-4 left-4 text-white">
                                         <h4 className="font-black italic text-xl uppercase leading-none">{inq.title}</h4>
                                         <p className="text-[10px] font-bold text-primary-foreground uppercase mt-1">To: {inq.vendorName}</p>
@@ -272,17 +294,17 @@ export default function WholesaleInquiriesPage() {
                                 </div>
                                 <CardContent className="p-5 space-y-4">
                                     <div className="flex justify-between text-xs border-b pb-2">
-                                        <span className="font-bold flex items-center gap-1"><Layers className="h-3 w-3" /> {inq.items.length} Products</span>
-                                        <span className="text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3" /> {formatDistanceToNow(new Date(inq.createdAt))} ago</span>
+                                        <span className="font-bold flex items-center gap-1"><Layers className="h-3 w-3" /> {(inq.items || []).length} Products</span>
+                                        <span className="text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3" /> <SafeRelativeTime date={inq.createdAt} /></span>
                                     </div>
                                     <div className="space-y-2">
-                                        {inq.items.slice(0, 3).map((item, idx) => (
+                                        {(inq.items || []).slice(0, 3).map((item, idx) => (
                                             <div key={idx} className="flex justify-between items-center text-xs">
                                                 <span className="truncate max-w-[150px]">{item.category} ({item.quantityRequested})</span>
                                                 <Badge variant="outline" className="text-[8px] h-4">{item.status}</Badge>
                                             </div>
                                         ))}
-                                        {inq.items.length > 3 && <p className="text-[10px] text-center text-muted-foreground italic">+{inq.items.length - 3} more articles</p>}
+                                        {(inq.items || []).length > 3 && <p className="text-[10px] text-center text-muted-foreground italic">+{(inq.items || []).length - 3} more articles</p>}
                                     </div>
                                 </CardContent>
                                 <CardFooter className="p-4 pt-0 gap-2">
@@ -294,7 +316,7 @@ export default function WholesaleInquiriesPage() {
                                                 <DialogTitle className="text-2xl font-black italic">WHOLESALE MAGAZINE: {inq.title}</DialogTitle>
                                             </DialogHeader>
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
-                                                {inq.items.map((item, idx) => (
+                                                {(inq.items || []).map((item, idx) => (
                                                     <Card key={idx} className="border-2">
                                                         <CardHeader className="p-3 bg-muted/20">
                                                             <div className="flex justify-between items-center">
@@ -304,7 +326,7 @@ export default function WholesaleInquiriesPage() {
                                                         </CardHeader>
                                                         <CardContent className="p-3 space-y-3">
                                                             <div className="flex gap-3">
-                                                                <Image src={item.images[0]} width={60} height={60} alt="p" className="rounded border object-cover" />
+                                                                {item.images?.[0] && <Image src={item.images[0]} width={60} height={60} alt="p" className="rounded border object-cover" />}
                                                                 <div className="text-xs space-y-1">
                                                                     <p><strong>Qty Req:</strong> {item.quantityRequested}</p>
                                                                     <p className="italic text-muted-foreground">"{item.descriptionRequested}"</p>

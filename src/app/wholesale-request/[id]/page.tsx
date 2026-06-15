@@ -69,7 +69,9 @@ function WholesaleResponseContent() {
 
     const handleSaveItemResponse = async () => {
         if (!inquiry) return;
-        const item = inquiry.items[activeItemIndex];
+        const item = inquiry.items?.[activeItemIndex];
+        if (!item) return;
+
         const isOOS = response.availability === 'Out of Stock';
 
         if (!isOOS && (!response.wholesalePrice || !response.estimatedMRP)) {
@@ -83,7 +85,7 @@ function WholesaleResponseContent() {
 
         setIsSaving(true);
         try {
-            const updatedItems = [...inquiry.items];
+            const updatedItems = [...(inquiry.items || [])];
             const updatedItem: WholesaleItem = {
                 ...item,
                 status: isOOS ? 'Alternate Proposed' : 'Available',
@@ -108,7 +110,7 @@ function WholesaleResponseContent() {
             
             toast({ title: "Product Quote Saved!" });
             
-            if (activeItemIndex < inquiry.items.length - 1) {
+            if (activeItemIndex < (inquiry.items || []).length - 1) {
                 setActiveItemIndex(activeItemIndex + 1);
                 resetForm();
             } else {
@@ -136,6 +138,7 @@ function WholesaleResponseContent() {
     };
 
     if (isLoading) return <div className="flex items-center justify-center h-screen"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
+    
     if (isMagazineSubmitted) return (
         <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4 text-center">
             <Card className="max-w-md shadow-2xl p-10 rounded-[40px] border-none">
@@ -147,7 +150,7 @@ function WholesaleResponseContent() {
         </div>
     );
 
-    if (!inquiry) return <div className="p-20 text-center">Magazine not found.</div>;
+    if (!inquiry || !inquiry.items || inquiry.items.length === 0) return <div className="p-20 text-center">Magazine not found or is empty.</div>;
 
     const activeItem = inquiry.items[activeItemIndex];
 
@@ -170,13 +173,13 @@ function WholesaleResponseContent() {
                 <div className="space-y-8">
                     <Carousel className="w-full rounded-[32px] overflow-hidden shadow-2xl border-white border-[12px] bg-white">
                         <CarouselContent>
-                            {(activeItem.images.length > 0 ? activeItem.images : ['https://picsum.photos/seed/w/800/1000']).map((uri, idx) => (
+                            {((activeItem.images || []).length > 0 ? activeItem.images : ['https://picsum.photos/seed/w/800/1000']).map((uri, idx) => (
                                 <CarouselItem key={idx}>
                                     <div className="relative aspect-[4/5] w-full"><Image src={uri} fill alt="p" className="object-cover" /></div>
                                 </CarouselItem>
                             ))}
                         </CarouselContent>
-                        {activeItem.images.length > 1 && <><CarouselPrevious className="left-4" /><CarouselNext className="right-4" /></>}
+                        {(activeItem.images || []).length > 1 && <><CarouselPrevious className="left-4" /><CarouselNext className="right-4" /></>}
                     </Carousel>
                     
                     <div className="space-y-4 px-4">
