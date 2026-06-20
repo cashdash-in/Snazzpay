@@ -8,6 +8,9 @@ export type AlternateProduct = {
     availableQuantity: number;
     description: string;
     category?: string;
+    length?: string;
+    breadth?: string;
+    height?: string;
 };
 
 export type WholesaleItem = {
@@ -17,11 +20,16 @@ export type WholesaleItem = {
     quantityRequested: number;
     descriptionRequested: string;
     status: WholesaleStatus;
+    // Dimensions
+    length?: string;
+    breadth?: string;
+    height?: string;
     // Vendor Response Fields
     wholesalePrice?: number;
     estimatedMRP?: number;
     vendorDescription?: string;
-    alternateProduct?: AlternateProduct;
+    alternateProduct?: AlternateProduct | null;
+    isConfirmedByAdmin?: boolean;
 };
 
 export type WholesaleInquiry = {

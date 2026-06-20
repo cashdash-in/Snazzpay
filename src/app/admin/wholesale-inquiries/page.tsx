@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { getCollection, saveDocument } from "@/services/firestore";
 import { v4 as uuidv4 } from 'uuid';
-import { Loader2, PlusCircle, ImagePlus, FileSpreadsheet, Send, Search, CheckCircle2, Eye, Copy, Clock, Tag, Package, Trash2, BookOpen, Layers, RefreshCw } from "lucide-react";
+import { Loader2, PlusCircle, ImagePlus, FileSpreadsheet, Send, Search, CheckCircle2, Eye, Copy, Clock, Tag, Package, Trash2, BookOpen, Layers, RefreshCw, Ruler, Check } from "lucide-react";
 import Image from 'next/image';
 import { format, formatDistanceToNow, isValid } from 'date-fns';
 import * as XLSX from 'xlsx';
@@ -53,7 +53,7 @@ export default function WholesaleInquiriesPage() {
     const [magazineTitle, setMagazineTitle] = useState('New Inventory Request');
     const [selectedVendorId, setSelectedVendorId] = useState('');
     const [items, setItems] = useState<Omit<WholesaleItem, 'id' | 'status'>[]>([
-        { images: [], category: '', quantityRequested: 1, descriptionRequested: '' }
+        { images: [], category: '', quantityRequested: 1, descriptionRequested: '', length: '', breadth: '', height: '' }
     ]);
     
     // Live sync
@@ -76,7 +76,6 @@ export default function WholesaleInquiriesPage() {
         }
     }, []);
 
-    // Mark as read separate from the main listener to avoid state/sync loops
     useEffect(() => {
         const unread = inquiries.filter(i => i.isReadByAdmin === false);
         if (unread.length > 0 && db) {
@@ -138,7 +137,7 @@ export default function WholesaleInquiriesPage() {
         }
     };
 
-    const addItem = () => setItems([...items, { images: [], category: '', quantityRequested: 1, descriptionRequested: '' }]);
+    const addItem = () => setItems([...items, { images: [], category: '', quantityRequested: 1, descriptionRequested: '', length: '', breadth: '', height: '' }]);
     const removeItem = (index: number) => setItems(items.filter((_, i) => i !== index));
 
     const handleSendInquiry = async () => {
@@ -165,7 +164,7 @@ export default function WholesaleInquiriesPage() {
 
         try {
             await saveDocument('wholesale_inquiries', inquiryData, inquiryId);
-            setItems([{ images: [], category: '', quantityRequested: 1, descriptionRequested: '' }]);
+            setItems([{ images: [], category: '', quantityRequested: 1, descriptionRequested: '', length: '', breadth: '', height: '' }]);
             setMagazineTitle('New Inventory Request');
             setSelectedVendorId('');
             toast({ title: "Wholesale Magazine Created!", description: "Share the link with your vendor via WhatsApp." });
@@ -173,6 +172,16 @@ export default function WholesaleInquiriesPage() {
             toast({ variant: 'destructive', title: "Failed to create inquiry" });
         } finally {
             setIsSubmitting(false);
+        }
+    };
+
+    const handleConfirmItem = async (inq: WholesaleInquiry, itemId: string) => {
+        const updatedItems = inq.items.map(it => it.id === itemId ? { ...it, isConfirmedByAdmin: true } : it);
+        try {
+            await saveDocument('wholesale_inquiries', { items: updatedItems }, inq.id);
+            toast({ title: "Article Confirmed", description: "The vendor will see this as confirmed in their magazine." });
+        } catch (e) {
+            toast({ variant: 'destructive', title: "Confirmation Failed" });
         }
     };
 
@@ -198,7 +207,11 @@ export default function WholesaleInquiriesPage() {
             'Vendor': inq.vendorName,
             'Category': item.category,
             'Status': item.status,
+            'Confirmed': item.isConfirmedByAdmin ? 'YES' : 'NO',
             'Qty Requested': item.quantityRequested,
+            'Length': item.length || 'N/A',
+            'Breadth': item.breadth || 'N/A',
+            'Height': item.height || 'N/A',
             'Wholesale Price (₹)': item.status === 'Available' ? item.wholesalePrice : (item.status === 'Alternate Proposed' ? item.alternateProduct?.wholesalePrice : 'N/A'),
             'Est. MRP (₹)': item.status === 'Available' ? item.estimatedMRP : (item.status === 'Alternate Proposed' ? item.alternateProduct?.estimatedMRP : 'N/A'),
             'Alternate Title': item.status === 'Alternate Proposed' ? item.alternateProduct?.title : 'N/A',
@@ -275,6 +288,20 @@ export default function WholesaleInquiriesPage() {
                                             <Input type="number" className="h-8 text-xs" value={item.quantityRequested} onChange={e => setItems(prev => prev.map((it, i) => i === idx ? { ...it, quantityRequested: parseInt(e.target.value) || 1 } : it))} />
                                         </div>
                                     </div>
+                                    <div className="grid grid-cols-3 gap-1">
+                                        <div className="space-y-1">
+                                            <Label className="text-[8px] uppercase">Length</Label>
+                                            <Input className="h-7 text-[10px]" placeholder="e.g., 5ft" value={item.length} onChange={e => setItems(prev => prev.map((it, i) => i === idx ? { ...it, length: e.target.value } : it))} />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label className="text-[8px] uppercase">Breadth</Label>
+                                            <Input className="h-7 text-[10px]" placeholder="e.g., 2ft" value={item.breadth} onChange={e => setItems(prev => prev.map((it, i) => i === idx ? { ...it, breadth: e.target.value } : it))} />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label className="text-[8px] uppercase">Height</Label>
+                                            <Input className="h-7 text-[10px]" placeholder="e.g., 3ft" value={item.height} onChange={e => setItems(prev => prev.map((it, i) => i === idx ? { ...it, height: e.target.value } : it))} />
+                                        </div>
+                                    </div>
                                     <div className="space-y-1">
                                         <Label className="text-[10px] uppercase">Note for Vendor</Label>
                                         <Input className="h-8 text-xs" value={item.descriptionRequested} onChange={e => setItems(prev => prev.map((it, i) => i === idx ? { ...it, descriptionRequested: e.target.value } : it))} />
@@ -331,7 +358,10 @@ export default function WholesaleInquiriesPage() {
                                     <div className="space-y-2">
                                         {(inq.items || []).slice(0, 3).map((item, idx) => (
                                             <div key={idx} className="flex justify-between items-center text-xs">
-                                                <span className="truncate max-w-[150px]">{item.category} ({item.quantityRequested})</span>
+                                                <div className="flex items-center gap-2">
+                                                     <span className="truncate max-w-[120px]">{item.category} ({item.quantityRequested})</span>
+                                                     {item.isConfirmedByAdmin && <Badge className="h-4 px-1 bg-green-500 text-[8px] uppercase">Confirmed</Badge>}
+                                                </div>
                                                 <Badge variant="outline" className={cn(
                                                     "text-[8px] h-4",
                                                     item.status === 'Available' && "bg-green-50 text-green-700",
@@ -352,7 +382,12 @@ export default function WholesaleInquiriesPage() {
                                             </DialogHeader>
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
                                                 {(inq.items || []).map((item, idx) => (
-                                                    <Card key={idx} className="border-2 overflow-hidden">
+                                                    <Card key={idx} className="border-2 overflow-hidden relative">
+                                                        {item.isConfirmedByAdmin && (
+                                                            <div className="absolute top-0 right-0 z-10 bg-green-500 text-white text-[10px] font-black uppercase px-4 py-1 rounded-bl-xl shadow-lg flex items-center gap-1">
+                                                                <Check className="h-3 w-3" /> Approved
+                                                            </div>
+                                                        )}
                                                         <CardHeader className="p-3 bg-muted/20">
                                                             <div className="flex justify-between items-center">
                                                                 <CardTitle className="text-sm">{item.category}</CardTitle>
@@ -369,6 +404,11 @@ export default function WholesaleInquiriesPage() {
                                                                 </div>
                                                                 <div className="text-xs space-y-1">
                                                                     <p><strong>Qty Req:</strong> {item.quantityRequested}</p>
+                                                                    <div className="flex gap-2 text-[10px] text-muted-foreground font-mono">
+                                                                        {item.length && <span>L:{item.length}</span>}
+                                                                        {item.breadth && <span>B:{item.breadth}</span>}
+                                                                        {item.height && <span>H:{item.height}</span>}
+                                                                    </div>
                                                                     <p className="italic text-muted-foreground">"{item.descriptionRequested}"</p>
                                                                 </div>
                                                             </div>
@@ -397,6 +437,11 @@ export default function WholesaleInquiriesPage() {
                                                                                         <p><span className="text-muted-foreground">MRP:</span> <span className="font-bold">₹{item.alternateProduct?.estimatedMRP}</span></p>
                                                                                         <p className="col-span-2"><span className="text-muted-foreground">Avail. Qty:</span> <span className="font-bold">{item.alternateProduct?.availableQuantity}</span></p>
                                                                                     </div>
+                                                                                     <div className="flex gap-2 text-[10px] text-blue-600 font-mono">
+                                                                                        {item.alternateProduct?.length && <span>L:{item.alternateProduct.length}</span>}
+                                                                                        {item.alternateProduct?.breadth && <span>B:{item.alternateProduct.breadth}</span>}
+                                                                                        {item.alternateProduct?.height && <span>H:{item.alternateProduct.height}</span>}
+                                                                                    </div>
                                                                                 </div>
                                                                             </div>
                                                                             {item.alternateProduct?.description && (
@@ -418,6 +463,16 @@ export default function WholesaleInquiriesPage() {
                                                                 </div>
                                                             )}
                                                         </CardContent>
+                                                        <CardFooter className="p-2 pt-0">
+                                                             <Button 
+                                                                className="w-full h-8 text-[10px] uppercase font-black" 
+                                                                variant={item.isConfirmedByAdmin ? "secondary" : "default"}
+                                                                disabled={item.status === 'Pending' || item.isConfirmedByAdmin}
+                                                                onClick={() => handleConfirmItem(inq, item.id)}
+                                                            >
+                                                                {item.isConfirmedByAdmin ? 'Approved article' : 'Approve Quote'}
+                                                            </Button>
+                                                        </CardFooter>
                                                     </Card>
                                                 ))}
                                             </div>
