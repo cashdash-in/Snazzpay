@@ -137,6 +137,32 @@ export default function WholesaleInquiriesPage() {
         }
     };
 
+    const handlePaste = async (index: number, e: React.ClipboardEvent) => {
+        const clipboardItems = e.clipboardData?.items;
+        if (!clipboardItems) return;
+        
+        const imageFiles: File[] = [];
+        for (let i = 0; i < clipboardItems.length; i++) {
+            if (clipboardItems[i].type.indexOf('image') !== -1) {
+                const file = clipboardItems[i].getAsFile();
+                if (file) {
+                    imageFiles.push(file);
+                }
+            }
+        }
+
+        if (imageFiles.length > 0) {
+            e.preventDefault();
+            const newUris: string[] = [];
+            for (const file of imageFiles) {
+                const resized = await resizeImage(file);
+                newUris.push(resized);
+            }
+            setItems(prev => prev.map((item, i) => i === index ? { ...item, images: [...item.images, ...newUris] } : item));
+            toast({ title: "Images Pasted", description: "Successfully added images from clipboard." });
+        }
+    };
+
     const addItem = () => setItems([...items, { images: [], category: '', quantityRequested: 1, descriptionRequested: '', length: '', breadth: '', height: '' }]);
     const removeItem = (index: number) => setItems(items.filter((_, i) => i !== index));
 
@@ -258,21 +284,43 @@ export default function WholesaleInquiriesPage() {
                         </div>
                         <div className="space-y-6 border-t pt-4">
                             {items.map((item, idx) => (
-                                <div key={idx} className="p-4 bg-muted/40 rounded-xl space-y-4 border relative">
+                                <div 
+                                    key={idx} 
+                                    className="p-4 bg-muted/40 rounded-xl space-y-4 border relative group hover:border-primary/50 transition-colors"
+                                    onPaste={(e) => handlePaste(idx, e)}
+                                >
                                     <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-6 w-6" onClick={() => removeItem(idx)} disabled={items.length === 1}>
                                         <Trash2 className="h-3 w-3" />
                                     </Button>
                                     <div className="space-y-2">
-                                        <Label className="text-xs font-bold uppercase">Product Images</Label>
+                                        <div className="flex justify-between items-center">
+                                            <Label className="text-xs font-bold uppercase">Product Images</Label>
+                                            <span className="text-[10px] text-muted-foreground italic group-hover:text-primary transition-colors">You can also paste images here</span>
+                                        </div>
                                         <div className="grid grid-cols-4 gap-2">
                                             {(item.images || []).map((src, i) => (
                                                 <div key={i} className="relative aspect-square rounded border overflow-hidden">
                                                     <Image src={src} fill alt="preview" className="object-cover" />
+                                                    <button 
+                                                        className="absolute top-0 right-0 bg-black/50 text-white p-0.5 rounded-bl hover:bg-red-500 transition-colors"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setItems(prev => prev.map((it, itemIdx) => 
+                                                                itemIdx === idx ? { ...it, images: it.images.filter((_, imgIdx) => imgIdx !== i) } : it
+                                                            ));
+                                                        }}
+                                                    >
+                                                        <XCircle className="h-3 w-3" />
+                                                    </button>
                                                 </div>
                                             ))}
                                             {(item.images || []).length < 5 && (
-                                                <button className="aspect-square flex items-center justify-center border-2 border-dashed rounded bg-white" onClick={() => document.getElementById(`img-in-${idx}`)?.click()}>
-                                                    <ImagePlus className="h-4 w-4 text-muted-foreground" />
+                                                <button 
+                                                    className="aspect-square flex flex-col items-center justify-center border-2 border-dashed rounded bg-white hover:bg-slate-50 transition-colors" 
+                                                    onClick={() => document.getElementById(`img-in-${idx}`)?.click()}
+                                                >
+                                                    <ImagePlus className="h-4 w-4 text-muted-foreground mb-1" />
+                                                    <span className="text-[8px] text-muted-foreground uppercase">Upload</span>
                                                 </button>
                                             )}
                                         </div>
