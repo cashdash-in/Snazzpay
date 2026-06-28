@@ -15,26 +15,27 @@ try {
     !SHOPIFY_STORE_URL ||
     !SHOPIFY_API_SCOPES
   ) {
-    throw new Error(
-      'Missing one or more required Shopify environment variables.'
+    // During build/prerender, env vars might be missing. Log a warning instead of a hard error.
+    console.warn(
+      'Shopify Environment Warning: Missing one or more required Shopify environment variables. Shopify integration will be disabled until variables are set in production settings.'
     );
+  } else {
+    const shopify = shopifyApi({
+        apiKey: SHOPIFY_API_KEY,
+        apiSecretKey: SHOPIFY_API_SECRET,
+        scopes: SHOPIFY_API_SCOPES.split(','),
+        hostName: SHOPIFY_STORE_URL.replace(/^https?:\/\//, ''),
+        apiVersion: LATEST_API_VERSION,
+        isEmbeddedApp: false,
+    });
+
+    shopifyClient = new shopify.clients.Rest({
+        session: {
+            shop: SHOPIFY_STORE_URL,
+            accessToken: SHOPIFY_API_KEY, // Use the admin access token
+        } as any,
+    });
   }
-
-  const shopify = shopifyApi({
-    apiKey: SHOPIFY_API_KEY,
-    apiSecretKey: SHOPIFY_API_SECRET,
-    scopes: SHOPIFY_API_SCOPES.split(','),
-    hostName: SHOPIFY_STORE_URL.replace(/^https?_\/\//, ''),
-    apiVersion: LATEST_API_VERSION,
-    isEmbeddedApp: false,
-  });
-
-  shopifyClient = new shopify.clients.Rest({
-    session: {
-      shop: SHOPIFY_STORE_URL,
-      accessToken: SHOPIFY_API_KEY, // Use the admin access token
-    } as any,
-  });
 } catch (error) {
   console.error('Failed to initialize Shopify client:', error);
   // In case of error, shopifyClient will remain undefined

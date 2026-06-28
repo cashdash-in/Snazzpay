@@ -8,12 +8,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Sparkles, Rocket, Globe, Palette, ShoppingBag, MessageSquare, CheckCircle2, DollarSign } from 'lucide-react';
+import { Loader2, Sparkles, Rocket, Globe, Palette, ShoppingBag, MessageSquare, CheckCircle2, DollarSign, Wand2 } from 'lucide-react';
 import { startSiteBuilder } from '@/ai/flows/site-builder-flow';
 import { type SiteBuilderOutput } from '@/ai/schemas/site-builder';
 import { saveDocument } from '@/services/firestore';
 import { v4 as uuidv4 } from 'uuid';
 import Image from 'next/image';
+import { Badge } from '@/components/ui/badge';
 
 export default function SiteBuilderPage() {
     const { toast } = useToast();
