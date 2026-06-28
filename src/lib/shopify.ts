@@ -1,44 +1,44 @@
-import { shopifyApi, ApiVersion, LATEST_API_VERSION } from '@shopify/shopify-api';
+import { shopifyApi, LATEST_API_VERSION } from '@shopify/shopify-api';
 import '@shopify/shopify-api/adapters/node';
 
-const SHOPIFY_API_KEY = process.env.SHOPIFY_API_KEY || '';
-const SHOPIFY_API_SECRET = process.env.SHOPIFY_API_SECRET || '';
-const SHOPIFY_STORE_URL = process.env.SHOPIFY_STORE_URL || '';
-const SHOPIFY_API_SCOPES = process.env.SHOPIFY_API_SCOPES || '';
+const getShopifyConfig = () => ({
+  apiKey: process.env.SHOPIFY_API_KEY || '',
+  apiSecretKey: process.env.SHOPIFY_API_SECRET || '',
+  scopes: (process.env.SHOPIFY_API_SCOPES || '').split(','),
+  hostName: (process.env.SHOPIFY_STORE_URL || '').replace(/^https?:\/\//, ''),
+  apiVersion: LATEST_API_VERSION,
+  isEmbeddedApp: false,
+});
 
 let shopifyClient: any = undefined;
 
-try {
-  if (
-    !SHOPIFY_API_KEY ||
-    !SHOPIFY_API_SECRET ||
-    !SHOPIFY_STORE_URL ||
-    !SHOPIFY_API_SCOPES
-  ) {
-    // During build/prerender, env vars might be missing. Log a warning instead of a hard error.
+const initializeShopify = () => {
+  // Never initialize on client
+  if (typeof window !== 'undefined') return;
+  
+  const config = getShopifyConfig();
+  
+  // Guard against missing credentials during build/prerender
+  if (!config.apiKey || !config.apiSecretKey || !config.hostName) {
     console.warn(
       'Shopify Environment Warning: Missing one or more required Shopify environment variables. Shopify integration will be disabled until variables are set in production settings.'
     );
-  } else {
-    const shopify = shopifyApi({
-        apiKey: SHOPIFY_API_KEY,
-        apiSecretKey: SHOPIFY_API_SECRET,
-        scopes: SHOPIFY_API_SCOPES.split(','),
-        hostName: SHOPIFY_STORE_URL.replace(/^https?:\/\//, ''),
-        apiVersion: LATEST_API_VERSION,
-        isEmbeddedApp: false,
-    });
-
-    shopifyClient = new shopify.clients.Rest({
-        session: {
-            shop: SHOPIFY_STORE_URL,
-            accessToken: SHOPIFY_API_KEY, // Use the admin access token
-        } as any,
-    });
+    return;
   }
-} catch (error) {
-  console.error('Failed to initialize Shopify client:', error);
-  // In case of error, shopifyClient will remain undefined
-}
+  
+  try {
+    const shopify = shopifyApi(config);
+    shopifyClient = new shopify.clients.Rest({
+      session: {
+        shop: config.hostName,
+        accessToken: config.apiKey,
+      } as any,
+    });
+  } catch (error) {
+    console.error('Failed to initialize Shopify client:', error);
+  }
+};
+
+initializeShopify();
 
 export { shopifyClient };
