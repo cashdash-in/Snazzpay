@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -7,21 +6,20 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { 
     Loader2, Sparkles, Rocket, Globe, MessageSquare, 
-    DollarSign, Wand2, ShieldCheck, Key, Send, Bot, 
-    User, ShoppingBag, Clock, CheckCircle2, LayoutTemplate 
+    DollarSign, Wand2, ShieldCheck, Send, Bot, 
+    User, ShoppingBag, Clock, LayoutTemplate, ImageIcon
 } from 'lucide-react';
 import { startSiteBuilder } from '@/ai/flows/site-builder-flow';
 import { type SiteBuilderOutput } from '@/ai/schemas/site-builder';
-import { saveDocument, getCollection } from '@/services/firestore';
+import { saveDocument } from '@/services/firestore';
 import { v4 as uuidv4 } from 'uuid';
-import Image from 'next/image';
-import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { addDays, format } from 'date-fns';
+import { addDays } from 'date-fns';
+
+export const dynamic = 'force-dynamic';
 
 interface ChatMessage {
     role: 'user' | 'assistant';
@@ -33,7 +31,7 @@ export default function SiteBuilderPage() {
     const [prompt, setPrompt] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
     const [isPublishing, setIsPublishing] = useState(false);
-    const [generatedConfig, setGeneratedConfig] = useState<SiteBuilderOutput | null>(null);
+    const [generatedConfig, setGeneratedConfig] = setGeneratedConfig = useState<SiteBuilderOutput | null>(null);
     const [isTrial, setIsTrial] = useState(true);
     const [creationFee] = useState('999');
     const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
@@ -86,6 +84,7 @@ export default function SiteBuilderPage() {
                 content: `I've updated the design for "${config.storeName}". Check the preview to see the new look and products!` 
             }]);
         } catch (error: any) {
+            console.error("Architect Error:", error);
             toast({ variant: 'destructive', title: "Architect Error", description: error.message });
         } finally {
             setIsGenerating(false);

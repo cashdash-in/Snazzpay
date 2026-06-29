@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview AI Flow to power the chatbot for generated e-commerce sites.
@@ -21,7 +20,7 @@ const SiteChatbotOutputSchema = z.object({
   answer: z.string().describe('The AI assistant\'s response to the user query'),
 });
 
-export const siteChatbotFlow = ai.defineFlow(
+const siteChatbotFlow = ai.defineFlow(
   {
     name: 'siteChatbotFlow',
     inputSchema: SiteChatbotInputSchema,
@@ -48,8 +47,11 @@ export const siteChatbotFlow = ai.defineFlow(
   }
 );
 
+/**
+ * Asks the site's AI assistant a question.
+ * @param input The user's query and store context.
+ * @returns The assistant's response.
+ */
 export async function askSiteAssistant(input: z.infer<typeof SiteChatbotInputSchema>) {
     return siteChatbotFlow(input);
 }
-
-    

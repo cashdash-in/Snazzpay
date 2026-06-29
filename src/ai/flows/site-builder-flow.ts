@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview AI Flow to generate or update a complete e-commerce store configuration.
@@ -40,7 +39,7 @@ const prompt = ai.definePrompt({
     Return a valid JSON object.`,
 });
 
-export const generateSiteConfig = ai.defineFlow(
+const generateSiteConfig = ai.defineFlow(
   {
     name: 'generateSiteConfig',
     inputSchema: SiteBuilderInputSchema,
@@ -53,6 +52,11 @@ export const generateSiteConfig = ai.defineFlow(
   }
 );
 
+/**
+ * Starts the site builder process by calling the underlying Genkit flow.
+ * @param input The prompt and optional current configuration.
+ * @returns The generated site configuration.
+ */
 export async function startSiteBuilder(input: SiteBuilderInput): Promise<SiteBuilderOutput> {
     return generateSiteConfig(input);
 }
