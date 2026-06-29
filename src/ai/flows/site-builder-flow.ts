@@ -1,7 +1,7 @@
 
 'use server';
 /**
- * @fileOverview AI Flow to generate a complete e-commerce store configuration from a prompt.
+ * @fileOverview AI Flow to generate or update a complete e-commerce store configuration.
  */
 import { ai } from '@/ai/genkit';
 import {
@@ -16,19 +16,28 @@ const prompt = ai.definePrompt({
   model: 'googleai/gemini-2.5-flash',
   input: { schema: SiteBuilderInputSchema },
   output: { schema: SiteBuilderOutputSchema },
-  prompt: `You are an elite E-commerce Consultant and Web Designer. 
-    A client wants to start a new online store based on this prompt: "{{{prompt}}}"
+  prompt: `You are an elite E-commerce Architect. 
     
-    Generate a complete brand identity and initial inventory for them.
+    TASK:
+    {{#if currentConfig}}
+    Update the following site configuration based on the user's request.
+    Current Config: {{json currentConfig}}
+    User Request: "{{{prompt}}}"
+    {{else}}
+    Generate a complete new brand identity and initial inventory based on this prompt: "{{{prompt}}}"
+    {{/if}}
+    
+    REQUIREMENTS:
     - Store Name: Professional and memorable.
-    - Slogan: Catchy.
-    - Theme Color: A primary hex code representing the brand.
-    - Accent Color: A matching secondary hex code for UI elements.
-    - Welcome Message: A personalized greeting for their store's AI assistant.
-    - AI Persona: How should the chatbot act? (e.g., formal, witty, excited).
-    - Suggested Products: Create 4 realistic products that would sell well in this niche. Include descriptions and logical pricing in INR.
+    - Slogan: Catchy and brand-aligned.
+    - Theme Color: A primary hex code.
+    - Accent Color: A matching secondary hex code.
+    - Welcome Message: A personalized greeting for the store's AI assistant.
+    - AI Persona: Detailed personality for the chatbot.
+    - Suggested Products: 4-6 realistic products.
     
-    Return the response as a JSON object adhering to the schema.`,
+    If updating, only change the fields requested while keeping others consistent.
+    Return a valid JSON object.`,
 });
 
 export const generateSiteConfig = ai.defineFlow(
@@ -47,5 +56,3 @@ export const generateSiteConfig = ai.defineFlow(
 export async function startSiteBuilder(input: SiteBuilderInput): Promise<SiteBuilderOutput> {
     return generateSiteConfig(input);
 }
-
-    

@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { getDocument, getCollection } from '@/services/firestore';
 import { type SiteBuilderOutput } from '@/ai/schemas/site-builder';
 import { type ProductDrop } from '@/app/vendor/product-drops/page';
-import { Loader2, ShoppingCart, Star, ShieldCheck, Zap, Menu, X, Trash2, CheckCircle2 } from 'lucide-react';
+import { Loader2, ShoppingCart, Star, ShieldCheck, Zap, Menu, X, Trash2, Clock, AlertTriangle } from 'lucide-react';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -20,11 +20,14 @@ import {
     SheetFooter,
     SheetTrigger
 } from '@/components/ui/sheet';
+import { differenceInDays, parseISO } from 'date-fns';
+import { useToast } from '@/hooks/use-toast';
 
 export default function PublicSitePage() {
     const params = useParams();
     const router = useRouter();
-    const [site, setSite] = useState<SiteBuilderOutput & { id: string } | null>(null);
+    const { toast } = useToast();
+    const [site, setSite] = useState<any | null>(null);
     const [products, setProducts] = useState<ProductDrop[]>([]);
     const [cart, setCart] = useState<{ product: ProductDrop; quantity: number }[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -55,6 +58,12 @@ export default function PublicSitePage() {
         loadSite();
     }, [siteId]);
 
+    const daysRemaining = useMemo(() => {
+        if (!site?.isTrial || !site?.trialExpiresAt) return null;
+        const diff = differenceInDays(parseISO(site.trialExpiresAt), new Date());
+        return diff < 0 ? 0 : diff;
+    }, [site]);
+
     const addToCart = (product: ProductDrop) => {
         setCart(prev => {
             const existing = prev.find(item => item.product.id === product.id);
@@ -76,15 +85,12 @@ export default function PublicSitePage() {
 
     const handleCheckout = () => {
         if (cart.length === 0) return;
-        
-        // Use the first item for the checkout flow (MVP limitation)
         const item = cart[0].product;
         const checkoutUrl = new URL(`${window.location.origin}/catalogue`);
         checkoutUrl.searchParams.set('id', item.id);
         checkoutUrl.searchParams.set('sellerId', `site_${siteId}`);
         checkoutUrl.searchParams.set('sellerName', site?.storeName || '');
         checkoutUrl.searchParams.set('return_url', window.location.href);
-        
         router.push(checkoutUrl.toString());
     };
 
@@ -112,6 +118,15 @@ export default function PublicSitePage() {
 
     return (
         <div className="min-h-screen bg-white" style={{ '--primary': themeColor } as React.CSSProperties}>
+            {/* Trial Banner */}
+            {site.isTrial && (
+                <div className="bg-amber-500 text-white text-center py-1.5 px-4 text-xs font-bold flex items-center justify-center gap-2">
+                    <Clock className="h-3.5 w-3.5" />
+                    TRIAL MODE: {daysRemaining} days remaining. {daysRemaining! <= 0 && "This store is now hidden from search."}
+                    <Button variant="link" className="text-white h-auto p-0 underline font-black ml-2">Upgrade Now</Button>
+                </div>
+            )}
+
             {/* Navigation */}
             <nav className="sticky top-0 z-40 w-full bg-white/80 backdrop-blur-md border-b">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -175,7 +190,7 @@ export default function PublicSitePage() {
                                             <span className="font-bold">Total</span>
                                             <span className="text-2xl font-black" style={{ color: themeColor }}>₹{cartTotal}</span>
                                         </div>
-                                        <Button className="w-full h-12 text-lg font-bold" style={{ backgroundColor: themeColor }} onClick={handleCheckout}>
+                                        <Button className="w-full h-12 text-lg font-bold text-white" style={{ backgroundColor: themeColor }} onClick={handleCheckout}>
                                             Checkout Now
                                         </Button>
                                         <div className="flex items-center justify-center gap-2 text-[10px] text-muted-foreground">
@@ -194,8 +209,8 @@ export default function PublicSitePage() {
 
             {/* Hero Section */}
             <section id="home" className="relative pt-20 pb-32 overflow-hidden">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="text-center space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+                    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
                         <Badge variant="secondary" className="px-4 py-1 text-sm font-bold tracking-widest uppercase" style={{ color: themeColor, backgroundColor: `${themeColor}15` }}>
                             {site.slogan}
                         </Badge>
@@ -206,7 +221,7 @@ export default function PublicSitePage() {
                             We bring you premium products, exceptional quality, and an AI-driven shopping experience tailored just for you.
                         </p>
                         <div className="flex justify-center gap-4">
-                            <Button size="lg" className="h-14 px-10 text-lg font-bold shadow-xl hover:scale-105 transition-transform" style={{ backgroundColor: themeColor }}>
+                            <Button size="lg" className="h-14 px-10 text-lg font-bold shadow-xl hover:scale-105 transition-transform text-white" style={{ backgroundColor: themeColor }}>
                                 Shop Collection
                             </Button>
                             <Button size="lg" variant="outline" className="h-14 px-10 text-lg font-bold border-2">
@@ -215,7 +230,6 @@ export default function PublicSitePage() {
                         </div>
                     </div>
                 </div>
-                {/* Decorative background elements */}
                 <div className="absolute top-1/2 left-0 -translate-y-1/2 w-64 h-64 blur-3xl opacity-20 pointer-events-none" style={{ backgroundColor: themeColor }}></div>
                 <div className="absolute top-1/2 right-0 -translate-y-1/2 w-64 h-64 blur-3xl opacity-20 pointer-events-none" style={{ backgroundColor: accentColor }}></div>
             </section>
@@ -237,7 +251,7 @@ export default function PublicSitePage() {
                                 <div className="relative aspect-square">
                                     <Image src={p.imageDataUris[0]} alt={p.title} fill className="object-cover group-hover:scale-110 transition-transform duration-500" />
                                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                        <Button className="font-bold" onClick={() => addToCart(p)} style={{ backgroundColor: themeColor }}>
+                                        <Button className="font-bold text-white" onClick={() => addToCart(p)} style={{ backgroundColor: themeColor }}>
                                             Quick Add
                                         </Button>
                                     </div>
@@ -263,35 +277,6 @@ export default function PublicSitePage() {
                 </div>
             </section>
 
-            {/* Trust Section */}
-            <section className="py-20">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-12 text-center">
-                        <div className="space-y-4">
-                            <div className="w-16 h-16 rounded-2xl mx-auto flex items-center justify-center text-white shadow-lg" style={{ backgroundColor: themeColor }}>
-                                <ShieldCheck className="h-8 w-8" />
-                            </div>
-                            <h4 className="text-xl font-bold">Secure Payments</h4>
-                            <p className="text-muted-foreground">Powered by SnazzPay Secure COD. Pay only when your order ships.</p>
-                        </div>
-                        <div className="space-y-4">
-                            <div className="w-16 h-16 rounded-2xl mx-auto flex items-center justify-center text-white shadow-lg" style={{ backgroundColor: accentColor }}>
-                                <Zap className="h-8 w-8" />
-                            </div>
-                            <h4 className="text-xl font-bold">Instant Support</h4>
-                            <p className="text-muted-foreground">Our AI Assistant is available 24/7 to help with any questions.</p>
-                        </div>
-                        <div className="space-y-4">
-                            <div className="w-16 h-16 rounded-2xl mx-auto flex items-center justify-center text-white shadow-lg" style={{ backgroundColor: themeColor }}>
-                                <CheckCircle2 className="h-8 w-8" />
-                            </div>
-                            <h4 className="text-xl font-bold">Quality Assured</h4>
-                            <p className="text-muted-foreground">Every product in our collection is handpicked for excellence.</p>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
             {/* AI Chatbot */}
             <SiteChatbot 
                 siteId={siteId} 
@@ -308,11 +293,6 @@ export default function PublicSitePage() {
                         <p className="text-2xl font-black italic tracking-tighter mb-2">{site.storeName}</p>
                         <p className="text-slate-400 text-sm">{site.slogan}</p>
                     </div>
-                    <div className="flex gap-6 text-sm text-slate-300">
-                        <a href="#" className="hover:text-white">Privacy Policy</a>
-                        <a href="#" className="hover:text-white">Terms of Service</a>
-                        <a href="#" className="hover:text-white">Contact Us</a>
-                    </div>
                     <div className="text-slate-500 text-xs flex items-center gap-2">
                         Powered by <span className="font-bold text-white italic">SnazzPay AI</span>
                     </div>
@@ -321,5 +301,3 @@ export default function PublicSitePage() {
         </div>
     );
 }
-
-    
