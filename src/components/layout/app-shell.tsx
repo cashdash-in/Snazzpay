@@ -66,6 +66,7 @@ import {
   ImageIcon,
   ShoppingBasket,
   BadgeCheck,
+  MonitorCheck,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { getCookie } from 'cookies-next';
@@ -95,6 +96,7 @@ const adminCoreMenuItems: MenuItem[] = [
 ];
 
 const adminGrowthMenuItems: MenuItem[] = [
+    { href: '/admin/site-builder', label: 'AI Site Builder', icon: MonitorCheck },
     { href: '/ai-product-uploader', label: 'AI Product Uploader', icon: Wand2 },
     { href: '/admin/whatsapp-uploader', label: 'WhatsApp Uploader', icon: MessageSquare },
     { href: '/admin/image-bulk-uploader', label: 'Image Bulk Uploader', icon: ImageIcon },
@@ -135,7 +137,7 @@ const sellerMenuItems: MenuItem[] = [
 
 const vendorMenuItems: MenuItem[] = [
     { href: '/vendor/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { href: '/vendor/wholesale-inquiries', label: 'Wholesale Requests', icon: BadgeCheck },
+    { href: '/vendor/wholesale-inquiries', label: 'Wholesale Requests', icon: BadgeCheck, notificationKey: 'wholesale' },
     { href: '/vendor/product-drops', label: 'Product Drops', icon: PackagePlus },
     { href: '/vendor/products', label: 'My Products', icon: Package },
     { href: '/share/magazine', label: 'Smart Magazine', icon: BookOpen },
@@ -189,11 +191,13 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
 
             if (currentRole === 'admin') {
                 newOrdersCount = allOrders.filter(o => o.isRead === false).length;
-                newLeadsCount = allLeads.filter(l => l.isRead === false && ['Lead', 'Intent Verified'].includes(l.paymentStatus)).length;
+                newLeadsCount = allLeads.filter(l => l.isRead === false && ['Lead', 'Intent Verified', 'Enquiry'].includes(l.paymentStatus)).length;
                 newWholesaleCount = allWholesale.filter((w: any) => w.isReadByAdmin === false).length;
             } else if (currentRole === 'seller') {
                  newOrdersCount = allOrders.filter(o => o.sellerId === user.uid && o.isRead === false).length;
-                 newLeadsCount = allLeads.filter(l => l.sellerId === user.uid && l.isRead === false && ['Lead', 'Intent Verified'].includes(l.paymentStatus)).length;
+                 newLeadsCount = allLeads.filter(l => l.sellerId === user.uid && l.isRead === false && ['Lead', 'Intent Verified', 'Enquiry'].includes(l.paymentStatus)).length;
+            } else if (currentRole === 'vendor') {
+                newWholesaleCount = allWholesale.filter((w: any) => w.vendorId === user.uid && w.status === 'Pending').length;
             }
 
             setNotificationCounts({ orders: newOrdersCount, leads: newLeadsCount, wholesale: newWholesaleCount });
@@ -381,3 +385,5 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
     </SidebarProvider>
   );
 };
+
+    
