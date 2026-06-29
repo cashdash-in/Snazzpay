@@ -10,7 +10,8 @@ import { useToast } from '@/hooks/use-toast';
 import { 
     Loader2, Sparkles, Rocket, Globe, MessageSquare, 
     DollarSign, Wand2, ShieldCheck, Send, Bot, 
-    User, ShoppingBag, Clock, LayoutTemplate, ImageIcon
+    User, ShoppingBag, Clock, LayoutTemplate, ImageIcon,
+    PlusCircle
 } from 'lucide-react';
 import { startSiteBuilder } from '@/ai/flows/site-builder-flow';
 import { type SiteBuilderOutput } from '@/ai/schemas/site-builder';
@@ -18,8 +19,7 @@ import { saveDocument } from '@/services/firestore';
 import { v4 as uuidv4 } from 'uuid';
 import { cn } from '@/lib/utils';
 import { addDays } from 'date-fns';
-
-export const dynamic = 'force-dynamic';
+import { Badge } from '@/components/ui/badge';
 
 interface ChatMessage {
     role: 'user' | 'assistant';
@@ -31,7 +31,7 @@ export default function SiteBuilderPage() {
     const [prompt, setPrompt] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
     const [isPublishing, setIsPublishing] = useState(false);
-    const [generatedConfig, setGeneratedConfig] = setGeneratedConfig = useState<SiteBuilderOutput | null>(null);
+    const [generatedConfig, setGeneratedConfig] = useState<SiteBuilderOutput | null>(null);
     const [isTrial, setIsTrial] = useState(true);
     const [creationFee] = useState('999');
     const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
