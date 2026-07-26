@@ -9,10 +9,17 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { 
-    Loader2, Camera, Plus, Minus, Trash2, 
-    FileSpreadsheet, TrendingUp, TrendingDown, 
-    Package, MapPin, Search, AlertCircle, Sparkles,
-    CheckCircle2, DollarSign, History
+    Loader2, 
+    Camera, 
+    Plus, 
+    Minus, 
+    Trash2, 
+    FileSpreadsheet, 
+    Package, 
+    MapPin, 
+    Search, 
+    DollarSign, 
+    History 
 } from 'lucide-react';
 import { getCollection, saveDocument, deleteDocument, addDocument } from '@/services/firestore';
 import { analyzeInventoryItem } from '@/ai/flows/inventory-analyzer';
@@ -21,7 +28,7 @@ import Image from 'next/image';
 import * as XLSX from 'xlsx';
 import { format, startOfDay } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
@@ -71,8 +78,8 @@ export default function AdminInventoryPage() {
                 getCollection<InventoryItem>('inventory'),
                 getCollection<SaleTransaction>('sales_transactions')
             ]);
-            setInventory(stock);
-            setSales(history);
+            setInventory(stock || []);
+            setSales(history || []);
         } catch (e) {
             toast({ variant: 'destructive', title: 'Load Failed', description: 'Could not fetch data.' });
         } finally {
@@ -189,44 +196,44 @@ export default function AdminInventoryPage() {
         XLSX.writeFile(wb, `Shop_Report_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
     };
 
-    const filteredInventory = inventory.filter(i => 
-        i.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        i.shelfNumber.toLowerCase().includes(searchTerm.toLowerCase())
+    const filteredInventory = (inventory || []).filter(i => 
+        (i.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+        (i.shelfNumber || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     return (
         <AppShell title="Shop Inventory & P&L">
             <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <Card className="bg-primary text-primary-foreground">
-                        <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Daily Revenue</CardTitle></CardHeader>
-                        <CardContent><div className="text-2xl font-bold">₹{dailyPnL.revenue.toFixed(2)}</div></CardContent>
+                    <Card className="bg-primary text-primary-foreground shadow-lg">
+                        <CardHeader className="pb-2 text-center"><CardTitle className="text-sm font-medium uppercase tracking-wider">Daily Revenue</CardTitle></CardHeader>
+                        <CardContent className="text-center"><div className="text-3xl font-black">₹{dailyPnL.revenue.toFixed(2)}</div></CardContent>
                     </Card>
-                    <Card className={cn(dailyPnL.profit >= 0 ? "bg-green-600" : "bg-red-600", "text-white")}>
-                        <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Daily Profit/Loss</CardTitle></CardHeader>
-                        <CardContent><div className="text-2xl font-bold">₹{dailyPnL.profit.toFixed(2)}</div></CardContent>
+                    <Card className={cn(dailyPnL.profit >= 0 ? "bg-green-600" : "bg-red-600", "text-white shadow-lg")}>
+                        <CardHeader className="pb-2 text-center"><CardTitle className="text-sm font-medium uppercase tracking-wider">Daily Profit/Loss</CardTitle></CardHeader>
+                        <CardContent className="text-center"><div className="text-3xl font-black">₹{dailyPnL.profit.toFixed(2)}</div></CardContent>
                     </Card>
-                    <Card>
-                        <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Items Sold Today</CardTitle></CardHeader>
-                        <CardContent><div className="text-2xl font-bold">{dailyPnL.itemsSold}</div></CardContent>
+                    <Card className="shadow-lg border-primary/10">
+                        <CardHeader className="pb-2 text-center"><CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Items Sold Today</CardTitle></CardHeader>
+                        <CardContent className="text-center"><div className="text-3xl font-black text-slate-800">{dailyPnL.itemsSold}</div></CardContent>
                     </Card>
-                    <Card>
-                        <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Total SKUs</CardTitle></CardHeader>
-                        <CardContent><div className="text-2xl font-bold">{inventory.length}</div></CardContent>
+                    <Card className="shadow-lg border-primary/10">
+                        <CardHeader className="pb-2 text-center"><CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Total SKUs</CardTitle></CardHeader>
+                        <CardContent className="text-center"><div className="text-3xl font-black text-slate-800">{inventory.length}</div></CardContent>
                     </Card>
                 </div>
 
-                <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-4 rounded-xl shadow-sm border">
+                <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-4 rounded-2xl shadow-md border border-primary/5">
                     <div className="relative w-full md:w-96">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input placeholder="Search products or shelf numbers..." className="pl-9" value={searchTerm} onChange={e => setSearchQuery(e.target.value)} />
+                        <Input placeholder="Search products or shelf numbers..." className="pl-9 rounded-xl" value={searchTerm} onChange={e => setSearchQuery(e.target.value)} />
                     </div>
                     <div className="flex gap-2 w-full md:w-auto">
-                        <Button onClick={() => document.getElementById('camera-input')?.click()} disabled={isAnalyzing} className="flex-1">
+                        <Button onClick={() => document.getElementById('camera-input')?.click()} disabled={isAnalyzing} className="flex-1 rounded-xl h-11">
                             {isAnalyzing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Camera className="mr-2 h-4 w-4"/>}
                             Capture New Product
                         </Button>
-                        <Button variant="outline" onClick={exportToExcel} className="flex-1">
+                        <Button variant="outline" onClick={exportToExcel} className="flex-1 rounded-xl h-11">
                             <FileSpreadsheet className="mr-2 h-4 w-4" /> Export Report
                         </Button>
                         <input type="file" id="camera-input" accept="image/*" capture="environment" className="hidden" onChange={handleImageUpload} />
@@ -234,16 +241,16 @@ export default function AdminInventoryPage() {
                 </div>
 
                 <Tabs defaultValue="stock">
-                    <TabsList className="grid w-full grid-cols-2 max-w-md">
-                        <TabsTrigger value="stock"><Package className="mr-2 h-4 w-4" /> Current Stock</TabsTrigger>
-                        <TabsTrigger value="ledger"><History className="mr-2 h-4 w-4" /> Sales Ledger</TabsTrigger>
+                    <TabsList className="grid w-full grid-cols-2 max-w-md bg-slate-200/50 rounded-xl p-1">
+                        <TabsTrigger value="stock" className="rounded-lg font-bold uppercase text-xs"><Package className="mr-2 h-4 w-4" /> Current Stock</TabsTrigger>
+                        <TabsTrigger value="ledger" className="rounded-lg font-bold uppercase text-xs"><History className="mr-2 h-4 w-4" /> Sales Ledger</TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="stock" className="mt-4">
-                        <Card>
+                        <Card className="rounded-2xl border-none shadow-xl overflow-hidden">
                             <CardContent className="p-0">
                                 <Table>
-                                    <TableHeader>
+                                    <TableHeader className="bg-slate-50">
                                         <TableRow>
                                             <TableHead className="w-[80px]">Image</TableHead>
                                             <TableHead>Product Name</TableHead>
@@ -255,52 +262,65 @@ export default function AdminInventoryPage() {
                                     </TableHeader>
                                     <TableBody>
                                         {filteredInventory.map(item => (
-                                            <TableRow key={item.id} className={item.quantity === 0 ? "bg-red-50/50" : ""}>
-                                                <TableCell><div className="relative w-12 h-12 rounded border overflow-hidden bg-white"><Image src={item.imageDataUri} fill alt="prod" className="object-cover" /></div></TableCell>
+                                            <TableRow key={item.id} className={cn(item.quantity === 0 ? "bg-red-50/50" : "hover:bg-slate-50/50 transition-colors")}>
                                                 <TableCell>
-                                                    <div className="space-y-1">
-                                                        <Input value={item.name} onChange={e => updateItem(item.id, { name: e.target.value })} className="h-8 font-medium border-transparent hover:border-input focus:border-input bg-transparent" />
-                                                        <Badge variant="outline" className="text-[10px]">{item.category}</Badge>
+                                                    <div className="relative w-12 h-12 rounded-xl border overflow-hidden bg-white shadow-sm">
+                                                        {item.imageDataUri ? (
+                                                            <Image src={item.imageDataUri} fill alt="prod" className="object-cover" />
+                                                        ) : (
+                                                            <div className="flex items-center justify-center w-full h-full bg-slate-100 text-[10px] text-slate-400">NO IMG</div>
+                                                        )}
                                                     </div>
                                                 </TableCell>
-                                                <TableCell><div className="flex items-center gap-1"><MapPin className="h-3 w-3 text-muted-foreground" /><Input className="h-8 w-24 border-transparent hover:border-input focus:border-input bg-transparent" value={item.shelfNumber} onChange={e => updateItem(item.id, { shelfNumber: e.target.value })} /></div></TableCell>
+                                                <TableCell>
+                                                    <div className="space-y-1">
+                                                        <Input value={item.name} onChange={e => updateItem(item.id, { name: e.target.value })} className="h-8 font-bold border-transparent hover:border-input focus:border-input bg-transparent px-1" />
+                                                        <Badge variant="outline" className="text-[10px] font-black uppercase italic tracking-tighter">{item.category}</Badge>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell><div className="flex items-center gap-1"><MapPin className="h-3 w-3 text-muted-foreground" /><Input className="h-8 w-24 border-transparent hover:border-input focus:border-input bg-transparent px-1 font-mono text-xs" value={item.shelfNumber} onChange={e => updateItem(item.id, { shelfNumber: e.target.value })} /></div></TableCell>
                                                 <TableCell>
                                                     <div className="flex flex-col gap-1">
-                                                        <div className="flex items-center gap-1"><span className="text-[10px] text-muted-foreground w-12">Wholesale:</span><Input type="number" value={item.wholesalePrice} onChange={e => updateItem(item.id, { wholesalePrice: parseFloat(e.target.value) || 0 })} className="h-7 w-20 text-xs" /></div>
-                                                        <div className="flex items-center gap-1"><span className="text-[10px] text-muted-foreground w-12">MRP:</span><Input type="number" value={item.mrp} onChange={e => updateItem(item.id, { mrp: parseFloat(e.target.value) || 0 })} className="h-7 w-20 text-xs font-bold" /></div>
+                                                        <div className="flex items-center gap-1"><span className="text-[10px] text-muted-foreground w-12 font-bold uppercase">Buy:</span><Input type="number" value={item.wholesalePrice} onChange={e => updateItem(item.id, { wholesalePrice: parseFloat(e.target.value) || 0 })} className="h-7 w-24 text-xs font-mono" /></div>
+                                                        <div className="flex items-center gap-1"><span className="text-[10px] text-muted-foreground w-12 font-bold uppercase">MRP:</span><Input type="number" value={item.mrp} onChange={e => updateItem(item.id, { mrp: parseFloat(e.target.value) || 0 })} className="h-7 w-24 text-xs font-black" /></div>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex items-center gap-2">
-                                                        <div className="flex items-center">
-                                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateItem(item.id, { quantity: Math.max(0, item.quantity - 1) })}><Minus className="h-3 w-3" /></Button>
-                                                            <Input type="number" value={item.quantity} onChange={e => updateItem(item.id, { quantity: parseInt(e.target.value) || 0 })} className={cn("h-8 w-16 text-center font-bold", item.quantity === 0 && "text-red-600 border-red-200")} />
-                                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateItem(item.id, { quantity: item.quantity + 1 })}><Plus className="h-3 w-3" /></Button>
+                                                        <div className="flex items-center bg-slate-100 rounded-lg p-0.5">
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-white" onClick={() => updateItem(item.id, { quantity: Math.max(0, item.quantity - 1) })}><Minus className="h-3 w-3" /></Button>
+                                                            <Input type="number" value={item.quantity} onChange={e => updateItem(item.id, { quantity: parseInt(e.target.value) || 0 })} className={cn("h-8 w-14 text-center font-black border-none bg-transparent", item.quantity === 0 && "text-red-600")} />
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-white" onClick={() => updateItem(item.id, { quantity: item.quantity + 1 })}><Plus className="h-3 w-3" /></Button>
                                                         </div>
-                                                        {item.quantity === 0 && <Badge variant="destructive" className="animate-pulse">RE-STOCK</Badge>}
+                                                        {item.quantity === 0 && <Badge variant="destructive" className="animate-pulse text-[8px] font-black uppercase">RE-STOCK</Badge>}
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="text-right space-x-2">
                                                     <Dialog open={selectedSaleItem?.id === item.id} onOpenChange={open => !open && setSelectedSaleItem(null)}>
                                                         <DialogTrigger asChild>
-                                                            <Button size="sm" onClick={() => { setSelectedSaleItem(item); setSalePrice(item.mrp); setSaleQty(1); }} disabled={item.quantity === 0}><DollarSign className="h-4 w-4 mr-1" /> Sell</Button>
+                                                            <Button size="sm" onClick={() => { setSelectedSaleItem(item); setSalePrice(item.mrp); setSaleQty(1); }} disabled={item.quantity === 0} className="rounded-lg shadow-sm">
+                                                                <DollarSign className="h-4 w-4 mr-1" /> Sell
+                                                            </Button>
                                                         </DialogTrigger>
-                                                        <DialogContent>
-                                                            <DialogHeader><DialogTitle>Log Sale: {item.name}</DialogTitle></DialogHeader>
+                                                        <DialogContent className="rounded-[32px]">
+                                                            <DialogHeader><DialogTitle className="text-xl font-black italic uppercase">Log Sale: {item.name}</DialogTitle></DialogHeader>
                                                             <div className="space-y-4 py-4">
                                                                 <div className="grid grid-cols-2 gap-4">
-                                                                    <div className="space-y-2"><Label>Quantity Sold</Label><Input type="number" value={saleQty} onChange={e => setSaleQty(parseInt(e.target.value) || 1)} max={item.quantity} min={1} /></div>
-                                                                    <div className="space-y-2"><Label>Sale Price (per unit)</Label><Input type="number" value={actualSellPrice} onChange={e => setSalePrice(parseFloat(e.target.value) || 0)} /></div>
+                                                                    <div className="space-y-2"><Label className="text-[10px] font-black uppercase">Quantity Sold</Label><Input type="number" value={saleQty} onChange={e => setSaleQty(parseInt(e.target.value) || 1)} max={item.quantity} min={1} className="rounded-xl" /></div>
+                                                                    <div className="space-y-2"><Label className="text-[10px] font-black uppercase">Sale Price (per unit)</Label><Input type="number" value={actualSellPrice} onChange={e => setSalePrice(parseFloat(e.target.value) || 0)} className="rounded-xl font-black" /></div>
                                                                 </div>
-                                                                <div className="p-4 bg-muted rounded-lg space-y-1 text-sm">
-                                                                    <div className="flex justify-between"><span>Wholesale Cost:</span><span>₹{item.wholesalePrice}</span></div>
-                                                                    <div className="flex justify-between font-bold"><span>Total Profit:</span><span className="text-green-600">₹{((actualSellPrice - item.wholesalePrice) * saleQty).toFixed(2)}</span></div>
+                                                                <div className="p-6 bg-slate-900 text-white rounded-[24px] space-y-2">
+                                                                    <div className="flex justify-between text-xs text-slate-400 font-bold uppercase"><span>Wholesale Cost</span><span>₹{item.wholesalePrice}</span></div>
+                                                                    <div className="flex justify-between items-center border-t border-white/10 pt-2">
+                                                                        <span className="text-sm font-black italic uppercase">Total Profit</span>
+                                                                        <span className="text-2xl font-black text-green-400">₹{((actualSellPrice - item.wholesalePrice) * saleQty).toFixed(2)}</span>
+                                                                    </div>
                                                                 </div>
                                                             </div>
-                                                            <DialogFooter><Button onClick={handleSale} className="w-full">Confirm Sale & Update Stock</Button></DialogFooter>
+                                                            <DialogFooter><Button onClick={handleSale} className="w-full h-12 rounded-xl text-lg font-black italic uppercase tracking-tighter">Confirm Sale</Button></DialogFooter>
                                                         </DialogContent>
                                                     </Dialog>
-                                                    <Button size="icon" variant="ghost" className="text-destructive" onClick={() => deleteDocument('inventory', item.id).then(loadData)}><Trash2 className="h-4 w-4" /></Button>
+                                                    <Button size="icon" variant="ghost" className="text-destructive hover:bg-red-50" onClick={() => deleteDocument('inventory', item.id).then(loadData)}><Trash2 className="h-4 w-4" /></Button>
                                                 </TableCell>
                                             </TableRow>
                                         ))}
@@ -311,11 +331,11 @@ export default function AdminInventoryPage() {
                     </TabsContent>
 
                     <TabsContent value="ledger" className="mt-4">
-                        <Card>
-                            <CardHeader><CardTitle>Sales & Profit Ledger</CardTitle><CardDescription>A chronological record of every sale made.</CardDescription></CardHeader>
-                            <CardContent>
+                        <Card className="rounded-2xl border-none shadow-xl">
+                            <CardHeader><CardTitle className="text-lg font-black italic uppercase">Sales & Profit Ledger</CardTitle><CardDescription>A chronological record of every sale made today and historically.</CardDescription></CardHeader>
+                            <CardContent className="p-0">
                                 <Table>
-                                    <TableHeader>
+                                    <TableHeader className="bg-slate-50">
                                         <TableRow>
                                             <TableHead>Date/Time</TableHead>
                                             <TableHead>Product</TableHead>
@@ -325,16 +345,16 @@ export default function AdminInventoryPage() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {sales.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(s => (
-                                            <TableRow key={s.id}>
-                                                <TableCell className="text-xs text-muted-foreground">{format(new Date(s.date), 'PPp')}</TableCell>
-                                                <TableCell className="font-medium">{s.productName}</TableCell>
-                                                <TableCell>{s.quantity}</TableCell>
-                                                <TableCell>₹{(s.sellPrice * s.quantity).toFixed(2)}</TableCell>
-                                                <TableCell className={cn("font-bold", s.profit >= 0 ? "text-green-600" : "text-red-600")}>₹{s.profit.toFixed(2)}</TableCell>
+                                        {[...(sales || [])].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(s => (
+                                            <TableRow key={s.id} className="hover:bg-slate-50/50">
+                                                <TableCell className="text-[10px] text-muted-foreground font-mono">{format(new Date(s.date), 'PPp')}</TableCell>
+                                                <TableCell className="font-bold text-slate-800">{s.productName}</TableCell>
+                                                <TableCell className="font-medium">{s.quantity}</TableCell>
+                                                <TableCell className="font-bold">₹{(s.sellPrice * s.quantity).toFixed(2)}</TableCell>
+                                                <TableCell className={cn("font-black italic", s.profit >= 0 ? "text-green-600" : "text-red-600")}>₹{s.profit.toFixed(2)}</TableCell>
                                             </TableRow>
                                         ))}
-                                        {sales.length === 0 && <TableRow><TableCell colSpan={5} className="text-center py-12 text-muted-foreground">No sales recorded yet.</TableCell></TableRow>}
+                                        {(!sales || sales.length === 0) && <TableRow><TableCell colSpan={5} className="text-center py-20 text-muted-foreground">No sales recorded yet. Click "Sell" on a product to begin tracking.</TableCell></TableRow>}
                                     </TableBody>
                                 </Table>
                             </CardContent>

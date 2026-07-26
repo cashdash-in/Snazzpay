@@ -26,6 +26,8 @@ interface ChatMessage {
     content: string;
 }
 
+const CREATION_FEE_AMOUNT = '999';
+
 export default function SiteBuilderPage() {
     const { toast } = useToast();
     const [prompt, setPrompt] = useState('');
@@ -60,7 +62,9 @@ export default function SiteBuilderPage() {
     }, []);
 
     useEffect(() => {
-        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        if (chatEndRef.current) {
+            chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
     }, [chatHistory, isGenerating]);
 
     const handleAIChat = async (e?: React.FormEvent) => {
@@ -91,7 +95,6 @@ export default function SiteBuilderPage() {
     };
 
     const handlePublish = async () => {
-        const creationFeeValue = '999';
         if (!generatedConfig || !ownerInfo.name || !ownerInfo.email) {
             toast({ variant: 'destructive', title: 'Missing Info', description: 'Please provide store owner details.' });
             return;
@@ -113,7 +116,7 @@ export default function SiteBuilderPage() {
             customRazorpayKeySecret: ownerInfo.razorpayKeySecret,
             isTrial,
             trialExpiresAt: isTrial ? trialExpiry : null,
-            feeCharged: isTrial ? 0 : parseFloat(creationFeeValue),
+            feeCharged: isTrial ? 0 : parseFloat(CREATION_FEE_AMOUNT),
         };
 
         if (isTrial) {
@@ -130,7 +133,7 @@ export default function SiteBuilderPage() {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
-                        amount: parseFloat(creationFeeValue), 
+                        amount: parseFloat(CREATION_FEE_AMOUNT), 
                         productName: `Setup Fee: ${generatedConfig.storeName}`,
                         name: ownerInfo.name,
                         email: ownerInfo.email,
@@ -142,7 +145,7 @@ export default function SiteBuilderPage() {
 
                 const options = {
                     key: razorpayKeyId,
-                    amount: parseFloat(creationFeeValue) * 100,
+                    amount: parseFloat(CREATION_FEE_AMOUNT) * 100,
                     currency: "INR",
                     name: "SnazzPay",
                     description: "Site Activation Fee",
@@ -166,12 +169,12 @@ export default function SiteBuilderPage() {
         try {
             await saveDocument('ai_generated_sites', siteData, siteId);
 
-            for (const p of generatedConfig!.suggestedProducts) {
+            for (const p of (generatedConfig?.suggestedProducts || [])) {
                 const prodId = uuidv4();
                 await saveDocument('product_drops', {
                     id: prodId,
                     vendorId: `site_${siteId}`,
-                    vendorName: generatedConfig!.storeName,
+                    vendorName: generatedConfig?.storeName || 'Store',
                     title: p.title,
                     description: p.description,
                     costPrice: p.price * 0.7,

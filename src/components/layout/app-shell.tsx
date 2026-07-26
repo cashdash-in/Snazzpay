@@ -1,4 +1,3 @@
-
 'use client';
 import type {FC, PropsWithChildren} from 'react';
 import {
@@ -33,16 +32,13 @@ import {
   Settings,
   ShieldCheck,
   Bell,
-  FileCode,
   Truck,
   Ban,
   CircleDollarSign,
   Users,
   FileSpreadsheet,
   LogIn,
-  Video,
   Store,
-  Box,
   Handshake,
   ShieldAlert,
   Combine,
@@ -63,10 +59,11 @@ import {
   BookOpen,
   UserPlus,
   Briefcase,
-  ImageIcon,
   ShoppingBasket,
   BadgeCheck,
   MonitorCheck,
+  ClipboardList,
+  Image as LucideImageIcon,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { getCookie } from 'cookies-next';
@@ -82,9 +79,9 @@ type MenuItem = {
     notificationKey?: 'orders' | 'leads' | 'wholesale';
 };
 
-
 const adminCoreMenuItems: MenuItem[] = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/admin/inventory', label: 'Stock & P&L', icon: ClipboardList },
   { href: '/admin/wholesale-inquiries', label: 'Wholesale Requests', icon: ShoppingBasket, notificationKey: 'wholesale' },
   { href: '/mandates', label: 'Mandates', icon: WalletCards },
   { href: '/orders', label: 'Orders', icon: ShoppingCart, notificationKey: 'orders' as const },
@@ -99,7 +96,7 @@ const adminGrowthMenuItems: MenuItem[] = [
     { href: '/admin/site-builder', label: 'AI Site Builder', icon: MonitorCheck },
     { href: '/ai-product-uploader', label: 'AI Product Uploader', icon: Wand2 },
     { href: '/admin/whatsapp-uploader', label: 'WhatsApp Uploader', icon: MessageSquare },
-    { href: '/admin/image-bulk-uploader', label: 'Image Bulk Uploader', icon: ImageIcon },
+    { href: '/admin/image-bulk-uploader', label: 'Image Bulk Uploader', icon: LucideImageIcon },
     { href: '/product-drops', label: 'Product Drops', icon: Send },
     { href: '/admin/products', label: 'My Products', icon: Package },
     { href: '/share/magazine', label: 'Smart Magazine', icon: BookOpen },
@@ -160,7 +157,6 @@ const collaboratorMenuItems: MenuItem[] = [
     { href: '/collaborator/commissions', label: 'My Commissions', icon: DollarSign },
     { href: '/collaborator/reports', label: 'My Reports', icon: FileSpreadsheet },
 ];
-
 
 export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, title }) => {
   const pathname = usePathname();
@@ -385,5 +381,3 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
     </SidebarProvider>
   );
 };
-
-    
