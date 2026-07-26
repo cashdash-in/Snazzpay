@@ -1,14 +1,18 @@
 
 import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/request'
+import type { NextRequest } from 'next/server'
 
 export function middleware(request: NextRequest) {
   const token = request.cookies.get('firebaseAuthToken');
   let { pathname } = request.nextUrl;
 
   // Normalize pathname to prevent double-slashes which cause SecurityError on redirect
+  // Double slashes at the start (e.g. //admin) are interpreted as protocol-relative URLs
   if (pathname.startsWith('//')) {
-    pathname = '/' + pathname.replace(/\/+/g, '/').replace(/^\//, '');
+    const safePath = '/' + pathname.replace(/\/+/g, '/').replace(/^\//, '');
+    const url = request.nextUrl.clone();
+    url.pathname = safePath;
+    return NextResponse.redirect(url);
   }
 
   const publicPaths = [

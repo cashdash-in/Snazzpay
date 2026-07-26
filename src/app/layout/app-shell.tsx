@@ -1,3 +1,4 @@
+
 'use client';
 import type {FC, PropsWithChildren} from 'react';
 import {
@@ -63,6 +64,7 @@ import {
   BadgeCheck,
   MonitorCheck,
   ClipboardList,
+  Image as LucideImage,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { getCookie } from 'cookies-next';
@@ -77,7 +79,6 @@ type MenuItem = {
     icon: React.ElementType;
     notificationKey?: 'orders' | 'leads' | 'wholesale';
 };
-
 
 const adminCoreMenuItems: MenuItem[] = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -96,7 +97,7 @@ const adminGrowthMenuItems: MenuItem[] = [
     { href: '/admin/site-builder', label: 'AI Site Builder', icon: MonitorCheck },
     { href: '/ai-product-uploader', label: 'AI Product Uploader', icon: Wand2 },
     { href: '/admin/whatsapp-uploader', label: 'WhatsApp Uploader', icon: MessageSquare },
-    { href: '/admin/image-bulk-uploader', label: 'Image Bulk Uploader', icon: ImageIcon },
+    { href: '/admin/image-bulk-uploader', label: 'Image Bulk Uploader', icon: LucideImage },
     { href: '/product-drops', label: 'Product Drops', icon: Send },
     { href: '/admin/products', label: 'My Products', icon: Package },
     { href: '/share/magazine', label: 'Smart Magazine', icon: BookOpen },
@@ -157,12 +158,6 @@ const collaboratorMenuItems: MenuItem[] = [
     { href: '/collaborator/commissions', label: 'My Commissions', icon: DollarSign },
     { href: '/collaborator/reports', label: 'My Reports', icon: FileSpreadsheet },
 ];
-
-function ImageIcon({ className }: { className?: string }) {
-    return (
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
-    );
-}
 
 export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, title }) => {
   const pathname = usePathname();

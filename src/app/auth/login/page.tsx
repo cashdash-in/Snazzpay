@@ -78,8 +78,10 @@ function LoginForm() {
             toast({ title: "Login Successful" });
             
             const redirectedFrom = searchParams.get('redirectedFrom');
+            // Ensure path is relative and doesn't start with // to prevent SecurityError/CSRF
             if (redirectedFrom && redirectedFrom.startsWith('/') && !redirectedFrom.startsWith('//')) {
-                 router.push(redirectedFrom);
+                 const cleanPath = redirectedFrom.replace(/\/+/g, '/');
+                 router.push(cleanPath);
             } else {
                  router.push('/');
             }
