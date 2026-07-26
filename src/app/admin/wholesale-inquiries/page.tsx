@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { getCollection, saveDocument } from "@/services/firestore";
 import { v4 as uuidv4 } from 'uuid';
-import { Loader2, PlusCircle, ImagePlus, FileSpreadsheet, Send, Search, CheckCircle2, Eye, Copy, Clock, Tag, Package, Trash2, BookOpen, Layers, RefreshCw, Ruler, Check, XCircle } from "lucide-react";
+import { Loader2, PlusCircle, ImagePlus, FileSpreadsheet, Send, Search, CheckCircle2, Eye, Copy, Clock, Tag, Package, Trash2, BookOpen, Layers, RefreshCw, Ruler, Check, X } from "lucide-react";
 import Image from 'next/image';
 import { format, formatDistanceToNow, isValid } from 'date-fns';
 import * as XLSX from 'xlsx';
@@ -310,7 +310,7 @@ export default function WholesaleInquiriesPage() {
                                                             ));
                                                         }}
                                                     >
-                                                        <XCircle className="h-3 w-3" />
+                                                        <X className="h-3 w-3" />
                                                     </button>
                                                 </div>
                                             ))}

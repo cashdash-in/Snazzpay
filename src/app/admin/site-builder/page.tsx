@@ -10,8 +10,8 @@ import { useToast } from '@/hooks/use-toast';
 import { 
     Loader2, Sparkles, Rocket, Globe, MessageSquare, 
     DollarSign, Wand2, ShieldCheck, Send, Bot, 
-    User, ShoppingBag, Clock, LayoutTemplate, ImageIcon,
-    PlusCircle
+    User, ShoppingBag, Clock, LayoutTemplate, 
+    PlusCircle, Image as LucideImage
 } from 'lucide-react';
 import { startSiteBuilder } from '@/ai/flows/site-builder-flow';
 import { type SiteBuilderOutput } from '@/ai/schemas/site-builder';
@@ -91,7 +91,7 @@ export default function SiteBuilderPage() {
     };
 
     const handlePublish = async () => {
-        const creationFee = '999';
+        const creationFeeValue = '999';
         if (!generatedConfig || !ownerInfo.name || !ownerInfo.email) {
             toast({ variant: 'destructive', title: 'Missing Info', description: 'Please provide store owner details.' });
             return;
@@ -113,7 +113,7 @@ export default function SiteBuilderPage() {
             customRazorpayKeySecret: ownerInfo.razorpayKeySecret,
             isTrial,
             trialExpiresAt: isTrial ? trialExpiry : null,
-            feeCharged: isTrial ? 0 : parseFloat(creationFee),
+            feeCharged: isTrial ? 0 : parseFloat(creationFeeValue),
         };
 
         if (isTrial) {
@@ -130,7 +130,7 @@ export default function SiteBuilderPage() {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
-                        amount: parseFloat(creationFee), 
+                        amount: parseFloat(creationFeeValue), 
                         productName: `Setup Fee: ${generatedConfig.storeName}`,
                         name: ownerInfo.name,
                         email: ownerInfo.email,
@@ -142,7 +142,7 @@ export default function SiteBuilderPage() {
 
                 const options = {
                     key: razorpayKeyId,
-                    amount: parseFloat(creationFee) * 100,
+                    amount: parseFloat(creationFeeValue) * 100,
                     currency: "INR",
                     name: "SnazzPay",
                     description: "Site Activation Fee",
@@ -352,7 +352,7 @@ export default function SiteBuilderPage() {
                                             <div key={idx} className="p-4 border-r border-b group hover:bg-slate-50 transition-colors">
                                                 <div className="relative aspect-square rounded-xl bg-slate-100 mb-3 overflow-hidden">
                                                     <div className="absolute inset-0 flex items-center justify-center">
-                                                        <ImageIcon className="h-8 w-8 text-slate-300" />
+                                                        <LucideImage className="h-8 w-8 text-slate-300" />
                                                     </div>
                                                 </div>
                                                 <p className="font-bold text-xs truncate">{p.title}</p>
