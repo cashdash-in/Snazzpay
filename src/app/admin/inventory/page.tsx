@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -184,17 +183,46 @@ export default function AdminInventoryPage() {
     }, [sales]);
 
     const exportToExcel = () => {
-        const wsInv = XLSX.utils.json_to_sheet(inventory.map(i => ({
-            Name: i.name, Category: i.category, Qty: i.quantity, Wholesale: i.wholesalePrice, MRP: i.mrp, Shelf: i.shelfNumber, Status: i.quantity === 0 ? 'OUT OF STOCK' : 'In Stock'
-        })));
-        const wsSales = XLSX.utils.json_to_sheet(sales.map(s => ({
-            Date: format(new Date(s.date), 'PPp'), Product: s.productName, Qty: s.quantity, SellPrice: s.sellPrice, Cost: s.wholesalePrice, Profit: s.profit
-        })));
-        
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, wsInv, 'Inventory');
-        XLSX.utils.book_append_sheet(wb, wsSales, 'Sales Ledger');
-        XLSX.writeFile(wb, `Shop_Report_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+        const workbook = XLSX.utils.book_new();
+
+        // 1. Inventory Summary with Per-Product Performance
+        const invSummary = inventory.map(i => {
+            const itemSales = sales.filter(s => s.productId === i.id);
+            const totalQtySold = itemSales.reduce((sum, s) => sum + s.quantity, 0);
+            const totalProfit = itemSales.reduce((sum, s) => sum + s.profit, 0);
+            const totalRevenue = itemSales.reduce((sum, s) => sum + (s.sellPrice * s.quantity), 0);
+
+            return {
+                'Product Name': i.name,
+                'Category': i.category,
+                'Shelf Location': i.shelfNumber,
+                'Current Stock': i.quantity,
+                'Wholesale Price (Buy)': i.wholesalePrice,
+                'MRP (Sell Limit)': i.mrp,
+                'Total Qty Sold': totalQtySold,
+                'Total Revenue': totalRevenue,
+                'Total Profit/Loss (INR)': totalProfit,
+                'Status': i.quantity === 0 ? 'OUT OF STOCK' : 'In Stock',
+                'Image Reference': i.imageDataUri.substring(0, 100) + '...'
+            };
+        });
+        const wsInv = XLSX.utils.json_to_sheet(invSummary);
+        XLSX.utils.book_append_sheet(workbook, wsInv, 'Inventory Summary');
+
+        // 2. Detailed Sales Ledger
+        const ledgerData = sales.map(s => ({
+            'Date/Time': format(new Date(s.date), 'PPp'),
+            'Product': s.productName,
+            'Quantity Sold': s.quantity,
+            'Sale Price (Unit)': s.sellPrice,
+            'Wholesale Cost (Unit)': s.wholesalePrice,
+            'Total Profit (INR)': s.profit,
+            'Net Status': s.profit >= 0 ? 'PROFIT' : 'LOSS'
+        }));
+        const wsSales = XLSX.utils.json_to_sheet(ledgerData);
+        XLSX.utils.book_append_sheet(workbook, wsSales, 'Sales Ledger');
+
+        XLSX.writeFile(workbook, `Shop_Report_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
     };
 
     const filteredInventory = (inventory || []).filter(i => 
@@ -235,7 +263,7 @@ export default function AdminInventoryPage() {
                             Capture New Product
                         </Button>
                         <Button variant="outline" onClick={exportToExcel} className="flex-1 rounded-xl h-11">
-                            <FileSpreadsheet className="mr-2 h-4 w-4" /> Export Report
+                            <FileSpreadsheet className="mr-2 h-4 w-4" /> Export Detailed Report
                         </Button>
                         <input type="file" id="camera-input" accept="image/*" capture="environment" className="hidden" onChange={handleImageUpload} />
                     </div>

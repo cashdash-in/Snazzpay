@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, Suspense } from 'react';
@@ -78,7 +77,7 @@ function LoginForm() {
             toast({ title: "Login Successful" });
             
             const redirectedFrom = searchParams.get('redirectedFrom');
-            // Ensure path is relative and doesn't start with // to prevent SecurityError/CSRF
+            // Clean up redirectedFrom to ensure it's a safe internal relative path
             if (redirectedFrom && redirectedFrom.startsWith('/') && !redirectedFrom.startsWith('//')) {
                  const cleanPath = redirectedFrom.replace(/\/+/g, '/');
                  router.push(cleanPath);

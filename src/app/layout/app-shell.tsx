@@ -1,4 +1,3 @@
-
 'use client';
 import type {FC, PropsWithChildren} from 'react';
 import {
@@ -64,7 +63,7 @@ import {
   BadgeCheck,
   MonitorCheck,
   ClipboardList,
-  Image as LucideImage,
+  Image as LucideImageIcon,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { getCookie } from 'cookies-next';
@@ -97,7 +96,7 @@ const adminGrowthMenuItems: MenuItem[] = [
     { href: '/admin/site-builder', label: 'AI Site Builder', icon: MonitorCheck },
     { href: '/ai-product-uploader', label: 'AI Product Uploader', icon: Wand2 },
     { href: '/admin/whatsapp-uploader', label: 'WhatsApp Uploader', icon: MessageSquare },
-    { href: '/admin/image-bulk-uploader', label: 'Image Bulk Uploader', icon: LucideImage },
+    { href: '/admin/image-bulk-uploader', label: 'Image Bulk Uploader', icon: LucideImageIcon },
     { href: '/product-drops', label: 'Product Drops', icon: Send },
     { href: '/admin/products', label: 'My Products', icon: Package },
     { href: '/share/magazine', label: 'Smart Magazine', icon: BookOpen },
