@@ -22,6 +22,7 @@ import * as XLSX from 'xlsx';
 import { format, startOfDay } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
+import { cn } from "@/lib/utils";
 
 interface InventoryItem {
     id: string;

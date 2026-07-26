@@ -33,7 +33,6 @@ export default function SiteBuilderPage() {
     const [isPublishing, setIsPublishing] = useState(false);
     const [generatedConfig, setGeneratedConfig] = useState<SiteBuilderOutput | null>(null);
     const [isTrial, setIsTrial] = useState(true);
-    const [creationFee] = useState('999');
     const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
     const chatEndRef = useRef<HTMLDivElement>(null);
     
@@ -92,6 +91,7 @@ export default function SiteBuilderPage() {
     };
 
     const handlePublish = async () => {
+        const creationFee = '999';
         if (!generatedConfig || !ownerInfo.name || !ownerInfo.email) {
             toast({ variant: 'destructive', title: 'Missing Info', description: 'Please provide store owner details.' });
             return;
@@ -330,7 +330,7 @@ export default function SiteBuilderPage() {
                                                         onClick={() => setIsTrial(false)}
                                                         className="flex-1 h-8 text-[10px]"
                                                     >
-                                                        Lifetime (₹{creationFee})
+                                                        Lifetime (₹999)
                                                     </Button>
                                                 </div>
                                             </div>
