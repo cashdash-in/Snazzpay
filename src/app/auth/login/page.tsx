@@ -14,8 +14,6 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { FirebaseError } from 'firebase/app';
 import { Checkbox } from '@/components/ui/checkbox';
-import type { SellerUser } from '@/app/seller-accounts/page';
-import { getCollection } from '@/services/firestore';
 
 function LoginForm() {
     const { toast } = useToast();
@@ -42,13 +40,11 @@ function LoginForm() {
         }
         
         try {
-            let role = 'user'; // Default role
+            let role = 'user';
 
-            // Temporary admin backdoor
             if (email.toLowerCase() === 'tempadmin@snazzpay.com' && password === 'password123') {
                 role = 'admin';
-                // Use the real admin user's credentials to get a valid token for the session
-                const userCredential = await signInWithEmailAndPassword(auth, 'admin@snazzpay.com', 'password123456'); // Use the known admin email with a valid password
+                const userCredential = await signInWithEmailAndPassword(auth, 'admin@snazzpay.com', 'password123456');
                 const idToken = await userCredential.user.getIdToken();
                 
                 const response = await fetch('/api/auth/session', {
@@ -57,16 +53,14 @@ function LoginForm() {
                     body: JSON.stringify({ idToken, role }),
                 });
 
-                if (!response.ok) throw new Error("Failed to create temp admin session");
+                if (!response.ok) throw new Error("Failed to create session");
 
             } else {
-                 // Standard login flow
-                let loginEmail = email;
                 if (email.toLowerCase() === 'admin@snazzpay.com') {
                     role = 'admin';
                 }
                 
-                const userCredential = await signInWithEmailAndPassword(auth, loginEmail, password);
+                const userCredential = await signInWithEmailAndPassword(auth, email, password);
                 const idToken = await userCredential.user.getIdToken();
 
                 const response = await fetch('/api/auth/session', {
@@ -81,11 +75,10 @@ function LoginForm() {
                 }
             }
 
-
-            toast({ title: "Login Successful", description: "Redirecting to your dashboard." });
+            toast({ title: "Login Successful" });
             
             const redirectedFrom = searchParams.get('redirectedFrom');
-            if (redirectedFrom) {
+            if (redirectedFrom && redirectedFrom.startsWith('/') && !redirectedFrom.startsWith('//')) {
                  router.push(redirectedFrom);
             } else {
                  router.push('/');
@@ -94,15 +87,11 @@ function LoginForm() {
 
         } catch (error: any) {
             console.error("Login Error:", error);
-            let errorMessage = 'An unexpected error occurred during login.';
+            let errorMessage = 'An unexpected error occurred.';
              if (error instanceof FirebaseError) {
-                // Check for the specific error code for the temporary admin login failure
-                if (error.code === 'auth/invalid-credential' && email.toLowerCase() !== 'tempadmin@snazzpay.com') {
+                if (error.code === 'auth/invalid-credential') {
                     errorMessage = 'Invalid credentials. Please check your email and password.';
-                } else if (email.toLowerCase() === 'tempadmin@snazzpay.com') {
-                     errorMessage = 'Could not log in as temporary admin. The primary admin account may have been changed. Please contact support.';
-                }
-                 else {
+                } else {
                     errorMessage = error.message;
                 }
             }
@@ -125,53 +114,30 @@ function LoginForm() {
                         <Label htmlFor="email">Email</Label>
                         <div className="relative">
                             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input 
-                                id="email" 
-                                type="email" 
-                                placeholder="Enter your email" 
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                className="pl-9" 
-                            />
+                            <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="pl-9" />
                         </div>
                     </div>
                     <div className="space-y-2">
-                         <div className="flex justify-between items-center">
-                            <Label htmlFor="password">Password</Label>
-                             <Link href="/auth/forgot-password" passHref>
-                                <span className="text-xs text-primary hover:underline cursor-pointer">
-                                    Forgot Password?
-                                </span>
-                            </Link>
-                        </div>
-                         <div className="relative">
+                        <Label htmlFor="password">Password</Label>
+                        <div className="relative">
                             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input 
-                                id="password" 
-                                type="password" 
-                                placeholder="Enter your password" 
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="pl-9"
-                            />
+                            <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="pl-9" />
                         </div>
                     </div>
                     <div className="flex items-start space-x-2 pt-2">
-                        <Checkbox id="terms" checked={agreed} onCheckedChange={(checked) => setAgreed(checked as boolean)} className="mt-1" />
-                        <Label htmlFor="terms" className="text-sm text-muted-foreground">
-                            I agree to the <Link href="/terms/seller" target="_blank" className="underline text-primary">Master Service Agreement</Link> for each login session.
+                        <Checkbox id="terms" checked={agreed} onCheckedChange={(checked) => setAgreed(checked as boolean)} />
+                        <Label htmlFor="terms" className="text-sm text-muted-foreground leading-none">
+                            I agree to the <Link href="/terms/seller" target="_blank" className="underline text-primary">Master Service Agreement</Link>.
                         </Label>
                     </div>
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4">
                     <Button className="w-full" onClick={handleLogin} disabled={isLoading}>
-                        {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Logging In...</> : "Login"}
+                        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Login
                     </Button>
                     <p className="text-xs text-center text-muted-foreground">
-                        Are you a seller or vendor?{" "}
-                        <Link href="/auth/signup" className="text-primary hover:underline">
-                            Sign Up
-                        </Link>
+                        Are you a seller or vendor? <Link href="/auth/signup" className="text-primary hover:underline">Sign Up</Link>
                     </p>
                 </CardFooter>
             </Card>

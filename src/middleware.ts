@@ -1,14 +1,16 @@
 
-'use server';
-
 import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import type { NextRequest } from 'next/request'
 
 export function middleware(request: NextRequest) {
   const token = request.cookies.get('firebaseAuthToken');
-  const { pathname } = request.nextUrl;
+  let { pathname } = request.nextUrl;
 
-  // Paths that are publicly accessible without login
+  // Normalize pathname to prevent double-slashes which cause SecurityError on redirect
+  if (pathname.startsWith('//')) {
+    pathname = '/' + pathname.replace(/\/+/g, '/').replace(/^\//, '');
+  }
+
   const publicPaths = [
     '/',
     '/auth/login',
@@ -32,46 +34,34 @@ export function middleware(request: NextRequest) {
     '/smart-magazine',
   ];
 
-  // Prefixes for public paths that have dynamic sub-routes (e.g., /terms/customer)
-  const publicPrefixes = ['/guest-fulfillment', '/terms', '/wholesale-request', '/collection'];
+  const publicPrefixes = ['/guest-fulfillment', '/terms', '/wholesale-request', '/collection', '/site'];
 
   const isPublic =
     publicPaths.includes(pathname) ||
     publicPrefixes.some((prefix) => pathname.startsWith(prefix));
 
-  // Allow access to public paths, API routes, and static files
   if (
     isPublic ||
     pathname.startsWith('/api/') ||
     pathname.startsWith('/_next/') ||
-    pathname.includes('.') // for static files like favicon.ico, images etc.
+    pathname.includes('.')
   ) {
     return NextResponse.next();
   }
 
-  // If there's no auth token for a private path, redirect to the login page
   if (!token) {
     const loginUrl = new URL('/auth/login', request.url);
-    loginUrl.searchParams.set('redirectedFrom', pathname);
+    // Sanitize redirectedFrom to prevent protocol-relative URLs (//admin/...)
+    const safePath = pathname.replace(/\/+/g, '/');
+    loginUrl.searchParams.set('redirectedFrom', safePath);
     return NextResponse.redirect(loginUrl);
   }
 
-  // If a token exists, let the request through.
   return NextResponse.next();
 }
 
-// See "Matching Paths" below to learn more
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     *
-     * This is a common pattern but we will handle it in the middleware logic above.
-     * We want the middleware to run on most paths to check for the token.
-     */
     '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 }
