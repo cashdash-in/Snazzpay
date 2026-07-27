@@ -288,12 +288,11 @@ export default function AdminInventoryPage() {
                         <Button variant="outline" onClick={exportToExcel} className="flex-1 rounded-xl h-11 border-primary/20 hover:bg-primary/5">
                             <FileSpreadsheet className="mr-2 h-4 w-4 text-primary" /> Export Detailed Report
                         </Button>
-                        {/* Hidden file input with mobile camera support */}
+                        {/* Removed capture="environment" to allow choosing between camera and gallery */}
                         <input 
                             type="file" 
                             id="camera-input" 
                             accept="image/*" 
-                            capture="environment" 
                             className="hidden" 
                             onChange={handleImageUpload} 
                         />
