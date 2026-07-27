@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -22,7 +21,7 @@ import {
     DollarSign, 
     History,
     ClipboardPaste,
-    ImageIcon as LucideImageIcon
+    Image as LucideImage
 } from 'lucide-react';
 import { getCollection, saveDocument, deleteDocument, addDocument } from '@/services/firestore';
 import { analyzeInventoryItem } from '@/ai/flows/inventory-analyzer';
@@ -252,7 +251,7 @@ export default function AdminInventoryPage() {
             'Product': s.productName,
             'Quantity Sold': s.quantity,
             'Sale Price (Unit)': s.sellPrice,
-            'Wholesale Cost (Unit)': s.wholesalePrice,
+            'Wholesale Cost (Unit)': s.wholesaleCost || s.wholesalePrice,
             'Total Profit (INR)': s.profit,
             'Net Status': s.profit >= 0 ? 'PROFIT' : 'LOSS'
         }));

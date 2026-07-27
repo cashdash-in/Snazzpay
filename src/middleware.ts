@@ -1,6 +1,5 @@
-
 import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/request'
+import type { NextRequest } from 'next/server'
 
 export function middleware(request: NextRequest) {
   const token = request.cookies.get('firebaseAuthToken');
@@ -11,8 +10,7 @@ export function middleware(request: NextRequest) {
   // This catches cases like //admin/inventory and redirects to /admin/inventory
   if (pathname.startsWith('//') || pathname.includes('//')) {
     const safePath = pathname.replace(/\/+/g, '/');
-    const url = request.nextUrl.clone();
-    url.pathname = safePath || '/';
+    const url = new URL(safePath || '/', request.url);
     return NextResponse.redirect(url);
   }
 

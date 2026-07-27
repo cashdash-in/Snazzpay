@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, DragEvent, ClipboardEvent } from 'react';
@@ -10,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/hooks/use-auth';
 import type { SellerProduct } from '@/app/seller/ai-product-uploader/page';
 import Image from 'next/image';
-import { Loader2, Share2, Copy, MessageSquare, BookOpen, Percent, Factory, Edit, Wand2, PlusCircle, ImagePlus, ImageIcon, Facebook, Instagram, Download, QrCode, Trash2, Globe } from 'lucide-react';
+import { Loader2, Share2, Copy, MessageSquare, BookOpen, Percent, Factory, Edit, Wand2, PlusCircle, ImagePlus, Image as LucideImage, Facebook, Instagram, Download, QrCode, Trash2, Globe } from 'lucide-react';
 import { getCollection, saveDocument, getDocument } from '@/services/firestore';
 import { getCookie } from 'cookies-next';
 import { Label } from '@/components/ui/label';
@@ -118,7 +117,7 @@ export default function ShareMagazinePage() {
         return new Promise((resolve) => {
             const reader = new FileReader();
             reader.onload = (e) => {
-                const img = document.createElement('img');
+                const img = new Image();
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
                     let { width, height } = img;
@@ -793,7 +792,7 @@ export default function ShareMagazinePage() {
                                             className="w-full" 
                                             variant="outline"
                                         >
-                                            <ImageIcon className="mr-2 h-4 w-4"/>
+                                            <LucideImage className="mr-2 h-4 w-4"/>
                                             Generate Professional Cover
                                         </Button>
                                          {showCover && coverImageUrl && (

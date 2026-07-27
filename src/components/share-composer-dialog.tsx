@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -12,7 +11,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { 
     Loader2, Wand2, AlertTriangle, Facebook, Instagram, 
     MessageSquare, Download, Share2, Youtube, MapPin, 
-    ImageIcon, LayoutTemplate, Copy, Globe, QrCode, Sparkles, Clock, CheckCircle2
+    Image as LucideImage, LayoutTemplate, Copy, Globe, QrCode, Sparkles, Clock, CheckCircle2
 } from 'lucide-react';
 import { createSocialAd } from '@/ai/flows/create-social-ad';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
@@ -157,7 +156,7 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
                             <LayoutTemplate className="mr-2 h-4 w-4" /> 1. Post Text & Tags
                         </TabsTrigger>
                         <TabsTrigger value="visual" className="data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg px-6 py-2">
-                            <ImageIcon className="mr-2 h-4 w-4" /> 2. Visual Ad Tile
+                            <LucideImage className="mr-2 h-4 w-4" /> 2. Visual Ad Tile
                         </TabsTrigger>
                     </TabsList>
                 </div>

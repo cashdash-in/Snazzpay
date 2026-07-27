@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -136,85 +135,92 @@ export default function VendorProductsPage() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {products.map(product => (
-                            <TableRow key={product.id}>
-                                <TableCell className="font-medium flex items-center gap-4">
-                                     <Image src={product.imageDataUris[0]} alt={product.title} width={40} height={40} className="rounded-md object-cover aspect-square" />
-                                     <span>{product.title}</span>
-                                </TableCell>
-                                <TableCell>₹{product.costPrice.toFixed(2)}</TableCell>
-                                <TableCell className="max-w-xs truncate text-sm text-muted-foreground">{product.description}</TableCell>
-                                <TableCell>{formatDistanceToNow(new Date(product.createdAt), { addSuffix: true })}</TableCell>
-                                <TableCell className="text-right space-x-1">
-                                    <Dialog>
-                                        <DialogTrigger asChild>
-                                             <Button variant="secondary" size="sm">
-                                                <MessageSquare className="mr-2 h-4 w-4" />
-                                                Share
-                                            </Button>
-                                        </DialogTrigger>
-                                        <ShareComposerDialog product={product} />
-                                    </Dialog>
-                                    <Dialog>
-                                        <DialogTrigger asChild>
-                                            <Button variant="outline" size="icon">
-                                                <Edit className="h-4 w-4" />
-                                            </Button>
-                                        </DialogTrigger>
-                                        <DialogContent>
-                                            <DialogHeader>
-                                                <DialogTitle>Edit Cost Price for {product.title}</DialogTitle>
-                                            </DialogHeader>
-                                            <div className="py-4 space-y-2">
-                                                <Label htmlFor={`price-${product.id}`}>New Cost Price (INR)</Label>
-                                                <Input
-                                                    id={`price-${product.id}`}
-                                                    type="number"
-                                                    defaultValue={product.costPrice.toFixed(2)}
-                                                />
-                                            </div>
-                                            <DialogFooter>
-                                                <DialogClose asChild>
-                                                    <Button variant="outline">Cancel</Button>
-                                                </DialogClose>
-                                                <DialogClose asChild>
-                                                    <Button onClick={() => {
-                                                        const input = document.getElementById(`price-${product.id}`) as HTMLInputElement;
-                                                        const newProductPrice = parseFloat(input.value);
-                                                        if (!isNaN(newProductPrice) && newProductPrice >= 0) {
-                                                            handleSavePrice(product, newProductPrice);
-                                                        } else {
-                                                            toast({variant: 'destructive', title: 'Invalid Price'});
-                                                        }
-                                                    }}>Save Price</Button>
-                                                </DialogClose>
-                                            </DialogFooter>
-                                        </DialogContent>
-                                    </Dialog>
-                                    <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                            <Button variant="destructive" size="icon">
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                                <AlertDialogDescription>
-                                                    This action cannot be undone. This will permanently delete the product drop for you and all of your sellers.
-                                                </AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                <AlertDialogAction onClick={() => handleDeleteProduct(product.id)}>
-                                                    Yes, delete product
-                                                </AlertDialogAction>
-                                            </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                    </AlertDialog>
-                                </TableCell>
-                            </TableRow>
-                        ))}
+                        {products.map(product => {
+                            const firstImage = product.imageDataUris && product.imageDataUris.length > 0 ? product.imageDataUris[0] : null;
+                            return (
+                                <TableRow key={product.id}>
+                                    <TableCell className="font-medium flex items-center gap-4">
+                                         {firstImage ? (
+                                             <Image src={firstImage} alt={product.title} width={40} height={40} className="rounded-md object-cover aspect-square" />
+                                         ) : (
+                                             <div className="w-10 h-10 bg-muted rounded-md flex items-center justify-center text-[10px] text-muted-foreground">NO IMG</div>
+                                         )}
+                                         <span>{product.title}</span>
+                                    </TableCell>
+                                    <TableCell>₹{product.costPrice.toFixed(2)}</TableCell>
+                                    <TableCell className="max-w-xs truncate text-sm text-muted-foreground">{product.description}</TableCell>
+                                    <TableCell>{formatDistanceToNow(new Date(product.createdAt), { addSuffix: true })}</TableCell>
+                                    <TableCell className="text-right space-x-1">
+                                        <Dialog>
+                                            <DialogTrigger asChild>
+                                                 <Button variant="secondary" size="sm">
+                                                    <MessageSquare className="mr-2 h-4 w-4" />
+                                                    Share
+                                                </Button>
+                                            </DialogTrigger>
+                                            <ShareComposerDialog product={product} />
+                                        </Dialog>
+                                        <Dialog>
+                                            <DialogTrigger asChild>
+                                                <Button variant="outline" size="icon">
+                                                    <Edit className="h-4 w-4" />
+                                                </Button>
+                                            </DialogTrigger>
+                                            <DialogContent>
+                                                <DialogHeader>
+                                                    <DialogTitle>Edit Cost Price for {product.title}</DialogTitle>
+                                                </DialogHeader>
+                                                <div className="py-4 space-y-2">
+                                                    <Label htmlFor={`price-${product.id}`}>New Cost Price (INR)</Label>
+                                                    <Input
+                                                        id={`price-${product.id}`}
+                                                        type="number"
+                                                        defaultValue={product.costPrice.toFixed(2)}
+                                                    />
+                                                </div>
+                                                <DialogFooter>
+                                                    <DialogClose asChild>
+                                                        <Button variant="outline">Cancel</Button>
+                                                    </DialogClose>
+                                                    <DialogClose asChild>
+                                                        <Button onClick={() => {
+                                                            const input = document.getElementById(`price-${product.id}`) as HTMLInputElement;
+                                                            const newProductPrice = parseFloat(input.value);
+                                                            if (!isNaN(newProductPrice) && newProductPrice >= 0) {
+                                                                handleSavePrice(product, newProductPrice);
+                                                            } else {
+                                                                toast({variant: 'destructive', title: 'Invalid Price'});
+                                                            }
+                                                        }}>Save Price</Button>
+                                                    </DialogClose>
+                                                </DialogFooter>
+                                            </DialogContent>
+                                        </Dialog>
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <Button variant="destructive" size="icon">
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                                    <AlertDialogDescription>
+                                                        This action cannot be undone. This will permanently delete the product drop for you and all of your sellers.
+                                                    </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                    <AlertDialogAction onClick={() => handleDeleteProduct(product.id)}>
+                                                        Yes, delete product
+                                                    </AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
+                                    </TableCell>
+                                </TableRow>
+                            );
+                        })}
                     </TableBody>
                 </Table>
                 )}
