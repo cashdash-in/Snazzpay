@@ -21,7 +21,8 @@ import {
     Search, 
     DollarSign, 
     History,
-    ClipboardPaste
+    ClipboardPaste,
+    ImageIcon as LucideImageIcon
 } from 'lucide-react';
 import { getCollection, saveDocument, deleteDocument, addDocument } from '@/services/firestore';
 import { analyzeInventoryItem } from '@/ai/flows/inventory-analyzer';
@@ -207,7 +208,11 @@ export default function AdminInventoryPage() {
 
     const dailyPnL = useMemo(() => {
         const today = startOfDay(new Date()).getTime();
-        const todaySales = sales.filter(s => startOfDay(new Date(s.date)).getTime() === today);
+        const todaySales = (sales || []).filter(s => {
+            try {
+                return startOfDay(new Date(s.date)).getTime() === today;
+            } catch (e) { return false; }
+        });
         return {
             revenue: todaySales.reduce((sum, s) => sum + (s.sellPrice * s.quantity), 0),
             profit: todaySales.reduce((sum, s) => sum + s.profit, 0),
@@ -220,7 +225,7 @@ export default function AdminInventoryPage() {
 
         // 1. Inventory Summary with Per-Product Performance
         const invSummary = inventory.map(i => {
-            const itemSales = sales.filter(s => s.productId === i.id);
+            const itemSales = (sales || []).filter(s => s.productId === i.id);
             const totalQtySold = itemSales.reduce((sum, s) => sum + s.quantity, 0);
             const totalProfit = itemSales.reduce((sum, s) => sum + s.profit, 0);
             const totalRevenue = itemSales.reduce((sum, s) => sum + (s.sellPrice * s.quantity), 0);
@@ -242,7 +247,7 @@ export default function AdminInventoryPage() {
         XLSX.utils.book_append_sheet(workbook, wsInv, 'Inventory Summary');
 
         // 2. Detailed Sales Ledger
-        const ledgerData = sales.map(s => ({
+        const ledgerData = (sales || []).map(s => ({
             'Date/Time': format(new Date(s.date), 'PPp'),
             'Product': s.productName,
             'Quantity Sold': s.quantity,

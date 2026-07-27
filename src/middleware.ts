@@ -1,19 +1,19 @@
 
 import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import type { NextRequest } from 'next/request'
 
 export function middleware(request: NextRequest) {
   const token = request.cookies.get('firebaseAuthToken');
-  let { pathname } = request.nextUrl;
+  const { pathname } = request.nextUrl;
 
-  // STRICT URL NORMALIZATION: Prevents SecurityError on client-side replaceState
+  // STRICT URL NORMALIZATION: 
+  // Prevents SecurityError: A history state object with URL 'https://admin/...' cannot be created.
   // This catches cases like //admin/inventory and redirects to /admin/inventory
-  // We use a more aggressive regex and new URL construction for stability
   if (pathname.startsWith('//') || pathname.includes('//')) {
     const safePath = pathname.replace(/\/+/g, '/');
-    // Ensure we don't redirect to an empty string or just / if there's content
-    const redirectUrl = new URL(safePath || '/', request.url);
-    return NextResponse.redirect(redirectUrl);
+    const url = request.nextUrl.clone();
+    url.pathname = safePath || '/';
+    return NextResponse.redirect(url);
   }
 
   const publicPaths = [
@@ -56,7 +56,7 @@ export function middleware(request: NextRequest) {
 
   if (!token) {
     const loginUrl = new URL('/auth/login', request.url);
-    // Sanitize redirectedFrom path for the query string as well
+    // Sanitize redirectedFrom path for the query string to prevent protocol-relative redirects
     const safeRedirectPath = pathname.replace(/\/+/g, '/');
     loginUrl.searchParams.set('redirectedFrom', safeRedirectPath);
     return NextResponse.redirect(loginUrl);
@@ -66,6 +66,7 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
+  // Catch everything except static assets
   matcher: [
     '/((?!_next/static|_next/image|favicon.ico).*)',
   ],

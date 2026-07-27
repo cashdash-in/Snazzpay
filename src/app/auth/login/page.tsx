@@ -77,15 +77,21 @@ function LoginForm() {
 
             toast({ title: "Login Successful" });
             
-            const redirectedFrom = searchParams.get('redirectedFrom');
+            const rawRedirect = searchParams.get('redirectedFrom');
             
-            // Clean up redirectedFrom to ensure it's a safe internal relative path and prevent protocol-relative URLs
-            if (redirectedFrom && redirectedFrom.startsWith('/') && !redirectedFrom.startsWith('//')) {
-                 const cleanPath = redirectedFrom.replace(/\/+/g, '/');
-                 router.push(cleanPath);
+            // STRICT PATH NORMALIZATION: Prevents SecurityError on client-side replaceState
+            // URLs starting with // are interpreted as new origins by the History API.
+            if (rawRedirect) {
+                 const cleanPath = rawRedirect.replace(/\/+/g, '/');
+                 if (cleanPath.startsWith('/') && !cleanPath.startsWith('//')) {
+                     router.push(cleanPath);
+                 } else {
+                     router.push('/');
+                 }
             } else {
                  router.push('/');
             }
+            
             router.refresh();
 
         } catch (error: any) {

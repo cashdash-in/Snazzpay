@@ -12,7 +12,7 @@ import {
     Loader2, Sparkles, Rocket, Globe, MessageSquare, 
     DollarSign, Wand2, ShieldCheck, Send, Bot, 
     User, ShoppingBag, Clock, LayoutTemplate, 
-    PlusCircle, Image as LucideImage
+    PlusCircle, ImageIcon as LucideImageIcon
 } from 'lucide-react';
 import { startSiteBuilder } from '@/ai/flows/site-builder-flow';
 import { type SiteBuilderOutput } from '@/ai/schemas/site-builder';
@@ -39,14 +39,15 @@ export default function SiteBuilderPage() {
     const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
     const chatEndRef = useRef<HTMLDivElement>(null);
     
+    // Key Id storage for Razorpay initialization
+    const [globalKeyId, setGlobalKeyId] = useState<string | null>(null);
+
     const [ownerInfo, setOwnerInfo] = useState({
         name: '',
         email: '',
         razorpayKeyId: '',
         razorpayKeySecret: ''
     });
-
-    const [razorpayKeyId, setRazorpayKeyId] = useState<string | null>(null);
 
     useEffect(() => {
         const script = document.createElement('script');
@@ -56,7 +57,7 @@ export default function SiteBuilderPage() {
 
         fetch('/api/get-key')
             .then(res => res.json())
-            .then(data => setRazorpayKeyId(data.keyId))
+            .then(data => setGlobalKeyId(data.keyId))
             .catch(console.error);
             
         setChatHistory([{ role: 'assistant', content: "Hi! I'm your AI Store Architect. Describe the kind of online business you want to start, and I'll build it for you." }]);
@@ -123,7 +124,7 @@ export default function SiteBuilderPage() {
         if (isTrial) {
             await finalizeDeployment(siteId, siteData);
         } else {
-            if (!razorpayKeyId) {
+            if (!globalKeyId) {
                 toast({ variant: 'destructive', title: 'Payment Error', description: 'Gateway not ready.' });
                 setIsPublishing(false);
                 return;
@@ -145,7 +146,7 @@ export default function SiteBuilderPage() {
                 const result = await response.json();
 
                 const options = {
-                    key: razorpayKeyId,
+                    key: globalKeyId,
                     amount: parseFloat(CREATION_FEE_AMOUNT) * 100,
                     currency: "INR",
                     name: "SnazzPay",
@@ -356,7 +357,7 @@ export default function SiteBuilderPage() {
                                             <div key={idx} className="p-4 border-r border-b group hover:bg-slate-50 transition-colors">
                                                 <div className="relative aspect-square rounded-xl bg-slate-100 mb-3 overflow-hidden">
                                                     <div className="absolute inset-0 flex items-center justify-center">
-                                                        <LucideImage className="h-8 w-8 text-slate-300" />
+                                                        <LucideImageIcon className="h-8 w-8 text-slate-300" />
                                                     </div>
                                                 </div>
                                                 <p className="font-bold text-xs truncate">{p.title}</p>

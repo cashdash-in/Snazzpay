@@ -1,3 +1,4 @@
+
 'use client';
 import type {FC, PropsWithChildren} from 'react';
 import {
@@ -63,7 +64,7 @@ import {
   BadgeCheck,
   MonitorCheck,
   ClipboardList,
-  Image as LucideImageIcon,
+  ImageIcon as LucideImageIcon,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { getCookie } from 'cookies-next';
