@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { AppShell } from '@/components/layout/app-shell';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,7 +20,8 @@ import {
     MapPin, 
     Search, 
     DollarSign, 
-    History 
+    History,
+    ClipboardPaste
 } from 'lucide-react';
 import { getCollection, saveDocument, deleteDocument, addDocument } from '@/services/firestore';
 import { analyzeInventoryItem } from '@/ai/flows/inventory-analyzer';
@@ -88,10 +89,7 @@ export default function AdminInventoryPage() {
         }
     };
 
-    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
+    const processImage = useCallback(async (file: File) => {
         setIsAnalyzing(true);
         const reader = new FileReader();
         reader.onload = async (event) => {
@@ -122,12 +120,40 @@ export default function AdminInventoryPage() {
                 toast({ variant: 'destructive', title: 'Analysis Error', description: 'AI failed to identify product.' });
             } finally {
                 setIsAnalyzing(false);
-                // Clear input
-                e.target.value = '';
             }
         };
         reader.readAsDataURL(file);
+    }, [toast]);
+
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        processImage(file);
+        // Clear input so same file can be uploaded again if needed
+        e.target.value = '';
     };
+
+    // COPY-PASTE Support: Listen for global paste events
+    useEffect(() => {
+        const handlePaste = (e: ClipboardEvent) => {
+            const items = e.clipboardData?.items;
+            if (!items) return;
+            
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf('image') !== -1) {
+                    const file = items[i].getAsFile();
+                    if (file) {
+                        toast({ title: "Pasted Image Detected!", description: "AI is starting identification..." });
+                        processImage(file);
+                        return; // Process first image found
+                    }
+                }
+            }
+        };
+
+        window.addEventListener('paste', handlePaste);
+        return () => window.removeEventListener('paste', handlePaste);
+    }, [processImage, toast]);
 
     const updateItem = async (id: string, updates: Partial<InventoryItem>) => {
         const updated = inventory.map(item => {
@@ -272,11 +298,11 @@ export default function AdminInventoryPage() {
                 </div>
 
                 <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-4 rounded-2xl shadow-md border border-primary/5">
-                    <div className="relative w-full md:w-96">
+                    <div className="relative w-full md:w-80">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input placeholder="Search products or shelf numbers..." className="pl-9 rounded-xl" value={searchTerm} onChange={e => setSearchQuery(e.target.value)} />
                     </div>
-                    <div className="flex gap-2 w-full md:w-auto">
+                    <div className="flex flex-wrap gap-2 w-full md:w-auto">
                         <Button 
                             onClick={() => document.getElementById('camera-input')?.click()} 
                             disabled={isAnalyzing} 
@@ -285,10 +311,13 @@ export default function AdminInventoryPage() {
                             {isAnalyzing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Camera className="mr-2 h-4 w-4"/>}
                             Capture New Product
                         </Button>
+                        <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-purple-50 text-purple-700 rounded-xl border border-purple-100 text-xs font-bold">
+                            <ClipboardPaste className="h-4 w-4" />
+                            <span>TIP: You can Ctrl+V to paste images</span>
+                        </div>
                         <Button variant="outline" onClick={exportToExcel} className="flex-1 rounded-xl h-11 border-primary/20 hover:bg-primary/5">
                             <FileSpreadsheet className="mr-2 h-4 w-4 text-primary" /> Export Detailed Report
                         </Button>
-                        {/* Removed capture="environment" to allow choosing between camera and gallery */}
                         <input 
                             type="file" 
                             id="camera-input" 

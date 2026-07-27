@@ -8,11 +8,12 @@ export function middleware(request: NextRequest) {
 
   // STRICT URL NORMALIZATION: Prevents SecurityError on client-side replaceState
   // This catches cases like //admin/inventory and redirects to /admin/inventory
-  if (pathname.includes('//')) {
+  // We use a more aggressive regex and new URL construction for stability
+  if (pathname.startsWith('//') || pathname.includes('//')) {
     const safePath = pathname.replace(/\/+/g, '/');
-    const url = request.nextUrl.clone();
-    url.pathname = safePath;
-    return NextResponse.redirect(url);
+    // Ensure we don't redirect to an empty string or just / if there's content
+    const redirectUrl = new URL(safePath || '/', request.url);
+    return NextResponse.redirect(redirectUrl);
   }
 
   const publicPaths = [
