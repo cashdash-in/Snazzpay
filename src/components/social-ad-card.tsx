@@ -11,6 +11,7 @@ interface SocialAdCardProps {
   qrUrl: string;
   brandName?: string;
   logoDataUri?: string;
+  allowedPaymentMethods?: string[];
   width?: number;
   height?: number;
   onCanvasUpdate?: (dataUrl: string) => void;
@@ -24,6 +25,7 @@ export function SocialAdCard({
   qrUrl,
   brandName,
   logoDataUri,
+  allowedPaymentMethods = [],
   width = 1080, // Instagram Square Default
   height = 1080,
   onCanvasUpdate,
@@ -65,31 +67,31 @@ export function SocialAdCard({
       ctx.fillRect(0, 0, width, height);
 
       // 3. Draw Bottom UI Plate
-      const uiHeight = height * 0.25;
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+      const uiHeight = height * 0.28;
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.98)';
       ctx.beginPath();
       ctx.roundRect(40, height - uiHeight - 40, width - 80, uiHeight, 40);
       ctx.fill();
 
-      // 4. Draw Headline (Storytelling)
-      ctx.fillStyle = '#1e293b';
-      ctx.font = 'bold 64px Inter, sans-serif';
-      ctx.fillText(headline.toUpperCase(), 80, height - uiHeight + 30);
+      // 4. Draw Headline (Smaller Font)
+      ctx.fillStyle = '#0f172a';
+      ctx.font = '800 42px Inter, sans-serif';
+      ctx.fillText(headline.toUpperCase(), 80, height - uiHeight + 40);
 
-      // 5. Draw Product Title
+      // 5. Draw Product Title (Smaller Font)
       ctx.fillStyle = '#64748b';
-      ctx.font = '500 32px Inter, sans-serif';
-      ctx.fillText(title, 80, height - uiHeight + 80);
+      ctx.font = '600 22px Inter, sans-serif';
+      ctx.fillText(title, 80, height - uiHeight + 85);
 
       // 6. Draw Price Tag
       ctx.fillStyle = '#5a31f4';
-      ctx.font = '900 60px Inter, sans-serif';
-      ctx.fillText(`₹${price.toLocaleString()}`, 80, height - 80);
+      ctx.font = '900 64px Inter, sans-serif';
+      ctx.fillText(`₹${price.toLocaleString()}`, 80, height - 100);
 
-      // 7. Draw QR Code
+      // 7. Draw QR Code (Fixed positioning, no overlap)
       const qrSize = 180;
       const qrX = width - qrSize - 80;
-      const qrY = height - qrSize - 75;
+      const qrY = height - qrSize - 80;
 
       const qrImg = new Image();
       qrImg.crossOrigin = 'anonymous';
@@ -106,16 +108,36 @@ export function SocialAdCard({
           ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
           
           ctx.fillStyle = '#1e293b';
-          ctx.font = 'bold 18px Inter, sans-serif';
+          ctx.font = 'bold 16px Inter, sans-serif';
           ctx.textAlign = 'center';
-          ctx.fillText('SCAN TO ORDER', qrX + qrSize/2, qrY - 20);
+          ctx.fillText('SCAN TO ORDER', qrX + qrSize/2, qrY - 25);
           ctx.textAlign = 'left';
           resolve(null);
         };
         qrImg.onerror = () => resolve(null);
       });
 
-      // 8. Brand Logo
+      // 8. Conditional Payment Badge (Moved to avoid QR overlap)
+      const isSecureCod = allowedPaymentMethods.includes('Secure COD');
+      const isCod = allowedPaymentMethods.includes('Cash on Delivery');
+
+      if (isSecureCod || isCod) {
+          const badgeText = isSecureCod ? 'SECURE COD AVAILABLE' : 'CASH ON DELIVERY';
+          ctx.font = 'bold 18px Inter, sans-serif';
+          const textWidth = ctx.measureText(badgeText).width;
+          
+          ctx.fillStyle = isSecureCod ? '#5a31f4' : '#64748b';
+          ctx.beginPath();
+          ctx.roundRect(80, height - 85, textWidth + 30, 34, 17);
+          ctx.fill();
+          
+          ctx.fillStyle = 'white';
+          ctx.textAlign = 'center';
+          ctx.fillText(badgeText, 80 + (textWidth + 30)/2, height - 61);
+          ctx.textAlign = 'left';
+      }
+
+      // 9. Brand Logo
       if (logoDataUri) {
           const logoImg = new Image();
           logoImg.src = logoDataUri;
@@ -137,24 +159,13 @@ export function SocialAdCard({
           ctx.fillText(brandName.toUpperCase(), 80, 100);
       }
 
-      // 9. CTA Button style
-      ctx.fillStyle = '#5a31f4';
-      ctx.beginPath();
-      ctx.roundRect(width - 400, height - uiHeight + 30, 280, 60, 30);
-      ctx.fill();
-      ctx.fillStyle = 'white';
-      ctx.font = 'bold 24px Inter, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('SECURE COD', width - 260, height - uiHeight + 68);
-      ctx.textAlign = 'left';
-
       if (onCanvasUpdate) {
         onCanvasUpdate(canvas.toDataURL('image/jpeg', 0.9));
       }
     };
 
     drawAd();
-  }, [imageUrl, title, headline, price, qrUrl, brandName, logoDataUri, width, height, onCanvasUpdate]);
+  }, [imageUrl, title, headline, price, qrUrl, brandName, logoDataUri, allowedPaymentMethods, width, height, onCanvasUpdate]);
 
   return <canvas ref={canvasRef} width={width} height={height} className="rounded-2xl shadow-2xl max-w-full h-auto border" />;
 }

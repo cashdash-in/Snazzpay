@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -35,6 +36,7 @@ type ShareableProduct = {
     sellerName?: string;
     sizes?: string[];
     colors?: string[];
+    allowedPaymentMethods?: string[];
 };
 
 interface ShareComposerDialogProps {
@@ -339,6 +341,7 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
                                         price={productPrice}
                                         qrUrl={getCatalogueLink()}
                                         brandName={user?.displayName || product.vendorName}
+                                        allowedPaymentMethods={product.allowedPaymentMethods}
                                         onCanvasUpdate={setFinalAdImage}
                                     />
                                 </div>
@@ -356,3 +359,4 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
         </DialogContent>
     );
 }
+
