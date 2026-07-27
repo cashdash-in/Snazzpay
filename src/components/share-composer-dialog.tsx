@@ -6,20 +6,21 @@ import { DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFoot
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import Image from 'next/image';
 import { useAuth } from '@/hooks/use-auth';
 import { 
     Loader2, Wand2, AlertTriangle, Facebook, Instagram, 
     MessageSquare, Download, Share2, Youtube, MapPin, 
-    ImageIcon, LayoutTemplate, Copy, Globe, QrCode
+    ImageIcon, LayoutTemplate, Copy, Globe, QrCode, Sparkles, Clock, CheckCircle2
 } from 'lucide-react';
 import { createSocialAd } from '@/ai/flows/create-social-ad';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { getCookie } from 'cookies-next';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SocialAdCard } from './social-ad-card';
+import { Badge } from './ui/badge';
+import { ScrollArea } from './ui/scroll-area';
 
 // Can be a ProductDrop or a SellerProduct
 type ShareableProduct = {
@@ -46,10 +47,9 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
     const { toast } = useToast();
     const { user } = useAuth();
     const [isGenerating, setIsGenerating] = useState(false);
-    const [selectedImages, setSelectedImages] = useState<string[]>(product.imageDataUris);
     const [appUrl, setAppUrl] = useState('');
     const [adContent, setAdContent] = useState<any>(null);
-    const [shareText, setShareText] = useState('');
+    const [activePlatform, setActivePlatform] = useState<'instagram' | 'facebook' | 'pinterest' | 'youtube'>('instagram');
     const [activeTab, setActiveTab] = useState('text');
     const [adHeadline, setAdHeadline] = useState('A Story of Style');
     const [finalAdImage, setFinalAdImage] = useState<string | null>(null);
@@ -82,10 +82,7 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
     useEffect(() => {
         const currentUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
         setAppUrl(currentUrl);
-
-        const catalogueLink = getCatalogueLink();
-        setShareText(`Check out this new product!\n\n*${product.title}*\n\nPrice: ₹${productPrice.toLocaleString()}\n\nOrder here: ${catalogueLink}`);
-    }, [product, user, productPrice]);
+    }, []);
 
     const handleGenerateAIAd = async () => {
         setIsGenerating(true);
@@ -100,13 +97,9 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
             setAdContent(result);
             setAdHeadline(result.storyHeadline);
             
-            // Set initial share text to Instagram
-            const link = getCatalogueLink();
-            setShareText(`${result.platforms.instagram.caption}\n\nPrice: ₹${productPrice.toLocaleString()}\n\nOrder Now: ${link}\n\n${result.platforms.instagram.hashtags.join(' ')}`);
-            
             toast({
-                title: "AI Ad Generated!",
-                description: "Copy for all platforms is ready in the tabs below.",
+                title: "Posting Kit Generated!",
+                description: "Optimized content for all platforms is ready.",
             });
         } catch (error: any) {
             toast({ variant: 'destructive', title: "Generation Failed", description: error.message });
@@ -115,153 +108,260 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
         }
     };
 
-    const handlePlatformSwitch = (platform: string) => {
+    const handleCopyAll = () => {
         if (!adContent) return;
         const link = getCatalogueLink();
-        let text = '';
-        
-        switch(platform) {
-            case 'instagram':
-                text = `${adContent.platforms.instagram.caption}\n\nPrice: ₹${productPrice.toLocaleString()}\n\nOrder: ${link}\n\n${adContent.platforms.instagram.hashtags.join(' ')}`;
-                break;
-            case 'facebook':
-                text = `*${adContent.platforms.facebook.headline}*\n\n${adContent.platforms.facebook.postBody}\n\nPrice: ₹${productPrice.toLocaleString()}\n\nSecure Order: ${link}`;
-                break;
-            case 'pinterest':
-                text = `${adContent.platforms.pinterest.title}\n\n${adContent.platforms.pinterest.description}\n\nOrder via: ${link}`;
-                break;
-            case 'youtube':
-                text = `--- VIDEO SCRIPT ---\n${adContent.platforms.youtube.videoScript}\n\n--- DESCRIPTION ---\n${adContent.platforms.youtube.description}\n\nProduct Link: ${link}`;
-                break;
+        const content = adContent.platforms[activePlatform];
+        let text = "";
+
+        if (activePlatform === 'instagram') {
+            text = `${content.caption}\n\nPrice: ₹${productPrice.toLocaleString()}\n\nOrder Now: ${link}\n\n${content.hashtags.join(' ')}`;
+        } else if (activePlatform === 'facebook') {
+            text = `${content.headline}\n\n${content.postBody}\n\nPrice: ₹${productPrice.toLocaleString()}\n\nSecure Order: ${link}`;
+        } else if (activePlatform === 'pinterest') {
+            text = `${content.title}\n\n${content.description}\n\nShop Here: ${link}\n\nKeywords: ${content.keywords.join(', ')}`;
+        } else if (activePlatform === 'youtube') {
+            text = `--- VIDEO SCRIPT ---\n${content.videoScript}\n\n--- DESCRIPTION ---\n${content.description}\n\nProduct: ${link}`;
         }
-        setShareText(text);
+
+        navigator.clipboard.writeText(text);
+        toast({ title: "Post Kit Copied!", description: "Text and tags are ready to be pasted." });
     };
 
-    const handleCopy = () => {
-        navigator.clipboard.writeText(shareText);
-        toast({ title: "Ad Copy Copied!" });
-    };
+    const currentPlatformData = adContent?.platforms[activePlatform];
 
     return (
-        <DialogContent className="max-w-5xl h-[90vh] overflow-y-auto">
-            <DialogHeader>
-                <div className="flex items-center gap-2">
-                    <Wand2 className="h-6 w-6 text-primary" />
-                    <DialogTitle className="text-2xl">AI Social Ad Hub</DialogTitle>
+        <DialogContent className="max-w-6xl h-[90vh] overflow-hidden flex flex-col p-0 border-none">
+            <div className="bg-slate-900 p-6 text-white flex justify-between items-center shrink-0">
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-primary/20 rounded-xl">
+                        <Wand2 className="h-6 w-6 text-primary-foreground" />
+                    </div>
+                    <div>
+                        <DialogTitle className="text-xl">AI Social Studio</DialogTitle>
+                        <DialogDescription className="text-slate-400">Everything you need to launch this product on social media.</DialogDescription>
+                    </div>
                 </div>
-                <DialogDescription>Generate storytelling ads with unique visuals and QR codes for all social platforms.</DialogDescription>
-            </DialogHeader>
+                <div className="flex gap-2">
+                     <Button onClick={handleGenerateAIAd} disabled={isGenerating || !isPriceValid} className="font-bold">
+                        {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                        {adContent ? 'Regenerate Content' : 'AI Magic: Write Post Kit'}
+                    </Button>
+                </div>
+            </div>
 
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
-                <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="text"><LayoutTemplate className="mr-2 h-4 w-4" /> 1. Ad Copy & Script</TabsTrigger>
-                    <TabsTrigger value="visual"><ImageIcon className="mr-2 h-4 w-4" /> 2. Visual Ad Studio</TabsTrigger>
-                </TabsList>
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
+                <div className="bg-slate-100 border-b px-6 py-2">
+                    <TabsList className="bg-transparent h-auto gap-4">
+                        <TabsTrigger value="text" className="data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg px-6 py-2">
+                            <LayoutTemplate className="mr-2 h-4 w-4" /> 1. Post Text & Tags
+                        </TabsTrigger>
+                        <TabsTrigger value="visual" className="data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg px-6 py-2">
+                            <ImageIcon className="mr-2 h-4 w-4" /> 2. Visual Ad Tile
+                        </TabsTrigger>
+                    </TabsList>
+                </div>
 
-                <TabsContent value="text" className="space-y-6 pt-4">
-                    <div className="flex justify-between items-center">
-                        <h3 className="font-bold">Generate Storytelling Content</h3>
-                        <Button onClick={handleGenerateAIAd} disabled={isGenerating || !isPriceValid}>
-                            {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
-                            AI Magic: Write Ad
-                        </Button>
-                    </div>
+                <div className="flex-1 overflow-hidden">
+                    <TabsContent value="text" className="h-full m-0 p-0">
+                        <div className="flex h-full">
+                            {/* Platform Selector Sidebar */}
+                            <div className="w-64 border-r bg-slate-50 p-4 space-y-2 shrink-0">
+                                <Label className="text-[10px] uppercase font-bold tracking-widest text-slate-500 px-2">Choose Platform</Label>
+                                <Button 
+                                    variant={activePlatform === 'instagram' ? 'default' : 'ghost'} 
+                                    className="w-full justify-start rounded-xl" 
+                                    onClick={() => setActivePlatform('instagram')}
+                                >
+                                    <Instagram className="mr-2 h-4 w-4" /> Instagram
+                                </Button>
+                                <Button 
+                                    variant={activePlatform === 'facebook' ? 'default' : 'ghost'} 
+                                    className="w-full justify-start rounded-xl" 
+                                    onClick={() => setActivePlatform('facebook')}
+                                >
+                                    <Facebook className="mr-2 h-4 w-4" /> Facebook
+                                </Button>
+                                <Button 
+                                    variant={activePlatform === 'pinterest' ? 'default' : 'ghost'} 
+                                    className="w-full justify-start rounded-xl" 
+                                    onClick={() => setActivePlatform('pinterest')}
+                                >
+                                    <Share2 className="mr-2 h-4 w-4" /> Pinterest
+                                </Button>
+                                <Button 
+                                    variant={activePlatform === 'youtube' ? 'default' : 'ghost'} 
+                                    className="w-full justify-start rounded-xl" 
+                                    onClick={() => setActivePlatform('youtube')}
+                                >
+                                    <Youtube className="mr-2 h-4 w-4" /> YouTube
+                                </Button>
 
-                    {!adContent ? (
-                        <div className="border-2 border-dashed rounded-xl p-12 text-center text-muted-foreground bg-muted/20">
-                            Click "AI Magic" to generate platform-specific stories for this product.
-                        </div>
-                    ) : (
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            <div className="lg:col-span-1 space-y-2">
-                                <Label>Select Platform</Label>
-                                <div className="grid gap-2">
-                                    <Button variant="outline" className="justify-start" onClick={() => handlePlatformSwitch('instagram')}><Instagram className="mr-2 h-4 w-4" /> Instagram</Button>
-                                    <Button variant="outline" className="justify-start" onClick={() => handlePlatformSwitch('facebook')}><Facebook className="mr-2 h-4 w-4" /> Facebook</Button>
-                                    <Button variant="outline" className="justify-start" onClick={() => handlePlatformSwitch('pinterest')}><Share2 className="mr-2 h-4 w-4" /> Pinterest</Button>
-                                    <Button variant="outline" className="justify-start" onClick={() => handlePlatformSwitch('youtube')}><Youtube className="mr-2 h-4 w-4" /> YouTube</Button>
-                                </div>
-                            </div>
-                            <div className="lg:col-span-2 space-y-4">
-                                <div className="flex justify-between items-center">
-                                    <Label>Generated Ad Text</Label>
-                                    <Button size="sm" variant="ghost" onClick={handleCopy}><Copy className="h-4 w-4" /></Button>
-                                </div>
-                                <Textarea 
-                                    value={shareText} 
-                                    onChange={e => setShareText(e.target.value)} 
-                                    className="min-h-[300px] text-sm leading-relaxed"
-                                />
-                            </div>
-                        </div>
-                    )}
-                </TabsContent>
-
-                <TabsContent value="visual" className="pt-4 space-y-6">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                        <div className="space-y-6">
-                            <div>
-                                <h3 className="font-bold mb-2">Ad Customization</h3>
-                                <p className="text-sm text-muted-foreground">This visual will automatically include your product image, a "Buy Now" CTA, and a secure QR code.</p>
-                            </div>
-                            
-                            <div className="space-y-2">
-                                <Label>Story Headline (Appears on Image)</Label>
-                                <Input 
-                                    value={adHeadline} 
-                                    onChange={e => setAdHeadline(e.target.value)} 
-                                    placeholder="e.g. Elevate Your Daily Style"
-                                />
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label>QR Code Action</Label>
-                                <div className="p-4 bg-muted/50 rounded-lg text-xs space-y-1">
-                                    <div className="flex items-center gap-2"><QrCode className="h-3 w-3" /> <span>Direct Order Link: Enabled</span></div>
-                                    <div className="flex items-center gap-2 text-primary font-bold"><MessageSquare className="h-3 w-3" /> <span>WhatsApp Support: Auto-Linked</span></div>
+                                <div className="mt-8 pt-8 border-t space-y-4">
+                                     <Card className="bg-primary/5 border-primary/10">
+                                        <CardContent className="p-4">
+                                            <Label className="text-xs font-bold text-primary flex items-center gap-1">
+                                                <Clock className="h-3 w-3" /> Best Time
+                                            </Label>
+                                            <p className="text-sm font-medium mt-1">{currentPlatformData?.bestTime || 'No data yet'}</p>
+                                        </CardContent>
+                                    </Card>
                                 </div>
                             </div>
 
-                            {!isPriceValid && (
-                                <Alert variant="destructive">
-                                    <AlertTriangle className="h-4 w-4" />
-                                    <AlertTitle>Price Required</AlertTitle>
-                                    <AlertDescription>You must set a price before generating an ad.</AlertDescription>
-                                </Alert>
-                            )}
+                            {/* Content Area */}
+                            <div className="flex-1 p-6 overflow-y-auto">
+                                {!adContent ? (
+                                    <div className="h-full flex flex-col items-center justify-center text-center space-y-4 opacity-50">
+                                        <Sparkles className="h-16 w-16 text-slate-300" />
+                                        <div>
+                                            <h3 className="text-xl font-bold">Your AI Posting Kit is Ready</h3>
+                                            <p className="text-sm">Click "AI Magic" to generate stories, tags, and strategies.</p>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="max-w-3xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                        <div className="flex justify-between items-center">
+                                            <h2 className="text-2xl font-black italic uppercase flex items-center gap-2">
+                                                {activePlatform} Strategy
+                                            </h2>
+                                            <Button onClick={handleCopyAll} variant="secondary" className="rounded-full h-10 px-6">
+                                                <Copy className="mr-2 h-4 w-4" /> Copy Full Kit
+                                            </Button>
+                                        </div>
 
-                            {finalAdImage && (
-                                <div className="flex flex-col gap-2">
-                                    <a href={finalAdImage} download={`${product.title.replace(/\s+/g, '_')}_ad.jpg`} className="w-full">
-                                        <Button className="w-full h-12 text-lg font-black shadow-lg">
-                                            <Download className="mr-2" /> Download Final Ad Tile
-                                        </Button>
-                                    </a>
-                                    <p className="text-[10px] text-center text-muted-foreground">High-resolution JPEG suitable for all platforms.</p>
+                                        <div className="space-y-6">
+                                            <section className="space-y-3">
+                                                <Label className="text-sm font-bold flex items-center gap-2">
+                                                    <CheckCircle2 className="h-4 w-4 text-green-500" /> 
+                                                    Primary Copy
+                                                </Label>
+                                                <div className="p-6 bg-white border-2 rounded-2xl text-lg leading-relaxed whitespace-pre-wrap shadow-sm">
+                                                    {activePlatform === 'instagram' && currentPlatformData.caption}
+                                                    {activePlatform === 'facebook' && currentPlatformData.postBody}
+                                                    {activePlatform === 'pinterest' && currentPlatformData.description}
+                                                    {activePlatform === 'youtube' && (
+                                                        <div className="space-y-4">
+                                                            <div className="p-4 bg-slate-900 text-white rounded-xl italic text-sm">
+                                                                <p className="font-bold text-xs uppercase text-slate-400 mb-2">Video Script:</p>
+                                                                "{currentPlatformData.videoScript}"
+                                                            </div>
+                                                            <p>{currentPlatformData.description}</p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </section>
+
+                                            <section className="space-y-3">
+                                                <Label className="text-sm font-bold flex items-center gap-2">
+                                                    <Globe className="h-4 w-4 text-primary" /> 
+                                                    Tags & Keywords
+                                                </Label>
+                                                <div className="flex flex-wrap gap-2 p-4 bg-slate-50 border rounded-2xl">
+                                                    {(currentPlatformData.hashtags || currentPlatformData.keywords || currentPlatformData.tags || []).map((tag: string) => (
+                                                        <Badge key={tag} variant="secondary" className="bg-white border text-primary px-3 py-1 font-medium">{tag}</Badge>
+                                                    ))}
+                                                </div>
+                                            </section>
+
+                                            <Alert className="bg-amber-50 border-amber-200 text-amber-900 rounded-2xl">
+                                                <Info className="h-4 w-4" />
+                                                <AlertTitle className="font-bold">Pro Tip for {activePlatform.charAt(0).toUpperCase() + activePlatform.slice(1)}</AlertTitle>
+                                                <AlertDescription>{currentPlatformData.postingTip}</AlertDescription>
+                                            </Alert>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </TabsContent>
+
+                    <TabsContent value="visual" className="h-full m-0 p-6 overflow-y-auto">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 max-w-6xl mx-auto">
+                            <div className="space-y-8">
+                                <div>
+                                    <h3 className="text-3xl font-black italic uppercase">Visual Ad Studio</h3>
+                                    <p className="text-slate-500 mt-2">Customize the high-impact visual that customers will see. It includes your product, price, and a direct-order QR code.</p>
                                 </div>
-                            )}
-                        </div>
+                                
+                                <div className="space-y-4">
+                                    <div className="space-y-2">
+                                        <Label className="text-xs font-bold uppercase tracking-widest text-slate-400">Campaign Headline</Label>
+                                        <Input 
+                                            value={adHeadline} 
+                                            onChange={e => setAdHeadline(e.target.value)} 
+                                            placeholder="Enter a punchy headline"
+                                            className="h-12 text-lg font-bold border-2 focus-visible:ring-primary rounded-xl"
+                                        />
+                                    </div>
 
-                        <div className="flex justify-center">
-                            <SocialAdCard 
-                                imageUrl={product.imageDataUris[0]}
-                                title={product.title}
-                                headline={adHeadline}
-                                price={productPrice}
-                                qrUrl={getCatalogueLink()}
-                                brandName={user?.displayName || product.vendorName}
-                                onCanvasUpdate={setFinalAdImage}
-                            />
+                                    <div className="p-6 bg-slate-50 rounded-2xl border border-dashed space-y-4">
+                                        <h4 className="font-bold flex items-center gap-2"><QrCode className="h-4 w-4" /> Interactive Features</h4>
+                                        <div className="space-y-3">
+                                            <div className="flex items-center gap-3">
+                                                <div className="h-2 w-2 rounded-full bg-green-500" />
+                                                <p className="text-sm">QR Code links to your <strong>Secure COD</strong> store.</p>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <div className="h-2 w-2 rounded-full bg-green-500" />
+                                                <p className="text-sm">Scan triggers a direct order flow.</p>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <div className="h-2 w-2 rounded-full bg-blue-500" />
+                                                <p className="text-sm">Brand: <strong>{user?.displayName || product.vendorName}</strong> will be visible.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {!isPriceValid && (
+                                        <Alert variant="destructive" className="rounded-2xl">
+                                            <AlertTriangle className="h-4 w-4" />
+                                            <AlertTitle>Price Required</AlertTitle>
+                                            <AlertDescription>You must set a selling price for this product to generate an ad tile.</AlertDescription>
+                                        </Alert>
+                                    )}
+
+                                    {finalAdImage && (
+                                        <div className="pt-4">
+                                            <a href={finalAdImage} download={`${product.title.replace(/\s+/g, '_')}_ad.jpg`} className="w-full">
+                                                <Button size="lg" className="w-full h-16 text-xl font-black shadow-xl rounded-2xl hover:scale-[1.02] transition-transform">
+                                                    <Download className="mr-3 h-6 w-6" /> Download Ad Tile
+                                                </Button>
+                                            </a>
+                                            <p className="text-xs text-center text-muted-foreground mt-4 italic">Resolution optimized for IG, FB, and WhatsApp stories.</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="flex justify-center items-start lg:sticky lg:top-0 pt-4">
+                                <div className="scale-[0.85] sm:scale-100 origin-top">
+                                    <SocialAdCard 
+                                        imageUrl={product.imageDataUris[0]}
+                                        title={product.title}
+                                        headline={adHeadline}
+                                        price={productPrice}
+                                        qrUrl={getCatalogueLink()}
+                                        brandName={user?.displayName || product.vendorName}
+                                        onCanvasUpdate={setFinalAdImage}
+                                    />
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                </TabsContent>
+                    </TabsContent>
+                </div>
             </Tabs>
 
-            <DialogFooter className="border-t pt-4">
+            <footer className="bg-slate-50 border-t p-4 flex justify-end shrink-0">
                 <DialogClose asChild>
-                    <Button variant="ghost">Close Studio</Button>
+                    <Button variant="outline" className="rounded-xl px-8">Close Hub</Button>
                 </DialogClose>
-            </DialogFooter>
+            </footer>
         </DialogContent>
     );
 }
+
+interface InfoProps extends React.SVGProps<SVGSVGElement> {}
+const Info = (props: InfoProps) => (
+    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+);

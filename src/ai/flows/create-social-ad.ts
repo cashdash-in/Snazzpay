@@ -1,7 +1,7 @@
 
 'use server';
 /**
- * @fileOverview AI Flow to generate platform-specific social media ad copy.
+ * @fileOverview AI Flow to generate platform-specific social media ad copy and metadata.
  */
 import { ai } from '@/ai/genkit';
 import {
@@ -16,10 +16,11 @@ const prompt = ai.definePrompt({
   model: 'googleai/gemini-2.5-flash',
   input: { schema: SocialAdInputSchema },
   output: { schema: SocialAdOutputSchema },
-  prompt: `You are an elite Digital Marketing Strategist. 
+  prompt: `You are an elite Digital Marketing Strategist and Viral Content Creator. 
     
     TASK:
-    Generate compelling, storytelling-driven ad copy for the following product across Instagram, Facebook, Pinterest, and YouTube.
+    Generate a complete "Social Media Posting Kit" for the following product. 
+    The goal is to drive orders via "Secure COD".
     
     PRODUCT DETAILS:
     - Title: {{{productTitle}}}
@@ -27,13 +28,19 @@ const prompt = ai.definePrompt({
     - Description: {{{productDescription}}}
     - Brand: {{{brandName}}}
     
-    REQUIREMENTS:
-    - Storytelling: Don't just list features. Tell a story about how this product changes the customer's life or solves a problem.
-    - Platforms: Adapt the tone for each platform (Aesthetic for Pinterest, Engaging for Instagram, Informative for Facebook, Punchy for YouTube).
-    - Headline: Create a very short (max 5 words) powerful headline that will look good on an image.
-    - CTAs: Always include a call to action to "Order via Secure COD".
+    STRATEGY REQUIREMENTS:
+    - Instagram: Focus on aesthetic lifestyle storytelling and "FOMO".
+    - Facebook: Focus on trust, detailed value proposition, and community sharing.
+    - Pinterest: Focus on inspiration, visual search keywords, and long-term discoverability.
+    - YouTube: Focus on high-energy hooks and clear audio-visual instructions.
     
-    Return a valid JSON object.`,
+    SPECIFIC KIT REQUIREMENTS:
+    - Always provide at least 10 trending hashtags/tags for each platform.
+    - Include a "Posting Tip" based on current 2024 social media algorithms.
+    - Headline: Max 5 words, high-impact.
+    - CTAs: Must mention "Secure COD" and "No Advance Payment needed - pay on dispatch".
+    
+    Return a valid JSON object following the schema precisely.`,
 });
 
 const generateSocialAd = ai.defineFlow(
@@ -44,15 +51,15 @@ const generateSocialAd = ai.defineFlow(
   },
   async (input) => {
     const { output } = await prompt(input);
-    if (!output) throw new Error("Failed to generate ad copy.");
+    if (!output) throw new Error("Failed to generate posting kit.");
     return output;
   }
 );
 
 /**
- * Generates platform-specific ad copy for a product.
+ * Generates a complete platform-specific social ad posting kit.
  * @param input The product details.
- * @returns The generated ad content.
+ * @returns The generated ad content kit.
  */
 export async function createSocialAd(input: SocialAdInput): Promise<SocialAdOutput> {
     return generateSocialAd(input);
