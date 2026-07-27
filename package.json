@@ -46,12 +46,12 @@
     "firebase": "^11.9.1",
     "genkit": "^1.28.0",
     "lucide-react": "^0.475.0",
-    "next": "^16.1.6",
+    "next": "^15.1.6",
     "nodemailer": "^7.0.12",
     "razorpay": "^2.9.4",
-    "react": "^18.3.1",
+    "react": "^19.0.0",
     "react-day-picker": "^8.10.1",
-    "react-dom": "^18.3.1",
+    "react-dom": "^19.0.0",
     "react-hook-form": "^7.54.2",
     "react-to-print": "^2.15.1",
     "recharts": "^2.15.1",
@@ -64,16 +64,12 @@
   "devDependencies": {
     "@types/node": "^20",
     "@types/nodemailer": "^6.4.15",
-    "@types/react": "^18.3.3",
-    "@types/react-dom": "^18.3.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
     "@types/uuid": "^9.0.8",
     "dotenv": "^16.4.5",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
     "typescript": "^5"
-  },
-  "peerDependencies": {
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
   }
 }

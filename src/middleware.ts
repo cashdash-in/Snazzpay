@@ -8,7 +8,7 @@ export function middleware(request: NextRequest) {
   // STRICT URL NORMALIZATION: 
   // Prevents SecurityError: A history state object with URL 'https://admin/...' cannot be created.
   // This catches cases like //admin/inventory and redirects to /admin/inventory
-  if (pathname.startsWith('//') || pathname.includes('//')) {
+  if (pathname.startsWith('//')) {
     const safePath = pathname.replace(/\/+/g, '/');
     const url = new URL(safePath || '/', request.url);
     return NextResponse.redirect(url);
