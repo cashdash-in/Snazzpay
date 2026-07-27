@@ -1,3 +1,4 @@
+
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
@@ -5,7 +6,8 @@ export function middleware(request: NextRequest) {
   const token = request.cookies.get('firebaseAuthToken');
   let { pathname } = request.nextUrl;
 
-  // Normalize pathname to prevent double-slashes which cause SecurityError on history.replaceState
+  // STRICT URL NORMALIZATION: Prevents SecurityError on client-side replaceState
+  // This catches cases like //admin/inventory and redirects to /admin/inventory
   if (pathname.includes('//')) {
     const safePath = pathname.replace(/\/+/g, '/');
     const url = request.nextUrl.clone();
@@ -53,9 +55,9 @@ export function middleware(request: NextRequest) {
 
   if (!token) {
     const loginUrl = new URL('/auth/login', request.url);
-    // Sanitize redirectedFrom to prevent protocol-relative URLs (//admin/...)
-    const safePath = pathname.replace(/\/+/g, '/');
-    loginUrl.searchParams.set('redirectedFrom', safePath);
+    // Sanitize redirectedFrom path for the query string as well
+    const safeRedirectPath = pathname.replace(/\/+/g, '/');
+    loginUrl.searchParams.set('redirectedFrom', safeRedirectPath);
     return NextResponse.redirect(loginUrl);
   }
 

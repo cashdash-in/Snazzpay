@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -96,6 +97,7 @@ export default function AdminInventoryPage() {
         reader.onload = async (event) => {
             const base64 = event.target?.result as string;
             try {
+                // AI CAPTURE: Automatically identifies product name and suggests MRP
                 const aiData = await analyzeInventoryItem({ imageDataUri: base64 });
                 
                 const newItem: InventoryItem = {
@@ -112,11 +114,16 @@ export default function AdminInventoryPage() {
 
                 await saveDocument('inventory', newItem, newItem.id);
                 setInventory(prev => [newItem, ...prev]);
-                toast({ title: 'Product Identified!', description: `AI found: ${aiData.productName}. Suggested MRP: ₹${aiData.suggestedMRP}` });
+                toast({ 
+                    title: 'Product Identified!', 
+                    description: `AI found: ${aiData.productName}. Suggested MRP: ₹${aiData.suggestedMRP}` 
+                });
             } catch (err) {
                 toast({ variant: 'destructive', title: 'Analysis Error', description: 'AI failed to identify product.' });
             } finally {
                 setIsAnalyzing(false);
+                // Clear input
+                e.target.value = '';
             }
         };
         reader.readAsDataURL(file);
@@ -202,8 +209,7 @@ export default function AdminInventoryPage() {
                 'Total Qty Sold': totalQtySold,
                 'Total Revenue': totalRevenue,
                 'Total Profit/Loss (INR)': totalProfit,
-                'Status': i.quantity === 0 ? 'OUT OF STOCK' : 'In Stock',
-                'Image Reference': i.imageDataUri.substring(0, 100) + '...'
+                'Status': i.quantity === 0 ? 'OUT OF STOCK' : 'In Stock'
             };
         });
         const wsInv = XLSX.utils.json_to_sheet(invSummary);
@@ -233,6 +239,19 @@ export default function AdminInventoryPage() {
     return (
         <AppShell title="Shop Inventory & P&L">
             <div className="space-y-6">
+                {/* AI LOADING OVERLAY */}
+                {isAnalyzing && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                        <Card className="p-8 flex flex-col items-center gap-4 shadow-2xl animate-in zoom-in-95 duration-200">
+                            <Loader2 className="h-16 w-16 animate-spin text-primary" />
+                            <div className="text-center">
+                                <h3 className="text-xl font-bold">AI Analyzing Product</h3>
+                                <p className="text-muted-foreground">Identifying details and searching market MRP...</p>
+                            </div>
+                        </Card>
+                    </div>
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <Card className="bg-primary text-primary-foreground shadow-lg">
                         <CardHeader className="pb-2 text-center"><CardTitle className="text-sm font-medium uppercase tracking-wider">Daily Revenue</CardTitle></CardHeader>
@@ -258,14 +277,26 @@ export default function AdminInventoryPage() {
                         <Input placeholder="Search products or shelf numbers..." className="pl-9 rounded-xl" value={searchTerm} onChange={e => setSearchQuery(e.target.value)} />
                     </div>
                     <div className="flex gap-2 w-full md:w-auto">
-                        <Button onClick={() => document.getElementById('camera-input')?.click()} disabled={isAnalyzing} className="flex-1 rounded-xl h-11">
+                        <Button 
+                            onClick={() => document.getElementById('camera-input')?.click()} 
+                            disabled={isAnalyzing} 
+                            className="flex-1 rounded-xl h-11 shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all"
+                        >
                             {isAnalyzing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Camera className="mr-2 h-4 w-4"/>}
                             Capture New Product
                         </Button>
-                        <Button variant="outline" onClick={exportToExcel} className="flex-1 rounded-xl h-11">
-                            <FileSpreadsheet className="mr-2 h-4 w-4" /> Export Detailed Report
+                        <Button variant="outline" onClick={exportToExcel} className="flex-1 rounded-xl h-11 border-primary/20 hover:bg-primary/5">
+                            <FileSpreadsheet className="mr-2 h-4 w-4 text-primary" /> Export Detailed Report
                         </Button>
-                        <input type="file" id="camera-input" accept="image/*" capture="environment" className="hidden" onChange={handleImageUpload} />
+                        {/* Hidden file input with mobile camera support */}
+                        <input 
+                            type="file" 
+                            id="camera-input" 
+                            accept="image/*" 
+                            capture="environment" 
+                            className="hidden" 
+                            onChange={handleImageUpload} 
+                        />
                     </div>
                 </div>
 

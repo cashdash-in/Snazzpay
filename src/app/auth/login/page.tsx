@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, Suspense } from 'react';
@@ -41,9 +42,9 @@ function LoginForm() {
         try {
             let role = 'user';
 
-            if (email.toLowerCase() === 'tempadmin@snazzpay.com' && password === 'password123') {
+            if (email.toLowerCase() === 'tempadmin@snazzify.com' && password === 'password123') {
                 role = 'admin';
-                const userCredential = await signInWithEmailAndPassword(auth, 'admin@snazzpay.com', 'password123456');
+                const userCredential = await signInWithEmailAndPassword(auth, 'admin@snazzify.com', 'password123456');
                 const idToken = await userCredential.user.getIdToken();
                 
                 const response = await fetch('/api/auth/session', {
@@ -55,7 +56,7 @@ function LoginForm() {
                 if (!response.ok) throw new Error("Failed to create session");
 
             } else {
-                if (email.toLowerCase() === 'admin@snazzpay.com') {
+                if (email.toLowerCase() === 'admin@snazzify.com') {
                     role = 'admin';
                 }
                 
@@ -77,7 +78,8 @@ function LoginForm() {
             toast({ title: "Login Successful" });
             
             const redirectedFrom = searchParams.get('redirectedFrom');
-            // Clean up redirectedFrom to ensure it's a safe internal relative path
+            
+            // Clean up redirectedFrom to ensure it's a safe internal relative path and prevent protocol-relative URLs
             if (redirectedFrom && redirectedFrom.startsWith('/') && !redirectedFrom.startsWith('//')) {
                  const cleanPath = redirectedFrom.replace(/\/+/g, '/');
                  router.push(cleanPath);
