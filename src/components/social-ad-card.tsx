@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useRef, useEffect } from 'react';
@@ -73,22 +72,22 @@ export function SocialAdCard({
       ctx.roundRect(40, height - uiHeight - 40, width - 80, uiHeight, 40);
       ctx.fill();
 
-      // 4. Draw Headline (Smaller Font)
+      // 4. Draw Headline (Smaller Font: 36px)
       ctx.fillStyle = '#0f172a';
-      ctx.font = '800 42px Inter, sans-serif';
+      ctx.font = '800 36px Inter, sans-serif';
       ctx.fillText(headline.toUpperCase(), 80, height - uiHeight + 40);
 
-      // 5. Draw Product Title (Smaller Font)
+      // 5. Draw Product Title (Smaller Font: 20px)
       ctx.fillStyle = '#64748b';
-      ctx.font = '600 22px Inter, sans-serif';
-      ctx.fillText(title, 80, height - uiHeight + 85);
+      ctx.font = '600 20px Inter, sans-serif';
+      ctx.fillText(title, 80, height - uiHeight + 80);
 
       // 6. Draw Price Tag
       ctx.fillStyle = '#5a31f4';
-      ctx.font = '900 64px Inter, sans-serif';
+      ctx.font = '900 58px Inter, sans-serif';
       ctx.fillText(`₹${price.toLocaleString()}`, 80, height - 100);
 
-      // 7. Draw QR Code (Fixed positioning, no overlap)
+      // 7. Draw QR Code (Bottom Right, Fixed)
       const qrSize = 180;
       const qrX = width - qrSize - 80;
       const qrY = height - qrSize - 80;
@@ -117,27 +116,27 @@ export function SocialAdCard({
         qrImg.onerror = () => resolve(null);
       });
 
-      // 8. Conditional Payment Badge (Moved to avoid QR overlap)
-      const isSecureCod = allowedPaymentMethods.includes('Secure COD');
-      const isCod = allowedPaymentMethods.includes('Cash on Delivery');
+      // 8. Conditional Payment Badge (Bottom Left, Above Price)
+      const isSecureCod = (allowedPaymentMethods || []).includes('Secure COD');
+      const isCod = (allowedPaymentMethods || []).includes('Cash on Delivery');
 
       if (isSecureCod || isCod) {
           const badgeText = isSecureCod ? 'SECURE COD AVAILABLE' : 'CASH ON DELIVERY';
-          ctx.font = 'bold 18px Inter, sans-serif';
+          ctx.font = 'bold 16px Inter, sans-serif';
           const textWidth = ctx.measureText(badgeText).width;
           
           ctx.fillStyle = isSecureCod ? '#5a31f4' : '#64748b';
           ctx.beginPath();
-          ctx.roundRect(80, height - 85, textWidth + 30, 34, 17);
+          ctx.roundRect(80, height - uiHeight + 110, textWidth + 30, 30, 15);
           ctx.fill();
           
           ctx.fillStyle = 'white';
           ctx.textAlign = 'center';
-          ctx.fillText(badgeText, 80 + (textWidth + 30)/2, height - 61);
+          ctx.fillText(badgeText, 80 + (textWidth + 30)/2, height - uiHeight + 131);
           ctx.textAlign = 'left';
       }
 
-      // 9. Brand Logo
+      // 9. Brand Logo or Name
       if (logoDataUri) {
           const logoImg = new Image();
           logoImg.src = logoDataUri;
@@ -156,7 +155,10 @@ export function SocialAdCard({
       } else if (brandName) {
           ctx.fillStyle = 'white';
           ctx.font = 'bold 30px Inter, sans-serif';
+          ctx.shadowColor = 'rgba(0,0,0,0.5)';
+          ctx.shadowBlur = 10;
           ctx.fillText(brandName.toUpperCase(), 80, 100);
+          ctx.shadowBlur = 0;
       }
 
       if (onCanvasUpdate) {

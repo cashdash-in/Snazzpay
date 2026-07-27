@@ -1,7 +1,8 @@
-
 'use server';
 /**
  * @fileOverview AI Flow to generate platform-specific social media ad copy and metadata.
+ * 
+ * - createSocialAd: Server action wrapper for the generation flow.
  */
 import { ai } from '@/ai/genkit';
 import {
@@ -43,24 +44,28 @@ const prompt = ai.definePrompt({
     Return a valid JSON object following the schema precisely.`,
 });
 
-const generateSocialAd = ai.defineFlow(
+const generateSocialAdFlow = ai.defineFlow(
   {
-    name: 'generateSocialAd',
+    name: 'generateSocialAdFlow',
     inputSchema: SocialAdInputSchema,
     outputSchema: SocialAdOutputSchema,
   },
   async (input) => {
-    const { output } = await prompt(input);
-    if (!output) throw new Error("Failed to generate posting kit.");
-    return output;
+    try {
+      const { output } = await prompt(input);
+      if (!output) throw new Error("AI failed to produce a valid marketing kit.");
+      return output;
+    } catch (error: any) {
+      console.error("Genkit socialAdPrompt error:", error);
+      throw new Error(`Generation error: ${error.message}`);
+    }
   }
 );
 
 /**
  * Generates a complete platform-specific social ad posting kit.
- * @param input The product details.
- * @returns The generated ad content kit.
+ * This is a Server Action.
  */
 export async function createSocialAd(input: SocialAdInput): Promise<SocialAdOutput> {
-    return generateSocialAd(input);
+    return generateSocialAdFlow(input);
 }
