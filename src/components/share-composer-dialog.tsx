@@ -4,24 +4,23 @@ import { useState, useEffect, useMemo } from 'react';
 import { DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import Image from 'next/image';
 import { useAuth } from '@/hooks/use-auth';
 import { 
     Loader2, Wand2, AlertTriangle, Facebook, Instagram, 
     MessageSquare, Download, Share2, Youtube, MapPin, 
-    Image as LucideImage, LayoutTemplate, Copy, Globe, QrCode, Sparkles, Clock, CheckCircle2
+    Image as LucideImage, LayoutTemplate, Copy, Globe, QrCode, Sparkles, Clock, CheckCircle2, Info
 } from 'lucide-react';
 import { createSocialAd } from '@/ai/flows/create-social-ad';
-import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Card, CardContent } from '@/components/ui/card';
 import { getCookie } from 'cookies-next';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SocialAdCard } from './social-ad-card';
 import { Badge } from './ui/badge';
 import { ScrollArea } from './ui/scroll-area';
 
-// Can be a ProductDrop or a SellerProduct
 type ShareableProduct = {
     id: string;
     title: string;
@@ -57,7 +56,7 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
     const isPriceValid = productPrice > 0;
 
     const getCatalogueLink = () => {
-        const currentUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+        const currentUrl = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : '');
         const params = new URLSearchParams();
         params.set('id', product.id);
 
@@ -164,7 +163,6 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
                 <div className="flex-1 overflow-hidden">
                     <TabsContent value="text" className="h-full m-0 p-0">
                         <div className="flex h-full">
-                            {/* Platform Selector Sidebar */}
                             <div className="w-64 border-r bg-slate-50 p-4 space-y-2 shrink-0">
                                 <Label className="text-[10px] uppercase font-bold tracking-widest text-slate-500 px-2">Choose Platform</Label>
                                 <Button 
@@ -208,7 +206,6 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
                                 </div>
                             </div>
 
-                            {/* Content Area */}
                             <div className="flex-1 p-6 overflow-y-auto">
                                 {!adContent ? (
                                     <div className="h-full flex flex-col items-center justify-center text-center space-y-4 opacity-50">
@@ -359,8 +356,3 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
         </DialogContent>
     );
 }
-
-interface InfoProps extends React.SVGProps<SVGSVGElement> {}
-const Info = (props: InfoProps) => (
-    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-);
