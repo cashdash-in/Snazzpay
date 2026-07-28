@@ -33,6 +33,8 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 
+// Allow AI Video generation to take up to 2 minutes on supported hosting plans
+export const maxDuration = 120;
 
 type ProductStats = {
     sellers: SellerUser[];

@@ -17,9 +17,6 @@ const VideoAdInputSchema = z.object({
 
 export type VideoAdInput = z.infer<typeof VideoAdInputSchema>;
 
-// Increase timeout for this specific server action file to 2 minutes
-export const maxDuration = 120;
-
 const videoFlow = ai.defineFlow(
   {
     name: 'videoAdFlow',

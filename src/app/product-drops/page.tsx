@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, DragEvent, ClipboardEvent } from 'react';
@@ -19,6 +18,8 @@ import { ShareComposerDialog } from '@/components/share-composer-dialog';
 import { createProductFromText } from '@/ai/flows/create-product-from-text';
 import { saveDocument } from '@/services/firestore';
 
+// Allow AI Video generation to take up to 2 minutes on supported hosting plans
+export const maxDuration = 120;
 
 export default function AdminProductDropsPage() {
     const { user } = useAuth();

@@ -30,6 +30,9 @@ import Link from 'next/link';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 
+// Allow AI Video generation to take up to 2 minutes on supported hosting plans
+export const maxDuration = 120;
+
 export default function SellerProductsPage() {
     const { user } = useAuth();
     const { toast } = useToast();

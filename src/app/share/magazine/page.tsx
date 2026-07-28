@@ -23,6 +23,8 @@ import { parseTextForMagazine } from '@/ai/flows/magazine-paste-parser';
 import { MagazineCover } from '@/components/magazine-cover';
 import { Switch } from '@/components/ui/switch';
 
+// Allow AI Video generation to take up to 2 minutes on supported hosting plans
+export const maxDuration = 120;
 
 type Magazine = {
     id: string;
