@@ -1,8 +1,7 @@
+
 'use server';
 /**
- * @fileOverview AI Flow to generate platform-specific social media ad copy and metadata.
- * 
- * - createSocialAd: Server action wrapper for the generation flow.
+ * @fileOverview AI Flow to generate platform-specific social media campaign kits.
  */
 import { ai } from '@/ai/genkit';
 import {
@@ -17,11 +16,11 @@ const prompt = ai.definePrompt({
   model: 'googleai/gemini-2.5-flash',
   input: { schema: SocialAdInputSchema },
   output: { schema: SocialAdOutputSchema },
-  prompt: `You are an elite Digital Marketing Strategist and Viral Content Creator. 
+  prompt: `You are an elite Creative Director and Viral Content Strategist. 
     
     TASK:
-    Generate a complete "Social Media Posting Kit" for the following product. 
-    The goal is to drive orders via "Secure COD".
+    Generate a complete "Cinematic Campaign Kit" for the following product. 
+    The goal is to tell a story that makes the user WANT the lifestyle this product provides.
     
     PRODUCT DETAILS:
     - Title: {{{productTitle}}}
@@ -29,17 +28,11 @@ const prompt = ai.definePrompt({
     - Description: {{{productDescription}}}
     - Brand: {{{brandName}}}
     
-    STRATEGY REQUIREMENTS:
-    - Instagram: Focus on aesthetic lifestyle storytelling and "FOMO".
-    - Facebook: Focus on trust, detailed value proposition, and community sharing.
-    - Pinterest: Focus on inspiration, visual search keywords, and long-term discoverability.
-    - YouTube: Focus on high-energy hooks and clear audio-visual instructions.
-    
-    SPECIFIC KIT REQUIREMENTS:
-    - Always provide at least 10 trending hashtags/tags for each platform.
-    - Include a "Posting Tip" based on current 2024 social media algorithms.
-    - Headline: Max 5 words, high-impact.
-    - CTAs: Must mention "Secure COD" and "No Advance Payment needed - pay on dispatch".
+    REQUIREMENTS:
+    1. STORYBOARD: Create a 3-part visual storyboard (Intro/Hook, Value/Story, Outro/CTA).
+    2. SCRIPT: Write a 30-second script for a Reel or Video Ad. Must mention "Secure COD - Pay only on dispatch" as a trust builder.
+    3. MUSIC: Suggest a specific music style (e.g., "Lofi Chill with Upbeat Bass" or "Luxurious Cinematic Strings").
+    4. PLATFORMS: Provide optimized captions and tags for Instagram, Facebook, and Pinterest.
     
     Return a valid JSON object following the schema precisely.`,
 });

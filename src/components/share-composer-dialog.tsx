@@ -9,38 +9,33 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/hooks/use-auth';
 import { 
-    Loader2, Wand2, AlertTriangle, Facebook, Instagram, 
-    MessageSquare, Download, Share2, Youtube, MapPin, 
-    Image as LucideImage, LayoutTemplate, Copy, Globe, QrCode, Sparkles, Clock, CheckCircle2, Info, Factory, Trash2, Video, Music
+    Loader2, Wand2, Instagram, Facebook, 
+    Copy, Sparkles, LayoutTemplate, 
+    Image as LucideImage, Video, Music, 
+    CheckCircle2, Info, Factory, Share2, 
+    Youtube, Download, QrCode, Mic
 } from 'lucide-react';
 import { createSocialAd } from '@/ai/flows/create-social-ad';
-import { createVideoAd } from '@/ai/flows/create-video-ad';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { getCookie } from 'cookies-next';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { SocialAdCard } from './social-ad-card';
 import { Badge } from './ui/badge';
 import { Switch } from '@/components/ui/switch';
 import Image from 'next/image';
-import { saveDocument } from '@/services/firestore';
+import { SocialAdCard } from './social-ad-card';
 
 type ShareableProduct = {
     id: string;
     title: string;
     description: string;
     imageDataUris: string[];
-    costPrice?: number;
     price?: number;
-    category?: string;
+    costPrice?: number;
     vendorName?: string;
     vendorId?: string;
     sellerId?: string;
     sellerName?: string;
-    sizes?: string[];
-    colors?: string[];
     allowedPaymentMethods?: string[];
-    videoDataUri?: string;
 };
 
 interface ShareComposerDialogProps {
@@ -51,29 +46,21 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
     const { toast } = useToast();
     const { user } = useAuth();
     const [isGenerating, setIsGenerating] = useState(false);
-    const [isVideoGenerating, setIsVideoGenerating] = useState(false);
-    const [appUrl, setAppUrl] = useState('');
     const [adContent, setAdContent] = useState<any>(null);
-    const [activePlatform, setActivePlatform] = useState<'instagram' | 'facebook' | 'pinterest' | 'youtube'>('instagram');
-    const [activeTab, setActiveTab] = useState('text');
+    const [activePlatform, setActivePlatform] = useState<'instagram' | 'facebook' | 'pinterest'>('instagram');
+    const [activeTab, setActiveTab] = useState('campaign');
     const [adHeadline, setAdHeadline] = useState('A Story of Style');
     const [finalAdImage, setFinalAdImage] = useState<string | null>(null);
     const [logoDataUri, setLogoDataUri] = useState<string | null>(null);
     const [showBrandText, setShowBrandText] = useState(false);
-    
-    const [videoMood, setVideoMood] = useState('Cinematic & Luxurious');
-    const [generatedVideo, setGeneratedVideo] = useState<string | null>(product.videoDataUri || null);
 
     const productPrice = useMemo(() => product.price || product.costPrice || 0, [product]);
-    const isPriceValid = productPrice > 0;
 
     const getCatalogueLink = () => {
-        const currentUrl = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : '');
+        const currentUrl = typeof window !== 'undefined' ? window.location.origin : '';
         const params = new URLSearchParams();
         params.set('id', product.id);
-
         const role = getCookie('userRole');
-
         if ((role === 'seller' || role === 'collaborator') && user) {
             params.set('sellerId', user.uid);
             params.set('sellerName', user.displayName || 'Seller');
@@ -85,28 +72,19 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
                 params.set('sellerName', sellerName);
             }
         }
-        
         return `${currentUrl}/catalogue?${params.toString()}`;
     };
-
-    useEffect(() => {
-        const currentUrl = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : '');
-        setAppUrl(currentUrl);
-    }, []);
 
     const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
             const reader = new FileReader();
-            reader.onload = (ev) => {
-                setLogoDataUri(ev.target?.result as string);
-                toast({ title: "Logo Added!", description: "It will now appear on your ad tile." });
-            };
+            reader.onload = (ev) => setLogoDataUri(ev.target?.result as string);
             reader.readAsDataURL(file);
         }
     };
 
-    const handleGenerateAIAd = async () => {
+    const handleGenerateAI = async () => {
         setIsGenerating(true);
         try {
             const result = await createSocialAd({
@@ -115,14 +93,9 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
                 price: productPrice,
                 brandName: user?.displayName || product.vendorName || 'Snazzify',
             });
-            
             setAdContent(result);
             setAdHeadline(result.storyHeadline);
-            
-            toast({
-                title: "Posting Kit Generated!",
-                description: "Optimized content for all platforms is ready.",
-            });
+            toast({ title: "Campaign Kit Ready!", description: "High-impact copy and storyboard generated." });
         } catch (error: any) {
             toast({ variant: 'destructive', title: "Generation Failed", description: error.message });
         } finally {
@@ -130,273 +103,139 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
         }
     };
 
-    const handleGenerateVideo = async () => {
-        if (!product.imageDataUris?.[0]) {
-            toast({ variant: 'destructive', title: "Image Required", description: "Product needs at least one image to use as a video reference." });
-            return;
-        }
-
-        setIsVideoGenerating(true);
-        setGeneratedVideo(null); // Clear previous attempt
-
-        try {
-            const result = await createVideoAd({
-                productTitle: product.title,
-                productDescription: product.description,
-                mood: videoMood,
-                imageDataUri: product.imageDataUris[0]
-            });
-            
-            if (result.error) {
-                throw new Error(result.error);
-            }
-
-            if (result.videoUrl) {
-                setGeneratedVideo(result.videoUrl);
-                toast({ title: "Video Ad Created!", description: "Your cinematic ad with sound is ready." });
-            }
-        } catch (error: any) {
-            console.error("Video production error:", error);
-            toast({ variant: 'destructive', title: "Video Production Failed", description: error.message || "The AI director hit a snag. Please try again in a moment." });
-        } finally {
-            setIsVideoGenerating(false);
-        }
-    };
-
-    const handleSaveVideoToProduct = async () => {
-        if (!generatedVideo || !product.id) return;
-
-        try {
-            const role = getCookie('userRole');
-            const collection = role === 'seller' ? 'seller_products' : 'product_drops';
-            
-            await saveDocument(collection, { videoDataUri: generatedVideo }, product.id);
-            toast({ title: "Video Saved!", description: "This video will now show on your product pages." });
-        } catch (error: any) {
-            toast({ variant: 'destructive', title: "Save Failed", description: error.message });
-        }
-    };
-
-    const handleCopyAll = () => {
+    const handleCopyScript = () => {
         if (!adContent) return;
-        const link = getCatalogueLink();
-        const content = adContent.platforms[activePlatform];
-        let text = "";
-
-        if (activePlatform === 'instagram') {
-            text = `${content.caption}\n\nPrice: ₹${productPrice.toLocaleString()}\n\nOrder Now: ${link}\n\n${content.hashtags.join(' ')}`;
-        } else if (activePlatform === 'facebook') {
-            text = `${content.headline}\n\n${content.postBody}\n\nPrice: ₹${productPrice.toLocaleString()}\n\nSecure Order: ${link}`;
-        } else if (activePlatform === 'pinterest') {
-            text = `${content.title}\n\n${content.description}\n\nShop Here: ${link}\n\nKeywords: ${content.keywords.join(', ')}`;
-        } else if (activePlatform === 'youtube') {
-            text = `--- VIDEO SCRIPT ---\n${content.videoScript}\n\n--- DESCRIPTION ---\n${content.description}\n\nProduct: ${link}`;
-        }
-
-        navigator.clipboard.writeText(text);
-        toast({ title: "Post Kit Copied!", description: "Text and tags are ready to be pasted." });
+        const script = `HOOK: ${adContent.videoScript.hook}\nBODY: ${adContent.videoScript.body}\nCTA: ${adContent.videoScript.cta}\nMUSIC STYLE: ${adContent.videoScript.musicStyle}`;
+        navigator.clipboard.writeText(script);
+        toast({ title: "Script Copied!" });
     };
-
-    const currentPlatformData = adContent?.platforms[activePlatform];
 
     return (
-        <DialogContent className="max-w-6xl h-[90vh] overflow-hidden flex flex-col p-0 border-none">
+        <DialogContent className="max-w-6xl h-[90vh] flex flex-col p-0 border-none bg-white">
             <div className="bg-slate-900 p-6 text-white flex justify-between items-center shrink-0">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-primary/20 rounded-xl">
-                        <Wand2 className="h-6 w-6 text-primary-foreground" />
+                        <Sparkles className="h-6 w-6 text-primary-foreground" />
                     </div>
                     <div>
-                        <DialogTitle className="text-xl">AI Social Studio</DialogTitle>
-                        <DialogDescription className="text-slate-400">Everything you need to launch this product on social media.</DialogDescription>
+                        <DialogTitle className="text-xl">Professional Campaign Studio</DialogTitle>
+                        <DialogDescription className="text-slate-400">Design pro ads and storytelling scripts.</DialogDescription>
                     </div>
                 </div>
-                <div className="flex gap-2">
-                     <Button onClick={handleGenerateAIAd} disabled={isGenerating || !isPriceValid} className="font-bold">
-                        {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                        {adContent ? 'Regenerate Copy' : 'AI Magic: Write Post Kit'}
-                    </Button>
-                </div>
+                <Button onClick={handleGenerateAI} disabled={isGenerating} className="font-bold">
+                    {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
+                    {adContent ? 'Regenerate Campaign' : 'Start AI Campaign'}
+                </Button>
             </div>
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
                 <div className="bg-slate-100 border-b px-6 py-2">
                     <TabsList className="bg-transparent h-auto gap-4">
-                        <TabsTrigger value="text" className="data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg px-6 py-2">
-                            <LayoutTemplate className="mr-2 h-4 w-4" /> 1. Post Text & Tags
+                        <TabsTrigger value="campaign" className="data-[state=active]:bg-white rounded-lg px-6 py-2">
+                            <LayoutTemplate className="mr-2 h-4 w-4" /> 1. Story & Script
                         </TabsTrigger>
-                        <TabsTrigger value="visual" className="data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg px-6 py-2">
+                        <TabsTrigger value="visual" className="data-[state=active]:bg-white rounded-lg px-6 py-2">
                             <LucideImage className="mr-2 h-4 w-4" /> 2. Visual Ad Tile
-                        </TabsTrigger>
-                         <TabsTrigger value="video" className="data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg px-6 py-2">
-                            <Video className="mr-2 h-4 w-4" /> 3. Video Ad Studio
                         </TabsTrigger>
                     </TabsList>
                 </div>
 
-                <div className="flex-1 overflow-hidden">
-                    <TabsContent value="text" className="h-full m-0 p-0">
-                        <div className="flex h-full">
-                            <div className="w-64 border-r bg-slate-50 p-4 space-y-2 shrink-0">
-                                <Label className="text-[10px] uppercase font-bold tracking-widest text-slate-500 px-2">Choose Platform</Label>
-                                <Button 
-                                    variant={activePlatform === 'instagram' ? 'default' : 'ghost'} 
-                                    className="w-full justify-start rounded-xl" 
-                                    onClick={() => setActivePlatform('instagram')}
-                                >
-                                    <Instagram className="mr-2 h-4 w-4" /> Instagram
-                                </Button>
-                                <Button 
-                                    variant={activePlatform === 'facebook' ? 'default' : 'ghost'} 
-                                    className="w-full justify-start rounded-xl" 
-                                    onClick={() => setActivePlatform('facebook')}
-                                >
-                                    <Facebook className="mr-2 h-4 w-4" /> Facebook
-                                </Button>
-                                <Button 
-                                    variant={activePlatform === 'pinterest' ? 'default' : 'ghost'} 
-                                    className="w-full justify-start rounded-xl" 
-                                    onClick={() => setActivePlatform('pinterest')}
-                                >
-                                    <Share2 className="mr-2 h-4 w-4" /> Pinterest
-                                </Button>
-                                <Button 
-                                    variant={activePlatform === 'youtube' ? 'default' : 'ghost'} 
-                                    className="w-full justify-start rounded-xl" 
-                                    onClick={() => setActivePlatform('youtube')}
-                                >
-                                    <Youtube className="mr-2 h-4 w-4" /> YouTube
-                                </Button>
+                <div className="flex-1 overflow-y-auto">
+                    <TabsContent value="campaign" className="p-6 m-0 h-full">
+                        {!adContent ? (
+                            <div className="h-full flex flex-col items-center justify-center text-center space-y-4 opacity-50">
+                                <Video className="h-16 w-16 text-slate-300" />
+                                <div>
+                                    <h3 className="text-xl font-bold">Your AI Campaign is Ready to be Born</h3>
+                                    <p className="text-sm">Click the button above to generate a professional storyboard and script.</p>
+                                </div>
                             </div>
-
-                            <div className="flex-1 p-6 overflow-y-auto">
-                                {!adContent ? (
-                                    <div className="h-full flex flex-col items-center justify-center text-center space-y-4 opacity-50">
-                                        <Sparkles className="h-16 w-16 text-slate-300" />
-                                        <div>
-                                            <h3 className="text-xl font-bold">Your AI Posting Kit is Ready</h3>
-                                            <p className="text-sm">Click "AI Magic" to generate stories, tags, and strategies.</p>
+                        ) : (
+                            <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in slide-in-from-bottom-4">
+                                <div className="space-y-6">
+                                    <div className="flex justify-between items-center">
+                                        <h3 className="text-2xl font-black italic uppercase flex items-center gap-2">
+                                            <Mic className="text-primary h-6 w-6"/> Production Script
+                                        </h3>
+                                        <Button size="sm" variant="outline" onClick={handleCopyScript}><Copy className="h-3 w-3 mr-2"/>Copy Script</Button>
+                                    </div>
+                                    <div className="space-y-4">
+                                        <Card className="border-l-4 border-l-blue-500 bg-blue-50/30">
+                                            <CardHeader className="p-4 pb-2"><CardTitle className="text-xs uppercase text-blue-600">The Hook (0-5s)</CardTitle></CardHeader>
+                                            <CardContent className="p-4 pt-0 text-sm font-medium">"{adContent.videoScript.hook}"</CardContent>
+                                        </Card>
+                                        <Card className="border-l-4 border-l-purple-500 bg-purple-50/30">
+                                            <CardHeader className="p-4 pb-2"><CardTitle className="text-xs uppercase text-purple-600">The Story (5-25s)</CardTitle></CardHeader>
+                                            <CardContent className="p-4 pt-0 text-sm italic">"{adContent.videoScript.body}"</CardContent>
+                                        </Card>
+                                        <Card className="border-l-4 border-l-green-500 bg-green-50/30">
+                                            <CardHeader className="p-4 pb-2"><CardTitle className="text-xs uppercase text-green-600">Call to Action (25-30s)</CardTitle></CardHeader>
+                                            <CardContent className="p-4 pt-0 text-sm font-bold">"{adContent.videoScript.cta}"</CardContent>
+                                        </Card>
+                                        <div className="flex items-center gap-2 p-3 bg-slate-900 text-white rounded-xl text-xs">
+                                            <Music className="h-4 w-4 text-primary" />
+                                            <span className="font-bold">MUSIC VIBE:</span> {adContent.videoScript.musicStyle}
                                         </div>
                                     </div>
-                                ) : (
-                                    <div className="max-w-3xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                        <div className="flex justify-between items-center">
-                                            <h2 className="text-2xl font-black italic uppercase flex items-center gap-2">
-                                                {activePlatform} Strategy
-                                            </h2>
-                                            <Button onClick={handleCopyAll} variant="secondary" className="rounded-full h-10 px-6">
-                                                <Copy className="mr-2 h-4 w-4" /> Copy Full Kit
-                                            </Button>
-                                        </div>
+                                </div>
 
-                                        <div className="space-y-6">
-                                            <section className="space-y-3">
-                                                <Label className="text-sm font-bold flex items-center gap-2">
-                                                    <CheckCircle2 className="h-4 w-4 text-green-500" /> 
-                                                    Primary Copy
-                                                </Label>
-                                                <div className="p-6 bg-white border-2 rounded-2xl text-lg leading-relaxed whitespace-pre-wrap shadow-sm">
-                                                    {activePlatform === 'instagram' && currentPlatformData.caption}
-                                                    {activePlatform === 'facebook' && currentPlatformData.postBody}
-                                                    {activePlatform === 'pinterest' && currentPlatformData.description}
-                                                    {activePlatform === 'youtube' && (
-                                                        <div className="space-y-4">
-                                                            <div className="p-4 bg-slate-900 text-white rounded-xl italic text-sm">
-                                                                <p className="font-bold text-xs uppercase text-slate-400 mb-2">Video Script:</p>
-                                                                "{currentPlatformData.videoScript}"
-                                                            </div>
-                                                            <p>{currentPlatformData.description}</p>
-                                                        </div>
-                                                    )}
+                                <div className="space-y-6">
+                                    <h3 className="text-2xl font-black italic uppercase flex items-center gap-2">
+                                        <LucideImage className="text-primary h-6 w-6"/> 3-Part Storyboard
+                                    </h3>
+                                    <div className="space-y-4">
+                                        {adContent.storyboard.map((slide: any, i: number) => (
+                                            <div key={i} className="flex gap-4 p-4 border rounded-2xl bg-white shadow-sm hover:border-primary/50 transition-colors">
+                                                <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-black text-slate-400 shrink-0">{i+1}</div>
+                                                <div className="space-y-1">
+                                                    <p className="font-bold text-slate-900">{slide.headline}</p>
+                                                    <p className="text-xs text-muted-foreground leading-relaxed">{slide.visualDescription}</p>
+                                                    <Badge variant="secondary" className="text-[9px] mt-2 uppercase">{slide.subtext}</Badge>
                                                 </div>
-                                            </section>
-
-                                            <section className="space-y-3">
-                                                <Label className="text-sm font-bold flex items-center gap-2">
-                                                    <Globe className="h-4 w-4 text-primary" /> 
-                                                    Tags & Keywords
-                                                </Label>
-                                                <div className="flex flex-wrap gap-2 p-4 bg-slate-50 border rounded-2xl">
-                                                    {(currentPlatformData.hashtags || currentPlatformData.keywords || currentPlatformData.tags || []).map((tag: string) => (
-                                                        <Badge key={tag} variant="secondary" className="bg-white border text-primary px-3 py-1 font-medium">{tag}</Badge>
-                                                    ))}
-                                                </div>
-                                            </section>
-
-                                            <Alert className="bg-amber-50 border-amber-200 text-amber-900 rounded-2xl">
-                                                <Info className="h-4 w-4" />
-                                                <AlertTitle className="font-bold">Pro Tip for {activePlatform.charAt(0).toUpperCase() + activePlatform.slice(1)}</AlertTitle>
-                                                <AlertDescription>{currentPlatformData.postingTip}</AlertDescription>
-                                            </Alert>
-                                        </div>
+                                            </div>
+                                        ))}
                                     </div>
-                                )}
+                                </div>
                             </div>
-                        </div>
+                        )}
                     </TabsContent>
 
-                    <TabsContent value="visual" className="h-full m-0 p-6 overflow-y-auto">
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 max-w-6xl mx-auto">
-                            <div className="space-y-8">
+                    <TabsContent value="visual" className="p-6 m-0 h-full">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 max-w-5xl mx-auto">
+                            <div className="space-y-6">
                                 <div>
-                                    <h3 className="text-3xl font-black italic uppercase">Visual Ad Studio</h3>
-                                    <p className="text-slate-500 mt-2">Customize the high-impact visual that customers will see.</p>
+                                    <h3 className="text-2xl font-black italic uppercase">Social Ad Tile</h3>
+                                    <p className="text-slate-500 text-sm">Download a professional graphic with your QR code.</p>
                                 </div>
-                                
-                                <div className="space-y-6">
+                                <div className="space-y-4">
                                     <div className="space-y-2">
-                                        <Label className="text-xs font-bold uppercase tracking-widest text-slate-400">Campaign Headline</Label>
-                                        <Input 
-                                            value={adHeadline} 
-                                            onChange={e => setAdHeadline(e.target.value)} 
-                                            placeholder="Enter a punchy headline"
-                                            className="h-12 text-lg font-bold border-2 focus-visible:ring-primary rounded-xl"
-                                        />
+                                        <Label className="text-xs font-bold uppercase text-slate-400">Headline</Label>
+                                        <Input value={adHeadline} onChange={e => setAdHeadline(e.target.value)} className="font-bold"/>
                                     </div>
-
-                                    <div className="p-6 bg-slate-50 rounded-2xl border-2 border-dashed space-y-6">
-                                        <div className="space-y-4">
-                                            <Label className="font-bold flex items-center gap-2">
-                                                <Factory className="h-4 w-4" /> Vendor Logo
-                                            </Label>
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-20 h-20 border rounded-2xl flex items-center justify-center bg-white overflow-hidden relative shadow-sm">
-                                                    {logoDataUri ? (
-                                                        <Image src={logoDataUri} alt="logo" fill className="object-contain p-2" />
-                                                    ) : (
-                                                        <LucideImage className="h-8 w-8 text-slate-300" />
-                                                    )}
-                                                </div>
-                                                <div className="flex-1 space-y-2">
-                                                    <Input type="file" accept="image/*" onChange={handleLogoUpload} className="text-xs h-10" />
-                                                    <p className="text-[10px] text-muted-foreground">Upload your brand logo for the ad tile.</p>
-                                                </div>
+                                    <div className="p-4 bg-slate-50 rounded-2xl border-2 border-dashed space-y-4">
+                                        <Label className="font-bold flex items-center gap-2 text-xs uppercase"><Factory className="h-4 w-4" /> Brand Identity</Label>
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-16 h-16 border rounded-xl flex items-center justify-center bg-white overflow-hidden relative shadow-sm">
+                                                {logoDataUri ? <Image src={logoDataUri} alt="logo" fill className="object-contain p-1" /> : <LucideImage className="h-6 w-6 text-slate-300" />}
                                             </div>
+                                            <Input type="file" accept="image/*" onChange={handleLogoUpload} className="text-xs flex-1 h-9" />
                                         </div>
-
-                                        <div className="flex items-center justify-between p-4 bg-white rounded-xl border">
-                                            <div className="space-y-0.5">
-                                                <Label className="text-sm font-bold">Show Brand Name Text</Label>
-                                                <p className="text-xs text-muted-foreground">Toggle text overlay.</p>
-                                            </div>
+                                        <div className="flex items-center justify-between">
+                                            <Label className="text-xs font-bold">Show Brand Name Text</Label>
                                             <Switch checked={showBrandText} onCheckedChange={setShowBrandText} />
                                         </div>
                                     </div>
-
                                     {finalAdImage && (
-                                        <div className="pt-4">
-                                            <a href={finalAdImage} download={`${product.title.replace(/\s+/g, '_')}_ad.jpg`} className="w-full">
-                                                <Button size="lg" className="w-full h-16 text-xl font-black shadow-xl rounded-2xl hover:scale-[1.02] transition-transform">
-                                                    <Download className="mr-3 h-6 w-6" /> Download Ad Tile
-                                                </Button>
-                                            </a>
-                                        </div>
+                                        <a href={finalAdImage} download={`${product.title}_ad.jpg`} className="w-full block">
+                                            <Button size="lg" className="w-full h-14 text-lg font-black shadow-lg rounded-xl">
+                                                <Download className="mr-2 h-5 w-5" /> Download Ad Tile
+                                            </Button>
+                                        </a>
                                     )}
                                 </div>
                             </div>
-
-                            <div className="flex justify-center items-start lg:sticky lg:top-0 pt-4">
-                                <div className="scale-[0.85] sm:scale-100 origin-top">
+                            <div className="flex justify-center">
+                                <div className="scale-[0.8] origin-top">
                                     <SocialAdCard 
                                         imageUrl={product.imageDataUris[0]}
                                         title={product.title}
@@ -413,102 +252,11 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
                             </div>
                         </div>
                     </TabsContent>
-
-                    <TabsContent value="video" className="h-full m-0 p-6 overflow-y-auto">
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 max-w-6xl mx-auto">
-                             <div className="space-y-8">
-                                <div>
-                                    <h3 className="text-3xl font-black italic uppercase">AI Video Ad Studio</h3>
-                                    <p className="text-slate-500 mt-2">Generate cinematic commercial videos with sound from your product.</p>
-                                </div>
-
-                                <div className="space-y-6">
-                                    <div className="space-y-2">
-                                        <Label className="text-xs font-bold uppercase tracking-widest text-slate-400">Video Mood / Creative Direction</Label>
-                                        <Input 
-                                            value={videoMood} 
-                                            onChange={e => setVideoMood(e.target.value)} 
-                                            placeholder="e.g., Energetic & Vibrant, Luxurious, Minimalist"
-                                            className="h-12 text-lg font-bold border-2 focus-visible:ring-primary rounded-xl"
-                                        />
-                                    </div>
-
-                                    <Card className="bg-slate-900 text-white border-none shadow-xl overflow-hidden">
-                                        <CardContent className="p-6 space-y-4">
-                                            <div className="flex items-center gap-2 text-primary font-bold">
-                                                <Music className="h-5 w-5" /> 
-                                                <span>Smart Sound Integration</span>
-                                            </div>
-                                            <p className="text-sm text-slate-400">Our AI (Veo 3) will automatically compose a unique audio track with background music and effects that match your video's movement.</p>
-                                        </CardContent>
-                                    </Card>
-
-                                    <Button 
-                                        size="lg" 
-                                        className="w-full h-16 text-xl font-black shadow-xl rounded-2xl hover:scale-[1.02] transition-transform"
-                                        onClick={handleGenerateVideo}
-                                        disabled={isVideoGenerating}
-                                    >
-                                        {isVideoGenerating ? (
-                                            <>
-                                                <Loader2 className="mr-3 h-6 w-6 animate-spin" />
-                                                Directing Cinematic Ad... (60-90s)
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Video className="mr-3 h-6 w-6" />
-                                                Generate AI Video Ad
-                                            </>
-                                        )}
-                                    </Button>
-
-                                    {generatedVideo && (
-                                        <div className="flex gap-4">
-                                            <Button variant="outline" className="flex-1 h-12 font-bold rounded-xl" onClick={handleSaveVideoToProduct}>
-                                                <CheckCircle2 className="mr-2 h-4 w-4" /> Save to Catalogue
-                                            </Button>
-                                            <a href={generatedVideo} download={`${product.title.replace(/\s+/g, '_')}_video.mp4`} className="flex-1">
-                                                <Button variant="secondary" className="w-full h-12 font-bold rounded-xl">
-                                                    <Download className="mr-2 h-4 w-4" /> Download MP4
-                                                </Button>
-                                            </a>
-                                        </div>
-                                    )}
-                                </div>
-                             </div>
-
-                             <div className="flex justify-center items-start lg:sticky lg:top-0 pt-4">
-                                {generatedVideo ? (
-                                    <div className="w-full aspect-[9/16] max-w-[400px] rounded-[32px] overflow-hidden shadow-2xl border-8 border-slate-900 bg-black relative">
-                                        <video 
-                                            key={generatedVideo}
-                                            src={generatedVideo} 
-                                            className="w-full h-full object-cover"
-                                            controls
-                                            autoPlay
-                                            loop
-                                        />
-                                        <div className="absolute top-4 right-4">
-                                            <Badge className="bg-primary/90 text-white border-none px-3 py-1 text-[10px] font-black italic">PRO AD</Badge>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="w-full aspect-[9/16] max-w-[400px] rounded-[32px] bg-slate-100 border-4 border-dashed border-slate-200 flex flex-col items-center justify-center text-center p-12 opacity-50">
-                                        <Video className="h-16 w-16 text-slate-300 mb-6" />
-                                        <h4 className="text-xl font-bold">Video Preview</h4>
-                                        <p className="text-sm mt-2">Generate a video to see your cinematic ad here.</p>
-                                    </div>
-                                )}
-                             </div>
-                        </div>
-                    </TabsContent>
                 </div>
             </Tabs>
 
-            <footer className="bg-slate-50 border-t p-4 flex justify-end shrink-0">
-                <DialogClose asChild>
-                    <Button variant="outline" className="rounded-xl px-8">Close Studio</Button>
-                </DialogClose>
+            <footer className="bg-slate-50 border-t p-4 flex justify-end gap-2 shrink-0">
+                <DialogClose asChild><Button variant="outline" className="rounded-xl px-8">Close Studio</Button></DialogClose>
             </footer>
         </DialogContent>
     );
