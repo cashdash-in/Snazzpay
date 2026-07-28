@@ -5,7 +5,7 @@ import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, ShieldCheck, ShoppingCart, User, Phone, Mail as MailIcon, Home, MapPin, CheckCircle, Percent } from 'lucide-react';
+import { Loader2, ShieldCheck, ShoppingCart, User, Phone, Mail as MailIcon, Home, MapPin, CheckCircle, Percent, Factory } from 'lucide-react';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
@@ -98,6 +98,7 @@ function CatalogueOrderPageContent() {
 
     const [product, setProduct] = useState<DisplayProduct | null>(null);
     const [isLoadingProduct, setIsLoadingProduct] = useState(true);
+    const [sellerLogo, setSellerLogo] = useState<string | null>(null);
 
     const [customerDetails, setCustomerDetails] = useState<CustomerDetails>({
         name: '', email: '', contact: '', address: '', pincode: ''
@@ -168,6 +169,19 @@ function CatalogueOrderPageContent() {
                 if (!response.ok) throw new Error('Failed to fetch Razorpay key');
                 const { keyId } = await response.json();
                 setRazorpayKeyId(keyId);
+
+                // Fetch Seller/Vendor Logo if ID is provided
+                if (urlSellerId) {
+                    const sellerData = await getDocument<any>('seller_users', urlSellerId);
+                    if (sellerData?.logoDataUri) {
+                        setSellerLogo(sellerData.logoDataUri);
+                    } else {
+                        const vendorData = await getDocument<any>('vendors', urlSellerId);
+                        if (vendorData?.logoDataUri) {
+                            setSellerLogo(vendorData.logoDataUri);
+                        }
+                    }
+                }
 
                 if (!productId) {
                     toast({ variant: 'destructive', title: "Product not found" });
@@ -416,7 +430,14 @@ function CatalogueOrderPageContent() {
         <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
             <Card className="w-full max-w-4xl shadow-lg">
                  <form onSubmit={handleSubmit}>
-                    <CardHeader className="text-center">
+                    <CardHeader className="text-center pb-2">
+                        {sellerLogo && (
+                            <div className="flex justify-center mb-4">
+                                <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 border-white shadow-md bg-white">
+                                    <Image src={sellerLogo} alt="Brand Logo" fill className="object-contain p-1" />
+                                </div>
+                            </div>
+                        )}
                         <CardTitle className="text-3xl font-bold">{product.title}</CardTitle>
                         <CardDescription>Order from {product.sellerName}</CardDescription>
                          {appliedDiscount && (
