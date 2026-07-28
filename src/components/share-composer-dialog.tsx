@@ -89,7 +89,7 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
     };
 
     useEffect(() => {
-        const currentUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+        const currentUrl = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : '');
         setAppUrl(currentUrl);
     }, []);
 
@@ -144,11 +144,13 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
                 imageDataUri: product.imageDataUris[0]
             });
             
-            setGeneratedVideo(result.videoUrl);
-            toast({ title: "Video Ad Created!", description: "Your cinematic ad with sound is ready." });
+            if (result.videoUrl) {
+                setGeneratedVideo(result.videoUrl);
+                toast({ title: "Video Ad Created!", description: "Your cinematic ad with sound is ready." });
+            }
         } catch (error: any) {
-            console.error("Video error:", error);
-            toast({ variant: 'destructive', title: "Video Failed", description: error.message });
+            console.error("Video production error:", error);
+            toast({ variant: 'destructive', title: "Video Production Failed", description: error.message || "The AI director hit a snag. Please try again in a moment." });
         } finally {
             setIsVideoGenerating(false);
         }
