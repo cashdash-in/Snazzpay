@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview AI flow to generate cinematic video ads with sound using Veo models.
@@ -22,7 +23,7 @@ const videoFlow = ai.defineFlow(
     name: 'videoAdFlow',
     inputSchema: VideoAdInputSchema,
     outputSchema: z.object({
-        videoUrl: z.string().describe('Data URI of the generated MP4 video'),
+        videoUrl: z.string().describe('URL or Proxy URL of the generated video'),
         error: z.string().optional()
     }),
   },
@@ -50,8 +51,7 @@ const videoFlow = ai.defineFlow(
           throw new Error('The video generation model did not return a valid task. Please try again.');
         }
 
-        // Wait until the operation completes (polling)
-        // We poll every 5 seconds for a maximum of 24 times (~2 minutes)
+        // Poll for completion (max 2 minutes)
         let maxRetries = 24; 
         while (!operation.done && maxRetries > 0) {
           operation = await ai.checkOperation(operation);
@@ -74,25 +74,14 @@ const videoFlow = ai.defineFlow(
           throw new Error('The AI generated the video but the content could not be retrieved.');
         }
 
-        // Add API key for direct access as per Veo requirements
-        const fetchUrl = `${videoPart.media.url}&key=${process.env.GEMINI_API_KEY}`;
+        // Instead of returning a huge base64 (which hits Server Action limits),
+        // we return a link to our internal proxy which adds the API key securely.
+        const rawUrl = videoPart.media.url;
+        return { videoUrl: `/api/proxy-video?url=${encodeURIComponent(rawUrl)}` };
         
-        try {
-            // Proxy the fetch to return a stable Data URI to the client
-            const response = await fetch(fetchUrl);
-            if (!response.ok) throw new Error("Could not download generated video file.");
-            
-            const buffer = await response.arrayBuffer();
-            const base64 = Buffer.from(buffer).toString('base64');
-            return { videoUrl: `data:video/mp4;base64,${base64}` };
-        } catch (e: any) {
-            console.error("Video proxy fetch failed:", e);
-            // Fallback to direct URL if base64 conversion fails
-            return { videoUrl: fetchUrl };
-        }
     } catch (error: any) {
         console.error("createVideoAd main error:", error);
-        throw new Error(error.message || "An unexpected error occurred during video production.");
+        return { videoUrl: '', error: error.message || "An unexpected error occurred during video production." };
     }
   }
 );

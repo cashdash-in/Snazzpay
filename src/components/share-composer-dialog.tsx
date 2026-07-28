@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -136,6 +137,8 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
         }
 
         setIsVideoGenerating(true);
+        setGeneratedVideo(null); // Clear previous attempt
+
         try {
             const result = await createVideoAd({
                 productTitle: product.title,
@@ -144,6 +147,10 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
                 imageDataUri: product.imageDataUris[0]
             });
             
+            if (result.error) {
+                throw new Error(result.error);
+            }
+
             if (result.videoUrl) {
                 setGeneratedVideo(result.videoUrl);
                 toast({ title: "Video Ad Created!", description: "Your cinematic ad with sound is ready." });
@@ -445,7 +452,7 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
                                         {isVideoGenerating ? (
                                             <>
                                                 <Loader2 className="mr-3 h-6 w-6 animate-spin" />
-                                                Directing Cinematic Ad... (60s)
+                                                Directing Cinematic Ad... (60-90s)
                                             </>
                                         ) : (
                                             <>
@@ -474,6 +481,7 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
                                 {generatedVideo ? (
                                     <div className="w-full aspect-[9/16] max-w-[400px] rounded-[32px] overflow-hidden shadow-2xl border-8 border-slate-900 bg-black relative">
                                         <video 
+                                            key={generatedVideo}
                                             src={generatedVideo} 
                                             className="w-full h-full object-cover"
                                             controls
