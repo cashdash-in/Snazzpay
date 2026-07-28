@@ -25,10 +25,10 @@ export function SocialAdCard({
   qrUrl,
   brandName,
   logoDataUri,
-  showBrandText = true,
+  showBrandText = false,
   allowedPaymentMethods = [],
-  width = 1080, // Instagram Square Default
-  height = 1080,
+  width = 800, // Optimized size
+  height = 800,
   onCanvasUpdate,
 }: SocialAdCardProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -43,7 +43,14 @@ export function SocialAdCard({
     const drawAd = async () => {
       ctx.clearRect(0, 0, width, height);
 
-      // 1. Load Background Image
+      // 1. Draw Background Base
+      const bgGradient = ctx.createLinearGradient(0, 0, 0, height);
+      bgGradient.addColorStop(0, '#f8fafc');
+      bgGradient.addColorStop(1, '#f1f5f9');
+      ctx.fillStyle = bgGradient;
+      ctx.fillRect(0, 0, width, height);
+
+      // 2. Load and Draw Product Image (Centered with padding)
       const img = new Image();
       img.crossOrigin = 'anonymous';
       img.src = imageUrl;
@@ -53,62 +60,72 @@ export function SocialAdCard({
         img.onerror = reject;
       });
 
-      // Draw background image (Cover aspect)
-      const scale = Math.max(width / img.width, height / img.height);
-      const x = (width / 2) - (img.width / 2) * scale;
-      const y = (height / 2) - (img.height / 2) * scale;
+      const padding = 80;
+      const innerWidth = width - (padding * 2);
+      const innerHeight = height * 0.6; // Take up 60% of height
+      const scale = Math.min(innerWidth / img.width, innerHeight / img.height);
+      const x = (width / 2) - (img.width * scale / 2);
+      const y = (height * 0.4) - (img.height * scale / 2); // Center in top half area
+
+      // Draw subtle shadow for product
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.1)';
+      ctx.shadowBlur = 30;
+      ctx.shadowOffsetY = 20;
       ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+      ctx.shadowColor = 'transparent';
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetY = 0;
 
-      // 2. Draw Vignette Gradient for depth
-      const gradient = ctx.createRadialGradient(width/2, height/2, 0, width/2, height/2, width);
-      gradient.addColorStop(0, 'rgba(0,0,0,0)');
-      gradient.addColorStop(0.7, 'rgba(0,0,0,0.3)');
-      gradient.addColorStop(1, 'rgba(0,0,0,0.7)');
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, width, height);
-
-      // 3. Draw Bottom UI Plate (Order section)
-      const uiHeight = height * 0.28;
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.98)';
+      // 3. Draw Info Plate
+      const uiHeight = height * 0.32;
+      ctx.fillStyle = 'rgba(255, 255, 255, 1)';
       ctx.beginPath();
-      ctx.roundRect(40, height - uiHeight - 40, width - 80, uiHeight, 40);
+      ctx.roundRect(0, height - uiHeight, width, uiHeight, 0);
       ctx.fill();
+      
+      // Top border for plate
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, height - uiHeight);
+      ctx.lineTo(width, height - uiHeight);
+      ctx.stroke();
 
       // 4. Draw Headline
       ctx.fillStyle = '#0f172a';
-      ctx.font = '800 36px Inter, sans-serif';
-      ctx.fillText(headline.toUpperCase(), 80, height - uiHeight + 40);
+      ctx.font = '900 32px Inter, sans-serif';
+      ctx.fillText(headline.toUpperCase(), 40, height - uiHeight + 60);
 
       // 5. Draw Product Title
       ctx.fillStyle = '#64748b';
-      ctx.font = '600 20px Inter, sans-serif';
-      ctx.fillText(title, 80, height - uiHeight + 80);
+      ctx.font = '500 18px Inter, sans-serif';
+      ctx.fillText(title, 40, height - uiHeight + 95);
 
       // 6. Draw Price Tag
       ctx.fillStyle = '#5a31f4';
-      ctx.font = '900 58px Inter, sans-serif';
-      ctx.fillText(`₹${price.toLocaleString()}`, 80, height - 100);
+      ctx.font = '900 48px Inter, sans-serif';
+      ctx.fillText(`₹${price.toLocaleString()}`, 40, height - 60);
 
-      // 7. Draw QR Code (Bottom Right)
-      const qrSize = 180;
-      const qrX = width - qrSize - 80;
-      const qrY = height - qrSize - 80;
+      // 7. Draw QR Code
+      const qrSize = 130;
+      const qrX = width - qrSize - 40;
+      const qrY = height - qrSize - 40;
 
       const qrImg = new Image();
       qrImg.crossOrigin = 'anonymous';
-      qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrUrl)}`;
+      qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrUrl)}`;
 
       await new Promise((resolve) => {
         qrImg.onload = () => {
           ctx.fillStyle = 'white';
           ctx.beginPath();
-          ctx.roundRect(qrX - 10, qrY - 10, qrSize + 20, qrSize + 20, 15);
+          ctx.roundRect(qrX - 10, qrY - 10, qrSize + 20, qrSize + 20, 12);
           ctx.fill();
           ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
           ctx.fillStyle = '#1e293b';
-          ctx.font = 'bold 16px Inter, sans-serif';
+          ctx.font = 'bold 12px Inter, sans-serif';
           ctx.textAlign = 'center';
-          ctx.fillText('SCAN TO ORDER', qrX + qrSize/2, qrY - 25);
+          ctx.fillText('SCAN TO ORDER', qrX + qrSize/2, qrY - 20);
           ctx.textAlign = 'left';
           resolve(null);
         };
@@ -121,51 +138,42 @@ export function SocialAdCard({
 
       if (isSecureCod || isCod) {
           const badgeText = isSecureCod ? 'SECURE COD AVAILABLE' : 'CASH ON DELIVERY';
-          ctx.font = 'bold 16px Inter, sans-serif';
+          ctx.font = 'bold 12px Inter, sans-serif';
           const textWidth = ctx.measureText(badgeText).width;
           ctx.fillStyle = isSecureCod ? '#5a31f4' : '#64748b';
           ctx.beginPath();
-          ctx.roundRect(80, height - uiHeight + 110, textWidth + 30, 30, 15);
+          ctx.roundRect(40, height - uiHeight + 125, textWidth + 24, 26, 13);
           ctx.fill();
           ctx.fillStyle = 'white';
           ctx.textAlign = 'center';
-          ctx.fillText(badgeText, 80 + (textWidth + 30)/2, height - uiHeight + 131);
+          ctx.fillText(badgeText, 40 + (textWidth + 24)/2, height - uiHeight + 143);
           ctx.textAlign = 'left';
       }
 
-      // 9. BRANDING: Logo and Brand Name
-      // We prioritize the logo in the top left
+      // 9. Logo & Brand
       if (logoDataUri) {
           const logoImg = new Image();
           logoImg.src = logoDataUri;
           await new Promise((resolve) => {
               logoImg.onload = () => {
-                  const logoSize = 100;
-                  // Draw white background plate for logo
+                  const logoSize = 64;
                   ctx.fillStyle = 'white';
                   ctx.beginPath();
-                  ctx.roundRect(60, 60, logoSize + 40, logoSize + 40, 25);
+                  ctx.roundRect(35, 35, logoSize + 20, logoSize + 20, 16);
                   ctx.fill();
-                  ctx.drawImage(logoImg, 80, 80, logoSize, logoSize);
+                  ctx.drawImage(logoImg, 45, 45, logoSize, logoSize);
                   resolve(null);
               };
               logoImg.onerror = () => resolve(null);
           });
       }
 
-      // Draw Brand Text only if enabled
       if (showBrandText && brandName) {
-          ctx.fillStyle = 'white';
-          ctx.font = 'bold 30px Inter, sans-serif';
-          ctx.shadowColor = 'rgba(0,0,0,0.5)';
-          ctx.shadowBlur = 10;
-          
-          // If logo exists, draw text next to it, else draw in original top-left
-          const textX = logoDataUri ? 220 : 80;
-          const textY = logoDataUri ? 135 : 100;
-          
+          ctx.fillStyle = '#0f172a';
+          ctx.font = 'bold 22px Inter, sans-serif';
+          const textX = logoDataUri ? 135 : 40;
+          const textY = logoDataUri ? 85 : 60;
           ctx.fillText(brandName.toUpperCase(), textX, textY);
-          ctx.shadowBlur = 0;
       }
 
       if (onCanvasUpdate) {
@@ -176,5 +184,5 @@ export function SocialAdCard({
     drawAd();
   }, [imageUrl, title, headline, price, qrUrl, brandName, logoDataUri, showBrandText, allowedPaymentMethods, width, height, onCanvasUpdate]);
 
-  return <canvas ref={canvasRef} width={width} height={height} className="rounded-2xl shadow-2xl max-w-full h-auto border" />;
+  return <canvas ref={canvasRef} width={width} height={height} className="rounded-2xl shadow-xl max-w-full h-auto border bg-slate-50" />;
 }

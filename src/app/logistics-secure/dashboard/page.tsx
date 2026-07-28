@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -6,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogOut, Wallet, Package, QrCode, Clipboard, PackageCheck, Send, MessageSquare, AlertTriangle, FileUp, Edit, ShieldCheck, CheckCircle, Copy, User, Phone, Home, Truck, Map, UserCheck, Users, Upload, Crown, Loader2, PlusCircle, Trash2, MapPin, Search, FileSpreadsheet, Download } from "lucide-react";
+import { LogOut, Wallet, Package, QrCode, Clipboard, PackageCheck, Send, MessageSquare, AlertTriangle, FileUp, Edit, ShieldCheck, CheckCircle, Copy, User, Phone, Home, Truck, Map, UserCheck, Users, Upload, TrendingUp, Loader2, PlusCircle, Trash2, MapPin, Search, FileSpreadsheet, Download } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
@@ -399,7 +398,7 @@ export default function LogisticsDashboardPage() {
                             <TabsTrigger value="fleet"><Users className="mr-2 h-4 w-4" /> My Fleet</TabsTrigger>
                             <TabsTrigger value="pickups"><Package className="mr-2 h-4 w-4" /> Cash Pickups</TabsTrigger>
                             <TabsTrigger value="service_partners"><UserCheck className="mr-2 h-4 w-4"/> Service Partners</TabsTrigger>
-                            <TabsTrigger value="performance"><Crown className="mr-2 h-4 w-4" /> Performance</TabsTrigger>
+                            <TabsTrigger value="performance"><TrendingUp className="mr-2 h-4 w-4" /> Performance</TabsTrigger>
                             <TabsTrigger value="reports"><FileSpreadsheet className="mr-2 h-4 w-4" /> Reports</TabsTrigger>
                         </TabsList>
                         <TabsContent value="fleet">
@@ -470,7 +469,9 @@ export default function LogisticsDashboardPage() {
                                                      <TableCell><Badge variant={pickup.aiVerification === 'Verified' ? 'default' : 'secondary'}>{pickup.aiVerification}</Badge></TableCell>
                                                     <TableCell className="text-right">
                                                         <Dialog onOpenChange={(open) => !open && setSelectedPickup(null)}>
-                                                            <DialogTrigger asChild><Button size="sm" variant="outline" onClick={() => setSelectedPickup(pickup)}>Manage</Button></DialogTrigger>
+                                                            <DialogTrigger asChild>
+                                                                <Button size="sm" variant="outline" onClick={() => setSelectedPickup(pickup)}>Manage</Button>
+                                                            </DialogTrigger>
                                                             {selectedPickup && selectedPickup.id === pickup.id && (
                                                             <DialogContent>
                                                                 <DialogHeader><DialogTitle>Manage Pickup: {selectedPickup.id}</DialogTitle></DialogHeader>
