@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -11,7 +10,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { 
     Loader2, Wand2, AlertTriangle, Facebook, Instagram, 
     MessageSquare, Download, Share2, Youtube, MapPin, 
-    Image as LucideImage, LayoutTemplate, Copy, Globe, QrCode, Sparkles, Clock, CheckCircle2, Info
+    Image as LucideImage, LayoutTemplate, Copy, Globe, QrCode, Sparkles, Clock, CheckCircle2, Info, Factory, Trash2
 } from 'lucide-react';
 import { createSocialAd } from '@/ai/flows/create-social-ad';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -20,7 +19,8 @@ import { getCookie } from 'cookies-next';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SocialAdCard } from './social-ad-card';
 import { Badge } from './ui/badge';
-import { ScrollArea } from './ui/scroll-area';
+import { Switch } from '@/components/ui/switch';
+import Image from 'next/image';
 
 type ShareableProduct = {
     id: string;
@@ -53,6 +53,8 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
     const [activeTab, setActiveTab] = useState('text');
     const [adHeadline, setAdHeadline] = useState('A Story of Style');
     const [finalAdImage, setFinalAdImage] = useState<string | null>(null);
+    const [logoDataUri, setLogoDataUri] = useState<string | null>(null);
+    const [showBrandText, setShowBrandText] = useState(false); // Default to false to hide "Super Admin"
 
     const productPrice = useMemo(() => product.price || product.costPrice || 0, [product]);
     const isPriceValid = productPrice > 0;
@@ -83,6 +85,18 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
         const currentUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
         setAppUrl(currentUrl);
     }, []);
+
+    const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                setLogoDataUri(ev.target?.result as string);
+                toast({ title: "Logo Added!", description: "It will now appear on your ad tile." });
+            };
+            reader.readAsDataURL(file);
+        }
+    };
 
     const handleGenerateAIAd = async () => {
         setIsGenerating(true);
@@ -195,17 +209,6 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
                                 >
                                     <Youtube className="mr-2 h-4 w-4" /> YouTube
                                 </Button>
-
-                                <div className="mt-8 pt-8 border-t space-y-4">
-                                     <Card className="bg-primary/5 border-primary/10">
-                                        <CardContent className="p-4">
-                                            <Label className="text-xs font-bold text-primary flex items-center gap-1">
-                                                <Clock className="h-3 w-3" /> Best Time
-                                            </Label>
-                                            <p className="text-sm font-medium mt-1">{currentPlatformData?.bestTime || 'No data yet'}</p>
-                                        </CardContent>
-                                    </Card>
-                                </div>
                             </div>
 
                             <div className="flex-1 p-6 overflow-y-auto">
@@ -279,10 +282,10 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
                             <div className="space-y-8">
                                 <div>
                                     <h3 className="text-3xl font-black italic uppercase">Visual Ad Studio</h3>
-                                    <p className="text-slate-500 mt-2">Customize the high-impact visual that customers will see. It includes your product, price, and a direct-order QR code.</p>
+                                    <p className="text-slate-500 mt-2">Customize the high-impact visual that customers will see.</p>
                                 </div>
                                 
-                                <div className="space-y-4">
+                                <div className="space-y-6">
                                     <div className="space-y-2">
                                         <Label className="text-xs font-bold uppercase tracking-widest text-slate-400">Campaign Headline</Label>
                                         <Input 
@@ -293,21 +296,32 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
                                         />
                                     </div>
 
-                                    <div className="p-6 bg-slate-50 rounded-2xl border border-dashed space-y-4">
-                                        <h4 className="font-bold flex items-center gap-2"><QrCode className="h-4 w-4" /> Interactive Features</h4>
-                                        <div className="space-y-3">
-                                            <div className="flex items-center gap-3">
-                                                <div className="h-2 w-2 rounded-full bg-green-500" />
-                                                <p className="text-sm">QR Code links to your <strong>Secure COD</strong> store.</p>
+                                    <div className="p-6 bg-slate-50 rounded-2xl border-2 border-dashed space-y-6">
+                                        <div className="space-y-4">
+                                            <Label className="font-bold flex items-center gap-2">
+                                                <Factory className="h-4 w-4" /> Vendor Logo
+                                            </Label>
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-20 h-20 border rounded-2xl flex items-center justify-center bg-white overflow-hidden relative shadow-sm">
+                                                    {logoDataUri ? (
+                                                        <Image src={logoDataUri} alt="logo" fill className="object-contain p-2" />
+                                                    ) : (
+                                                        <LucideImage className="h-8 w-8 text-slate-300" />
+                                                    )}
+                                                </div>
+                                                <div className="flex-1 space-y-2">
+                                                    <Input type="file" accept="image/*" onChange={handleLogoUpload} className="text-xs h-10" />
+                                                    <p className="text-[10px] text-muted-foreground">Upload your brand logo to replace the "Super Admin" text.</p>
+                                                </div>
                                             </div>
-                                            <div className="flex items-center gap-3">
-                                                <div className="h-2 w-2 rounded-full bg-green-500" />
-                                                <p className="text-sm">Scan triggers a direct order flow.</p>
+                                        </div>
+
+                                        <div className="flex items-center justify-between p-4 bg-white rounded-xl border">
+                                            <div className="space-y-0.5">
+                                                <Label className="text-sm font-bold">Show Brand Name Text</Label>
+                                                <p className="text-xs text-muted-foreground">Toggle to hide "Super Admin" text.</p>
                                             </div>
-                                            <div className="flex items-center gap-3">
-                                                <div className="h-2 w-2 rounded-full bg-blue-500" />
-                                                <p className="text-sm">Brand: <strong>{user?.displayName || product.vendorName}</strong> will be visible.</p>
-                                            </div>
+                                            <Switch checked={showBrandText} onCheckedChange={setShowBrandText} />
                                         </div>
                                     </div>
 
@@ -326,7 +340,6 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
                                                     <Download className="mr-3 h-6 w-6" /> Download Ad Tile
                                                 </Button>
                                             </a>
-                                            <p className="text-xs text-center text-muted-foreground mt-4 italic">Resolution optimized for IG, FB, and WhatsApp stories.</p>
                                         </div>
                                     )}
                                 </div>
@@ -341,6 +354,8 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
                                         price={productPrice}
                                         qrUrl={getCatalogueLink()}
                                         brandName={user?.displayName || product.vendorName}
+                                        logoDataUri={logoDataUri || undefined}
+                                        showBrandText={showBrandText}
                                         allowedPaymentMethods={product.allowedPaymentMethods}
                                         onCanvasUpdate={setFinalAdImage}
                                     />
@@ -353,10 +368,9 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
 
             <footer className="bg-slate-50 border-t p-4 flex justify-end shrink-0">
                 <DialogClose asChild>
-                    <Button variant="outline" className="rounded-xl px-8">Close Hub</Button>
+                    <Button variant="outline" className="rounded-xl px-8">Close Studio</Button>
                 </DialogClose>
             </footer>
         </DialogContent>
     );
 }
-
