@@ -1,7 +1,6 @@
-
 'use server';
 /**
- * @fileOverview AI flow to generate cinematic video ads with sound using Veo models.
+ * @fileOverview AI flow to generate cinematic video ads using Veo models.
  * 
  * - createVideoAd: Generates a 5-8 second video ad based on product details and mood.
  */
@@ -32,18 +31,21 @@ const videoFlow = ai.defineFlow(
         const prompt = `Create a cinematic, high-end professional commercial for "${input.productTitle}". 
         The mood should be ${input.mood || 'Luxurious and Cinematic'}. 
         Highlight these details: ${input.productDescription}. 
-        Include high-quality atmospheric background music and professional sound effects matching the movement.
         The subject in the attached photo should move gracefully and be the center of attention.`;
 
+        // Switch to veo-2.0-generate-001 as 3.0 preview is returning 404 (restricted access)
+        // Veo 2 is the current stable generation model.
         let { operation } = await ai.generate({
-          model: googleAI.model('veo-3.0-generate-preview'),
+          model: googleAI.model('veo-2.0-generate-001'),
           prompt: [
             { text: prompt },
             { media: { url: input.imageDataUri } }
           ],
           config: {
             numberOfVideos: 1,
-            personGeneration: 'allow_all',
+            personGeneration: 'allow_adult',
+            durationSeconds: 5,
+            aspectRatio: '9:16', // Vertical for social media ads (Instagram/TikTok)
           },
         });
 
@@ -74,8 +76,7 @@ const videoFlow = ai.defineFlow(
           throw new Error('The AI generated the video but the content could not be retrieved.');
         }
 
-        // Instead of returning a huge base64 (which hits Server Action limits),
-        // we return a link to our internal proxy which adds the API key securely.
+        // Return a link to our internal proxy which adds the API key securely.
         const rawUrl = videoPart.media.url;
         return { videoUrl: `/api/proxy-video?url=${encodeURIComponent(rawUrl)}` };
         
