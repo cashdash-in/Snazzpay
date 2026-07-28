@@ -1,11 +1,10 @@
-
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, ShoppingCart, Percent, MessageCircle, Send } from 'lucide-react';
+import { Loader2, ShoppingCart, Percent, MessageCircle, Send, Play } from 'lucide-react';
 import Image from 'next/image';
 import type { SellerProduct } from '@/app/seller/ai-product-uploader/page';
 import { getCollection, getDocument, saveDocument } from '@/services/firestore';
@@ -60,7 +59,6 @@ function BrandedCollectionContent() {
             setDiscount(parseFloat(discountParam));
         }
 
-        // Track session start
         fetch('/api/track', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -77,7 +75,6 @@ function BrandedCollectionContent() {
             }
 
             try {
-                // Track visit
                 fetch('/api/track', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -98,7 +95,6 @@ function BrandedCollectionContent() {
                     return;
                 }
                 
-                const fetchedProducts: DisplayProduct[] = [];
                 const [sellerProducts, productDrops] = await Promise.all([
                     getCollection<SellerProduct>('seller_products'),
                     getCollection<ProductDrop>('product_drops')
@@ -108,13 +104,8 @@ function BrandedCollectionContent() {
                 sellerProducts.forEach(p => productMap.set(p.id, p));
                 productDrops.forEach(p => productMap.set(p.id, p));
 
-                for (const id of productIds) {
-                    const product = productMap.get(id);
-                    if (product) {
-                        fetchedProducts.push(product);
-                    }
-                }
-                setProducts(fetchedProducts);
+                const fetched = productIds.map(id => productMap.get(id)).filter(p => !!p) as DisplayProduct[];
+                setProducts(fetched);
             } catch (error) {
                 console.error("Failed to fetch products for magazine:", error);
             } finally {
@@ -126,7 +117,6 @@ function BrandedCollectionContent() {
     
     const handleOrderClick = (product: DisplayProduct) => {
         const catalogueParams = new URLSearchParams();
-        
         catalogueParams.set('id', product.id);
         catalogueParams.set('return_url', window.location.href);
 
@@ -135,9 +125,8 @@ function BrandedCollectionContent() {
             catalogueParams.set('sellerName', magazine.creatorName);
         }
 
-        const discountFromMagazine = searchParams.get('discount');
-        if (discountFromMagazine) {
-            catalogueParams.set('discount', discountFromMagazine);
+        if (discount > 0) {
+            catalogueParams.set('discount', discount.toString());
         }
     
         router.push(`/catalogue?${catalogueParams.toString()}`);
@@ -174,7 +163,6 @@ function BrandedCollectionContent() {
             };
 
             await saveDocument('leads', leadData, leadId);
-            
             toast({ title: "Enquiry Sent!", description: "We have received your interest. Our team will contact you shortly." });
             setEnquiryProduct(null);
             setEnquiryForm({ name: '', phone: '', message: '' });
@@ -209,12 +197,7 @@ function BrandedCollectionContent() {
                     {magazine.logoDataUri && (
                         <div className="flex justify-center mb-6">
                             <div className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-full overflow-hidden border-4 border-white shadow-xl bg-white">
-                                <Image 
-                                    src={magazine.logoDataUri} 
-                                    alt="Brand Logo" 
-                                    fill 
-                                    className="object-contain p-2"
-                                />
+                                <Image src={magazine.logoDataUri} alt="Brand Logo" fill className="object-contain p-2" />
                             </div>
                         </div>
                     )}
@@ -229,50 +212,51 @@ function BrandedCollectionContent() {
                     {products.map(product => {
                          const price = ((product as SellerProduct).price || (product as ProductDrop).costPrice);
                          const discountedPrice = discount > 0 ? price - (price * (discount / 100)) : price;
-                         const hasVideo = !!(product as any).videoDataUri;
+                         const videoUrl = product.videoDataUri;
 
                         return (
                         <Card key={product.id} className="shadow-md hover:shadow-xl transition-shadow overflow-hidden flex flex-col group rounded-lg">
-                            {hasVideo ? (
-                                <video
-                                    src={(product as any).videoDataUri}
-                                    width="400"
-                                    height="400"
-                                    autoPlay
-                                    loop
-                                    muted
-                                    playsInline
-                                    className="object-cover w-full h-48 sm:h-64"
-                                />
-                            ) : (
-                                <Carousel className="w-full relative group/carousel">
-                                    <CarouselContent>
-                                        {product.imageDataUris.map((uri, index) => (
-                                            <CarouselItem key={index}>
-                                                <Image
-                                                    src={uri}
-                                                    alt={`${product.title} image ${index + 1}`}
-                                                    width={400}
-                                                    height={400}
-                                                    className="object-cover w-full h-48 sm:h-64"
-                                                />
-                                            </CarouselItem>
-                                        ))}
-                                    </CarouselContent>
-                                    {product.imageDataUris.length > 1 && (
-                                        <>
-                                            <CarouselPrevious className="absolute left-2 top-1/2 -translate-y-1/2 opacity-0 group-hover/carousel:opacity-100 transition-opacity" />
-                                            <CarouselNext className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover/carousel:opacity-100 transition-opacity" />
-                                        </>
-                                    )}
-                                    {discount > 0 && (
-                                        <Badge className="absolute top-2 right-2 z-10 bg-destructive text-destructive-foreground">
-                                            <Percent className="h-3 w-3 mr-1" />
-                                            {discount}% OFF
-                                        </Badge>
-                                    )}
-                                </Carousel>
-                            )}
+                            <div className="relative w-full h-48 sm:h-64 bg-slate-100">
+                                {videoUrl ? (
+                                    <video 
+                                        src={videoUrl} 
+                                        className="w-full h-full object-cover" 
+                                        autoPlay 
+                                        muted 
+                                        loop 
+                                        playsInline 
+                                    />
+                                ) : (
+                                    <Carousel className="w-full h-full relative group/carousel">
+                                        <CarouselContent>
+                                            {product.imageDataUris.map((uri, index) => (
+                                                <CarouselItem key={index}>
+                                                    <div className="relative w-full h-48 sm:h-64">
+                                                        <Image src={uri} alt={product.title} fill className="object-cover" />
+                                                    </div>
+                                                </CarouselItem>
+                                            ))}
+                                        </CarouselContent>
+                                        {product.imageDataUris.length > 1 && (
+                                            <>
+                                                <CarouselPrevious className="absolute left-2 top-1/2 -translate-y-1/2 opacity-0 group-hover/carousel:opacity-100 transition-opacity" />
+                                                <CarouselNext className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover/carousel:opacity-100 transition-opacity" />
+                                            </>
+                                        )}
+                                    </Carousel>
+                                )}
+                                {discount > 0 && (
+                                    <Badge className="absolute top-2 right-2 z-10 bg-destructive text-destructive-foreground">
+                                        <Percent className="h-3 w-3 mr-1" />
+                                        {discount}% OFF
+                                    </Badge>
+                                )}
+                                {videoUrl && (
+                                    <Badge className="absolute top-2 left-2 z-10 bg-black/70 text-white border-none backdrop-blur-sm">
+                                        <Play className="h-3 w-3 mr-1 fill-current" /> VIDEO
+                                    </Badge>
+                                )}
+                            </div>
                              <CardContent className="p-4 flex-grow flex flex-col">
                                 <h3 className="text-base font-semibold mb-1 line-clamp-2 flex-grow">{product.title}</h3>
                                 <div className="mt-2">

@@ -10,9 +10,10 @@ import { useAuth } from '@/hooks/use-auth';
 import { 
     Loader2, Wand2, AlertTriangle, Facebook, Instagram, 
     MessageSquare, Download, Share2, Youtube, MapPin, 
-    Image as LucideImage, LayoutTemplate, Copy, Globe, QrCode, Sparkles, Clock, CheckCircle2, Info, Factory, Trash2
+    Image as LucideImage, LayoutTemplate, Copy, Globe, QrCode, Sparkles, Clock, CheckCircle2, Info, Factory, Trash2, Video, Music
 } from 'lucide-react';
 import { createSocialAd } from '@/ai/flows/create-social-ad';
+import { createVideoAd } from '@/ai/flows/create-video-ad';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent } from '@/components/ui/card';
 import { getCookie } from 'cookies-next';
@@ -21,6 +22,7 @@ import { SocialAdCard } from './social-ad-card';
 import { Badge } from './ui/badge';
 import { Switch } from '@/components/ui/switch';
 import Image from 'next/image';
+import { saveDocument } from '@/services/firestore';
 
 type ShareableProduct = {
     id: string;
@@ -37,6 +39,7 @@ type ShareableProduct = {
     sizes?: string[];
     colors?: string[];
     allowedPaymentMethods?: string[];
+    videoDataUri?: string;
 };
 
 interface ShareComposerDialogProps {
@@ -47,6 +50,7 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
     const { toast } = useToast();
     const { user } = useAuth();
     const [isGenerating, setIsGenerating] = useState(false);
+    const [isVideoGenerating, setIsVideoGenerating] = useState(false);
     const [appUrl, setAppUrl] = useState('');
     const [adContent, setAdContent] = useState<any>(null);
     const [activePlatform, setActivePlatform] = useState<'instagram' | 'facebook' | 'pinterest' | 'youtube'>('instagram');
@@ -54,7 +58,10 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
     const [adHeadline, setAdHeadline] = useState('A Story of Style');
     const [finalAdImage, setFinalAdImage] = useState<string | null>(null);
     const [logoDataUri, setLogoDataUri] = useState<string | null>(null);
-    const [showBrandText, setShowBrandText] = useState(false); // Default to false to hide "Super Admin"
+    const [showBrandText, setShowBrandText] = useState(false);
+    
+    const [videoMood, setVideoMood] = useState('Cinematic & Luxurious');
+    const [generatedVideo, setGeneratedVideo] = useState<string | null>(product.videoDataUri || null);
 
     const productPrice = useMemo(() => product.price || product.costPrice || 0, [product]);
     const isPriceValid = productPrice > 0;
@@ -122,6 +129,45 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
         }
     };
 
+    const handleGenerateVideo = async () => {
+        if (!product.imageDataUris?.[0]) {
+            toast({ variant: 'destructive', title: "Image Required", description: "Product needs at least one image to use as a video reference." });
+            return;
+        }
+
+        setIsVideoGenerating(true);
+        try {
+            const result = await createVideoAd({
+                productTitle: product.title,
+                productDescription: product.description,
+                mood: videoMood,
+                imageDataUri: product.imageDataUris[0]
+            });
+            
+            setGeneratedVideo(result.videoUrl);
+            toast({ title: "Video Ad Created!", description: "Your cinematic ad with sound is ready." });
+        } catch (error: any) {
+            console.error("Video error:", error);
+            toast({ variant: 'destructive', title: "Video Failed", description: error.message });
+        } finally {
+            setIsVideoGenerating(false);
+        }
+    };
+
+    const handleSaveVideoToProduct = async () => {
+        if (!generatedVideo || !product.id) return;
+
+        try {
+            const role = getCookie('userRole');
+            const collection = role === 'seller' ? 'seller_products' : 'product_drops';
+            
+            await saveDocument(collection, { videoDataUri: generatedVideo }, product.id);
+            toast({ title: "Video Saved!", description: "This video will now show on your product pages." });
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: "Save Failed", description: error.message });
+        }
+    };
+
     const handleCopyAll = () => {
         if (!adContent) return;
         const link = getCatalogueLink();
@@ -159,7 +205,7 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
                 <div className="flex gap-2">
                      <Button onClick={handleGenerateAIAd} disabled={isGenerating || !isPriceValid} className="font-bold">
                         {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                        {adContent ? 'Regenerate Content' : 'AI Magic: Write Post Kit'}
+                        {adContent ? 'Regenerate Copy' : 'AI Magic: Write Post Kit'}
                     </Button>
                 </div>
             </div>
@@ -172,6 +218,9 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
                         </TabsTrigger>
                         <TabsTrigger value="visual" className="data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg px-6 py-2">
                             <LucideImage className="mr-2 h-4 w-4" /> 2. Visual Ad Tile
+                        </TabsTrigger>
+                         <TabsTrigger value="video" className="data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg px-6 py-2">
+                            <Video className="mr-2 h-4 w-4" /> 3. Video Ad Studio
                         </TabsTrigger>
                     </TabsList>
                 </div>
@@ -311,7 +360,7 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
                                                 </div>
                                                 <div className="flex-1 space-y-2">
                                                     <Input type="file" accept="image/*" onChange={handleLogoUpload} className="text-xs h-10" />
-                                                    <p className="text-[10px] text-muted-foreground">Upload your brand logo to replace the "Super Admin" text.</p>
+                                                    <p className="text-[10px] text-muted-foreground">Upload your brand logo for the ad tile.</p>
                                                 </div>
                                             </div>
                                         </div>
@@ -319,19 +368,11 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
                                         <div className="flex items-center justify-between p-4 bg-white rounded-xl border">
                                             <div className="space-y-0.5">
                                                 <Label className="text-sm font-bold">Show Brand Name Text</Label>
-                                                <p className="text-xs text-muted-foreground">Toggle to hide "Super Admin" text.</p>
+                                                <p className="text-xs text-muted-foreground">Toggle text overlay.</p>
                                             </div>
                                             <Switch checked={showBrandText} onCheckedChange={setShowBrandText} />
                                         </div>
                                     </div>
-
-                                    {!isPriceValid && (
-                                        <Alert variant="destructive" className="rounded-2xl">
-                                            <AlertTriangle className="h-4 w-4" />
-                                            <AlertTitle>Price Required</AlertTitle>
-                                            <AlertDescription>You must set a selling price for this product to generate an ad tile.</AlertDescription>
-                                        </Alert>
-                                    )}
 
                                     {finalAdImage && (
                                         <div className="pt-4">
@@ -361,6 +402,94 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
                                     />
                                 </div>
                             </div>
+                        </div>
+                    </TabsContent>
+
+                    <TabsContent value="video" className="h-full m-0 p-6 overflow-y-auto">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 max-w-6xl mx-auto">
+                             <div className="space-y-8">
+                                <div>
+                                    <h3 className="text-3xl font-black italic uppercase">AI Video Ad Studio</h3>
+                                    <p className="text-slate-500 mt-2">Generate cinematic commercial videos with sound from your product.</p>
+                                </div>
+
+                                <div className="space-y-6">
+                                    <div className="space-y-2">
+                                        <Label className="text-xs font-bold uppercase tracking-widest text-slate-400">Video Mood / Creative Direction</Label>
+                                        <Input 
+                                            value={videoMood} 
+                                            onChange={e => setVideoMood(e.target.value)} 
+                                            placeholder="e.g., Energetic & Vibrant, Luxurious, Minimalist"
+                                            className="h-12 text-lg font-bold border-2 focus-visible:ring-primary rounded-xl"
+                                        />
+                                    </div>
+
+                                    <Card className="bg-slate-900 text-white border-none shadow-xl overflow-hidden">
+                                        <CardContent className="p-6 space-y-4">
+                                            <div className="flex items-center gap-2 text-primary font-bold">
+                                                <Music className="h-5 w-5" /> 
+                                                <span>Smart Sound Integration</span>
+                                            </div>
+                                            <p className="text-sm text-slate-400">Our AI (Veo 3) will automatically compose a unique audio track with background music and effects that match your video's movement.</p>
+                                        </CardContent>
+                                    </Card>
+
+                                    <Button 
+                                        size="lg" 
+                                        className="w-full h-16 text-xl font-black shadow-xl rounded-2xl hover:scale-[1.02] transition-transform"
+                                        onClick={handleGenerateVideo}
+                                        disabled={isVideoGenerating}
+                                    >
+                                        {isVideoGenerating ? (
+                                            <>
+                                                <Loader2 className="mr-3 h-6 w-6 animate-spin" />
+                                                Directing Cinematic Ad... (60s)
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Video className="mr-3 h-6 w-6" />
+                                                Generate AI Video Ad
+                                            </>
+                                        )}
+                                    </Button>
+
+                                    {generatedVideo && (
+                                        <div className="flex gap-4">
+                                            <Button variant="outline" className="flex-1 h-12 font-bold rounded-xl" onClick={handleSaveVideoToProduct}>
+                                                <CheckCircle2 className="mr-2 h-4 w-4" /> Save to Catalogue
+                                            </Button>
+                                            <a href={generatedVideo} download={`${product.title.replace(/\s+/g, '_')}_video.mp4`} className="flex-1">
+                                                <Button variant="secondary" className="w-full h-12 font-bold rounded-xl">
+                                                    <Download className="mr-2 h-4 w-4" /> Download MP4
+                                                </Button>
+                                            </a>
+                                        </div>
+                                    )}
+                                </div>
+                             </div>
+
+                             <div className="flex justify-center items-start lg:sticky lg:top-0 pt-4">
+                                {generatedVideo ? (
+                                    <div className="w-full aspect-[9/16] max-w-[400px] rounded-[32px] overflow-hidden shadow-2xl border-8 border-slate-900 bg-black relative">
+                                        <video 
+                                            src={generatedVideo} 
+                                            className="w-full h-full object-cover"
+                                            controls
+                                            autoPlay
+                                            loop
+                                        />
+                                        <div className="absolute top-4 right-4">
+                                            <Badge className="bg-primary/90 text-white border-none px-3 py-1 text-[10px] font-black italic">PRO AD</Badge>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="w-full aspect-[9/16] max-w-[400px] rounded-[32px] bg-slate-100 border-4 border-dashed border-slate-200 flex flex-col items-center justify-center text-center p-12 opacity-50">
+                                        <Video className="h-16 w-16 text-slate-300 mb-6" />
+                                        <h4 className="text-xl font-bold">Video Preview</h4>
+                                        <p className="text-sm mt-2">Generate a video to see your cinematic ad here.</p>
+                                    </div>
+                                )}
+                             </div>
                         </div>
                     </TabsContent>
                 </div>
