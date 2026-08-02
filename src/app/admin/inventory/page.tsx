@@ -85,11 +85,7 @@ export default function AdminInventoryPage() {
     const [showPostSaleDialog, setShowPostSaleDialog] = useState(false);
     const [lastProcessedSale, setLastProcessedSale] = useState<SaleTransaction | null>(null);
 
-    useEffect(() => {
-        loadData();
-    }, []);
-
-    const loadData = async () => {
+    const loadData = useCallback(async () => {
         setIsLoading(true);
         try {
             const [stock, history] = await Promise.all([
@@ -103,7 +99,11 @@ export default function AdminInventoryPage() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [toast]);
+
+    useEffect(() => {
+        loadData();
+    }, [loadData]);
 
     const processImage = useCallback(async (file: File) => {
         setIsAnalyzing(true);
@@ -114,7 +114,7 @@ export default function AdminInventoryPage() {
                 const aiData = await analyzeInventoryItem({ imageDataUri: base64 });
                 
                 const newItem: InventoryItem = {
-                    id: uuidv4().substring(0, 8).toUpperCase(), // Short readable ID for markers
+                    id: uuidv4().substring(0, 8).toUpperCase(), 
                     name: aiData.productName,
                     quantity: 1,
                     wholesalePrice: 0,
@@ -277,7 +277,6 @@ export default function AdminInventoryPage() {
     return (
         <AppShell title="Shop Inventory & P&L">
             <div className="space-y-6">
-                {/* AI LOADING OVERLAY */}
                 {isAnalyzing && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm">
                         <Card className="p-8 flex flex-col items-center gap-4 shadow-2xl animate-in zoom-in-95 duration-200">
@@ -310,29 +309,21 @@ export default function AdminInventoryPage() {
                     </Card>
                 </div>
 
-                <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-4 rounded-3xl shadow-xl border border-primary/5">
+                <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-primary/5">
                     <div className="relative w-full md:w-80">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input placeholder="Search name or Marker ID..." className="pl-9 rounded-2xl" value={searchTerm} onChange={e => setSearchQuery(e.target.value)} />
+                        <Input placeholder="Search name or Marker ID..." className="pl-9" value={searchTerm} onChange={e => setSearchQuery(e.target.value)} />
                     </div>
                     <div className="flex flex-wrap gap-2 w-full md:w-auto">
-                        <Button 
-                            onClick={() => setIsScanning(true)} 
-                            variant="default"
-                            className="flex-1 rounded-2xl h-12 bg-slate-900 hover:bg-slate-800 shadow-xl"
-                        >
+                        <Button onClick={() => setIsScanning(true)} variant="default" className="flex-1">
                             <Scan className="mr-2 h-5 w-5 text-primary" />
                             Scan to Sell
                         </Button>
-                        <Button 
-                            onClick={() => document.getElementById('camera-input')?.click()} 
-                            disabled={isAnalyzing} 
-                            className="flex-1 rounded-2xl h-12 shadow-lg"
-                        >
+                        <Button onClick={() => document.getElementById('camera-input')?.click()} disabled={isAnalyzing} className="flex-1">
                             {isAnalyzing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Camera className="mr-2 h-4 w-4"/>}
                             Capture New
                         </Button>
-                        <Button variant="outline" onClick={exportToExcel} className="rounded-2xl h-12">
+                        <Button variant="outline" onClick={exportToExcel} className="rounded-xl">
                             <FileSpreadsheet className="h-4 w-4" />
                         </Button>
                         <input type="file" id="camera-input" accept="image/*" className="hidden" onChange={handleImageUpload} />
@@ -340,16 +331,16 @@ export default function AdminInventoryPage() {
                 </div>
 
                 <Tabs defaultValue="stock">
-                    <TabsList className="grid w-full grid-cols-2 max-w-md bg-slate-200/50 rounded-2xl p-1.5 h-12">
-                        <TabsTrigger value="stock" className="rounded-xl font-bold uppercase text-[10px] tracking-widest"><Package className="mr-2 h-4 w-4" /> Live Stock</TabsTrigger>
-                        <TabsTrigger value="ledger" className="rounded-xl font-bold uppercase text-[10px] tracking-widest"><History className="mr-2 h-4 w-4" /> Sales History</TabsTrigger>
+                    <TabsList className="grid w-full grid-cols-2 max-w-md">
+                        <TabsTrigger value="stock"><Package className="mr-2 h-4 w-4" /> Live Stock</TabsTrigger>
+                        <TabsTrigger value="ledger"><History className="mr-2 h-4 w-4" /> Sales History</TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="stock" className="mt-4">
-                        <Card className="rounded-[32px] border-none shadow-2xl overflow-hidden bg-white">
+                        <Card>
                             <CardContent className="p-0">
                                 <Table>
-                                    <TableHeader className="bg-slate-50/50">
+                                    <TableHeader>
                                         <TableRow>
                                             <TableHead className="w-[120px]">Marker ID</TableHead>
                                             <TableHead>Product Name</TableHead>
@@ -360,53 +351,53 @@ export default function AdminInventoryPage() {
                                     </TableHeader>
                                     <TableBody>
                                         {filteredInventory.map(item => (
-                                            <TableRow key={item.id} className={cn(item.quantity === 0 ? "bg-red-50/50" : "hover:bg-slate-50/50 transition-colors")}>
+                                            <TableRow key={item.id} className={cn(item.quantity === 0 ? "bg-red-50/50" : "")}>
                                                 <TableCell>
                                                     <div className="flex flex-col items-center gap-1">
-                                                        <div className="relative w-12 h-12 rounded-xl border border-primary/10 overflow-hidden bg-white shadow-sm flex items-center justify-center">
+                                                        <div className="relative w-10 h-10 rounded border overflow-hidden bg-white flex items-center justify-center">
                                                            {item.imageDataUri ? (
                                                                <Image src={item.imageDataUri} fill alt="p" className="object-cover" />
                                                            ) : (
                                                                <QrCode className="h-6 w-6 text-slate-300" />
                                                            )}
                                                         </div>
-                                                        <span className="text-[10px] font-black font-mono text-primary bg-primary/5 px-2 py-0.5 rounded border border-primary/20">{item.id}</span>
+                                                        <span className="text-[10px] font-mono font-bold text-primary">{item.id}</span>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="space-y-1">
-                                                        <Input value={item.name} onChange={e => updateItem(item.id, { name: e.target.value })} className="h-8 font-bold border-transparent hover:border-input focus:border-input bg-transparent px-1 p-0" />
-                                                        <Badge variant="outline" className="text-[9px] font-black uppercase tracking-widest opacity-50">{item.category}</Badge>
+                                                        <Input value={item.name} onChange={e => updateItem(item.id, { name: e.target.value })} className="h-8 font-medium border-transparent hover:border-input focus:border-input bg-transparent" />
+                                                        <Badge variant="outline" className="text-[9px] uppercase">{item.category}</Badge>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex flex-col gap-0.5">
-                                                        <div className="flex items-center gap-1"><span className="text-[8px] text-muted-foreground font-black uppercase w-8">MRP:</span><Input type="number" value={item.mrp} onChange={e => updateItem(item.id, { mrp: parseFloat(e.target.value) || 0 })} className="h-7 w-20 text-xs font-black border-none bg-primary/5" /></div>
-                                                        <div className="flex items-center gap-1"><span className="text-[8px] text-muted-foreground font-black uppercase w-8">Cost:</span><Input type="number" value={item.wholesalePrice} onChange={e => updateItem(item.id, { wholesalePrice: parseFloat(e.target.value) || 0 })} className="h-7 w-20 text-xs font-mono border-none" /></div>
+                                                        <div className="flex items-center gap-1"><span className="text-[8px] text-muted-foreground w-8">MRP:</span><Input type="number" value={item.mrp} onChange={e => updateItem(item.id, { mrp: parseFloat(e.target.value) || 0 })} className="h-7 w-20 text-xs font-bold" /></div>
+                                                        <div className="flex items-center gap-1"><span className="text-[8px] text-muted-foreground w-8">Cost:</span><Input type="number" value={item.wholesalePrice} onChange={e => updateItem(item.id, { wholesalePrice: parseFloat(e.target.value) || 0 })} className="h-7 w-20 text-xs" /></div>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex items-center gap-2">
-                                                        <div className="flex items-center bg-slate-100 rounded-xl p-0.5 border">
-                                                            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-white rounded-lg" onClick={() => updateItem(item.id, { quantity: Math.max(0, item.quantity - 1) })}><Minus className="h-3 w-3" /></Button>
-                                                            <Input type="number" value={item.quantity} onChange={e => updateItem(item.id, { quantity: parseInt(e.target.value) || 0 })} className={cn("h-8 w-14 text-center font-black border-none bg-transparent", item.quantity === 0 && "text-red-600")} />
-                                                            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-white rounded-lg" onClick={() => updateItem(item.id, { quantity: item.quantity + 1 })}><Plus className="h-3 w-3" /></Button>
+                                                        <div className="flex items-center border rounded-lg p-0.5">
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateItem(item.id, { quantity: Math.max(0, item.quantity - 1) })}><Minus className="h-3 w-3" /></Button>
+                                                            <Input type="number" value={item.quantity} onChange={e => updateItem(item.id, { quantity: parseInt(e.target.value) || 0 })} className={cn("h-7 w-12 text-center font-bold border-none", item.quantity === 0 && "text-red-600")} />
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateItem(item.id, { quantity: item.quantity + 1 })}><Plus className="h-3 w-3" /></Button>
                                                         </div>
-                                                        {item.quantity === 0 && <Badge variant="destructive" className="animate-pulse text-[8px] font-black">RE-STOCK</Badge>}
+                                                        {item.quantity === 0 && <Badge variant="destructive" className="animate-pulse text-[8px]">RE-STOCK</Badge>}
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="text-right space-x-1">
                                                     <Dialog>
                                                         <DialogTrigger asChild>
-                                                            <Button variant="outline" size="icon" className="rounded-xl h-10 w-10 shadow-sm" onClick={() => setSelectedItemForLabel(item)}>
+                                                            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setSelectedItemForLabel(item)}>
                                                                 <Printer className="h-4 w-4" />
                                                             </Button>
                                                         </DialogTrigger>
-                                                        <DialogContent className="max-w-xs rounded-[32px] p-8">
-                                                            <DialogHeader><DialogTitle className="text-center italic uppercase font-black">Print Sticker</DialogTitle></DialogHeader>
-                                                            <div className="flex flex-col items-center gap-4 py-6">
-                                                                <div ref={labelRef} className="p-4 border-2 border-slate-900 bg-white rounded-lg w-[2in] text-center shadow-lg print:border-none print:shadow-none">
-                                                                    <p className="text-[10px] font-black uppercase mb-1 truncate">{item.name}</p>
+                                                        <DialogContent className="max-w-xs p-6">
+                                                            <DialogHeader><DialogTitle className="text-center italic uppercase font-black">Print Label</DialogTitle></DialogHeader>
+                                                            <div className="flex flex-col items-center gap-4 py-4">
+                                                                <div ref={labelRef} className="p-4 border-2 border-slate-900 bg-white rounded w-[2in] text-center shadow-md">
+                                                                    <p className="text-[10px] font-bold uppercase mb-1 truncate">{item.name}</p>
                                                                     <div className="flex justify-center mb-1">
                                                                         <Image 
                                                                             src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${item.id}`} 
@@ -416,7 +407,7 @@ export default function AdminInventoryPage() {
                                                                     <p className="text-lg font-mono font-black tracking-tighter leading-none">{item.id}</p>
                                                                     <p className="text-[8px] font-bold text-slate-500 uppercase mt-1">MRP: ₹{item.mrp}</p>
                                                                 </div>
-                                                                <Button onClick={handlePrintLabel} className="w-full h-12 rounded-2xl font-black uppercase tracking-widest">
+                                                                <Button onClick={handlePrintLabel} className="w-full">
                                                                     Print to Sticker
                                                                 </Button>
                                                             </div>
@@ -425,42 +416,34 @@ export default function AdminInventoryPage() {
 
                                                     <Dialog open={selectedSaleItem?.id === item.id} onOpenChange={open => !open && setSelectedSaleItem(null)}>
                                                         <DialogTrigger asChild>
-                                                            <Button size="sm" onClick={() => { setSelectedSaleItem(item); setSalePrice(item.mrp); setSaleQty(1); }} disabled={item.quantity === 0} className="rounded-xl h-10 shadow-md">
+                                                            <Button size="sm" onClick={() => { setSelectedSaleItem(item); setSalePrice(item.mrp); setSaleQty(1); }} disabled={item.quantity === 0}>
                                                                 <DollarSign className="h-4 w-4 mr-1" /> Sell
                                                             </Button>
                                                         </DialogTrigger>
-                                                        <DialogContent className="rounded-[40px] p-0 overflow-hidden border-none max-w-md">
-                                                            <div className="bg-slate-900 p-8 text-white">
-                                                                <DialogHeader><DialogTitle className="text-2xl font-black italic uppercase tracking-tight">Log Quick Sale</DialogTitle></DialogHeader>
-                                                                <div className="flex items-center gap-4 mt-6 p-4 bg-white/10 rounded-2xl border border-white/10">
-                                                                    <div className="relative w-16 h-16 rounded-xl overflow-hidden shrink-0"><Image src={item.imageDataUri} fill className="object-cover" alt="p" /></div>
-                                                                    <div className="flex-1 overflow-hidden">
-                                                                        <h4 className="font-bold truncate">{item.name}</h4>
-                                                                        <p className="text-xs text-slate-400 uppercase font-black">{item.category}</p>
-                                                                    </div>
+                                                        <DialogContent className="max-w-md p-6">
+                                                            <DialogHeader><DialogTitle className="text-xl font-bold italic uppercase">Log Quick Sale</DialogTitle></DialogHeader>
+                                                            <div className="space-y-6 pt-4">
+                                                                <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-xl border">
+                                                                    <div className="relative w-12 h-12 rounded overflow-hidden shrink-0"><Image src={item.imageDataUri} fill className="object-cover" alt="p" /></div>
+                                                                    <div><h4 className="font-bold">{item.name}</h4><p className="text-xs uppercase opacity-70">{item.category}</p></div>
                                                                 </div>
-                                                            </div>
-                                                            <div className="p-8 space-y-6 bg-white">
                                                                 <div className="grid grid-cols-2 gap-4">
-                                                                    <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">Qty Sold</Label><Input type="number" value={saleQty} onChange={e => setSaleQty(parseInt(e.target.value) || 1)} max={item.quantity} min={1} className="h-12 rounded-xl text-lg font-bold" /></div>
-                                                                    <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">Sale Price (Each)</Label><Input type="number" value={actualSellPrice} onChange={e => setSalePrice(parseFloat(e.target.value) || 0)} className="h-12 rounded-xl text-lg font-black text-primary" /></div>
+                                                                    <div className="space-y-1"><Label className="text-xs font-bold opacity-60">Qty Sold</Label><Input type="number" value={saleQty} onChange={e => setSaleQty(parseInt(e.target.value) || 1)} max={item.quantity} min={1} /></div>
+                                                                    <div className="space-y-1"><Label className="text-xs font-bold opacity-60">Sale Price (Each)</Label><Input type="number" value={actualSellPrice} onChange={e => setSalePrice(parseFloat(e.target.value) || 0)} /></div>
                                                                 </div>
-                                                                <div className="space-y-2">
-                                                                    <Label className="text-[10px] font-black uppercase text-slate-400">Customer Mobile (For WhatsApp Invoice)</Label>
-                                                                    <div className="relative">
-                                                                        <MessageSquare className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
-                                                                        <Input placeholder="9876543210" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} className="pl-10 h-12 rounded-xl" />
-                                                                    </div>
+                                                                <div className="space-y-1">
+                                                                    <Label className="text-xs font-bold opacity-60">Customer Phone (WhatsApp Invoice)</Label>
+                                                                    <Input placeholder="9876543210" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} />
                                                                 </div>
-                                                                <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100 flex justify-between items-center">
-                                                                    <div><p className="text-[10px] font-black uppercase text-slate-400">Profit Earned</p><p className="text-2xl font-black text-green-600">₹{((actualSellPrice - item.wholesalePrice) * saleQty).toFixed(2)}</p></div>
-                                                                    <div className="text-right font-black italic uppercase leading-none"><span className="text-[10px] text-slate-400 block">Total</span><span className="text-2xl">₹{(actualSellPrice * saleQty).toFixed(2)}</span></div>
+                                                                <div className="p-4 bg-green-50 rounded-xl border border-green-100 flex justify-between items-center">
+                                                                    <div><p className="text-[10px] font-bold text-green-700">Profit</p><p className="text-lg font-bold text-green-600">₹{((actualSellPrice - item.wholesalePrice) * saleQty).toFixed(2)}</p></div>
+                                                                    <div className="text-right font-black italic uppercase leading-none"><span className="text-[10px] text-green-700 block">Total</span><span className="text-xl text-green-600">₹{(actualSellPrice * saleQty).toFixed(2)}</span></div>
                                                                 </div>
-                                                                <Button onClick={handleSale} className="w-full h-14 rounded-2xl text-xl font-black italic uppercase shadow-2xl hover:scale-[1.02] transition-transform">Confirm Sale</Button>
+                                                                <Button onClick={handleSale} className="w-full h-12">Confirm Sale</Button>
                                                             </div>
                                                         </DialogContent>
                                                     </Dialog>
-                                                    <Button size="icon" variant="ghost" className="text-destructive hover:bg-red-50 rounded-xl" onClick={() => deleteDocument('inventory', item.id).then(loadData)}><Trash2 className="h-4 w-4" /></Button>
+                                                    <Button size="icon" variant="ghost" className="text-destructive h-8 w-8" onClick={() => deleteDocument('inventory', item.id).then(loadData)}><Trash2 className="h-4 w-4" /></Button>
                                                 </TableCell>
                                             </TableRow>
                                         ))}
@@ -471,36 +454,36 @@ export default function AdminInventoryPage() {
                     </TabsContent>
 
                     <TabsContent value="ledger" className="mt-4">
-                        <Card className="rounded-[32px] border-none shadow-2xl bg-white overflow-hidden">
-                            <CardHeader className="bg-slate-50/50"><CardTitle className="text-lg font-black italic uppercase">Sales & Profit Ledger</CardTitle><CardDescription>Record of all scanned and marker-id sales.</CardDescription></CardHeader>
+                        <Card>
+                            <CardHeader><CardTitle className="text-lg font-bold uppercase">Sales Ledger</CardTitle></CardHeader>
                             <CardContent className="p-0">
                                 <Table>
-                                    <TableHeader className="bg-slate-50/30">
+                                    <TableHeader>
                                         <TableRow>
                                             <TableHead>Time</TableHead>
                                             <TableHead>Product</TableHead>
                                             <TableHead>Revenue</TableHead>
                                             <TableHead>Profit</TableHead>
-                                            <TableHead className="text-right">Actions</TableHead>
+                                            <TableHead className="text-right">Action</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         {[...(sales || [])].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(s => (
-                                            <TableRow key={s.id} className="hover:bg-slate-50/50">
-                                                <TableCell className="text-[9px] text-muted-foreground font-mono">{format(new Date(s.date), 'p d/M')}</TableCell>
-                                                <TableCell className="font-bold text-slate-800 text-sm">{s.productName}</TableCell>
-                                                <TableCell className="font-black text-sm">₹{(s.sellPrice * s.quantity).toFixed(2)}</TableCell>
-                                                <TableCell className={cn("font-black italic text-sm", s.profit >= 0 ? "text-green-600" : "text-red-600")}>₹{s.profit.toFixed(2)}</TableCell>
+                                            <TableRow key={s.id}>
+                                                <TableCell className="text-[10px] text-muted-foreground">{format(new Date(s.date), 'p d/M')}</TableCell>
+                                                <TableCell className="font-bold text-sm">{s.productName}</TableCell>
+                                                <TableCell className="font-bold">₹{(s.sellPrice * s.quantity).toFixed(2)}</TableCell>
+                                                <TableCell className={cn("font-bold", s.profit >= 0 ? "text-green-600" : "text-red-600")}>₹{s.profit.toFixed(2)}</TableCell>
                                                 <TableCell className="text-right">
                                                     {s.customerPhone && (
-                                                        <Button variant="ghost" size="icon" className="text-primary hover:bg-primary/10 rounded-full" onClick={() => { setLastProcessedSale(s); setShowPostSaleDialog(true); }}>
+                                                        <Button variant="ghost" size="icon" onClick={() => { setLastProcessedSale(s); setShowPostSaleDialog(true); }}>
                                                             <MessageSquare className="h-4 w-4" />
                                                         </Button>
                                                     )}
                                                 </TableCell>
                                             </TableRow>
                                         ))}
-                                        {(!sales || sales.length === 0) && <TableRow><TableCell colSpan={5} className="text-center py-20 text-muted-foreground italic">No sales recorded today.</TableCell></TableRow>}
+                                        {(!sales || sales.length === 0) && <TableRow><TableCell colSpan={5} className="text-center py-12 text-muted-foreground italic">No sales recorded.</TableCell></TableRow>}
                                     </TableBody>
                                 </Table>
                             </CardContent>
@@ -508,48 +491,46 @@ export default function AdminInventoryPage() {
                     </TabsContent>
                 </Tabs>
 
-                {/* SCANNER DIALOG */}
                 <Dialog open={isScanning} onOpenChange={setIsScanning}>
-                    <DialogContent className="rounded-[40px] p-8 max-w-sm">
+                    <DialogContent className="max-w-sm p-6">
                         <DialogHeader>
-                            <DialogTitle className="text-2xl font-black italic uppercase">Mobile Scanner</DialogTitle>
+                            <DialogTitle className="text-xl font-bold uppercase">Mobile Scanner</DialogTitle>
                             <DialogDescription>Scan QR or enter the ID you wrote with a marker.</DialogDescription>
                         </DialogHeader>
-                        <div className="flex flex-col items-center gap-6 py-8">
-                            <div className="relative w-48 h-48 border-4 border-primary border-dashed rounded-[32px] flex items-center justify-center bg-slate-50 overflow-hidden">
-                                <QrCode className="h-32 w-32 text-slate-200" />
+                        <div className="flex flex-col items-center gap-6 py-4">
+                            <div className="relative w-40 h-40 border-4 border-primary border-dashed rounded-3xl flex items-center justify-center bg-slate-50 overflow-hidden">
+                                <QrCode className="h-24 w-24 text-slate-200" />
                                 <div className="w-full h-0.5 bg-primary absolute top-1/2 animate-bounce"></div>
                             </div>
                             <form onSubmit={handleManualScanInput} className="w-full space-y-4">
                                 <div className="space-y-1">
-                                    <Label className="text-[10px] font-black uppercase text-slate-400">Marker ID Entry</Label>
+                                    <Label className="text-[10px] font-bold uppercase opacity-60">Marker ID Entry</Label>
                                     <div className="flex gap-2">
-                                        <Input name="qr-input" placeholder="e.g. 4B7X-A2Z1" className="rounded-xl h-12 font-mono font-bold text-center" />
-                                        <Button type="submit" className="h-12 w-12 rounded-xl">Go</Button>
+                                        <Input name="qr-input" placeholder="e.g. 4B7X-A2Z1" className="h-12 font-mono font-bold text-center uppercase" />
+                                        <Button type="submit" className="h-12 w-12">Go</Button>
                                     </div>
                                 </div>
                             </form>
-                            <p className="text-[10px] text-muted-foreground text-center italic">Tip: Write the 8-character ID on the product box for quick manual entry.</p>
+                            <p className="text-[10px] text-muted-foreground text-center italic">Tip: Write the 8-character ID on the product box for quick lookup.</p>
                         </div>
                     </DialogContent>
                 </Dialog>
 
-                {/* POST SALE ACTION DIALOG */}
                 <Dialog open={showPostSaleDialog} onOpenChange={setShowPostSaleDialog}>
-                    <DialogContent className="rounded-[40px] p-8 max-w-sm text-center">
+                    <DialogContent className="max-w-sm p-8 text-center">
                         <div className="flex flex-col items-center gap-6">
-                            <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center"><CheckCircle2 className="h-10 w-10"/></div>
-                            <div className="space-y-1">
-                                <h3 className="text-2xl font-black italic uppercase">Sale Confirmed!</h3>
-                                <p className="text-sm text-muted-foreground">Stock has been updated automatically.</p>
+                            <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center"><CheckCircle2 className="h-10 w-10"/></div>
+                            <div>
+                                <h3 className="text-xl font-bold uppercase">Sale Confirmed!</h3>
+                                <p className="text-sm text-muted-foreground">Stock has been updated.</p>
                             </div>
-                            <div className="w-full space-y-2 pt-4">
+                            <div className="w-full space-y-2">
                                 {lastProcessedSale?.customerPhone && (
-                                    <Button onClick={sendWhatsAppInvoice} className="w-full h-12 rounded-2xl bg-green-600 hover:bg-green-700">
+                                    <Button onClick={sendWhatsAppInvoice} className="w-full h-12 bg-green-600 hover:bg-green-700">
                                         <MessageSquare className="mr-2 h-4 w-4" /> Send WhatsApp Invoice
                                     </Button>
                                 )}
-                                <Button variant="outline" className="w-full h-12 rounded-2xl" onClick={() => setShowPostSaleDialog(false)}>
+                                <Button variant="outline" className="w-full h-12" onClick={() => setShowPostSaleDialog(false)}>
                                     Next Sale
                                 </Button>
                             </div>
@@ -557,8 +538,7 @@ export default function AdminInventoryPage() {
                     </DialogContent>
                 </Dialog>
 
-                {/* HIDDEN PRINT CONTAINER STYLES */}
-                <style dangerouslySetInnerHTML={{ __html: `
+                <style>{`
                     @media print {
                         @page {
                             size: auto;
@@ -577,7 +557,7 @@ export default function AdminInventoryPage() {
                             width: 100%;
                         }
                     }
-                ` }} />
+                `}</style>
             </div>
         </AppShell>
     );
