@@ -25,7 +25,11 @@ import {
     CheckCircle2,
     Printer,
     TrendingUp,
-    X
+    X,
+    Info,
+    ArrowUpRight,
+    Sparkles,
+    ShoppingBag
 } from 'lucide-react';
 import { getCollection, saveDocument, deleteDocument, addDocument } from '@/services/firestore';
 import { analyzeInventoryItem } from '@/ai/flows/inventory-analyzer';
@@ -40,6 +44,11 @@ import { cn, sanitizePhoneNumber } from "@/lib/utils";
 import { useReactToPrint } from 'react-to-print';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 
+interface CompetitorInfo {
+    sellerName: string;
+    price: number;
+}
+
 interface InventoryItem {
     id: string;
     name: string;
@@ -50,6 +59,10 @@ interface InventoryItem {
     imageDataUri: string;
     category: string;
     lastUpdated: string;
+    description?: string;
+    sellingPoints?: string[];
+    marketInsight?: string;
+    competitors?: CompetitorInfo[];
 }
 
 interface SaleTransaction {
@@ -81,6 +94,7 @@ export default function AdminInventoryPage() {
     const labelRef = useRef<HTMLDivElement>(null);
 
     const [selectedSaleItem, setSelectedSaleItem] = useState<InventoryItem | null>(null);
+    const [selectedDetailItem, setSelectedDetailItem] = useState<InventoryItem | null>(null);
     const [saleQty, setSaleQty] = useState(1);
     const [actualSellPrice, setSalePrice] = useState(0);
     const [customerPhone, setCustomerPhone] = useState('');
@@ -131,7 +145,6 @@ export default function AdminInventoryPage() {
     useEffect(() => {
         if (!isScanning || !isMounted) return;
 
-        // Small delay to ensure the DOM element "reader" is rendered by the Dialog
         const timer = setTimeout(() => {
             const readerElement = document.getElementById("reader");
             if (!readerElement) return;
@@ -176,7 +189,11 @@ export default function AdminInventoryPage() {
                     shelfNumber: 'Pending',
                     imageDataUri: base64,
                     category: aiData.category,
-                    lastUpdated: new Date().toISOString()
+                    lastUpdated: new Date().toISOString(),
+                    description: aiData.description,
+                    sellingPoints: aiData.sellingPoints,
+                    marketInsight: aiData.marketInsight,
+                    competitors: aiData.competitors,
                 };
 
                 await saveDocument('inventory', newItem, newItem.id);
@@ -323,7 +340,7 @@ export default function AdminInventoryPage() {
                             <Loader2 className="h-16 w-16 animate-spin text-primary" />
                             <div className="text-center">
                                 <h3 className="text-xl font-bold">AI Analyzing Product</h3>
-                                <p className="text-muted-foreground">Identifying details and searching market MRP...</p>
+                                <p className="text-muted-foreground">Identifying details, sales hooks, and searching market prices...</p>
                             </div>
                         </Card>
                     </div>
@@ -406,7 +423,107 @@ export default function AdminInventoryPage() {
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="space-y-1">
-                                                        <Input value={item.name} onChange={e => updateItem(item.id, { name: e.target.value })} className="h-8 font-medium border-transparent hover:border-input focus:border-input bg-transparent" />
+                                                        <Dialog open={selectedDetailItem?.id === item.id} onOpenChange={open => !open && setSelectedDetailItem(null)}>
+                                                            <DialogTrigger asChild>
+                                                                <button 
+                                                                    className="font-bold text-left hover:text-primary transition-colors hover:underline flex items-center gap-1"
+                                                                    onClick={() => setSelectedDetailItem(item)}
+                                                                >
+                                                                    {item.name}
+                                                                    <Info className="h-3 w-3 opacity-30" />
+                                                                </button>
+                                                            </DialogTrigger>
+                                                            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto rounded-[32px]">
+                                                                <DialogHeader>
+                                                                    <DialogTitle className="text-3xl font-black italic uppercase tracking-tighter leading-none flex items-center gap-3">
+                                                                        <ShoppingBag className="h-8 w-8 text-primary" />
+                                                                        {selectedDetailItem?.name}
+                                                                    </DialogTitle>
+                                                                    <DialogDescription className="text-base">
+                                                                        Detailed product information, competitive pricing, and sales hooks.
+                                                                    </DialogDescription>
+                                                                </DialogHeader>
+                                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-6">
+                                                                    <div className="space-y-6">
+                                                                        <div className="relative aspect-square w-full rounded-[24px] overflow-hidden border-4 border-white shadow-2xl">
+                                                                            {selectedDetailItem?.imageDataUri && (
+                                                                                <Image src={selectedDetailItem.imageDataUri} fill alt="p" className="object-cover" />
+                                                                            )}
+                                                                            <Badge className="absolute top-4 left-4 bg-primary text-white font-black italic">{selectedDetailItem?.category}</Badge>
+                                                                        </div>
+                                                                        <div className="p-4 bg-muted/40 rounded-2xl space-y-2 border">
+                                                                            <Label className="text-[10px] font-black uppercase text-slate-400">Marker / Shelf</Label>
+                                                                            <div className="flex justify-between items-center">
+                                                                                <p className="font-mono text-xl font-black">{selectedDetailItem?.id.substring(0,8)}</p>
+                                                                                <Badge variant="outline" className="font-bold">Shelf: {selectedDetailItem?.shelfNumber}</Badge>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="space-y-6">
+                                                                        <div className="space-y-2">
+                                                                            <h4 className="font-black italic uppercase text-sm text-slate-800 flex items-center gap-2">
+                                                                                <Sparkles className="h-4 w-4 text-purple-500" />
+                                                                                Sales Hooks (To Convince Customers)
+                                                                            </h4>
+                                                                            <ul className="space-y-2">
+                                                                                {selectedDetailItem?.sellingPoints?.map((point, i) => (
+                                                                                    <li key={i} className="flex gap-2 text-sm bg-purple-50 p-2 rounded-xl border border-purple-100 italic font-medium">
+                                                                                        <CheckCircle2 className="h-4 w-4 text-purple-600 shrink-0 mt-0.5" />
+                                                                                        "{point}"
+                                                                                    </li>
+                                                                                ))}
+                                                                            </ul>
+                                                                        </div>
+
+                                                                        <div className="space-y-2">
+                                                                            <h4 className="font-black italic uppercase text-sm text-slate-800 flex items-center gap-2">
+                                                                                <TrendingUp className="h-4 w-4 text-blue-500" />
+                                                                                Market Price Comparison
+                                                                            </h4>
+                                                                            <div className="border rounded-2xl overflow-hidden bg-white shadow-sm">
+                                                                                <Table>
+                                                                                    <TableHeader className="bg-slate-50">
+                                                                                        <TableRow>
+                                                                                            <TableHead className="text-[10px] font-black uppercase">Seller / Platform</TableHead>
+                                                                                            <TableHead className="text-[10px] font-black uppercase text-right">Market Price</TableHead>
+                                                                                        </TableRow>
+                                                                                    </TableHeader>
+                                                                                    <TableBody>
+                                                                                        {selectedDetailItem?.competitors?.map((c, i) => (
+                                                                                            <TableRow key={i}>
+                                                                                                <TableCell className="text-xs font-bold text-slate-600">{c.sellerName}</TableCell>
+                                                                                                <TableCell className="text-xs font-black text-right">₹{c.price}</TableCell>
+                                                                                            </TableRow>
+                                                                                        ))}
+                                                                                        <TableRow className="bg-green-50/50">
+                                                                                            <TableCell className="text-xs font-black text-green-700">OUR PRICE (MRP)</TableCell>
+                                                                                            <TableCell className="text-lg font-black text-green-600 text-right">₹{selectedDetailItem?.mrp}</TableCell>
+                                                                                        </TableRow>
+                                                                                    </TableBody>
+                                                                                </Table>
+                                                                            </div>
+                                                                            <p className="text-[10px] text-muted-foreground italic px-2">AI Market Insight: {selectedDetailItem?.marketInsight}</p>
+                                                                        </div>
+
+                                                                        <div className="space-y-1">
+                                                                            <h4 className="font-black italic uppercase text-sm text-slate-800">Description</h4>
+                                                                            <p className="text-sm text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-2xl border">{selectedDetailItem?.description || "No description provided."}</p>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                <DialogFooter className="border-t pt-4">
+                                                                    <DialogClose asChild><Button variant="outline" className="rounded-xl px-8">Close Details</Button></DialogClose>
+                                                                    <Button onClick={() => { 
+                                                                        setSelectedSaleItem(selectedDetailItem); 
+                                                                        setSalePrice(selectedDetailItem?.mrp || 0);
+                                                                        setSaleQty(1);
+                                                                        setSelectedDetailItem(null);
+                                                                    }} className="rounded-xl px-8 flex-1">
+                                                                        <DollarSign className="mr-2 h-4 w-4" /> Go to Sell
+                                                                    </Button>
+                                                                </DialogFooter>
+                                                            </DialogContent>
+                                                        </Dialog>
                                                         <Badge variant="outline" className="text-[9px] uppercase">{item.category}</Badge>
                                                     </div>
                                                 </TableCell>
