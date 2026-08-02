@@ -339,32 +339,6 @@ export default function AdminInventoryPage() {
                     </div>
                 </div>
 
-                {/* SCANNER DIALOG */}
-                <Dialog open={isScanning} onOpenChange={setIsScanning}>
-                    <DialogContent className="rounded-[40px] p-8 max-w-sm">
-                        <DialogHeader>
-                            <DialogTitle className="text-2xl font-black italic uppercase">Mobile Scanner</DialogTitle>
-                            <DialogDescription>Scan QR or enter the ID you wrote with a marker.</DialogDescription>
-                        </DialogHeader>
-                        <div className="flex flex-col items-center gap-6 py-8">
-                            <div className="relative w-48 h-48 border-4 border-primary border-dashed rounded-[32px] flex items-center justify-center bg-slate-50 overflow-hidden">
-                                <QrCode className="h-32 w-32 text-slate-200" />
-                                <div className="w-full h-0.5 bg-primary absolute top-1/2 animate-bounce"></div>
-                            </div>
-                            <form onSubmit={handleManualScanInput} className="w-full space-y-4">
-                                <div className="space-y-1">
-                                    <Label className="text-[10px] font-black uppercase text-slate-400">Marker ID Entry</Label>
-                                    <div className="flex gap-2">
-                                        <Input name="qr-input" placeholder="e.g. 4B7X-A2Z1" className="rounded-xl h-12 font-mono font-bold text-center" />
-                                        <Button type="submit" className="h-12 w-12 rounded-xl">Go</Button>
-                                    </div>
-                                </div>
-                            </form>
-                            <p className="text-[10px] text-muted-foreground text-center italic">Tip: Write the 8-character ID on the product box for quick manual entry.</p>
-                        </div>
-                    </DialogContent>
-                </Dialog>
-
                 <Tabs defaultValue="stock">
                     <TabsList className="grid w-full grid-cols-2 max-w-md bg-slate-200/50 rounded-2xl p-1.5 h-12">
                         <TabsTrigger value="stock" className="rounded-xl font-bold uppercase text-[10px] tracking-widest"><Package className="mr-2 h-4 w-4" /> Live Stock</TabsTrigger>
@@ -533,53 +507,78 @@ export default function AdminInventoryPage() {
                         </Card>
                     </TabsContent>
                 </Tabs>
-            </div>
 
-            {/* POST SALE ACTION DIALOG */}
-            <Dialog open={showPostSaleDialog} onOpenChange={setShowPostSaleDialog}>
-                <DialogContent className="rounded-[40px] p-8 max-w-sm text-center">
-                    <div className="flex flex-col items-center gap-6">
-                        <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center"><CheckCircle2 className="h-10 w-10"/></div>
-                        <div className="space-y-1">
-                            <h3 className="text-2xl font-black italic uppercase">Sale Confirmed!</h3>
-                            <p className="text-sm text-muted-foreground">Stock has been updated automatically.</p>
+                {/* SCANNER DIALOG */}
+                <Dialog open={isScanning} onOpenChange={setIsScanning}>
+                    <DialogContent className="rounded-[40px] p-8 max-w-sm">
+                        <DialogHeader>
+                            <DialogTitle className="text-2xl font-black italic uppercase">Mobile Scanner</DialogTitle>
+                            <DialogDescription>Scan QR or enter the ID you wrote with a marker.</DialogDescription>
+                        </DialogHeader>
+                        <div className="flex flex-col items-center gap-6 py-8">
+                            <div className="relative w-48 h-48 border-4 border-primary border-dashed rounded-[32px] flex items-center justify-center bg-slate-50 overflow-hidden">
+                                <QrCode className="h-32 w-32 text-slate-200" />
+                                <div className="w-full h-0.5 bg-primary absolute top-1/2 animate-bounce"></div>
+                            </div>
+                            <form onSubmit={handleManualScanInput} className="w-full space-y-4">
+                                <div className="space-y-1">
+                                    <Label className="text-[10px] font-black uppercase text-slate-400">Marker ID Entry</Label>
+                                    <div className="flex gap-2">
+                                        <Input name="qr-input" placeholder="e.g. 4B7X-A2Z1" className="rounded-xl h-12 font-mono font-bold text-center" />
+                                        <Button type="submit" className="h-12 w-12 rounded-xl">Go</Button>
+                                    </div>
+                                </div>
+                            </form>
+                            <p className="text-[10px] text-muted-foreground text-center italic">Tip: Write the 8-character ID on the product box for quick manual entry.</p>
                         </div>
-                        <div className="w-full space-y-2 pt-4">
-                            {lastProcessedSale?.customerPhone && (
-                                <Button onClick={sendWhatsAppInvoice} className="w-full h-12 rounded-2xl bg-green-600 hover:bg-green-700">
-                                    <MessageSquare className="mr-2 h-4 w-4" /> Send WhatsApp Invoice
+                    </DialogContent>
+                </Dialog>
+
+                {/* POST SALE ACTION DIALOG */}
+                <Dialog open={showPostSaleDialog} onOpenChange={setShowPostSaleDialog}>
+                    <DialogContent className="rounded-[40px] p-8 max-w-sm text-center">
+                        <div className="flex flex-col items-center gap-6">
+                            <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center"><CheckCircle2 className="h-10 w-10"/></div>
+                            <div className="space-y-1">
+                                <h3 className="text-2xl font-black italic uppercase">Sale Confirmed!</h3>
+                                <p className="text-sm text-muted-foreground">Stock has been updated automatically.</p>
+                            </div>
+                            <div className="w-full space-y-2 pt-4">
+                                {lastProcessedSale?.customerPhone && (
+                                    <Button onClick={sendWhatsAppInvoice} className="w-full h-12 rounded-2xl bg-green-600 hover:bg-green-700">
+                                        <MessageSquare className="mr-2 h-4 w-4" /> Send WhatsApp Invoice
+                                    </Button>
+                                )}
+                                <Button variant="outline" className="w-full h-12 rounded-2xl" onClick={() => setShowPostSaleDialog(false)}>
+                                    Next Sale
                                 </Button>
-                            )}
-                            <Button variant="outline" className="w-full h-12 rounded-2xl" onClick={() => setShowPostSaleDialog(false)}>
-                                Next Sale
-                            </Button>
+                            </div>
                         </div>
-                    </div>
-                </DialogContent>
-            </Dialog>
+                    </DialogContent>
+                </Dialog>
 
-            {/* HIDDEN PRINT CONTAINER STYLES */}
-            <style jsx global>{`
-                @media print {
-                    @page {
-                        size: auto;
-                        margin: 0;
+                {/* HIDDEN PRINT CONTAINER STYLES */}
+                <style dangerouslySetInnerHTML={{ __html: `
+                    @media print {
+                        @page {
+                            size: auto;
+                            margin: 0;
+                        }
+                        body * {
+                            visibility: hidden;
+                        }
+                        .print-section, .print-section * {
+                            visibility: visible;
+                        }
+                        .print-section {
+                            position: absolute;
+                            left: 0;
+                            top: 0;
+                            width: 100%;
+                        }
                     }
-                    body * {
-                        visibility: hidden;
-                    }
-                    .print-section, .print-section * {
-                        visibility: visible;
-                    }
-                    .print-section {
-                        position: absolute;
-                        left: 0;
-                        top: 0;
-                        width: 100%;
-                    }
-                }
-            `}</style>
-        </div>
-      </AppShell>
+                ` }} />
+            </div>
+        </AppShell>
     );
 }
