@@ -3,11 +3,10 @@ import type { NextRequest } from 'next/server'
 
 export function middleware(request: NextRequest) {
   const token = request.cookies.get('firebaseAuthToken');
+  const userRole = request.cookies.get('userRole')?.value;
   const { pathname } = request.nextUrl;
 
   // STRICT URL NORMALIZATION: 
-  // Prevents SecurityError: A history state object with URL 'https://admin/...' cannot be created.
-  // This catches cases like //admin/inventory and redirects to /admin/inventory
   if (pathname.startsWith('//')) {
     const safePath = pathname.replace(/\/+/g, '/');
     const url = new URL(safePath || '/', request.url);
@@ -19,6 +18,7 @@ export function middleware(request: NextRequest) {
     '/auth/login',
     '/auth/signup',
     '/auth/forgot-password', 
+    '/staff/login', // ALLOW STAFF LOGIN
     '/seller',
     '/seller/login',
     '/vendor/login',
@@ -52,9 +52,17 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // PROTECT STAFF ROUTES
+  if (pathname.startsWith('/staff') && !pathname.startsWith('/staff/login')) {
+      if (!token || userRole !== 'staff') {
+          return NextResponse.redirect(new URL('/staff/login', request.url));
+      }
+      return NextResponse.next();
+  }
+
+  // PROTECT ADMIN ROUTES
   if (!token) {
     const loginUrl = new URL('/auth/login', request.url);
-    // Sanitize redirectedFrom path for the query string to prevent protocol-relative redirects
     const safeRedirectPath = pathname.replace(/\/+/g, '/');
     loginUrl.searchParams.set('redirectedFrom', safeRedirectPath);
     return NextResponse.redirect(loginUrl);

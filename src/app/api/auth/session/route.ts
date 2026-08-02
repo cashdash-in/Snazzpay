@@ -1,4 +1,3 @@
-
 import { NextResponse } from 'next/server';
 
 // Duration of the session cookie in seconds
