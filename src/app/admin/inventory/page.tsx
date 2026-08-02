@@ -72,6 +72,10 @@ export default function AdminInventoryPage() {
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [searchTerm, setSearchQuery] = useState('');
     
+    // Hydration safety
+    const [isMounted, setIsMounted] = useState(false);
+    const [todayTimestamp, setTodayTimestamp] = useState<number | null>(null);
+
     const [isScanning, setIsScanning] = useState(false);
     const [selectedItemForLabel, setSelectedItemForLabel] = useState<InventoryItem | null>(null);
     const labelRef = useRef<HTMLDivElement>(null);
@@ -100,6 +104,8 @@ export default function AdminInventoryPage() {
     }, [toast]);
 
     useEffect(() => {
+        setIsMounted(true);
+        setTodayTimestamp(startOfDay(new Date()).getTime());
         loadData();
     }, [loadData]);
 
@@ -123,26 +129,34 @@ export default function AdminInventoryPage() {
     }, [inventory, toast]);
 
     useEffect(() => {
-        if (!isScanning) return;
+        if (!isScanning || !isMounted) return;
 
-        const scanner = new Html5QrcodeScanner(
-            "reader", 
-            { fps: 10, qrbox: { width: 250, height: 250 } },
-            /* verbose= */ false
-        );
+        // Small delay to ensure the DOM element "reader" is rendered by the Dialog
+        const timer = setTimeout(() => {
+            const readerElement = document.getElementById("reader");
+            if (!readerElement) return;
 
-        scanner.render(
-            (decodedText) => {
-                handleScanSuccess(decodedText);
-                scanner.clear().catch(e => console.warn(e));
-            },
-            () => {} 
-        );
+            const scanner = new Html5QrcodeScanner(
+                "reader", 
+                { fps: 10, qrbox: { width: 250, height: 250 } },
+                /* verbose= */ false
+            );
 
-        return () => {
-            scanner.clear().catch(e => console.warn("Scanner cleanup error", e));
-        };
-    }, [isScanning, handleScanSuccess]);
+            scanner.render(
+                (decodedText) => {
+                    handleScanSuccess(decodedText);
+                    scanner.clear().catch(e => console.warn(e));
+                },
+                () => {} 
+            );
+
+            return () => {
+                scanner.clear().catch(e => console.warn("Scanner cleanup error", e));
+            };
+        }, 100);
+
+        return () => clearTimeout(timer);
+    }, [isScanning, isMounted, handleScanSuccess]);
 
     const processImage = useCallback(async (file: File) => {
         setIsAnalyzing(true);
@@ -263,10 +277,10 @@ export default function AdminInventoryPage() {
     });
 
     const dailyPnL = useMemo(() => {
-        const today = startOfDay(new Date()).getTime();
+        if (!todayTimestamp) return { revenue: 0, profit: 0, itemsSold: 0 };
         const todaySales = (sales || []).filter(s => {
             try {
-                return startOfDay(new Date(s.date)).getTime() === today;
+                return startOfDay(new Date(s.date)).getTime() === todayTimestamp;
             } catch (e) { return false; }
         });
         return {
@@ -274,7 +288,7 @@ export default function AdminInventoryPage() {
             profit: todaySales.reduce((sum, s) => sum + s.profit, 0),
             itemsSold: todaySales.reduce((sum, s) => sum + s.quantity, 0)
         };
-    }, [sales]);
+    }, [sales, todayTimestamp]);
 
     const exportToExcel = () => {
         const workbook = XLSX.utils.book_new();
@@ -297,6 +311,8 @@ export default function AdminInventoryPage() {
         (i.shelfNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         (i.id || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
+
+    if (!isMounted) return null;
 
     return (
         <AppShell title="Shop Inventory & P&L">
@@ -522,7 +538,9 @@ export default function AdminInventoryPage() {
                             <DialogDescription>Scan QR or enter the ID you wrote with a marker.</DialogDescription>
                         </DialogHeader>
                         <div className="flex flex-col items-center gap-6 py-4">
-                            <div id="reader" className="w-full rounded-2xl overflow-hidden border-2 border-primary/20"></div>
+                            <div id="reader" className="w-full rounded-2xl overflow-hidden border-2 border-primary/20 min-h-[250px] bg-slate-100 flex items-center justify-center">
+                                <p className="text-xs text-muted-foreground">Initializing camera...</p>
+                            </div>
                             <form onSubmit={handleManualScanInput} className="w-full space-y-4">
                                 <div className="space-y-1">
                                     <Label className="text-[10px] font-bold uppercase opacity-60">Marker ID Entry</Label>
