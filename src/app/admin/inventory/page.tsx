@@ -580,5 +580,6 @@ export default function AdminInventoryPage() {
                 }
             `}</style>
         </div>
+      </AppShell>
     );
 }
