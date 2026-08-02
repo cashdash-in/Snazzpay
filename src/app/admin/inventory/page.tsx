@@ -16,7 +16,6 @@ import {
     Trash2, 
     FileSpreadsheet, 
     Package, 
-    MapPin, 
     Search, 
     DollarSign, 
     History,
@@ -72,12 +71,10 @@ export default function AdminInventoryPage() {
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [searchTerm, setSearchQuery] = useState('');
     
-    // QR/Marker State
     const [isScanning, setIsScanning] = useState(false);
     const [selectedItemForLabel, setSelectedItemForLabel] = useState<InventoryItem | null>(null);
     const labelRef = useRef<HTMLDivElement>(null);
 
-    // Sale Dialog State
     const [selectedSaleItem, setSelectedSaleItem] = useState<InventoryItem | null>(null);
     const [saleQty, setSaleQty] = useState(1);
     const [actualSellPrice, setSalePrice] = useState(0);
@@ -113,8 +110,9 @@ export default function AdminInventoryPage() {
             try {
                 const aiData = await analyzeInventoryItem({ imageDataUri: base64 });
                 
+                const shortId = uuidv4().substring(0, 8).toUpperCase();
                 const newItem: InventoryItem = {
-                    id: uuidv4().substring(0, 8).toUpperCase(), 
+                    id: shortId, 
                     name: aiData.productName,
                     quantity: 1,
                     wholesalePrice: 0,
@@ -148,7 +146,8 @@ export default function AdminInventoryPage() {
     };
 
     const handleScanSuccess = (code: string) => {
-        const item = inventory.find(i => i.id === code.toUpperCase().trim());
+        const searchCode = code.toUpperCase().trim();
+        const item = inventory.find(i => i.id === searchCode || i.id.substring(0, 8) === searchCode);
         if (item) {
             setSelectedSaleItem(item);
             setSalePrice(item.mrp);
@@ -170,8 +169,7 @@ export default function AdminInventoryPage() {
     const updateItem = async (id: string, updates: Partial<InventoryItem>) => {
         const updated = inventory.map(item => {
             if (item.id === id) {
-                const newItem = { ...item, ...updates, lastUpdated: new Date().toISOString() };
-                return newItem;
+                return { ...item, ...updates, lastUpdated: new Date().toISOString() };
             }
             return item;
         });
@@ -235,7 +233,6 @@ export default function AdminInventoryPage() {
     const handlePrintLabel = useReactToPrint({
         content: () => labelRef.current,
         documentTitle: `Label-${selectedItemForLabel?.id || 'product'}`,
-        onAfterPrint: () => setSelectedItemForLabel(null),
     });
 
     const dailyPnL = useMemo(() => {
@@ -279,7 +276,7 @@ export default function AdminInventoryPage() {
             <div className="space-y-6">
                 {isAnalyzing && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm">
-                        <Card className="p-8 flex flex-col items-center gap-4 shadow-2xl animate-in zoom-in-95 duration-200">
+                        <Card className="p-8 flex flex-col items-center gap-4 shadow-2xl">
                             <Loader2 className="h-16 w-16 animate-spin text-primary" />
                             <div className="text-center">
                                 <h3 className="text-xl font-bold">AI Analyzing Product</h3>
@@ -361,7 +358,7 @@ export default function AdminInventoryPage() {
                                                                <QrCode className="h-6 w-6 text-slate-300" />
                                                            )}
                                                         </div>
-                                                        <span className="text-[10px] font-mono font-bold text-primary">{item.id}</span>
+                                                        <span className="text-[10px] font-mono font-bold text-primary">{item.id.substring(0,8)}</span>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
@@ -399,12 +396,12 @@ export default function AdminInventoryPage() {
                                                                 <div ref={labelRef} className="p-4 border-2 border-slate-900 bg-white rounded w-[2in] text-center shadow-md">
                                                                     <p className="text-[10px] font-bold uppercase mb-1 truncate">{item.name}</p>
                                                                     <div className="flex justify-center mb-1">
-                                                                        <Image 
-                                                                            src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${item.id}`} 
+                                                                        <img 
+                                                                            src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${item.id.substring(0,8)}`} 
                                                                             width={100} height={100} alt="qr" 
                                                                         />
                                                                     </div>
-                                                                    <p className="text-lg font-mono font-black tracking-tighter leading-none">{item.id}</p>
+                                                                    <p className="text-lg font-mono font-black tracking-tighter leading-none">{item.id.substring(0,8)}</p>
                                                                     <p className="text-[8px] font-bold text-slate-500 uppercase mt-1">MRP: ₹{item.mrp}</p>
                                                                 </div>
                                                                 <Button onClick={handlePrintLabel} className="w-full">
@@ -537,27 +534,6 @@ export default function AdminInventoryPage() {
                         </div>
                     </DialogContent>
                 </Dialog>
-
-                <style>{`
-                    @media print {
-                        @page {
-                            size: auto;
-                            margin: 0;
-                        }
-                        body * {
-                            visibility: hidden;
-                        }
-                        .print-section, .print-section * {
-                            visibility: visible;
-                        }
-                        .print-section {
-                            position: absolute;
-                            left: 0;
-                            top: 0;
-                            width: 100%;
-                        }
-                    }
-                `}</style>
             </div>
         </AppShell>
     );
