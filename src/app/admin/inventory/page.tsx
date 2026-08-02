@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { AppShell } from '@/components/layout/app-shell';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,13 +20,13 @@ import {
     Search, 
     DollarSign, 
     History,
-    ClipboardPaste,
     QrCode,
     Scan,
     MessageSquare,
     CheckCircle2,
-    X,
-    Printer
+    Printer,
+    TrendingUp,
+    X
 } from 'lucide-react';
 import { getCollection, saveDocument, deleteDocument, addDocument } from '@/services/firestore';
 import { analyzeInventoryItem } from '@/ai/flows/inventory-analyzer';
@@ -35,9 +35,10 @@ import Image from 'next/image';
 import * as XLSX from 'xlsx';
 import { format, startOfDay } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn, sanitizePhoneNumber } from "@/lib/utils";
+import { useReactToPrint } from 'react-to-print';
 
 interface InventoryItem {
     id: string;
@@ -49,7 +50,6 @@ interface InventoryItem {
     imageDataUri: string;
     category: string;
     lastUpdated: string;
-    qrCode?: string; // We'll store or generate this
 }
 
 interface SaleTransaction {
@@ -72,9 +72,10 @@ export default function AdminInventoryPage() {
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [searchTerm, setSearchQuery] = useState('');
     
-    // QR Scanner State
+    // QR/Marker State
     const [isScanning, setIsScanning] = useState(false);
-    const [scannedResult, setScannedResult] = useState<string | null>(null);
+    const [selectedItemForLabel, setSelectedItemForLabel] = useState<InventoryItem | null>(null);
+    const labelRef = useRef<HTMLDivElement>(null);
 
     // Sale Dialog State
     const [selectedSaleItem, setSelectedSaleItem] = useState<InventoryItem | null>(null);
@@ -113,7 +114,7 @@ export default function AdminInventoryPage() {
                 const aiData = await analyzeInventoryItem({ imageDataUri: base64 });
                 
                 const newItem: InventoryItem = {
-                    id: uuidv4().substring(0, 8).toUpperCase(),
+                    id: uuidv4().substring(0, 8).toUpperCase(), // Short readable ID for markers
                     name: aiData.productName,
                     quantity: 1,
                     wholesalePrice: 0,
@@ -146,32 +147,8 @@ export default function AdminInventoryPage() {
         e.target.value = '';
     };
 
-    // QR SCANNER LOGIC (Simulated for Web Proto, would use html5-qrcode in prod)
-    const handleScanClick = () => {
-        setIsScanning(true);
-        // Simulate a successful scan after 2 seconds for prototype demonstration
-        toast({ title: "Camera Active", description: "Point your phone at the product QR code." });
-        
-        // In a real environment, the scanner would call this on match
-        /*
-        setTimeout(() => {
-            if (inventory.length > 0) {
-                const randomItem = inventory[0];
-                handleScanSuccess(randomItem.id);
-            }
-        }, 2500);
-        */
-    };
-
-    const handleManualScanInput = (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-        const formData = new FormData(e.currentTarget);
-        const code = formData.get('qr-input') as string;
-        if (code) handleScanSuccess(code);
-    };
-
     const handleScanSuccess = (code: string) => {
-        const item = inventory.find(i => i.id === code.toUpperCase());
+        const item = inventory.find(i => i.id === code.toUpperCase().trim());
         if (item) {
             setSelectedSaleItem(item);
             setSalePrice(item.mrp);
@@ -179,8 +156,15 @@ export default function AdminInventoryPage() {
             setIsScanning(false);
             toast({ title: "Product Found", description: `Scanned: ${item.name}` });
         } else {
-            toast({ variant: "destructive", title: "Invalid Code", description: "No product found with this QR code." });
+            toast({ variant: "destructive", title: "Invalid Code", description: "No product found with this ID or QR code." });
         }
+    };
+
+    const handleManualScanInput = (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        const formData = new FormData(e.currentTarget);
+        const code = formData.get('qr-input') as string;
+        if (code) handleScanSuccess(code);
     };
 
     const updateItem = async (id: string, updates: Partial<InventoryItem>) => {
@@ -248,6 +232,12 @@ export default function AdminInventoryPage() {
         setShowPostSaleDialog(false);
     };
 
+    const handlePrintLabel = useReactToPrint({
+        content: () => labelRef.current,
+        documentTitle: `Label-${selectedItemForLabel?.id || 'product'}`,
+        onAfterPrint: () => setSelectedItemForLabel(null),
+    });
+
     const dailyPnL = useMemo(() => {
         const today = startOfDay(new Date()).getTime();
         const todaySales = (sales || []).filter(s => {
@@ -265,7 +255,7 @@ export default function AdminInventoryPage() {
     const exportToExcel = () => {
         const workbook = XLSX.utils.book_new();
         const invSummary = inventory.map(i => ({
-            'ID/QR Code': i.id,
+            'ID/Marker Code': i.id,
             'Product Name': i.name,
             'Category': i.category,
             'Shelf': i.shelfNumber,
@@ -323,16 +313,16 @@ export default function AdminInventoryPage() {
                 <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-4 rounded-3xl shadow-xl border border-primary/5">
                     <div className="relative w-full md:w-80">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input placeholder="Search name or scan ID..." className="pl-9 rounded-2xl" value={searchTerm} onChange={e => setSearchQuery(e.target.value)} />
+                        <Input placeholder="Search name or Marker ID..." className="pl-9 rounded-2xl" value={searchTerm} onChange={e => setSearchQuery(e.target.value)} />
                     </div>
                     <div className="flex flex-wrap gap-2 w-full md:w-auto">
                         <Button 
-                            onClick={handleScanClick} 
+                            onClick={() => setIsScanning(true)} 
                             variant="default"
                             className="flex-1 rounded-2xl h-12 bg-slate-900 hover:bg-slate-800 shadow-xl"
                         >
                             <Scan className="mr-2 h-5 w-5 text-primary" />
-                            Scan QR to Sell
+                            Scan to Sell
                         </Button>
                         <Button 
                             onClick={() => document.getElementById('camera-input')?.click()} 
@@ -349,26 +339,28 @@ export default function AdminInventoryPage() {
                     </div>
                 </div>
 
-                {/* SCANNER DIALOG SIMULATION */}
+                {/* SCANNER DIALOG */}
                 <Dialog open={isScanning} onOpenChange={setIsScanning}>
-                    <DialogContent className="rounded-[40px] p-8">
+                    <DialogContent className="rounded-[40px] p-8 max-w-sm">
                         <DialogHeader>
-                            <DialogTitle className="text-2xl font-black italic uppercase">Mobile QR Scanner</DialogTitle>
-                            <DialogDescription>Scan a product QR code to process a sale instantly.</DialogDescription>
+                            <DialogTitle className="text-2xl font-black italic uppercase">Mobile Scanner</DialogTitle>
+                            <DialogDescription>Scan QR or enter the ID you wrote with a marker.</DialogDescription>
                         </DialogHeader>
                         <div className="flex flex-col items-center gap-6 py-8">
-                            <div className="relative w-64 h-64 border-4 border-primary border-dashed rounded-[32px] flex items-center justify-center bg-slate-50 overflow-hidden">
-                                <div className="absolute inset-0 flex items-center justify-center opacity-20">
-                                    <QrCode className="h-48 w-48 text-slate-400" />
-                                </div>
-                                <div className="w-full h-1 bg-primary/50 absolute top-1/2 animate-bounce"></div>
-                                <Loader2 className="h-12 w-12 animate-spin text-primary opacity-40" />
+                            <div className="relative w-48 h-48 border-4 border-primary border-dashed rounded-[32px] flex items-center justify-center bg-slate-50 overflow-hidden">
+                                <QrCode className="h-32 w-32 text-slate-200" />
+                                <div className="w-full h-0.5 bg-primary absolute top-1/2 animate-bounce"></div>
                             </div>
-                            <form onSubmit={handleManualScanInput} className="w-full flex gap-2">
-                                <Input name="qr-input" placeholder="Or enter code manually..." className="rounded-xl" />
-                                <Button type="submit">Go</Button>
+                            <form onSubmit={handleManualScanInput} className="w-full space-y-4">
+                                <div className="space-y-1">
+                                    <Label className="text-[10px] font-black uppercase text-slate-400">Marker ID Entry</Label>
+                                    <div className="flex gap-2">
+                                        <Input name="qr-input" placeholder="e.g. 4B7X-A2Z1" className="rounded-xl h-12 font-mono font-bold text-center" />
+                                        <Button type="submit" className="h-12 w-12 rounded-xl">Go</Button>
+                                    </div>
+                                </div>
                             </form>
-                            <p className="text-xs text-muted-foreground text-center">In production, this opens the high-speed camera scanner.</p>
+                            <p className="text-[10px] text-muted-foreground text-center italic">Tip: Write the 8-character ID on the product box for quick manual entry.</p>
                         </div>
                     </DialogContent>
                 </Dialog>
@@ -385,7 +377,7 @@ export default function AdminInventoryPage() {
                                 <Table>
                                     <TableHeader className="bg-slate-50/50">
                                         <TableRow>
-                                            <TableHead className="w-[100px]">ID / QR</TableHead>
+                                            <TableHead className="w-[120px]">Marker ID</TableHead>
                                             <TableHead>Product Name</TableHead>
                                             <TableHead>Price (MRP)</TableHead>
                                             <TableHead>Stock</TableHead>
@@ -404,7 +396,7 @@ export default function AdminInventoryPage() {
                                                                <QrCode className="h-6 w-6 text-slate-300" />
                                                            )}
                                                         </div>
-                                                        <span className="text-[9px] font-black font-mono text-primary bg-primary/5 px-1.5 rounded">{item.id}</span>
+                                                        <span className="text-[10px] font-black font-mono text-primary bg-primary/5 px-2 py-0.5 rounded border border-primary/20">{item.id}</span>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
@@ -429,7 +421,34 @@ export default function AdminInventoryPage() {
                                                         {item.quantity === 0 && <Badge variant="destructive" className="animate-pulse text-[8px] font-black">RE-STOCK</Badge>}
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="text-right space-x-2">
+                                                <TableCell className="text-right space-x-1">
+                                                    <Dialog>
+                                                        <DialogTrigger asChild>
+                                                            <Button variant="outline" size="icon" className="rounded-xl h-10 w-10 shadow-sm" onClick={() => setSelectedItemForLabel(item)}>
+                                                                <Printer className="h-4 w-4" />
+                                                            </Button>
+                                                        </DialogTrigger>
+                                                        <DialogContent className="max-w-xs rounded-[32px] p-8">
+                                                            <DialogHeader><DialogTitle className="text-center italic uppercase font-black">Print Sticker</DialogTitle></DialogHeader>
+                                                            <div className="flex flex-col items-center gap-4 py-6">
+                                                                <div ref={labelRef} className="p-4 border-2 border-slate-900 bg-white rounded-lg w-[2in] text-center shadow-lg print:border-none print:shadow-none">
+                                                                    <p className="text-[10px] font-black uppercase mb-1 truncate">{item.name}</p>
+                                                                    <div className="flex justify-center mb-1">
+                                                                        <Image 
+                                                                            src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${item.id}`} 
+                                                                            width={100} height={100} alt="qr" 
+                                                                        />
+                                                                    </div>
+                                                                    <p className="text-lg font-mono font-black tracking-tighter leading-none">{item.id}</p>
+                                                                    <p className="text-[8px] font-bold text-slate-500 uppercase mt-1">MRP: ₹{item.mrp}</p>
+                                                                </div>
+                                                                <Button onClick={handlePrintLabel} className="w-full h-12 rounded-2xl font-black uppercase tracking-widest">
+                                                                    Print to Sticker
+                                                                </Button>
+                                                            </div>
+                                                        </DialogContent>
+                                                    </Dialog>
+
                                                     <Dialog open={selectedSaleItem?.id === item.id} onOpenChange={open => !open && setSelectedSaleItem(null)}>
                                                         <DialogTrigger asChild>
                                                             <Button size="sm" onClick={() => { setSelectedSaleItem(item); setSalePrice(item.mrp); setSaleQty(1); }} disabled={item.quantity === 0} className="rounded-xl h-10 shadow-md">
@@ -479,7 +498,7 @@ export default function AdminInventoryPage() {
 
                     <TabsContent value="ledger" className="mt-4">
                         <Card className="rounded-[32px] border-none shadow-2xl bg-white overflow-hidden">
-                            <CardHeader className="bg-slate-50/50"><CardTitle className="text-lg font-black italic uppercase">Sales & Profit Ledger</CardTitle><CardDescription>Record of all scanned and manual sales.</CardDescription></CardHeader>
+                            <CardHeader className="bg-slate-50/50"><CardTitle className="text-lg font-black italic uppercase">Sales & Profit Ledger</CardTitle><CardDescription>Record of all scanned and marker-id sales.</CardDescription></CardHeader>
                             <CardContent className="p-0">
                                 <Table>
                                     <TableHeader className="bg-slate-50/30">
@@ -538,6 +557,28 @@ export default function AdminInventoryPage() {
                     </div>
                 </DialogContent>
             </Dialog>
+
+            {/* HIDDEN PRINT CONTAINER STYLES */}
+            <style jsx global>{`
+                @media print {
+                    @page {
+                        size: auto;
+                        margin: 0;
+                    }
+                    body * {
+                        visibility: hidden;
+                    }
+                    .print-section, .print-section * {
+                        visibility: visible;
+                    }
+                    .print-section {
+                        position: absolute;
+                        left: 0;
+                        top: 0;
+                        width: 100%;
+                    }
+                }
+            `}</style>
         </div>
     );
 }
