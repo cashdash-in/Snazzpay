@@ -85,7 +85,6 @@ export default function AdminInventoryPage() {
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [searchTerm, setSearchQuery] = useState('');
     
-    // Hydration safety
     const [isMounted, setIsMounted] = useState(false);
     const [todayTimestamp, setTodayTimestamp] = useState<number | null>(null);
 
@@ -152,7 +151,7 @@ export default function AdminInventoryPage() {
             const scanner = new Html5QrcodeScanner(
                 "reader", 
                 { fps: 10, qrbox: { width: 250, height: 250 } },
-                /* verbose= */ false
+                false
             );
 
             scanner.render(
@@ -340,7 +339,7 @@ export default function AdminInventoryPage() {
                             <Loader2 className="h-16 w-16 animate-spin text-primary" />
                             <div className="text-center">
                                 <h3 className="text-xl font-bold">AI Analyzing Product</h3>
-                                <p className="text-muted-foreground">Identifying details, sales hooks, and searching market prices...</p>
+                                <p className="text-muted-foreground">Identifying details and searching market prices...</p>
                             </div>
                         </Card>
                     </div>
@@ -440,7 +439,7 @@ export default function AdminInventoryPage() {
                                                                         {selectedDetailItem?.name}
                                                                     </DialogTitle>
                                                                     <DialogDescription className="text-base">
-                                                                        Detailed product information, competitive pricing, and sales hooks.
+                                                                        Detailed product information and selling points.
                                                                     </DialogDescription>
                                                                 </DialogHeader>
                                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-6">
@@ -451,19 +450,12 @@ export default function AdminInventoryPage() {
                                                                             )}
                                                                             <Badge className="absolute top-4 left-4 bg-primary text-white font-black italic">{selectedDetailItem?.category}</Badge>
                                                                         </div>
-                                                                        <div className="p-4 bg-muted/40 rounded-2xl space-y-2 border">
-                                                                            <Label className="text-[10px] font-black uppercase text-slate-400">Marker / Shelf</Label>
-                                                                            <div className="flex justify-between items-center">
-                                                                                <p className="font-mono text-xl font-black">{selectedDetailItem?.id.substring(0,8)}</p>
-                                                                                <Badge variant="outline" className="font-bold">Shelf: {selectedDetailItem?.shelfNumber}</Badge>
-                                                                            </div>
-                                                                        </div>
                                                                     </div>
                                                                     <div className="space-y-6">
                                                                         <div className="space-y-2">
                                                                             <h4 className="font-black italic uppercase text-sm text-slate-800 flex items-center gap-2">
                                                                                 <Sparkles className="h-4 w-4 text-purple-500" />
-                                                                                Sales Hooks (To Convince Customers)
+                                                                                Sales Hooks
                                                                             </h4>
                                                                             <ul className="space-y-2">
                                                                                 {selectedDetailItem?.sellingPoints?.map((point, i) => (
@@ -474,37 +466,6 @@ export default function AdminInventoryPage() {
                                                                                 ))}
                                                                             </ul>
                                                                         </div>
-
-                                                                        <div className="space-y-2">
-                                                                            <h4 className="font-black italic uppercase text-sm text-slate-800 flex items-center gap-2">
-                                                                                <TrendingUp className="h-4 w-4 text-blue-500" />
-                                                                                Market Price Comparison
-                                                                            </h4>
-                                                                            <div className="border rounded-2xl overflow-hidden bg-white shadow-sm">
-                                                                                <Table>
-                                                                                    <TableHeader className="bg-slate-50">
-                                                                                        <TableRow>
-                                                                                            <TableHead className="text-[10px] font-black uppercase">Seller / Platform</TableHead>
-                                                                                            <TableHead className="text-[10px] font-black uppercase text-right">Market Price</TableHead>
-                                                                                        </TableRow>
-                                                                                    </TableHeader>
-                                                                                    <TableBody>
-                                                                                        {selectedDetailItem?.competitors?.map((c, i) => (
-                                                                                            <TableRow key={i}>
-                                                                                                <TableCell className="text-xs font-bold text-slate-600">{c.sellerName}</TableCell>
-                                                                                                <TableCell className="text-xs font-black text-right">₹{c.price}</TableCell>
-                                                                                            </TableRow>
-                                                                                        ))}
-                                                                                        <TableRow className="bg-green-50/50">
-                                                                                            <TableCell className="text-xs font-black text-green-700">OUR PRICE (MRP)</TableCell>
-                                                                                            <TableCell className="text-lg font-black text-green-600 text-right">₹{selectedDetailItem?.mrp}</TableCell>
-                                                                                        </TableRow>
-                                                                                    </TableBody>
-                                                                                </Table>
-                                                                            </div>
-                                                                            <p className="text-[10px] text-muted-foreground italic px-2">AI Market Insight: {selectedDetailItem?.marketInsight}</p>
-                                                                        </div>
-
                                                                         <div className="space-y-1">
                                                                             <h4 className="font-black italic uppercase text-sm text-slate-800">Description</h4>
                                                                             <p className="text-sm text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-2xl border">{selectedDetailItem?.description || "No description provided."}</p>
@@ -512,15 +473,7 @@ export default function AdminInventoryPage() {
                                                                     </div>
                                                                 </div>
                                                                 <DialogFooter className="border-t pt-4">
-                                                                    <DialogClose asChild><Button variant="outline" className="rounded-xl px-8">Close Details</Button></DialogClose>
-                                                                    <Button onClick={() => { 
-                                                                        setSelectedSaleItem(selectedDetailItem); 
-                                                                        setSalePrice(selectedDetailItem?.mrp || 0);
-                                                                        setSaleQty(1);
-                                                                        setSelectedDetailItem(null);
-                                                                    }} className="rounded-xl px-8 flex-1">
-                                                                        <DollarSign className="mr-2 h-4 w-4" /> Go to Sell
-                                                                    </Button>
+                                                                    <DialogClose asChild><Button variant="outline" className="rounded-xl px-8">Close</Button></DialogClose>
                                                                 </DialogFooter>
                                                             </DialogContent>
                                                         </Dialog>
@@ -540,7 +493,6 @@ export default function AdminInventoryPage() {
                                                             <Input type="number" value={item.quantity} onChange={e => updateItem(item.id, { quantity: parseInt(e.target.value) || 0 })} className={cn("h-7 w-12 text-center font-bold border-none", item.quantity === 0 && "text-red-600")} />
                                                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateItem(item.id, { quantity: item.quantity + 1 })}><Plus className="h-3 w-3" /></Button>
                                                         </div>
-                                                        {item.quantity === 0 && <Badge variant="destructive" className="animate-pulse text-[8px]">RE-STOCK</Badge>}
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="text-right space-x-1">
@@ -562,7 +514,6 @@ export default function AdminInventoryPage() {
                                                                         />
                                                                     </div>
                                                                     <p className="text-lg font-mono font-black tracking-tighter leading-none">{item.id.substring(0,8)}</p>
-                                                                    <p className="text-[8px] font-bold text-slate-500 uppercase mt-1">MRP: ₹{item.mrp}</p>
                                                                 </div>
                                                                 <Button onClick={handlePrintLabel} className="w-full">
                                                                     Print to Sticker
@@ -591,10 +542,6 @@ export default function AdminInventoryPage() {
                                                                 <div className="space-y-1">
                                                                     <Label className="text-xs font-bold opacity-60">Customer Phone (WhatsApp Invoice)</Label>
                                                                     <Input placeholder="9876543210" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} />
-                                                                </div>
-                                                                <div className="p-4 bg-green-50 rounded-xl border border-green-100 flex justify-between items-center">
-                                                                    <div><p className="text-[10px] font-bold text-green-700">Profit</p><p className="text-lg font-bold text-green-600">₹{((actualSellPrice - item.wholesalePrice) * saleQty).toFixed(2)}</p></div>
-                                                                    <div className="text-right font-black italic uppercase leading-none"><span className="text-[10px] text-green-700 block">Total</span><span className="text-xl text-green-600">₹{(actualSellPrice * saleQty).toFixed(2)}</span></div>
                                                                 </div>
                                                                 <Button onClick={handleSale} className="w-full h-12">Confirm Sale</Button>
                                                             </div>
@@ -640,7 +587,6 @@ export default function AdminInventoryPage() {
                                                 </TableCell>
                                             </TableRow>
                                         ))}
-                                        {(!sales || sales.length === 0) && <TableRow><TableCell colSpan={5} className="text-center py-12 text-muted-foreground italic">No sales recorded.</TableCell></TableRow>}
                                     </TableBody>
                                 </Table>
                             </CardContent>
@@ -652,7 +598,7 @@ export default function AdminInventoryPage() {
                     <DialogContent className="max-w-sm p-6">
                         <DialogHeader>
                             <DialogTitle className="text-xl font-bold uppercase">Mobile Scanner</DialogTitle>
-                            <DialogDescription>Scan QR or enter the ID you wrote with a marker.</DialogDescription>
+                            <DialogDescription>Scan QR or enter the ID from the box.</DialogDescription>
                         </DialogHeader>
                         <div className="flex flex-col items-center gap-6 py-4">
                             <div id="reader" className="w-full rounded-2xl overflow-hidden border-2 border-primary/20 min-h-[250px] bg-slate-100 flex items-center justify-center">
@@ -662,12 +608,11 @@ export default function AdminInventoryPage() {
                                 <div className="space-y-1">
                                     <Label className="text-[10px] font-bold uppercase opacity-60">Marker ID Entry</Label>
                                     <div className="flex gap-2">
-                                        <Input name="qr-input" placeholder="e.g. 4B7X-A2Z1" className="h-12 font-mono font-bold text-center uppercase" />
+                                        <Input name="qr-input" placeholder="e.g. 4B7X" className="h-12 font-mono font-bold text-center uppercase" />
                                         <Button type="submit" className="h-12 w-12">Go</Button>
                                     </div>
                                 </div>
                             </form>
-                            <p className="text-[10px] text-muted-foreground text-center italic">Tip: Write the 8-character ID on the product box for quick lookup.</p>
                         </div>
                     </DialogContent>
                 </Dialog>

@@ -75,38 +75,38 @@ export default function StaffLoginPage() {
         <div className="flex items-center justify-center min-h-screen bg-slate-900 p-4">
             <Card className="w-full max-w-sm shadow-2xl border-none">
                 <form onSubmit={handleLogin}>
-                <CardHeader className="text-center space-y-4">
-                    <div className="mx-auto w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center">
-                        <Store className="h-10 w-10 text-primary" />
-                    </div>
-                    <div>
-                        <CardTitle className="text-2xl font-black italic tracking-tighter uppercase">Shop Portal</CardTitle>
-                        <CardDescription>Restricted access for Shop Team Members.</CardDescription>
-                    </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="email">Email</Label>
-                        <div className="relative">
-                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input id="email" type="email" placeholder="staff@snazzify.com" value={email} onChange={(e) => setEmail(e.target.value)} className="pl-9" />
+                    <CardHeader className="text-center space-y-4">
+                        <div className="mx-auto w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center">
+                            <Store className="h-10 w-10 text-primary" />
                         </div>
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="password">Password</Label>
-                        <div className="relative">
-                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="pl-9" />
+                        <div>
+                            <CardTitle className="text-2xl font-black italic tracking-tighter uppercase">Shop Portal</CardTitle>
+                            <CardDescription>Restricted access for Shop Team Members.</CardDescription>
                         </div>
-                    </div>
-                </CardContent>
-                <CardFooter>
-                    <Button type="submit" className="w-full h-12 text-lg font-bold" disabled={isLoading}>
-                        {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
-                        Login to Shop
-                    </Button>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="email">Email</Label>
+                            <div className="relative">
+                                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input id="email" type="email" placeholder="staff@snazzify.com" value={email} onChange={(e) => setEmail(e.target.value)} className="pl-9" />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="password">Password</Label>
+                            <div className="relative">
+                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input id="password" type="password" placeholder="Enter your password" value={password} onChange={(e) => setPassword(e.target.value)} className="pl-9" />
+                            </div>
+                        </div>
+                    </CardContent>
+                    <CardFooter>
+                        <Button type="submit" className="w-full h-12 text-lg font-bold" disabled={isLoading}>
+                            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
+                            Login to Shop
+                        </Button>
+                    </CardFooter>
                 </form>
-                </CardFooter>
             </Card>
         </div>
     );
