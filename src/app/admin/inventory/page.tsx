@@ -38,6 +38,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn, sanitizePhoneNumber } from "@/lib/utils";
 import { useReactToPrint } from 'react-to-print';
+import { Html5QrcodeScanner } from 'html5-qrcode';
 
 interface InventoryItem {
     id: string;
@@ -102,6 +103,48 @@ export default function AdminInventoryPage() {
         loadData();
     }, [loadData]);
 
+    const handleScanSuccess = useCallback((code: string) => {
+        const searchCode = code.toUpperCase().trim().replace(/[^A-Z0-9]/g, '');
+        
+        const item = inventory.find(i => {
+            const normalizedId = i.id.toUpperCase().replace(/[^A-Z0-9]/g, '');
+            return normalizedId === searchCode || normalizedId.startsWith(searchCode) || searchCode.startsWith(normalizedId);
+        });
+
+        if (item) {
+            setSelectedSaleItem(item);
+            setSalePrice(item.mrp);
+            setSaleQty(1);
+            setIsScanning(false);
+            toast({ title: "Product Found", description: `Scanned: ${item.name}` });
+        } else {
+            toast({ variant: "destructive", title: "Invalid Code", description: "No product found with this ID." });
+        }
+    }, [inventory, toast]);
+
+    // Scanner lifecycle
+    useEffect(() => {
+        if (!isScanning) return;
+
+        const scanner = new Html5QrcodeScanner(
+            "reader", 
+            { fps: 10, qrbox: { width: 250, height: 250 } },
+            /* verbose= */ false
+        );
+
+        scanner.render(
+            (decodedText) => {
+                handleScanSuccess(decodedText);
+                scanner.clear().catch(e => console.warn(e));
+            },
+            () => {} // Silent errors during scanning
+        );
+
+        return () => {
+            scanner.clear().catch(e => console.warn("Scanner cleanup error", e));
+        };
+    }, [isScanning, handleScanSuccess]);
+
     const processImage = useCallback(async (file: File) => {
         setIsAnalyzing(true);
         const reader = new FileReader();
@@ -143,20 +186,6 @@ export default function AdminInventoryPage() {
         if (!file) return;
         processImage(file);
         e.target.value = '';
-    };
-
-    const handleScanSuccess = (code: string) => {
-        const searchCode = code.toUpperCase().trim();
-        const item = inventory.find(i => i.id === searchCode || i.id.substring(0, 8) === searchCode);
-        if (item) {
-            setSelectedSaleItem(item);
-            setSalePrice(item.mrp);
-            setSaleQty(1);
-            setIsScanning(false);
-            toast({ title: "Product Found", description: `Scanned: ${item.name}` });
-        } else {
-            toast({ variant: "destructive", title: "Invalid Code", description: "No product found with this ID or QR code." });
-        }
     };
 
     const handleManualScanInput = (e: React.FormEvent<HTMLFormElement>) => {
@@ -221,8 +250,7 @@ export default function AdminInventoryPage() {
             `*Product:* ${lastProcessedSale.productName}\n` +
             `*Qty:* ${lastProcessedSale.quantity}\n` +
             `*Total:* ₹${(lastProcessedSale.sellPrice * lastProcessedSale.quantity).toFixed(2)}\n\n` +
-            `Order ID: #${lastProcessedSale.id}\n` +
-            `Date: ${format(new Date(), 'PP')}\n\n` +
+            `Order ID: #${lastProcessedSale.id}\n\n` +
             `Regards,\n*Snazzify Shop*`;
 
         const whatsappUrl = `https://wa.me/${sanitizePhoneNumber(lastProcessedSale.customerPhone)}?text=${encodeURIComponent(message)}`;
@@ -313,7 +341,7 @@ export default function AdminInventoryPage() {
                     </div>
                     <div className="flex flex-wrap gap-2 w-full md:w-auto">
                         <Button onClick={() => setIsScanning(true)} variant="default" className="flex-1">
-                            <Scan className="mr-2 h-5 w-5 text-primary" />
+                            <Scan className="mr-2 h-5 w-5" />
                             Scan to Sell
                         </Button>
                         <Button onClick={() => document.getElementById('camera-input')?.click()} disabled={isAnalyzing} className="flex-1">
@@ -495,10 +523,7 @@ export default function AdminInventoryPage() {
                             <DialogDescription>Scan QR or enter the ID you wrote with a marker.</DialogDescription>
                         </DialogHeader>
                         <div className="flex flex-col items-center gap-6 py-4">
-                            <div className="relative w-40 h-40 border-4 border-primary border-dashed rounded-3xl flex items-center justify-center bg-slate-50 overflow-hidden">
-                                <QrCode className="h-24 w-24 text-slate-200" />
-                                <div className="w-full h-0.5 bg-primary absolute top-1/2 animate-bounce"></div>
-                            </div>
+                            <div id="reader" className="w-full rounded-2xl overflow-hidden border-2 border-primary/20"></div>
                             <form onSubmit={handleManualScanInput} className="w-full space-y-4">
                                 <div className="space-y-1">
                                     <Label className="text-[10px] font-bold uppercase opacity-60">Marker ID Entry</Label>
