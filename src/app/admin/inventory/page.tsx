@@ -27,7 +27,6 @@ import {
     TrendingUp,
     X,
     Info,
-    ArrowUpRight,
     Sparkles,
     ShoppingBag
 } from 'lucide-react';
@@ -110,7 +109,7 @@ export default function AdminInventoryPage() {
             setInventory(stock || []);
             setSales(history || []);
         } catch (e) {
-            toast({ variant: 'destructive', title: 'Load Failed', description: 'Could not fetch data.' });
+            toast({ variant: 'destructive', title: 'Load Failed' });
         } finally {
             setIsLoading(false);
         }
@@ -124,10 +123,9 @@ export default function AdminInventoryPage() {
 
     const handleScanSuccess = useCallback((code: string) => {
         const searchCode = code.toUpperCase().trim().replace(/[^A-Z0-9]/g, '');
-        
         const item = inventory.find(i => {
             const normalizedId = i.id.toUpperCase().replace(/[^A-Z0-9]/g, '');
-            return normalizedId === searchCode || normalizedId.startsWith(searchCode) || searchCode.startsWith(normalizedId);
+            return normalizedId === searchCode || normalizedId.startsWith(searchCode);
         });
 
         if (item) {
@@ -145,26 +143,12 @@ export default function AdminInventoryPage() {
         if (!isScanning || !isMounted) return;
 
         const timer = setTimeout(() => {
-            const readerElement = document.getElementById("reader");
-            if (!readerElement) return;
-
-            const scanner = new Html5QrcodeScanner(
-                "reader", 
-                { fps: 10, qrbox: { width: 250, height: 250 } },
-                false
-            );
-
-            scanner.render(
-                (decodedText) => {
-                    handleScanSuccess(decodedText);
-                    scanner.clear().catch(e => console.warn(e));
-                },
-                () => {} 
-            );
-
-            return () => {
-                scanner.clear().catch(e => console.warn("Scanner cleanup error", e));
-            };
+            const scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 250, height: 250 } }, false);
+            scanner.render((decodedText) => {
+                handleScanSuccess(decodedText);
+                scanner.clear().catch(console.warn);
+            }, () => {});
+            return () => scanner.clear().catch(console.warn);
         }, 100);
 
         return () => clearTimeout(timer);
@@ -177,7 +161,6 @@ export default function AdminInventoryPage() {
             const base64 = event.target?.result as string;
             try {
                 const aiData = await analyzeInventoryItem({ imageDataUri: base64 });
-                
                 const shortId = uuidv4().substring(0, 8).toUpperCase();
                 const newItem: InventoryItem = {
                     id: shortId, 
@@ -197,12 +180,9 @@ export default function AdminInventoryPage() {
 
                 await saveDocument('inventory', newItem, newItem.id);
                 setInventory(prev => [newItem, ...prev]);
-                toast({ 
-                    title: 'Product Identified!', 
-                    description: `AI found: ${aiData.productName}. Suggested MRP: ₹${aiData.suggestedMRP}` 
-                });
+                toast({ title: 'Product Identified!', description: aiData.productName });
             } catch (err) {
-                toast({ variant: 'destructive', title: 'Analysis Error', description: 'AI failed to identify product.' });
+                toast({ variant: 'destructive', title: 'Analysis Error' });
             } finally {
                 setIsAnalyzing(false);
             }
@@ -212,25 +192,12 @@ export default function AdminInventoryPage() {
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (!file) return;
-        processImage(file);
+        if (file) processImage(file);
         e.target.value = '';
     };
 
-    const handleManualScanInput = (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-        const formData = new FormData(e.currentTarget);
-        const code = formData.get('qr-input') as string;
-        if (code) handleScanSuccess(code);
-    };
-
     const updateItem = async (id: string, updates: Partial<InventoryItem>) => {
-        const updated = inventory.map(item => {
-            if (item.id === id) {
-                return { ...item, ...updates, lastUpdated: new Date().toISOString() };
-            }
-            return item;
-        });
+        const updated = inventory.map(item => item.id === id ? { ...item, ...updates, lastUpdated: new Date().toISOString() } : item);
         setInventory(updated);
         const item = updated.find(i => i.id === id);
         if (item) await saveDocument('inventory', item, id);
@@ -238,11 +205,6 @@ export default function AdminInventoryPage() {
 
     const handleSale = async () => {
         if (!selectedSaleItem) return;
-        if (saleQty > selectedSaleItem.quantity) {
-            toast({ variant: 'destructive', title: 'Stock Error', description: 'Not enough stock available.' });
-            return;
-        }
-
         const profit = (actualSellPrice - selectedSaleItem.wholesalePrice) * saleQty;
         const transaction: SaleTransaction = {
             id: uuidv4().substring(0, 6).toUpperCase(),
@@ -260,12 +222,10 @@ export default function AdminInventoryPage() {
             await addDocument('sales_transactions', transaction);
             await updateItem(selectedSaleItem.id, { quantity: selectedSaleItem.quantity - saleQty });
             setSales(prev => [transaction, ...prev]);
-            
             setLastProcessedSale(transaction);
             setSelectedSaleItem(null);
             setShowPostSaleDialog(true);
-            
-            toast({ title: 'Sale Recorded', description: `Profit: ₹${profit.toFixed(2)}` });
+            toast({ title: 'Sale Recorded' });
         } catch (e) {
             toast({ variant: 'destructive', title: 'Sale Failed' });
         }
@@ -273,17 +233,8 @@ export default function AdminInventoryPage() {
 
     const sendWhatsAppInvoice = () => {
         if (!lastProcessedSale || !lastProcessedSale.customerPhone) return;
-        
-        const message = `*INVOICE: ${lastProcessedSale.productName}*\n\n` +
-            `Hello! Thank you for shopping with us.\n\n` +
-            `*Product:* ${lastProcessedSale.productName}\n` +
-            `*Qty:* ${lastProcessedSale.quantity}\n` +
-            `*Total:* ₹${(lastProcessedSale.sellPrice * lastProcessedSale.quantity).toFixed(2)}\n\n` +
-            `Order ID: #${lastProcessedSale.id}\n\n` +
-            `Regards,\n*Snazzify Shop*`;
-
-        const whatsappUrl = `https://wa.me/${sanitizePhoneNumber(lastProcessedSale.customerPhone)}?text=${encodeURIComponent(message)}`;
-        window.open(whatsappUrl, '_blank');
+        const message = `*INVOICE: ${lastProcessedSale.productName}*\n\nQty: ${lastProcessedSale.quantity}\nTotal: ₹${(lastProcessedSale.sellPrice * lastProcessedSale.quantity).toFixed(2)}\n\nOrder ID: #${lastProcessedSale.id}\n\nRegards,\n*Snazzify Shop*`;
+        window.open(`https://wa.me/${sanitizePhoneNumber(lastProcessedSale.customerPhone)}?text=${encodeURIComponent(message)}`, '_blank');
         setShowPostSaleDialog(false);
     };
 
@@ -294,11 +245,7 @@ export default function AdminInventoryPage() {
 
     const dailyPnL = useMemo(() => {
         if (!todayTimestamp) return { revenue: 0, profit: 0, itemsSold: 0 };
-        const todaySales = (sales || []).filter(s => {
-            try {
-                return startOfDay(new Date(s.date)).getTime() === todayTimestamp;
-            } catch (e) { return false; }
-        });
+        const todaySales = sales.filter(s => startOfDay(new Date(s.date)).getTime() === todayTimestamp);
         return {
             revenue: todaySales.reduce((sum, s) => sum + (s.sellPrice * s.quantity), 0),
             profit: todaySales.reduce((sum, s) => sum + s.profit, 0),
@@ -306,25 +253,8 @@ export default function AdminInventoryPage() {
         };
     }, [sales, todayTimestamp]);
 
-    const exportToExcel = () => {
-        const workbook = XLSX.utils.book_new();
-        const invSummary = inventory.map(i => ({
-            'ID/Marker Code': i.id,
-            'Product Name': i.name,
-            'Category': i.category,
-            'Shelf': i.shelfNumber,
-            'Current Stock': i.quantity,
-            'MRP (INR)': i.mrp,
-            'Wholesale Cost': i.wholesalePrice
-        }));
-        const wsInv = XLSX.utils.json_to_sheet(invSummary);
-        XLSX.utils.book_append_sheet(workbook, wsInv, 'Inventory');
-        XLSX.writeFile(workbook, `Shop_Inventory_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
-    };
-
-    const filteredInventory = (inventory || []).filter(i => 
+    const filteredInventory = inventory.filter(i => 
         (i.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
-        (i.shelfNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         (i.id || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
 
@@ -337,10 +267,7 @@ export default function AdminInventoryPage() {
                     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm">
                         <Card className="p-8 flex flex-col items-center gap-4 shadow-2xl">
                             <Loader2 className="h-16 w-16 animate-spin text-primary" />
-                            <div className="text-center">
-                                <h3 className="text-xl font-bold">AI Analyzing Product</h3>
-                                <p className="text-muted-foreground">Identifying details and searching market prices...</p>
-                            </div>
+                            <h3 className="text-xl font-bold">AI Analyzing Product</h3>
                         </Card>
                     </div>
                 )}
@@ -372,15 +299,10 @@ export default function AdminInventoryPage() {
                     </div>
                     <div className="flex flex-wrap gap-2 w-full md:w-auto">
                         <Button onClick={() => setIsScanning(true)} variant="default" className="flex-1">
-                            <Scan className="mr-2 h-5 w-5" />
-                            Scan to Sell
+                            <Scan className="mr-2 h-5 w-5" /> Scan to Sell
                         </Button>
                         <Button onClick={() => document.getElementById('camera-input')?.click()} disabled={isAnalyzing} className="flex-1">
-                            {isAnalyzing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Camera className="mr-2 h-4 w-4"/>}
-                            Capture New
-                        </Button>
-                        <Button variant="outline" onClick={exportToExcel} className="rounded-xl">
-                            <FileSpreadsheet className="h-4 w-4" />
+                            {isAnalyzing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Camera className="mr-2 h-4 w-4"/>} Capture New
                         </Button>
                         <input type="file" id="camera-input" accept="image/*" className="hidden" onChange={handleImageUpload} />
                     </div>
@@ -411,11 +333,7 @@ export default function AdminInventoryPage() {
                                                 <TableCell>
                                                     <div className="flex flex-col items-center gap-1">
                                                         <div className="relative w-10 h-10 rounded border overflow-hidden bg-white flex items-center justify-center">
-                                                           {item.imageDataUri ? (
-                                                               <Image src={item.imageDataUri} fill alt="p" className="object-cover" />
-                                                           ) : (
-                                                               <QrCode className="h-6 w-6 text-slate-300" />
-                                                           )}
+                                                           {item.imageDataUri ? <Image src={item.imageDataUri} fill alt="p" className="object-cover" /> : <QrCode className="h-6 w-6 text-slate-300" />}
                                                         </div>
                                                         <span className="text-[10px] font-mono font-bold text-primary">{item.id.substring(0,8)}</span>
                                                     </div>
@@ -424,57 +342,27 @@ export default function AdminInventoryPage() {
                                                     <div className="space-y-1">
                                                         <Dialog open={selectedDetailItem?.id === item.id} onOpenChange={open => !open && setSelectedDetailItem(null)}>
                                                             <DialogTrigger asChild>
-                                                                <button 
-                                                                    className="font-bold text-left hover:text-primary transition-colors hover:underline flex items-center gap-1"
-                                                                    onClick={() => setSelectedDetailItem(item)}
-                                                                >
-                                                                    {item.name}
-                                                                    <Info className="h-3 w-3 opacity-30" />
+                                                                <button className="font-bold text-left hover:text-primary transition-colors hover:underline flex items-center gap-1" onClick={() => setSelectedDetailItem(item)}>
+                                                                    {item.name} <Info className="h-3 w-3 opacity-30" />
                                                                 </button>
                                                             </DialogTrigger>
-                                                            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto rounded-[32px]">
-                                                                <DialogHeader>
-                                                                    <DialogTitle className="text-3xl font-black italic uppercase tracking-tighter leading-none flex items-center gap-3">
-                                                                        <ShoppingBag className="h-8 w-8 text-primary" />
-                                                                        {selectedDetailItem?.name}
-                                                                    </DialogTitle>
-                                                                    <DialogDescription className="text-base">
-                                                                        Detailed product information and selling points.
-                                                                    </DialogDescription>
-                                                                </DialogHeader>
-                                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-6">
-                                                                    <div className="space-y-6">
-                                                                        <div className="relative aspect-square w-full rounded-[24px] overflow-hidden border-4 border-white shadow-2xl">
-                                                                            {selectedDetailItem?.imageDataUri && (
-                                                                                <Image src={selectedDetailItem.imageDataUri} fill alt="p" className="object-cover" />
-                                                                            )}
-                                                                            <Badge className="absolute top-4 left-4 bg-primary text-white font-black italic">{selectedDetailItem?.category}</Badge>
-                                                                        </div>
+                                                            <DialogContent className="max-w-3xl rounded-[32px] p-0 overflow-hidden">
+                                                                <div className="grid grid-cols-1 md:grid-cols-2">
+                                                                    <div className="relative aspect-square">
+                                                                        {selectedDetailItem?.imageDataUri && <Image src={selectedDetailItem.imageDataUri} fill alt="p" className="object-cover" />}
+                                                                        <Badge className="absolute top-4 left-4 bg-primary text-white italic">{selectedDetailItem?.category}</Badge>
                                                                     </div>
-                                                                    <div className="space-y-6">
+                                                                    <div className="p-8 space-y-6">
+                                                                        <h4 className="text-3xl font-black italic uppercase leading-none">{selectedDetailItem?.name}</h4>
                                                                         <div className="space-y-2">
-                                                                            <h4 className="font-black italic uppercase text-sm text-slate-800 flex items-center gap-2">
-                                                                                <Sparkles className="h-4 w-4 text-purple-500" />
-                                                                                Sales Hooks
-                                                                            </h4>
-                                                                            <ul className="space-y-2">
-                                                                                {selectedDetailItem?.sellingPoints?.map((point, i) => (
-                                                                                    <li key={i} className="flex gap-2 text-sm bg-purple-50 p-2 rounded-xl border border-purple-100 italic font-medium">
-                                                                                        <CheckCircle2 className="h-4 w-4 text-purple-600 shrink-0 mt-0.5" />
-                                                                                        "{point}"
-                                                                                    </li>
-                                                                                ))}
+                                                                            <h5 className="text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-2"><Sparkles className="h-3 w-3 text-purple-500" /> Sales Pitch</h5>
+                                                                            <ul className="space-y-1.5">
+                                                                                {selectedDetailItem?.sellingPoints?.map((p, i) => <li key={i} className="text-xs font-bold italic bg-purple-50 p-2 rounded-lg text-purple-900">"{p}"</li>)}
                                                                             </ul>
                                                                         </div>
-                                                                        <div className="space-y-1">
-                                                                            <h4 className="font-black italic uppercase text-sm text-slate-800">Description</h4>
-                                                                            <p className="text-sm text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-2xl border">{selectedDetailItem?.description || "No description provided."}</p>
-                                                                        </div>
+                                                                        <DialogClose asChild><Button className="w-full h-12 text-lg font-bold rounded-2xl">Close Details</Button></DialogClose>
                                                                     </div>
                                                                 </div>
-                                                                <DialogFooter className="border-t pt-4">
-                                                                    <DialogClose asChild><Button variant="outline" className="rounded-xl px-8">Close</Button></DialogClose>
-                                                                </DialogFooter>
                                                             </DialogContent>
                                                         </Dialog>
                                                         <Badge variant="outline" className="text-[9px] uppercase">{item.category}</Badge>
@@ -498,26 +386,17 @@ export default function AdminInventoryPage() {
                                                 <TableCell className="text-right space-x-1">
                                                     <Dialog>
                                                         <DialogTrigger asChild>
-                                                            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setSelectedItemForLabel(item)}>
-                                                                <Printer className="h-4 w-4" />
-                                                            </Button>
+                                                            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setSelectedItemForLabel(item)}><Printer className="h-4 w-4" /></Button>
                                                         </DialogTrigger>
                                                         <DialogContent className="max-w-xs p-6">
                                                             <DialogHeader><DialogTitle className="text-center italic uppercase font-black">Print Label</DialogTitle></DialogHeader>
                                                             <div className="flex flex-col items-center gap-4 py-4">
                                                                 <div ref={labelRef} className="p-4 border-2 border-slate-900 bg-white rounded w-[2in] text-center shadow-md">
                                                                     <p className="text-[10px] font-bold uppercase mb-1 truncate">{item.name}</p>
-                                                                    <div className="flex justify-center mb-1">
-                                                                        <img 
-                                                                            src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${item.id.substring(0,8)}`} 
-                                                                            width={100} height={100} alt="qr" 
-                                                                        />
-                                                                    </div>
+                                                                    <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${item.id.substring(0,8)}`} width={100} height={100} alt="qr" className="mx-auto mb-1" />
                                                                     <p className="text-lg font-mono font-black tracking-tighter leading-none">{item.id.substring(0,8)}</p>
                                                                 </div>
-                                                                <Button onClick={handlePrintLabel} className="w-full">
-                                                                    Print to Sticker
-                                                                </Button>
+                                                                <Button onClick={handlePrintLabel} className="w-full">Print to Sticker</Button>
                                                             </div>
                                                         </DialogContent>
                                                     </Dialog>
@@ -531,18 +410,11 @@ export default function AdminInventoryPage() {
                                                         <DialogContent className="max-w-md p-6">
                                                             <DialogHeader><DialogTitle className="text-xl font-bold italic uppercase">Log Quick Sale</DialogTitle></DialogHeader>
                                                             <div className="space-y-6 pt-4">
-                                                                <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-xl border">
-                                                                    <div className="relative w-12 h-12 rounded overflow-hidden shrink-0"><Image src={item.imageDataUri} fill className="object-cover" alt="p" /></div>
-                                                                    <div><h4 className="font-bold">{item.name}</h4><p className="text-xs uppercase opacity-70">{item.category}</p></div>
-                                                                </div>
                                                                 <div className="grid grid-cols-2 gap-4">
                                                                     <div className="space-y-1"><Label className="text-xs font-bold opacity-60">Qty Sold</Label><Input type="number" value={saleQty} onChange={e => setSaleQty(parseInt(e.target.value) || 1)} max={item.quantity} min={1} /></div>
-                                                                    <div className="space-y-1"><Label className="text-xs font-bold opacity-60">Sale Price (Each)</Label><Input type="number" value={actualSellPrice} onChange={e => setSalePrice(parseFloat(e.target.value) || 0)} /></div>
+                                                                    <div className="space-y-1"><Label className="text-xs font-bold opacity-60">Sale Price</Label><Input type="number" value={actualSellPrice} onChange={e => setSalePrice(parseFloat(e.target.value) || 0)} /></div>
                                                                 </div>
-                                                                <div className="space-y-1">
-                                                                    <Label className="text-xs font-bold opacity-60">Customer Phone (WhatsApp Invoice)</Label>
-                                                                    <Input placeholder="9876543210" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} />
-                                                                </div>
+                                                                <div className="space-y-1"><Label className="text-xs font-bold opacity-60">WhatsApp Number</Label><Input placeholder="Customer Mobile" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} /></div>
                                                                 <Button onClick={handleSale} className="w-full h-12">Confirm Sale</Button>
                                                             </div>
                                                         </DialogContent>
@@ -562,15 +434,7 @@ export default function AdminInventoryPage() {
                             <CardHeader><CardTitle className="text-lg font-bold uppercase">Sales Ledger</CardTitle></CardHeader>
                             <CardContent className="p-0">
                                 <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Time</TableHead>
-                                            <TableHead>Product</TableHead>
-                                            <TableHead>Revenue</TableHead>
-                                            <TableHead>Profit</TableHead>
-                                            <TableHead className="text-right">Action</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
+                                    <TableHeader><TableRow><TableHead>Time</TableHead><TableHead>Product</TableHead><TableHead>Revenue</TableHead><TableHead>Profit</TableHead></TableRow></TableHeader>
                                     <TableBody>
                                         {[...(sales || [])].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(s => (
                                             <TableRow key={s.id}>
@@ -578,13 +442,6 @@ export default function AdminInventoryPage() {
                                                 <TableCell className="font-bold text-sm">{s.productName}</TableCell>
                                                 <TableCell className="font-bold">₹{(s.sellPrice * s.quantity).toFixed(2)}</TableCell>
                                                 <TableCell className={cn("font-bold", s.profit >= 0 ? "text-green-600" : "text-red-600")}>₹{s.profit.toFixed(2)}</TableCell>
-                                                <TableCell className="text-right">
-                                                    {s.customerPhone && (
-                                                        <Button variant="ghost" size="icon" onClick={() => { setLastProcessedSale(s); setShowPostSaleDialog(true); }}>
-                                                            <MessageSquare className="h-4 w-4" />
-                                                        </Button>
-                                                    )}
-                                                </TableCell>
                                             </TableRow>
                                         ))}
                                     </TableBody>
@@ -596,23 +453,11 @@ export default function AdminInventoryPage() {
 
                 <Dialog open={isScanning} onOpenChange={setIsScanning}>
                     <DialogContent className="max-w-sm p-6">
-                        <DialogHeader>
-                            <DialogTitle className="text-xl font-bold uppercase">Mobile Scanner</DialogTitle>
-                            <DialogDescription>Scan QR or enter the ID from the box.</DialogDescription>
-                        </DialogHeader>
+                        <DialogHeader><DialogTitle className="text-xl font-bold uppercase">Mobile Scanner</DialogTitle></DialogHeader>
                         <div className="flex flex-col items-center gap-6 py-4">
                             <div id="reader" className="w-full rounded-2xl overflow-hidden border-2 border-primary/20 min-h-[250px] bg-slate-100 flex items-center justify-center">
                                 <p className="text-xs text-muted-foreground">Initializing camera...</p>
                             </div>
-                            <form onSubmit={handleManualScanInput} className="w-full space-y-4">
-                                <div className="space-y-1">
-                                    <Label className="text-[10px] font-bold uppercase opacity-60">Marker ID Entry</Label>
-                                    <div className="flex gap-2">
-                                        <Input name="qr-input" placeholder="e.g. 4B7X" className="h-12 font-mono font-bold text-center uppercase" />
-                                        <Button type="submit" className="h-12 w-12">Go</Button>
-                                    </div>
-                                </div>
-                            </form>
                         </div>
                     </DialogContent>
                 </Dialog>
@@ -621,19 +466,10 @@ export default function AdminInventoryPage() {
                     <DialogContent className="max-w-sm p-8 text-center">
                         <div className="flex flex-col items-center gap-6">
                             <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center"><CheckCircle2 className="h-10 w-10"/></div>
-                            <div>
-                                <h3 className="text-xl font-bold uppercase">Sale Confirmed!</h3>
-                                <p className="text-sm text-muted-foreground">Stock has been updated.</p>
-                            </div>
+                            <div><h3 className="text-xl font-bold uppercase">Sale Confirmed!</h3><p className="text-sm text-muted-foreground">Stock updated.</p></div>
                             <div className="w-full space-y-2">
-                                {lastProcessedSale?.customerPhone && (
-                                    <Button onClick={sendWhatsAppInvoice} className="w-full h-12 bg-green-600 hover:bg-green-700">
-                                        <MessageSquare className="mr-2 h-4 w-4" /> Send WhatsApp Invoice
-                                    </Button>
-                                )}
-                                <Button variant="outline" className="w-full h-12" onClick={() => setShowPostSaleDialog(false)}>
-                                    Next Sale
-                                </Button>
+                                {lastProcessedSale?.customerPhone && <Button onClick={sendWhatsAppInvoice} className="w-full h-12 bg-green-600 hover:bg-green-700"><MessageSquare className="mr-2 h-4 w-4" /> Send WhatsApp Invoice</Button>}
+                                <Button variant="outline" className="w-full h-12" onClick={() => setShowPostSaleDialog(false)}>Next Sale</Button>
                             </div>
                         </div>
                     </DialogContent>
