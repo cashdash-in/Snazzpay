@@ -122,7 +122,6 @@ export default function AdminInventoryPage() {
         }
     }, [inventory, toast]);
 
-    // Scanner lifecycle
     useEffect(() => {
         if (!isScanning) return;
 
@@ -137,7 +136,7 @@ export default function AdminInventoryPage() {
                 handleScanSuccess(decodedText);
                 scanner.clear().catch(e => console.warn(e));
             },
-            () => {} // Silent errors during scanning
+            () => {} 
         );
 
         return () => {
