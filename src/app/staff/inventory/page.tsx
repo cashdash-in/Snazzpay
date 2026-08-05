@@ -10,7 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { 
     Loader2, Camera, Plus, Minus, Search, DollarSign, 
     Scan, ShoppingBag, CheckCircle2, MessageSquare, LogOut, 
-    Sparkles, Info, TrendingUp, QrCode
+    Sparkles, Info, TrendingUp, QrCode, Copy
 } from 'lucide-react';
 import { getCollection, saveDocument, addDocument } from '@/services/firestore';
 import { analyzeInventoryItem } from '@/ai/flows/inventory-analyzer';
@@ -91,9 +91,31 @@ export default function StaffInventoryPage() {
         loadData();
     }, [loadData]);
 
+    const getProductLink = (item: InventoryItem) => {
+        const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+        return `${baseUrl}/catalogue?id=${item.id}&sellerId=admin&sellerName=Snazzify`;
+    };
+
+    const handleCopyLink = (item: InventoryItem) => {
+        const link = getProductLink(item);
+        navigator.clipboard.writeText(link);
+        toast({ title: "Order Link Copied!", description: "Send this link to customers on WhatsApp." });
+    };
+
     const handleScanSuccess = useCallback((code: string) => {
-        const searchCode = code.toUpperCase().trim().replace(/[^A-Z0-9]/g, '');
-        const item = inventory.find(i => i.id.toUpperCase().replace(/[^A-Z0-9]/g, '') === searchCode);
+        let lookupId = code.toUpperCase().trim();
+        
+        if (code.includes('?id=')) {
+            const url = new URL(code);
+            const idFromUrl = url.searchParams.get('id');
+            if (idFromUrl) lookupId = idFromUrl.toUpperCase();
+        }
+
+        const cleanLookupId = lookupId.replace(/[^A-Z0-9]/g, '');
+        const item = inventory.find(i => {
+            const normalizedId = i.id.toUpperCase().replace(/[^A-Z0-9]/g, '');
+            return normalizedId === cleanLookupId || normalizedId.startsWith(cleanLookupId);
+        });
 
         if (item) {
             setSelectedSaleItem(item);
@@ -179,7 +201,6 @@ export default function StaffInventoryPage() {
             date: new Date().toISOString(),
             customerPhone: customerPhone
         };
-
         try {
             await addDocument('sales_transactions', transaction);
             await updateItem(selectedSaleItem.id, { quantity: selectedSaleItem.quantity - saleQty });
@@ -208,12 +229,9 @@ export default function StaffInventoryPage() {
 
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col">
-            {/* Staff Header */}
             <header className="bg-slate-900 text-white p-4 md:px-8 shadow-xl flex justify-between items-center sticky top-0 z-50">
                 <div className="flex items-center gap-3">
-                    <div className="p-2 bg-primary/20 rounded-lg">
-                        <ShoppingBag className="h-6 w-6 text-primary" />
-                    </div>
+                    <div className="p-2 bg-primary/20 rounded-lg"><ShoppingBag className="h-6 w-6 text-primary" /></div>
                     <div>
                         <h1 className="text-xl font-black italic uppercase tracking-tighter">Shop Portal</h1>
                         <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Inventory & Sales</p>
@@ -225,7 +243,6 @@ export default function StaffInventoryPage() {
             </header>
 
             <main className="flex-1 p-4 md:p-8 space-y-6 max-w-7xl mx-auto w-full">
-                {/* Mobile Quick Actions */}
                 <div className="grid grid-cols-2 gap-4">
                     <Button onClick={() => setIsScanning(true)} size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg">
                         <Scan className="h-8 w-8" />
@@ -240,15 +257,10 @@ export default function StaffInventoryPage() {
 
                 <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                        placeholder="Search items or Marker ID..." 
-                        className="pl-9 h-12 rounded-2xl bg-white shadow-sm" 
-                        value={searchTerm} 
-                        onChange={e => setSearchQuery(e.target.value)} 
-                    />
+                    <Input placeholder="Search items or Marker ID..." className="pl-9 h-12 rounded-2xl bg-white shadow-sm" value={searchTerm} onChange={e => setSearchQuery(e.target.value)} />
                 </div>
 
-                <Card className="rounded-[24px] shadow-sm overflow-hidden border-none">
+                <Card className="rounded-[24px] shadow-sm overflow-hidden border-none bg-white">
                     <CardContent className="p-0">
                         <Table>
                             <TableHeader className="bg-slate-50">
@@ -265,9 +277,7 @@ export default function StaffInventoryPage() {
                                 ) : filteredInventory.map(item => (
                                     <TableRow key={item.id} className={cn(item.quantity === 0 && "bg-red-50/50")}>
                                         <TableCell>
-                                            <div className="relative w-12 h-12 rounded-xl overflow-hidden border bg-white">
-                                                <Image src={item.imageDataUri} fill alt="p" className="object-cover" />
-                                            </div>
+                                            <div className="relative w-12 h-12 rounded-xl overflow-hidden border bg-white"><Image src={item.imageDataUri} fill alt="p" className="object-cover" /></div>
                                         </TableCell>
                                         <TableCell>
                                             <div className="space-y-1">
@@ -284,7 +294,10 @@ export default function StaffInventoryPage() {
                                                 <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => updateItem(item.id, { quantity: item.quantity + 1 })}><Plus className="h-3 w-3" /></Button>
                                             </div>
                                         </TableCell>
-                                        <TableCell className="text-right">
+                                        <TableCell className="text-right space-x-1">
+                                            <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => handleCopyLink(item)} title="Copy Order Link">
+                                                <Copy className="h-4 w-4" />
+                                            </Button>
                                             <Button size="sm" onClick={() => { setSelectedSaleItem(item); setSalePrice(item.mrp); setSaleQty(1); }} disabled={item.quantity === 0} className="rounded-xl">
                                                 <DollarSign className="h-4 w-4 mr-1" /> Sell
                                             </Button>
@@ -297,9 +310,8 @@ export default function StaffInventoryPage() {
                 </Card>
             </main>
 
-            {/* Dialogs: Scanner, Detail, Sale, Post-Sale */}
             <Dialog open={isScanning} onOpenChange={setIsScanning}>
-                <DialogContent className="max-w-sm p-6 rounded-[32px]">
+                <DialogContent className="max-w-sm p-6 rounded-[32px] bg-white">
                     <DialogHeader><DialogTitle className="text-xl font-bold uppercase">Mobile Scanner</DialogTitle></DialogHeader>
                     <div className="flex flex-col items-center gap-6 py-4">
                         <div id="reader" className="w-full rounded-2xl overflow-hidden border-2 border-primary/20 min-h-[250px] bg-slate-100 flex items-center justify-center">
@@ -309,32 +321,25 @@ export default function StaffInventoryPage() {
                 </DialogContent>
             </Dialog>
 
-            {/* Product Detail Dialog */}
             <Dialog open={!!selectedDetailItem} onOpenChange={open => !open && setSelectedDetailItem(null)}>
-                <DialogContent className="max-w-xl rounded-[32px] overflow-hidden p-0 border-none">
+                <DialogContent className="max-w-xl rounded-[32px] overflow-hidden p-0 border-none bg-white">
                     <div className="relative aspect-square w-full">
                         {selectedDetailItem?.imageDataUri && <Image src={selectedDetailItem.imageDataUri} fill className="object-cover" alt="p" />}
                         <Badge className="absolute top-6 left-6 bg-primary/90 text-white font-black italic">{selectedDetailItem?.category}</Badge>
                     </div>
                     <div className="p-8 space-y-6">
-                        <div>
-                            <h3 className="text-3xl font-black italic uppercase leading-none">{selectedDetailItem?.name}</h3>
-                            <p className="text-2xl font-black text-primary mt-2">MRP: ₹{selectedDetailItem?.mrp}</p>
-                        </div>
+                        <div><h3 className="text-3xl font-black italic uppercase leading-none">{selectedDetailItem?.name}</h3><p className="text-2xl font-black text-primary mt-2">MRP: ₹{selectedDetailItem?.mrp}</p></div>
                         <div className="space-y-2">
                             <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-2"><Sparkles className="h-3 w-3 text-purple-500" /> Sales Pitch</h4>
-                            <ul className="space-y-1.5">
-                                {selectedDetailItem?.sellingPoints?.map((p, i) => <li key={i} className="text-xs font-bold italic bg-purple-50 p-2 rounded-lg text-purple-900">"{p}"</li>)}
-                            </ul>
+                            <ul className="space-y-1.5">{selectedDetailItem?.sellingPoints?.map((p, i) => <li key={i} className="text-xs font-bold italic bg-purple-50 p-2 rounded-lg text-purple-900">"{p}"</li>)}</ul>
                         </div>
                         <DialogClose asChild><Button className="w-full h-12 text-lg font-bold rounded-2xl">Close Details</Button></DialogClose>
                     </div>
                 </DialogContent>
             </Dialog>
 
-            {/* Quick Sale Dialog */}
             <Dialog open={!!selectedSaleItem} onOpenChange={open => !open && setSelectedSaleItem(null)}>
-                <DialogContent className="max-w-md p-6 rounded-[32px]">
+                <DialogContent className="max-w-md p-6 rounded-[32px] bg-white">
                     <DialogHeader><DialogTitle className="text-xl font-bold italic uppercase">Quick Sale</DialogTitle></DialogHeader>
                     <div className="space-y-6 pt-4">
                         <div className="grid grid-cols-2 gap-4">
@@ -347,24 +352,14 @@ export default function StaffInventoryPage() {
                 </DialogContent>
             </Dialog>
 
-            {/* Post-Sale Dialog */}
             <Dialog open={showPostSaleDialog} onOpenChange={setShowPostSaleDialog}>
-                <DialogContent className="max-w-sm p-8 text-center rounded-[32px]">
+                <DialogContent className="max-w-sm p-8 text-center rounded-[32px] bg-white">
                     <div className="flex flex-col items-center gap-6">
                         <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center"><CheckCircle2 className="h-10 w-10"/></div>
-                        <div>
-                            <h3 className="text-xl font-bold uppercase">Sale Confirmed!</h3>
-                            <p className="text-sm text-muted-foreground">Stock updated successfully.</p>
-                        </div>
+                        <div><h3 className="text-xl font-bold uppercase">Sale Confirmed!</h3><p className="text-sm text-muted-foreground">Stock updated successfully.</p></div>
                         <div className="w-full space-y-2">
-                            {lastProcessedSale?.customerPhone && (
-                                <Button onClick={sendWhatsAppInvoice} className="w-full h-12 bg-green-600 hover:bg-green-700 rounded-2xl font-bold">
-                                    <MessageSquare className="mr-2 h-4 w-4" /> Send Invoice
-                                </Button>
-                            )}
-                            <Button variant="outline" className="w-full h-12 rounded-2xl" onClick={() => setShowPostSaleDialog(false)}>
-                                Done
-                            </Button>
+                            {lastProcessedSale?.customerPhone && <Button onClick={sendWhatsAppInvoice} className="w-full h-12 bg-green-600 hover:bg-green-700 rounded-2xl font-bold"><MessageSquare className="mr-2 h-4 w-4" /> Send Invoice</Button>}
+                            <Button variant="outline" className="w-full h-12 rounded-2xl" onClick={() => setShowPostSaleDialog(false)}>Done</Button>
                         </div>
                     </div>
                 </DialogContent>

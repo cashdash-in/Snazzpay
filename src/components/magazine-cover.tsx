@@ -50,13 +50,7 @@ export function MagazineCover({
       // Draw background image
       ctx.drawImage(img, 0, 0, width, height);
 
-      // 2. Draw Gradient Overlay
-      const gradient = ctx.createLinearGradient(0, height, 0, 0);
-      gradient.addColorStop(0, 'rgba(0,0,0,0.85)');
-      gradient.addColorStop(0.4, 'rgba(0,0,0,0.3)');
-      gradient.addColorStop(0.7, 'rgba(0,0,0,0)');
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, width, height);
+      // Removed Gradient Overlay and Badge as requested ("remove watermark")
 
       // Text wrapping function
       const wrapText = (text: string, maxWidth: number, font: string): string[] => {
@@ -80,42 +74,34 @@ export function MagazineCover({
         return lines;
       };
 
-      // 3. Set Title styles and Draw
+      // 3. Set Title styles and Draw (High contrast for no overlay)
       ctx.fillStyle = 'white';
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
-      ctx.shadowBlur = 6;
-      ctx.shadowOffsetX = 2;
-      ctx.shadowOffsetY = 2;
-
+      ctx.strokeStyle = 'black';
+      ctx.lineWidth = 4;
+      ctx.lineJoin = 'round';
+      
       const titleFont = '800 48px sans-serif';
       const titleLines = wrapText(title, width - 64, titleFont);
       ctx.font = titleFont;
       
-      // Calculate Y position for title
       let currentY = height - 50;
       if (showQrCode && url) {
-          currentY = height - 120; // Move up to make space for QR
+          currentY = height - 120;
       }
 
       titleLines.forEach((line, index) => {
         const lineY = currentY - ((titleLines.length - 1 - index) * 52);
+        ctx.strokeText(line, 32, lineY);
         ctx.fillText(line, 32, lineY);
       });
       
-      // Draw vendor title
       if (vendorTitle) {
         ctx.font = 'bold 14px sans-serif';
-        ctx.globalAlpha = 0.8;
+        ctx.lineWidth = 3;
         const vendorY = currentY - (titleLines.length * 52) - 10;
+        ctx.strokeText(vendorTitle.toUpperCase(), 32, vendorY);
         ctx.fillText(vendorTitle.toUpperCase(), 32, vendorY);
-        ctx.globalAlpha = 1.0;
       }
-
-      // Reset shadows for other elements
-      ctx.shadowColor = 'transparent';
-      ctx.shadowBlur = 0;
-      ctx.shadowOffsetX = 0;
-      ctx.shadowOffsetY = 0;
       
       // 4. Draw Logo if provided
       if (logoDataUri) {
@@ -126,13 +112,10 @@ export function MagazineCover({
                   const logoSize = 60;
                   const logoX = 32;
                   const logoY = 32;
-                  
-                  // Draw logo background
                   ctx.fillStyle = 'white';
                   ctx.beginPath();
                   ctx.roundRect(logoX - 5, logoY - 5, logoSize + 10, logoSize + 10, 8);
                   ctx.fill();
-                  
                   ctx.drawImage(logoImg, logoX, logoY, logoSize, logoSize);
                   resolve(null);
               };
@@ -140,35 +123,15 @@ export function MagazineCover({
           });
       }
 
-      // 5. Draw Badge
-      ctx.fillStyle = 'rgba(255,255,255,0.9)';
-      const roundedRect = (x:number, y:number, w:number, h:number, r:number) => {
-        ctx.beginPath();
-        ctx.moveTo(x+r, y);
-        ctx.arcTo(x+w, y,   x+w, y+h, r);
-        ctx.arcTo(x+w, y+h, x,   y+h, r);
-        ctx.arcTo(x,   y+h, x,   y,   r);
-        ctx.arcTo(x,   y,   x+w, y,   r);
-        ctx.closePath();
-        ctx.fill();
-      }
-      roundedRect(width - 120, 16, 104, 24, 4);
-
-      ctx.fillStyle = '#5a31f4';
-      ctx.font = 'bold 12px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('NEW COLLECTION', width - 68, 33);
-      ctx.textAlign = 'left';
-
       // 6. Draw QR Code if enabled
       if (showQrCode && url) {
           const qrSize = 80;
           const qrX = width - qrSize - 20;
           const qrY = height - qrSize - 20;
-
-          // Draw white background for QR
           ctx.fillStyle = 'white';
-          roundedRect(qrX - 5, qrY - 5, qrSize + 10, qrSize + 10, 8);
+          ctx.beginPath();
+          ctx.roundRect(qrX - 5, qrY - 5, qrSize + 10, qrSize + 10, 8);
+          ctx.fill();
 
           const qrImg = new Image();
           qrImg.crossOrigin = 'anonymous';
@@ -177,23 +140,13 @@ export function MagazineCover({
           await new Promise((resolve) => {
               qrImg.onload = () => {
                   ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
-                  
-                  // Add "Scan to Shop" label
-                  ctx.fillStyle = 'white';
+                  ctx.fillStyle = 'black';
                   ctx.font = 'bold 10px sans-serif';
                   ctx.textAlign = 'right';
                   ctx.fillText('SCAN TO SHOP', width - 20, height - qrSize - 30);
-                  
-                  // Draw truncated URL text
-                  const shortUrl = url.replace(/^https?:\/\//, '').split('?')[0];
-                  ctx.font = '500 10px sans-serif';
-                  ctx.globalAlpha = 0.7;
-                  ctx.fillText(shortUrl, width - 20, height - 10);
-                  ctx.globalAlpha = 1.0;
-                  
                   resolve(null);
               };
-              qrImg.onerror = () => resolve(null); // Continue even if QR fails
+              qrImg.onerror = () => resolve(null);
           });
       }
       

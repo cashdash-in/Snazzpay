@@ -27,7 +27,7 @@ export function SocialAdCard({
   logoDataUri,
   showBrandText = false,
   allowedPaymentMethods = [],
-  width = 800, // Optimized size
+  width = 800,
   height = 800,
   onCanvasUpdate,
 }: SocialAdCardProps) {
@@ -43,14 +43,11 @@ export function SocialAdCard({
     const drawAd = async () => {
       ctx.clearRect(0, 0, width, height);
 
-      // 1. Draw Background Base
-      const bgGradient = ctx.createLinearGradient(0, 0, 0, height);
-      bgGradient.addColorStop(0, '#f8fafc');
-      bgGradient.addColorStop(1, '#f1f5f9');
-      ctx.fillStyle = bgGradient;
+      // 1. Draw Clean White Background (Removed gradients to clear "watermark" feel)
+      ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, width, height);
 
-      // 2. Load and Draw Product Image (Centered with padding)
+      // 2. Load and Draw Product Image
       const img = new Image();
       img.crossOrigin = 'anonymous';
       img.src = imageUrl;
@@ -60,32 +57,22 @@ export function SocialAdCard({
         img.onerror = reject;
       });
 
-      const padding = 80;
+      const padding = 60;
       const innerWidth = width - (padding * 2);
-      const innerHeight = height * 0.6; // Take up 60% of height
+      const innerHeight = height * 0.55;
       const scale = Math.min(innerWidth / img.width, innerHeight / img.height);
       const x = (width / 2) - (img.width * scale / 2);
-      const y = (height * 0.4) - (img.height * scale / 2); // Center in top half area
+      const y = (height * 0.35) - (img.height * scale / 2);
 
-      // Draw subtle shadow for product
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.1)';
-      ctx.shadowBlur = 30;
-      ctx.shadowOffsetY = 20;
       ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
-      ctx.shadowColor = 'transparent';
-      ctx.shadowBlur = 0;
-      ctx.shadowOffsetY = 0;
 
-      // 3. Draw Info Plate
-      const uiHeight = height * 0.32;
-      ctx.fillStyle = 'rgba(255, 255, 255, 1)';
-      ctx.beginPath();
-      ctx.roundRect(0, height - uiHeight, width, uiHeight, 0);
-      ctx.fill();
+      // 3. Draw Info Plate (Solid white for clean look)
+      const uiHeight = height * 0.35;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, height - uiHeight, width, uiHeight);
       
-      // Top border for plate
-      ctx.strokeStyle = '#e2e8f0';
-      ctx.lineWidth = 1;
+      ctx.strokeStyle = '#f1f5f9';
+      ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(0, height - uiHeight);
       ctx.lineTo(width, height - uiHeight);
@@ -93,21 +80,21 @@ export function SocialAdCard({
 
       // 4. Draw Headline
       ctx.fillStyle = '#0f172a';
-      ctx.font = '900 32px Inter, sans-serif';
-      ctx.fillText(headline.toUpperCase(), 40, height - uiHeight + 60);
+      ctx.font = '900 36px sans-serif';
+      ctx.fillText(headline.toUpperCase(), 40, height - uiHeight + 70);
 
       // 5. Draw Product Title
       ctx.fillStyle = '#64748b';
-      ctx.font = '500 18px Inter, sans-serif';
-      ctx.fillText(title, 40, height - uiHeight + 95);
+      ctx.font = '500 20px sans-serif';
+      ctx.fillText(title, 40, height - uiHeight + 110);
 
       // 6. Draw Price Tag
       ctx.fillStyle = '#5a31f4';
-      ctx.font = '900 48px Inter, sans-serif';
+      ctx.font = '900 52px sans-serif';
       ctx.fillText(`₹${price.toLocaleString()}`, 40, height - 60);
 
       // 7. Draw QR Code
-      const qrSize = 130;
+      const qrSize = 140;
       const qrX = width - qrSize - 40;
       const qrY = height - qrSize - 40;
 
@@ -117,36 +104,34 @@ export function SocialAdCard({
 
       await new Promise((resolve) => {
         qrImg.onload = () => {
-          ctx.fillStyle = 'white';
+          ctx.fillStyle = '#f8fafc';
           ctx.beginPath();
-          ctx.roundRect(qrX - 10, qrY - 10, qrSize + 20, qrSize + 20, 12);
+          ctx.roundRect(qrX - 15, qrY - 15, qrSize + 30, qrSize + 30, 16);
           ctx.fill();
           ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
           ctx.fillStyle = '#1e293b';
-          ctx.font = 'bold 12px Inter, sans-serif';
+          ctx.font = 'bold 12px sans-serif';
           ctx.textAlign = 'center';
-          ctx.fillText('SCAN TO ORDER', qrX + qrSize/2, qrY - 20);
+          ctx.fillText('ORDER LINK', qrX + qrSize/2, qrY - 25);
           ctx.textAlign = 'left';
           resolve(null);
         };
         qrImg.onerror = () => resolve(null);
       });
 
-      // 8. Payment Badges
+      // 8. Payment Badge
       const isSecureCod = (allowedPaymentMethods || []).includes('Secure COD');
-      const isCod = (allowedPaymentMethods || []).includes('Cash on Delivery');
-
-      if (isSecureCod || isCod) {
-          const badgeText = isSecureCod ? 'SECURE COD AVAILABLE' : 'CASH ON DELIVERY';
-          ctx.font = 'bold 12px Inter, sans-serif';
+      if (isSecureCod) {
+          const badgeText = 'SECURE COD AVAILABLE';
+          ctx.font = 'bold 14px sans-serif';
           const textWidth = ctx.measureText(badgeText).width;
-          ctx.fillStyle = isSecureCod ? '#5a31f4' : '#64748b';
+          ctx.fillStyle = '#5a31f4';
           ctx.beginPath();
-          ctx.roundRect(40, height - uiHeight + 125, textWidth + 24, 26, 13);
+          ctx.roundRect(40, height - uiHeight + 140, textWidth + 24, 28, 14);
           ctx.fill();
           ctx.fillStyle = 'white';
           ctx.textAlign = 'center';
-          ctx.fillText(badgeText, 40 + (textWidth + 24)/2, height - uiHeight + 143);
+          ctx.fillText(badgeText, 40 + (textWidth + 24)/2, height - uiHeight + 159);
           ctx.textAlign = 'left';
       }
 
@@ -159,9 +144,9 @@ export function SocialAdCard({
                   const logoSize = 64;
                   ctx.fillStyle = 'white';
                   ctx.beginPath();
-                  ctx.roundRect(35, 35, logoSize + 20, logoSize + 20, 16);
+                  ctx.roundRect(40, 40, logoSize + 20, logoSize + 20, 16);
                   ctx.fill();
-                  ctx.drawImage(logoImg, 45, 45, logoSize, logoSize);
+                  ctx.drawImage(logoImg, 50, 50, logoSize, logoSize);
                   resolve(null);
               };
               logoImg.onerror = () => resolve(null);
@@ -170,9 +155,9 @@ export function SocialAdCard({
 
       if (showBrandText && brandName) {
           ctx.fillStyle = '#0f172a';
-          ctx.font = 'bold 22px Inter, sans-serif';
-          const textX = logoDataUri ? 135 : 40;
-          const textY = logoDataUri ? 85 : 60;
+          ctx.font = 'bold 24px sans-serif';
+          const textX = logoDataUri ? 140 : 40;
+          const textY = logoDataUri ? 90 : 60;
           ctx.fillText(brandName.toUpperCase(), textX, textY);
       }
 
@@ -184,5 +169,5 @@ export function SocialAdCard({
     drawAd();
   }, [imageUrl, title, headline, price, qrUrl, brandName, logoDataUri, showBrandText, allowedPaymentMethods, width, height, onCanvasUpdate]);
 
-  return <canvas ref={canvasRef} width={width} height={height} className="rounded-2xl shadow-xl max-w-full h-auto border bg-slate-50" />;
+  return <canvas ref={canvasRef} width={width} height={height} className="rounded-2xl shadow-xl max-w-full h-auto border bg-white" />;
 }

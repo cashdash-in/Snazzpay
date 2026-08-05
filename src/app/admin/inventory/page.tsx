@@ -28,7 +28,8 @@ import {
     X,
     Info,
     Sparkles,
-    ShoppingBag
+    Link as LinkIcon,
+    Copy
 } from 'lucide-react';
 import { getCollection, saveDocument, deleteDocument, addDocument } from '@/services/firestore';
 import { analyzeInventoryItem } from '@/ai/flows/inventory-analyzer';
@@ -83,7 +84,6 @@ export default function AdminInventoryPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [searchTerm, setSearchQuery] = useState('');
-    
     const [isMounted, setIsMounted] = useState(false);
     const [todayTimestamp, setTodayTimestamp] = useState<number | null>(null);
 
@@ -121,11 +121,31 @@ export default function AdminInventoryPage() {
         loadData();
     }, [loadData]);
 
+    const getProductLink = (item: InventoryItem) => {
+        const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+        return `${baseUrl}/catalogue?id=${item.id}&sellerId=admin&sellerName=Snazzify`;
+    };
+
+    const handleCopyLink = (item: InventoryItem) => {
+        const link = getProductLink(item);
+        navigator.clipboard.writeText(link);
+        toast({ title: "Order Link Copied!", description: "Send this link to customers on WhatsApp." });
+    };
+
     const handleScanSuccess = useCallback((code: string) => {
-        const searchCode = code.toUpperCase().trim().replace(/[^A-Z0-9]/g, '');
+        let lookupId = code.toUpperCase().trim();
+        
+        // Handle scanned links by extracting ID
+        if (code.includes('?id=')) {
+            const url = new URL(code);
+            const idFromUrl = url.searchParams.get('id');
+            if (idFromUrl) lookupId = idFromUrl.toUpperCase();
+        }
+
+        const cleanLookupId = lookupId.replace(/[^A-Z0-9]/g, '');
         const item = inventory.find(i => {
             const normalizedId = i.id.toUpperCase().replace(/[^A-Z0-9]/g, '');
-            return normalizedId === searchCode || normalizedId.startsWith(searchCode);
+            return normalizedId === cleanLookupId || normalizedId.startsWith(cleanLookupId);
         });
 
         if (item) {
@@ -141,7 +161,6 @@ export default function AdminInventoryPage() {
 
     useEffect(() => {
         if (!isScanning || !isMounted) return;
-
         const timer = setTimeout(() => {
             const scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 250, height: 250 } }, false);
             scanner.render((decodedText) => {
@@ -150,7 +169,6 @@ export default function AdminInventoryPage() {
             }, () => {});
             return () => scanner.clear().catch(console.warn);
         }, 100);
-
         return () => clearTimeout(timer);
     }, [isScanning, isMounted, handleScanSuccess]);
 
@@ -177,7 +195,6 @@ export default function AdminInventoryPage() {
                     marketInsight: aiData.marketInsight,
                     competitors: aiData.competitors,
                 };
-
                 await saveDocument('inventory', newItem, newItem.id);
                 setInventory(prev => [newItem, ...prev]);
                 toast({ title: 'Product Identified!', description: aiData.productName });
@@ -217,7 +234,6 @@ export default function AdminInventoryPage() {
             date: new Date().toISOString(),
             customerPhone: customerPhone
         };
-
         try {
             await addDocument('sales_transactions', transaction);
             await updateItem(selectedSaleItem.id, { quantity: selectedSaleItem.quantity - saleQty });
@@ -263,15 +279,6 @@ export default function AdminInventoryPage() {
     return (
         <AppShell title="Shop Inventory & P&L">
             <div className="space-y-6">
-                {isAnalyzing && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm">
-                        <Card className="p-8 flex flex-col items-center gap-4 shadow-2xl">
-                            <Loader2 className="h-16 w-16 animate-spin text-primary" />
-                            <h3 className="text-xl font-bold">AI Analyzing Product</h3>
-                        </Card>
-                    </div>
-                )}
-
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <Card className="bg-primary text-primary-foreground shadow-lg border-none overflow-hidden relative">
                         <div className="absolute top-0 right-0 p-2 opacity-20"><TrendingUp className="h-12 w-12"/></div>
@@ -313,7 +320,6 @@ export default function AdminInventoryPage() {
                         <TabsTrigger value="stock"><Package className="mr-2 h-4 w-4" /> Live Stock</TabsTrigger>
                         <TabsTrigger value="ledger"><History className="mr-2 h-4 w-4" /> Sales History</TabsTrigger>
                     </TabsList>
-
                     <TabsContent value="stock" className="mt-4">
                         <Card>
                             <CardContent className="p-0">
@@ -346,7 +352,7 @@ export default function AdminInventoryPage() {
                                                                     {item.name} <Info className="h-3 w-3 opacity-30" />
                                                                 </button>
                                                             </DialogTrigger>
-                                                            <DialogContent className="max-w-3xl rounded-[32px] p-0 overflow-hidden">
+                                                            <DialogContent className="max-w-3xl rounded-[32px] p-0 overflow-hidden bg-white">
                                                                 <div className="grid grid-cols-1 md:grid-cols-2">
                                                                     <div className="relative aspect-square">
                                                                         {selectedDetailItem?.imageDataUri && <Image src={selectedDetailItem.imageDataUri} fill alt="p" className="object-cover" />}
@@ -384,16 +390,19 @@ export default function AdminInventoryPage() {
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="text-right space-x-1">
+                                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleCopyLink(item)} title="Copy Order Link">
+                                                        <Copy className="h-4 w-4" />
+                                                    </Button>
                                                     <Dialog>
                                                         <DialogTrigger asChild>
                                                             <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setSelectedItemForLabel(item)}><Printer className="h-4 w-4" /></Button>
                                                         </DialogTrigger>
-                                                        <DialogContent className="max-w-xs p-6">
+                                                        <DialogContent className="max-w-xs p-6 bg-white">
                                                             <DialogHeader><DialogTitle className="text-center italic uppercase font-black">Print Label</DialogTitle></DialogHeader>
                                                             <div className="flex flex-col items-center gap-4 py-4">
                                                                 <div ref={labelRef} className="p-4 border-2 border-slate-900 bg-white rounded w-[2in] text-center shadow-md">
                                                                     <p className="text-[10px] font-bold uppercase mb-1 truncate">{item.name}</p>
-                                                                    <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${item.id.substring(0,8)}`} width={100} height={100} alt="qr" className="mx-auto mb-1" />
+                                                                    <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(getProductLink(item))}`} width={100} height={100} alt="qr" className="mx-auto mb-1" />
                                                                     <p className="text-lg font-mono font-black tracking-tighter leading-none">{item.id.substring(0,8)}</p>
                                                                 </div>
                                                                 <Button onClick={handlePrintLabel} className="w-full">Print to Sticker</Button>
@@ -407,7 +416,7 @@ export default function AdminInventoryPage() {
                                                                 <DollarSign className="h-4 w-4 mr-1" /> Sell
                                                             </Button>
                                                         </DialogTrigger>
-                                                        <DialogContent className="max-w-md p-6">
+                                                        <DialogContent className="max-w-md p-6 bg-white">
                                                             <DialogHeader><DialogTitle className="text-xl font-bold italic uppercase">Log Quick Sale</DialogTitle></DialogHeader>
                                                             <div className="space-y-6 pt-4">
                                                                 <div className="grid grid-cols-2 gap-4">
@@ -428,7 +437,6 @@ export default function AdminInventoryPage() {
                             </CardContent>
                         </Card>
                     </TabsContent>
-
                     <TabsContent value="ledger" className="mt-4">
                         <Card>
                             <CardHeader><CardTitle className="text-lg font-bold uppercase">Sales Ledger</CardTitle></CardHeader>
@@ -452,7 +460,7 @@ export default function AdminInventoryPage() {
                 </Tabs>
 
                 <Dialog open={isScanning} onOpenChange={setIsScanning}>
-                    <DialogContent className="max-w-sm p-6">
+                    <DialogContent className="max-w-sm p-6 bg-white">
                         <DialogHeader><DialogTitle className="text-xl font-bold uppercase">Mobile Scanner</DialogTitle></DialogHeader>
                         <div className="flex flex-col items-center gap-6 py-4">
                             <div id="reader" className="w-full rounded-2xl overflow-hidden border-2 border-primary/20 min-h-[250px] bg-slate-100 flex items-center justify-center">
@@ -463,7 +471,7 @@ export default function AdminInventoryPage() {
                 </Dialog>
 
                 <Dialog open={showPostSaleDialog} onOpenChange={setShowPostSaleDialog}>
-                    <DialogContent className="max-w-sm p-8 text-center">
+                    <DialogContent className="max-w-sm p-8 text-center bg-white">
                         <div className="flex flex-col items-center gap-6">
                             <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center"><CheckCircle2 className="h-10 w-10"/></div>
                             <div><h3 className="text-xl font-bold uppercase">Sale Confirmed!</h3><p className="text-sm text-muted-foreground">Stock updated.</p></div>
