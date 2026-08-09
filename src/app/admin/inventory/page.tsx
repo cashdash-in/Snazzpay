@@ -14,7 +14,6 @@ import {
     Plus, 
     Minus, 
     Trash2, 
-    FileSpreadsheet, 
     Package, 
     Search, 
     DollarSign, 
@@ -25,22 +24,20 @@ import {
     CheckCircle2,
     Printer,
     TrendingUp,
-    X,
     Info,
     Sparkles,
-    Link as LinkIcon,
     Copy,
     PackagePlus,
-    AlertTriangle
+    AlertTriangle,
+    X
 } from 'lucide-react';
 import { getCollection, saveDocument, deleteDocument, addDocument } from '@/services/firestore';
 import { analyzeInventoryItem } from '@/ai/flows/inventory-analyzer';
 import { v4 as uuidv4 } from 'uuid';
 import Image from 'next/image';
-import * as XLSX from 'xlsx';
 import { format, startOfDay } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn, sanitizePhoneNumber } from "@/lib/utils";
 import { useReactToPrint } from 'react-to-print';
@@ -79,6 +76,8 @@ interface SaleTransaction {
     customerPhone?: string;
 }
 
+const MAX_IMAGE_SIZE_PX = 800; // Max width/height for resizing
+
 export default function AdminInventoryPage() {
     const { toast } = useToast();
     const [inventory, setInventory] = useState<InventoryItem[]>([]);
@@ -102,7 +101,7 @@ export default function AdminInventoryPage() {
     const [showPostSaleDialog, setShowPostSaleDialog] = useState(false);
     const [lastProcessedSale, setLastProcessedSale] = useState<SaleTransaction | null>(null);
 
-    // Fallback states for No Analytics
+    // Fallback states
     const [showNoAiDialog, setShowNoAiDialog] = useState(false);
     const [failedImageUri, setFailedImageUri] = useState<string | null>(null);
 
@@ -127,6 +126,38 @@ export default function AdminInventoryPage() {
         setTodayTimestamp(startOfDay(new Date()).getTime());
         loadData();
     }, [loadData]);
+
+    const resizeImage = (file: File): Promise<string> => {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = document.createElement('img');
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let { width, height } = img;
+
+                    if (width > height) {
+                        if (width > MAX_IMAGE_SIZE_PX) {
+                            height *= MAX_IMAGE_SIZE_PX / width;
+                            width = MAX_IMAGE_SIZE_PX;
+                        }
+                    } else {
+                        if (height > MAX_IMAGE_SIZE_PX) {
+                            width *= MAX_IMAGE_SIZE_PX / height;
+                            height = MAX_IMAGE_SIZE_PX;
+                        }
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx?.drawImage(img, 0, 0, width, height);
+                    resolve(canvas.toDataURL('image/jpeg', 0.7));
+                };
+                img.src = e.target?.result as string;
+            };
+            reader.readAsDataURL(file);
+        });
+    };
 
     const getProductLink = (item: InventoryItem) => {
         const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
@@ -180,12 +211,13 @@ export default function AdminInventoryPage() {
 
     const processImage = useCallback(async (file: File) => {
         setIsAnalyzing(true);
-        const reader = new FileReader();
-        reader.onload = async (event) => {
-            const base64 = event.target?.result as string;
-            setFailedImageUri(base64); // Pre-set in case AI fails
+        try {
+            // Compress image BEFORE setting for fallback or AI
+            const compressedUri = await resizeImage(file);
+            setFailedImageUri(compressedUri);
+            
             try {
-                const aiData = await analyzeInventoryItem({ imageDataUri: base64 });
+                const aiData = await analyzeInventoryItem({ imageDataUri: compressedUri });
                 const shortId = uuidv4().substring(0, 8).toUpperCase();
                 const newItem: InventoryItem = {
                     id: shortId, 
@@ -194,7 +226,7 @@ export default function AdminInventoryPage() {
                     wholesalePrice: 0,
                     mrp: aiData.suggestedMRP,
                     shelfNumber: 'Pending',
-                    imageDataUri: base64,
+                    imageDataUri: compressedUri,
                     category: aiData.category,
                     lastUpdated: new Date().toISOString(),
                     description: aiData.description,
@@ -207,21 +239,23 @@ export default function AdminInventoryPage() {
                 toast({ title: 'Product Identified!', description: aiData.productName });
                 setFailedImageUri(null);
             } catch (err) {
-                console.error("Analysis Error:", err);
+                console.error("AI Analysis Error:", err);
                 setShowNoAiDialog(true);
-            } finally {
-                setIsAnalyzing(false);
             }
-        };
-        reader.readAsDataURL(file);
+        } catch (e) {
+            toast({ variant: 'destructive', title: 'Processing Error', description: 'Could not process the captured photo.' });
+        } finally {
+            setIsAnalyzing(false);
+        }
     }, [toast]);
 
     const handleManualAddAfterFail = async () => {
         if (!failedImageUri) {
-            toast({ variant: 'destructive', title: 'Error', description: 'No image data found to add.' });
+            toast({ variant: 'destructive', title: 'Error', description: 'No photo data available to save.' });
             return;
         }
         
+        setIsAnalyzing(true);
         const shortId = uuidv4().substring(0, 8).toUpperCase();
         const newItem: InventoryItem = {
             id: shortId,
@@ -241,24 +275,24 @@ export default function AdminInventoryPage() {
         try {
             await saveDocument('inventory', newItem, newItem.id);
             setInventory(prev => [newItem, ...prev]);
-            toast({ title: 'Product Listed!', description: "Item added manually to your stock." });
-        } catch (e) {
-            toast({ variant: 'destructive', title: 'Listing Failed' });
-        } finally {
+            toast({ title: 'Product Listed!', description: "Item added to your inventory list." });
             setShowNoAiDialog(false);
             setFailedImageUri(null);
+        } catch (e: any) {
+            console.error("Manual Save Error:", e);
+            toast({ variant: 'destructive', title: 'Listing Failed', description: 'Could not save to database. Photo might be too large.' });
+        } finally {
+            setIsAnalyzing(false);
         }
     };
 
     const processRestockImage = useCallback(async (file: File) => {
         setIsRestocking(true);
-        const reader = new FileReader();
-        reader.onload = async (event) => {
-            const base64 = event.target?.result as string;
+        try {
+            const compressedUri = await resizeImage(file);
             try {
-                const aiData = await analyzeInventoryItem({ imageDataUri: base64 });
+                const aiData = await analyzeInventoryItem({ imageDataUri: compressedUri });
                 
-                // Try to find a match in existing inventory (case insensitive)
                 const match = inventory.find(i => 
                     i.name.toLowerCase() === aiData.productName.toLowerCase() ||
                     aiData.productName.toLowerCase().includes(i.name.toLowerCase()) ||
@@ -277,16 +311,17 @@ export default function AdminInventoryPage() {
                     toast({ 
                         variant: 'destructive', 
                         title: 'Match Not Found', 
-                        description: `Identified as "${aiData.productName}", but no matching product exists in your stock. Use 'Capture New' to add it.` 
+                        description: `Identified as "${aiData.productName}", but no matching product exists in your stock.` 
                     });
                 }
             } catch (err) {
-                toast({ variant: 'destructive', title: 'Analysis Error', description: 'Could not identify product from image.' });
-            } finally {
-                setIsRestocking(false);
+                toast({ variant: 'destructive', title: 'Analysis Error', description: 'AI was unable to identify this product.' });
             }
-        };
-        reader.readAsDataURL(file);
+        } catch (e) {
+            toast({ variant: 'destructive', title: 'Processing Error' });
+        } finally {
+            setIsRestocking(false);
+        }
     }, [inventory, toast]);
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -445,7 +480,7 @@ export default function AdminInventoryPage() {
                                                                     {item.name} <Info className="h-3 w-3 opacity-30" />
                                                                 </button>
                                                             </DialogTrigger>
-                                                            <DialogContent className="max-w-3xl rounded-[32px] p-0 overflow-hidden bg-white">
+                                                            <DialogContent className="max-w-3xl rounded-[32px] p-0 overflow-hidden bg-white border-none">
                                                                 <div className="grid grid-cols-1 md:grid-cols-2">
                                                                     <div className="relative aspect-square">
                                                                         {selectedDetailItem?.imageDataUri && <Image src={selectedDetailItem.imageDataUri} fill alt="p" className="object-cover" />}
@@ -490,7 +525,7 @@ export default function AdminInventoryPage() {
                                                         <DialogTrigger asChild>
                                                             <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setSelectedItemForLabel(item)}><Printer className="h-4 w-4" /></Button>
                                                         </DialogTrigger>
-                                                        <DialogContent className="max-w-xs p-6 bg-white">
+                                                        <DialogContent className="max-w-xs p-6 bg-white border-none">
                                                             <DialogHeader><DialogTitle className="text-center italic uppercase font-black">Print Label</DialogTitle></DialogHeader>
                                                             <div className="flex flex-col items-center gap-4 py-4">
                                                                 <div ref={labelRef} className="p-4 border-2 border-slate-900 bg-white rounded w-[2in] text-center shadow-md">
@@ -509,7 +544,7 @@ export default function AdminInventoryPage() {
                                                                 <DollarSign className="h-4 w-4 mr-1" /> Sell
                                                             </Button>
                                                         </DialogTrigger>
-                                                        <DialogContent className="max-w-md p-6 bg-white">
+                                                        <DialogContent className="max-w-md p-6 bg-white border-none">
                                                             <DialogHeader><DialogTitle className="text-xl font-bold italic uppercase">Log Quick Sale</DialogTitle></DialogHeader>
                                                             <div className="space-y-6 pt-4">
                                                                 <div className="grid grid-cols-2 gap-4">
@@ -553,7 +588,7 @@ export default function AdminInventoryPage() {
                 </Tabs>
 
                 <Dialog open={isScanning} onOpenChange={setIsScanning}>
-                    <DialogContent className="max-w-sm p-6 bg-white">
+                    <DialogContent className="max-w-sm p-6 bg-white border-none">
                         <DialogHeader><DialogTitle className="text-xl font-bold uppercase">Mobile Scanner</DialogTitle></DialogHeader>
                         <div className="flex flex-col items-center gap-6 py-4">
                             <div id="reader" className="w-full rounded-2xl overflow-hidden border-2 border-primary/20 min-h-[250px] bg-slate-100 flex items-center justify-center">
@@ -564,7 +599,7 @@ export default function AdminInventoryPage() {
                 </Dialog>
 
                 <Dialog open={showPostSaleDialog} onOpenChange={setShowPostSaleDialog}>
-                    <DialogContent className="max-w-sm p-8 text-center bg-white">
+                    <DialogContent className="max-w-sm p-8 text-center bg-white border-none">
                         <div className="flex flex-col items-center gap-6">
                             <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center"><CheckCircle2 className="h-10 w-10"/></div>
                             <div><h3 className="text-xl font-bold uppercase">Sale Confirmed!</h3><p className="text-sm text-muted-foreground">Stock updated.</p></div>
@@ -577,7 +612,7 @@ export default function AdminInventoryPage() {
                 </Dialog>
 
                 <Dialog open={showNoAiDialog} onOpenChange={setShowNoAiDialog}>
-                    <DialogContent className="max-w-md p-6 bg-white text-center">
+                    <DialogContent className="max-w-md p-6 bg-white text-center border-none">
                         <div className="flex flex-col items-center gap-4">
                             <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center">
                                 <AlertTriangle className="h-10 w-10"/>

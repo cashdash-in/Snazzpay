@@ -19,7 +19,7 @@ import { v4 as uuidv4 } from 'uuid';
 import Image from 'next/image';
 import { format, startOfDay } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { cn, sanitizePhoneNumber } from "@/lib/utils";
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { useAuth } from '@/hooks/use-auth';
@@ -56,6 +56,8 @@ interface SaleTransaction {
     date: string;
     customerPhone?: string;
 }
+
+const MAX_IMAGE_SIZE_PX = 800; // Max width/height for resizing
 
 export default function StaffInventoryPage() {
     const { toast } = useToast();
@@ -96,6 +98,38 @@ export default function StaffInventoryPage() {
         setIsMounted(true);
         loadData();
     }, [loadData]);
+
+    const resizeImage = (file: File): Promise<string> => {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = document.createElement('img');
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let { width, height } = img;
+
+                    if (width > height) {
+                        if (width > MAX_IMAGE_SIZE_PX) {
+                            height *= MAX_IMAGE_SIZE_PX / width;
+                            width = MAX_IMAGE_SIZE_PX;
+                        }
+                    } else {
+                        if (height > MAX_IMAGE_SIZE_PX) {
+                            width *= MAX_IMAGE_SIZE_PX / height;
+                            height = MAX_IMAGE_SIZE_PX;
+                        }
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx?.drawImage(img, 0, 0, width, height);
+                    resolve(canvas.toDataURL('image/jpeg', 0.7));
+                };
+                img.src = e.target?.result as string;
+            };
+            reader.readAsDataURL(file);
+        });
+    };
 
     const getProductLink = (item: InventoryItem) => {
         const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
@@ -149,15 +183,17 @@ export default function StaffInventoryPage() {
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (!file) return;
-        
+        if (file) processImage(file);
+        e.target.value = '';
+    };
+
+    const processImage = useCallback(async (file: File) => {
         setIsAnalyzing(true);
-        const reader = new FileReader();
-        reader.onload = async (event) => {
-            const base64 = event.target?.result as string;
-            setFailedImageUri(base64); // Pre-set in case AI fails
+        try {
+            const compressedUri = await resizeImage(file);
+            setFailedImageUri(compressedUri);
             try {
-                const aiData = await analyzeInventoryItem({ imageDataUri: base64 });
+                const aiData = await analyzeInventoryItem({ imageDataUri: compressedUri });
                 const shortId = uuidv4().substring(0, 8).toUpperCase();
                 const newItem: InventoryItem = {
                     id: shortId, 
@@ -166,7 +202,7 @@ export default function StaffInventoryPage() {
                     wholesalePrice: 0,
                     mrp: aiData.suggestedMRP,
                     shelfNumber: 'Pending',
-                    imageDataUri: base64,
+                    imageDataUri: compressedUri,
                     category: aiData.category,
                     lastUpdated: new Date().toISOString(),
                     description: aiData.description,
@@ -179,22 +215,23 @@ export default function StaffInventoryPage() {
                 toast({ title: 'Product Identified!', description: aiData.productName });
                 setFailedImageUri(null);
             } catch (err) {
-                console.error("Analysis Error:", err);
+                console.error("AI Analysis Error:", err);
                 setShowNoAiDialog(true);
-            } finally {
-                setIsAnalyzing(false);
             }
-        };
-        reader.readAsDataURL(file);
-        e.target.value = '';
-    };
+        } catch (e) {
+            toast({ variant: 'destructive', title: 'Processing Error' });
+        } finally {
+            setIsAnalyzing(false);
+        }
+    }, [toast]);
 
     const handleManualAddAfterFail = async () => {
         if (!failedImageUri) {
-            toast({ variant: 'destructive', title: 'Error', description: 'No image data found to add.' });
+            toast({ variant: 'destructive', title: 'Error', description: 'No photo data available to save.' });
             return;
         }
         
+        setIsAnalyzing(true);
         const shortId = uuidv4().substring(0, 8).toUpperCase();
         const newItem: InventoryItem = {
             id: shortId,
@@ -215,24 +252,28 @@ export default function StaffInventoryPage() {
             await saveDocument('inventory', newItem, newItem.id);
             setInventory(prev => [newItem, ...prev]);
             toast({ title: 'Product Listed!', description: "Item added manually to your stock." });
-        } catch (e) {
-            toast({ variant: 'destructive', title: 'Listing Failed' });
-        } finally {
             setShowNoAiDialog(false);
             setFailedImageUri(null);
+        } catch (e: any) {
+            console.error("Manual Save Error:", e);
+            toast({ variant: 'destructive', title: 'Listing Failed', description: 'Photo might be too large for the database.' });
+        } finally {
+            setIsAnalyzing(false);
         }
     };
 
     const handleRestockUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (!file) return;
-        
+        if (file) processRestockImage(file);
+        e.target.value = '';
+    };
+
+    const processRestockImage = useCallback(async (file: File) => {
         setIsRestocking(true);
-        const reader = new FileReader();
-        reader.onload = async (event) => {
-            const base64 = event.target?.result as string;
+        try {
+            const compressedUri = await resizeImage(file);
             try {
-                const aiData = await analyzeInventoryItem({ imageDataUri: base64 });
+                const aiData = await analyzeInventoryItem({ imageDataUri: compressedUri });
                 
                 const match = inventory.find(i => 
                     i.name.toLowerCase() === aiData.productName.toLowerCase() ||
@@ -252,18 +293,18 @@ export default function StaffInventoryPage() {
                     toast({ 
                         variant: 'destructive', 
                         title: 'Product Not Found', 
-                        description: `Identified as "${aiData.productName}", but it doesn't match any existing stock. Use 'Capture New' instead.` 
+                        description: `Identified as "${aiData.productName}", but it doesn't match any existing stock.` 
                     });
                 }
             } catch (err) {
                 toast({ variant: 'destructive', title: 'AI Error', description: 'Could not analyze product.' });
-            } finally {
-                setIsRestocking(false);
-                e.target.value = '';
             }
-        };
-        reader.readAsDataURL(file);
-    };
+        } catch (e) {
+             toast({ variant: 'destructive', title: 'Processing Error' });
+        } finally {
+            setIsRestocking(false);
+        }
+    }, [inventory, toast]);
 
     const updateItem = async (id: string, updates: Partial<InventoryItem>) => {
         const updated = inventory.map(item => item.id === id ? { ...item, ...updates, lastUpdated: new Date().toISOString() } : item);
@@ -402,7 +443,7 @@ export default function StaffInventoryPage() {
             </main>
 
             <Dialog open={isScanning} onOpenChange={setIsScanning}>
-                <DialogContent className="max-w-sm p-6 rounded-[32px] bg-white">
+                <DialogContent className="max-w-sm p-6 rounded-[32px] bg-white border-none">
                     <DialogHeader><DialogTitle className="text-xl font-bold uppercase">Mobile Scanner</DialogTitle></DialogHeader>
                     <div className="flex flex-col items-center gap-6 py-4">
                         <div id="reader" className="w-full rounded-2xl overflow-hidden border-2 border-primary/20 min-h-[250px] bg-slate-100 flex items-center justify-center">
@@ -430,7 +471,7 @@ export default function StaffInventoryPage() {
             </Dialog>
 
             <Dialog open={!!selectedSaleItem} onOpenChange={open => !open && setSelectedSaleItem(null)}>
-                <DialogContent className="max-w-md p-6 rounded-[32px] bg-white">
+                <DialogContent className="max-w-md p-6 rounded-[32px] bg-white border-none">
                     <DialogHeader><DialogTitle className="text-xl font-bold italic uppercase">Quick Sale</DialogTitle></DialogHeader>
                     <div className="space-y-6 pt-4">
                         <div className="grid grid-cols-2 gap-4">
@@ -443,7 +484,7 @@ export default function StaffInventoryPage() {
                 </DialogContent>
 
                 <Dialog open={showPostSaleDialog} onOpenChange={setShowPostSaleDialog}>
-                    <DialogContent className="max-w-sm p-8 text-center rounded-[32px] bg-white">
+                    <DialogContent className="max-w-sm p-8 text-center rounded-[32px] bg-white border-none">
                         <div className="flex flex-col items-center gap-6">
                             <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center"><CheckCircle2 className="h-10 w-10"/></div>
                             <div><h3 className="text-xl font-bold uppercase">Sale Confirmed!</h3><p className="text-sm text-muted-foreground">Stock updated successfully.</p></div>
@@ -457,7 +498,7 @@ export default function StaffInventoryPage() {
             </Dialog>
 
             <Dialog open={showNoAiDialog} onOpenChange={setShowNoAiDialog}>
-                <DialogContent className="max-w-md p-6 rounded-[32px] bg-white text-center">
+                <DialogContent className="max-w-md p-6 rounded-[32px] bg-white text-center border-none">
                     <div className="flex flex-col items-center gap-4">
                         <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center">
                             <AlertTriangle className="h-10 w-10"/>
@@ -470,7 +511,10 @@ export default function StaffInventoryPage() {
                         </div>
                         <div className="w-full flex gap-3 mt-4">
                             <Button variant="outline" className="flex-1 rounded-2xl" onClick={() => { setShowNoAiDialog(false); setFailedImageUri(null); }}>Discard</Button>
-                            <Button className="flex-1 rounded-2xl" onClick={handleManualAddAfterFail}>Add to List Anyway</Button>
+                            <Button className="flex-1 rounded-2xl" onClick={handleManualAddAfterFail} disabled={isAnalyzing}>
+                                {isAnalyzing ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : null}
+                                Add to List Anyway
+                            </Button>
                         </div>
                     </div>
                 </DialogContent>
