@@ -10,7 +10,8 @@ import { useToast } from '@/hooks/use-toast';
 import { 
     Loader2, Camera, Plus, Minus, Search, DollarSign, 
     Scan, ShoppingBag, CheckCircle2, MessageSquare, LogOut, 
-    Sparkles, Info, TrendingUp, QrCode, Copy, PackagePlus
+    Sparkles, Info, TrendingUp, QrCode, Copy, PackagePlus,
+    AlertTriangle
 } from 'lucide-react';
 import { getCollection, saveDocument, addDocument } from '@/services/firestore';
 import { analyzeInventoryItem } from '@/ai/flows/inventory-analyzer';
@@ -74,6 +75,10 @@ export default function StaffInventoryPage() {
     const [customerPhone, setCustomerPhone] = useState('');
     const [showPostSaleDialog, setShowPostSaleDialog] = useState(false);
     const [lastProcessedSale, setLastProcessedSale] = useState<SaleTransaction | null>(null);
+
+    // Fallback states
+    const [showNoAiDialog, setShowNoAiDialog] = useState(false);
+    const [failedImageUri, setFailedImageUri] = useState<string | null>(null);
 
     const loadData = useCallback(async () => {
         setIsLoading(true);
@@ -172,13 +177,43 @@ export default function StaffInventoryPage() {
                 setInventory(prev => [newItem, ...prev]);
                 toast({ title: 'Product Identified!', description: aiData.productName });
             } catch (err) {
-                toast({ variant: 'destructive', title: 'Analysis Error' });
+                console.error("Analysis Error:", err);
+                setFailedImageUri(base64);
+                setShowNoAiDialog(true);
             } finally {
                 setIsAnalyzing(false);
             }
         };
         reader.readAsDataURL(file);
         e.target.value = '';
+    };
+
+    const handleManualAddAfterFail = async () => {
+        if (!failedImageUri) return;
+        
+        const shortId = uuidv4().substring(0, 8).toUpperCase();
+        const newItem: InventoryItem = {
+            id: shortId,
+            name: "New Product (Manual)",
+            quantity: 1,
+            wholesalePrice: 0,
+            mrp: 0,
+            shelfNumber: 'Pending',
+            imageDataUri: failedImageUri,
+            category: 'Uncategorized',
+            lastUpdated: new Date().toISOString(),
+        };
+        
+        try {
+            await saveDocument('inventory', newItem, newItem.id);
+            setInventory(prev => [newItem, ...prev]);
+            toast({ title: 'Product Listed!', description: "Item added manually." });
+        } catch (e) {
+            toast({ variant: 'destructive', title: 'Listing Failed' });
+        } finally {
+            setShowNoAiDialog(false);
+            setFailedImageUri(null);
+        }
     };
 
     const handleRestockUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -291,7 +326,7 @@ export default function StaffInventoryPage() {
                         <Scan className="h-8 w-8" />
                         <span className="font-bold uppercase text-xs">Scan to Sell</span>
                     </Button>
-                    <Button onClick={() => document.getElementById('restock-camera')?.click()} variant="secondary" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg md:col-span-1 bg-white border-2 border-dashed border-primary/30 text-primary hover:bg-primary/5">
+                    <Button onClick={() => document.getElementById('restock-camera')?.click()} variant="secondary" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-white border-2 border-dashed border-primary/30 text-primary hover:bg-primary/5">
                         {isRestocking ? <Loader2 className="h-8 w-8 animate-spin" /> : <PackagePlus className="h-8 w-8" />}
                         <span className="font-bold uppercase text-xs">Capture to Update</span>
                     </Button>
@@ -412,6 +447,26 @@ export default function StaffInventoryPage() {
                         </div>
                     </DialogContent>
                 </Dialog>
+            </Dialog>
+
+            <Dialog open={showNoAiDialog} onOpenChange={setShowNoAiDialog}>
+                <DialogContent className="max-w-md p-6 rounded-[32px] bg-white text-center">
+                    <div className="flex flex-col items-center gap-4">
+                        <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center">
+                            <AlertTriangle className="h-10 w-10"/>
+                        </div>
+                        <div>
+                            <h3 className="text-xl font-bold uppercase">No Analytics Found</h3>
+                            <p className="text-sm text-muted-foreground mt-2">
+                                AI was unable to identify this product or find market data. You can still list it manually in your stock.
+                            </p>
+                        </div>
+                        <div className="w-full flex gap-3 mt-4">
+                            <Button variant="outline" className="flex-1 rounded-2xl" onClick={() => { setShowNoAiDialog(false); setFailedImageUri(null); }}>Discard</Button>
+                            <Button className="flex-1 rounded-2xl" onClick={handleManualAddAfterFail}>Add to List Anyway</Button>
+                        </div>
+                    </div>
+                </DialogContent>
             </Dialog>
         </div>
     );
