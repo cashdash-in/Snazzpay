@@ -40,7 +40,7 @@ import Image from 'next/image';
 import * as XLSX from 'xlsx';
 import { format, startOfDay } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn, sanitizePhoneNumber } from "@/lib/utils";
 import { useReactToPrint } from 'react-to-print';
@@ -183,6 +183,7 @@ export default function AdminInventoryPage() {
         const reader = new FileReader();
         reader.onload = async (event) => {
             const base64 = event.target?.result as string;
+            setFailedImageUri(base64); // Pre-set in case AI fails
             try {
                 const aiData = await analyzeInventoryItem({ imageDataUri: base64 });
                 const shortId = uuidv4().substring(0, 8).toUpperCase();
@@ -204,9 +205,9 @@ export default function AdminInventoryPage() {
                 await saveDocument('inventory', newItem, newItem.id);
                 setInventory(prev => [newItem, ...prev]);
                 toast({ title: 'Product Identified!', description: aiData.productName });
+                setFailedImageUri(null);
             } catch (err) {
                 console.error("Analysis Error:", err);
-                setFailedImageUri(base64);
                 setShowNoAiDialog(true);
             } finally {
                 setIsAnalyzing(false);
@@ -216,12 +217,15 @@ export default function AdminInventoryPage() {
     }, [toast]);
 
     const handleManualAddAfterFail = async () => {
-        if (!failedImageUri) return;
+        if (!failedImageUri) {
+            toast({ variant: 'destructive', title: 'Error', description: 'No image data found to add.' });
+            return;
+        }
         
         const shortId = uuidv4().substring(0, 8).toUpperCase();
         const newItem: InventoryItem = {
             id: shortId,
-            name: "New Product (Manual)",
+            name: "Unidentified Product",
             quantity: 1,
             wholesalePrice: 0,
             mrp: 0,
@@ -229,12 +233,15 @@ export default function AdminInventoryPage() {
             imageDataUri: failedImageUri,
             category: 'Uncategorized',
             lastUpdated: new Date().toISOString(),
+            description: 'Manual listing created without AI analysis.',
+            sellingPoints: [],
+            competitors: []
         };
         
         try {
             await saveDocument('inventory', newItem, newItem.id);
             setInventory(prev => [newItem, ...prev]);
-            toast({ title: 'Product Listed!', description: "Item added manually without AI analysis." });
+            toast({ title: 'Product Listed!', description: "Item added manually to your stock." });
         } catch (e) {
             toast({ variant: 'destructive', title: 'Listing Failed' });
         } finally {
@@ -449,7 +456,7 @@ export default function AdminInventoryPage() {
                                                                         <div className="space-y-2">
                                                                             <h5 className="text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-2"><Sparkles className="h-3 w-3 text-purple-500" /> Sales Pitch</h5>
                                                                             <ul className="space-y-1.5">
-                                                                                {selectedDetailItem?.sellingPoints?.map((p, i) => <li key={i} className="text-xs font-bold italic bg-purple-50 p-2 rounded-lg text-purple-900">"{p}"</li>)}
+                                                                                {selectedDetailItem?.sellingPoints && selectedDetailItem.sellingPoints.length > 0 ? selectedDetailItem.sellingPoints.map((p, i) => <li key={i} className="text-xs font-bold italic bg-purple-50 p-2 rounded-lg text-purple-900">"{p}"</li>) : <li className="text-xs italic text-muted-foreground">No selling points available.</li>}
                                                                             </ul>
                                                                         </div>
                                                                         <DialogClose asChild><Button className="w-full h-12 text-lg font-bold rounded-2xl">Close Details</Button></DialogClose>

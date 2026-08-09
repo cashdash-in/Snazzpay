@@ -19,7 +19,7 @@ import { v4 as uuidv4 } from 'uuid';
 import Image from 'next/image';
 import { format, startOfDay } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { cn, sanitizePhoneNumber } from "@/lib/utils";
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { useAuth } from '@/hooks/use-auth';
@@ -155,6 +155,7 @@ export default function StaffInventoryPage() {
         const reader = new FileReader();
         reader.onload = async (event) => {
             const base64 = event.target?.result as string;
+            setFailedImageUri(base64); // Pre-set in case AI fails
             try {
                 const aiData = await analyzeInventoryItem({ imageDataUri: base64 });
                 const shortId = uuidv4().substring(0, 8).toUpperCase();
@@ -176,9 +177,9 @@ export default function StaffInventoryPage() {
                 await saveDocument('inventory', newItem, newItem.id);
                 setInventory(prev => [newItem, ...prev]);
                 toast({ title: 'Product Identified!', description: aiData.productName });
+                setFailedImageUri(null);
             } catch (err) {
                 console.error("Analysis Error:", err);
-                setFailedImageUri(base64);
                 setShowNoAiDialog(true);
             } finally {
                 setIsAnalyzing(false);
@@ -189,12 +190,15 @@ export default function StaffInventoryPage() {
     };
 
     const handleManualAddAfterFail = async () => {
-        if (!failedImageUri) return;
+        if (!failedImageUri) {
+            toast({ variant: 'destructive', title: 'Error', description: 'No image data found to add.' });
+            return;
+        }
         
         const shortId = uuidv4().substring(0, 8).toUpperCase();
         const newItem: InventoryItem = {
             id: shortId,
-            name: "New Product (Manual)",
+            name: "Unidentified Product",
             quantity: 1,
             wholesalePrice: 0,
             mrp: 0,
@@ -202,12 +206,15 @@ export default function StaffInventoryPage() {
             imageDataUri: failedImageUri,
             category: 'Uncategorized',
             lastUpdated: new Date().toISOString(),
+            description: 'Manual listing created without AI analysis.',
+            sellingPoints: [],
+            competitors: []
         };
         
         try {
             await saveDocument('inventory', newItem, newItem.id);
             setInventory(prev => [newItem, ...prev]);
-            toast({ title: 'Product Listed!', description: "Item added manually." });
+            toast({ title: 'Product Listed!', description: "Item added manually to your stock." });
         } catch (e) {
             toast({ variant: 'destructive', title: 'Listing Failed' });
         } finally {
@@ -311,7 +318,7 @@ export default function StaffInventoryPage() {
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-primary/20 rounded-lg"><ShoppingBag className="h-6 w-6 text-primary" /></div>
                     <div>
-                        <h1 className="text-xl font-black italic uppercase tracking-tighter">Shop Portal</h1>
+                        <h1 className="text-xl font-black italic tracking-tighter uppercase">Shop Portal</h1>
                         <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Inventory & Sales</p>
                     </div>
                 </div>
@@ -415,7 +422,7 @@ export default function StaffInventoryPage() {
                         <div><h3 className="text-3xl font-black italic uppercase leading-none">{selectedDetailItem?.name}</h3><p className="text-2xl font-black text-primary mt-2">MRP: ₹{selectedDetailItem?.mrp}</p></div>
                         <div className="space-y-2">
                             <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-2"><Sparkles className="h-3 w-3 text-purple-500" /> Sales Pitch</h4>
-                            <ul className="space-y-1.5">{selectedDetailItem?.sellingPoints?.map((p, i) => <li key={i} className="text-xs font-bold italic bg-purple-50 p-2 rounded-lg text-purple-900">"{p}"</li>)}</ul>
+                            <ul className="space-y-1.5">{selectedDetailItem?.sellingPoints && selectedDetailItem.sellingPoints.length > 0 ? selectedDetailItem.sellingPoints.map((p, i) => <li key={i} className="text-xs font-bold italic bg-purple-50 p-2 rounded-lg text-purple-900">"{p}"</li>) : <li className="text-xs italic text-muted-foreground">No selling points available.</li>}</ul>
                         </div>
                         <DialogClose asChild><Button className="w-full h-12 text-lg font-bold rounded-2xl">Close Details</Button></DialogClose>
                     </div>
