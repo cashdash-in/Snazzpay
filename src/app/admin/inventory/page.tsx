@@ -29,7 +29,8 @@ import {
     Info,
     Sparkles,
     Link as LinkIcon,
-    Copy
+    Copy,
+    PackagePlus
 } from 'lucide-react';
 import { getCollection, saveDocument, deleteDocument, addDocument } from '@/services/firestore';
 import { analyzeInventoryItem } from '@/ai/flows/inventory-analyzer';
@@ -83,6 +84,7 @@ export default function AdminInventoryPage() {
     const [sales, setSales] = useState<SaleTransaction[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [isRestocking, setIsRestocking] = useState(false);
     const [searchTerm, setSearchQuery] = useState('');
     const [isMounted, setIsMounted] = useState(false);
     const [todayTimestamp, setTodayTimestamp] = useState<number | null>(null);
@@ -135,7 +137,6 @@ export default function AdminInventoryPage() {
     const handleScanSuccess = useCallback((code: string) => {
         let lookupId = code.toUpperCase().trim();
         
-        // Handle scanned links by extracting ID
         if (code.includes('?id=')) {
             const url = new URL(code);
             const idFromUrl = url.searchParams.get('id');
@@ -207,9 +208,54 @@ export default function AdminInventoryPage() {
         reader.readAsDataURL(file);
     }, [toast]);
 
+    const processRestockImage = useCallback(async (file: File) => {
+        setIsRestocking(true);
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            const base64 = event.target?.result as string;
+            try {
+                const aiData = await analyzeInventoryItem({ imageDataUri: base64 });
+                
+                // Try to find a match in existing inventory (case insensitive)
+                const match = inventory.find(i => 
+                    i.name.toLowerCase() === aiData.productName.toLowerCase() ||
+                    aiData.productName.toLowerCase().includes(i.name.toLowerCase()) ||
+                    i.name.toLowerCase().includes(aiData.productName.toLowerCase())
+                );
+
+                if (match) {
+                    const newQty = match.quantity + 1;
+                    await updateItem(match.id, { quantity: newQty });
+                    toast({ 
+                        title: 'Stock Updated!', 
+                        description: `Identified ${match.name}. Quantity increased to ${newQty}.`,
+                        className: "bg-green-50 border-green-200"
+                    });
+                } else {
+                    toast({ 
+                        variant: 'destructive', 
+                        title: 'Match Not Found', 
+                        description: `Identified as "${aiData.productName}", but no matching product exists in your stock. Use 'Capture New' to add it.` 
+                    });
+                }
+            } catch (err) {
+                toast({ variant: 'destructive', title: 'Analysis Error', description: 'Could not identify product from image.' });
+            } finally {
+                setIsRestocking(false);
+            }
+        };
+        reader.readAsDataURL(file);
+    }, [inventory, toast]);
+
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) processImage(file);
+        e.target.value = '';
+    };
+
+    const handleRestockUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) processRestockImage(file);
         e.target.value = '';
     };
 
@@ -300,18 +346,23 @@ export default function AdminInventoryPage() {
                 </div>
 
                 <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-primary/5">
-                    <div className="relative w-full md:w-80">
+                    <div className="relative w-full md:w-64">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input placeholder="Search name or Marker ID..." className="pl-9" value={searchTerm} onChange={e => setSearchQuery(e.target.value)} />
+                        <Input placeholder="Search stock..." className="pl-9" value={searchTerm} onChange={e => setSearchQuery(e.target.value)} />
                     </div>
                     <div className="flex flex-wrap gap-2 w-full md:w-auto">
                         <Button onClick={() => setIsScanning(true)} variant="default" className="flex-1">
                             <Scan className="mr-2 h-5 w-5" /> Scan to Sell
                         </Button>
-                        <Button onClick={() => document.getElementById('camera-input')?.click()} disabled={isAnalyzing} className="flex-1">
+                        <Button onClick={() => document.getElementById('camera-restock-input')?.click()} disabled={isRestocking} variant="secondary" className="flex-1">
+                            {isRestocking ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <PackagePlus className="mr-2 h-4 w-4"/>} Capture to Update
+                        </Button>
+                        <Button onClick={() => document.getElementById('camera-new-input')?.click()} disabled={isAnalyzing} className="flex-1">
                             {isAnalyzing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Camera className="mr-2 h-4 w-4"/>} Capture New
                         </Button>
-                        <input type="file" id="camera-input" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                        
+                        <input type="file" id="camera-restock-input" accept="image/*" className="hidden" onChange={handleRestockUpload} />
+                        <input type="file" id="camera-new-input" accept="image/*" className="hidden" onChange={handleImageUpload} />
                     </div>
                 </div>
 

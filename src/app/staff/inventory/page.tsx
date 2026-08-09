@@ -10,7 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { 
     Loader2, Camera, Plus, Minus, Search, DollarSign, 
     Scan, ShoppingBag, CheckCircle2, MessageSquare, LogOut, 
-    Sparkles, Info, TrendingUp, QrCode, Copy
+    Sparkles, Info, TrendingUp, QrCode, Copy, PackagePlus
 } from 'lucide-react';
 import { getCollection, saveDocument, addDocument } from '@/services/firestore';
 import { analyzeInventoryItem } from '@/ai/flows/inventory-analyzer';
@@ -62,6 +62,7 @@ export default function StaffInventoryPage() {
     const [inventory, setInventory] = useState<InventoryItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [isRestocking, setIsRestocking] = useState(false);
     const [searchTerm, setSearchQuery] = useState('');
     const [isMounted, setIsMounted] = useState(false);
 
@@ -180,6 +181,48 @@ export default function StaffInventoryPage() {
         e.target.value = '';
     };
 
+    const handleRestockUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        
+        setIsRestocking(true);
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            const base64 = event.target?.result as string;
+            try {
+                const aiData = await analyzeInventoryItem({ imageDataUri: base64 });
+                
+                const match = inventory.find(i => 
+                    i.name.toLowerCase() === aiData.productName.toLowerCase() ||
+                    aiData.productName.toLowerCase().includes(i.name.toLowerCase()) ||
+                    i.name.toLowerCase().includes(aiData.productName.toLowerCase())
+                );
+
+                if (match) {
+                    const newQty = match.quantity + 1;
+                    await updateItem(match.id, { quantity: newQty });
+                    toast({ 
+                        title: 'Stock Updated!', 
+                        description: `Restocked "${match.name}". New quantity: ${newQty}`,
+                        className: "bg-green-50 border-green-200"
+                    });
+                } else {
+                    toast({ 
+                        variant: 'destructive', 
+                        title: 'Product Not Found', 
+                        description: `Identified as "${aiData.productName}", but it doesn't match any existing stock. Use 'Capture New' instead.` 
+                    });
+                }
+            } catch (err) {
+                toast({ variant: 'destructive', title: 'AI Error', description: 'Could not analyze product.' });
+            } finally {
+                setIsRestocking(false);
+                e.target.value = '';
+            }
+        };
+        reader.readAsDataURL(file);
+    };
+
     const updateItem = async (id: string, updates: Partial<InventoryItem>) => {
         const updated = inventory.map(item => item.id === id ? { ...item, ...updates, lastUpdated: new Date().toISOString() } : item);
         setInventory(updated);
@@ -221,8 +264,8 @@ export default function StaffInventoryPage() {
     };
 
     const filteredInventory = inventory.filter(i => 
-        i.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        i.id.toLowerCase().includes(searchTerm.toLowerCase())
+        (i.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+        (i.id || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     if (!isMounted) return null;
@@ -243,15 +286,21 @@ export default function StaffInventoryPage() {
             </header>
 
             <main className="flex-1 p-4 md:p-8 space-y-6 max-w-7xl mx-auto w-full">
-                <div className="grid grid-cols-2 gap-4">
-                    <Button onClick={() => setIsScanning(true)} size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <Button onClick={() => setIsScanning(true)} size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg md:col-span-1">
                         <Scan className="h-8 w-8" />
                         <span className="font-bold uppercase text-xs">Scan to Sell</span>
                     </Button>
-                    <Button onClick={() => document.getElementById('staff-camera-input')?.click()} variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg border-2 border-primary/20 bg-white">
+                    <Button onClick={() => document.getElementById('restock-camera')?.click()} variant="secondary" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg md:col-span-1 bg-white border-2 border-dashed border-primary/30 text-primary hover:bg-primary/5">
+                        {isRestocking ? <Loader2 className="h-8 w-8 animate-spin" /> : <PackagePlus className="h-8 w-8" />}
+                        <span className="font-bold uppercase text-xs">Capture to Update</span>
+                    </Button>
+                    <Button onClick={() => document.getElementById('staff-camera-input')?.click()} variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg border-2 border-primary/20 bg-white md:col-span-1">
                         {isAnalyzing ? <Loader2 className="h-8 w-8 animate-spin text-primary" /> : <Camera className="h-8 w-8 text-primary" />}
                         <span className="font-bold uppercase text-xs text-primary">Capture New</span>
                     </Button>
+                    
+                    <input type="file" id="restock-camera" accept="image/*" className="hidden" onChange={handleRestockUpload} />
                     <input type="file" id="staff-camera-input" accept="image/*" className="hidden" onChange={handleImageUpload} />
                 </div>
 
@@ -350,19 +399,19 @@ export default function StaffInventoryPage() {
                         <Button onClick={handleSale} className="w-full h-12 text-lg font-bold rounded-2xl">Confirm Sale & Update Stock</Button>
                     </div>
                 </DialogContent>
-            </Dialog>
 
-            <Dialog open={showPostSaleDialog} onOpenChange={setShowPostSaleDialog}>
-                <DialogContent className="max-w-sm p-8 text-center rounded-[32px] bg-white">
-                    <div className="flex flex-col items-center gap-6">
-                        <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center"><CheckCircle2 className="h-10 w-10"/></div>
-                        <div><h3 className="text-xl font-bold uppercase">Sale Confirmed!</h3><p className="text-sm text-muted-foreground">Stock updated successfully.</p></div>
-                        <div className="w-full space-y-2">
-                            {lastProcessedSale?.customerPhone && <Button onClick={sendWhatsAppInvoice} className="w-full h-12 bg-green-600 hover:bg-green-700 rounded-2xl font-bold"><MessageSquare className="mr-2 h-4 w-4" /> Send Invoice</Button>}
-                            <Button variant="outline" className="w-full h-12 rounded-2xl" onClick={() => setShowPostSaleDialog(false)}>Done</Button>
+                <Dialog open={showPostSaleDialog} onOpenChange={setShowPostSaleDialog}>
+                    <DialogContent className="max-w-sm p-8 text-center rounded-[32px] bg-white">
+                        <div className="flex flex-col items-center gap-6">
+                            <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center"><CheckCircle2 className="h-10 w-10"/></div>
+                            <div><h3 className="text-xl font-bold uppercase">Sale Confirmed!</h3><p className="text-sm text-muted-foreground">Stock updated successfully.</p></div>
+                            <div className="w-full space-y-2">
+                                {lastProcessedSale?.customerPhone && <Button onClick={sendWhatsAppInvoice} className="w-full h-12 bg-green-600 hover:bg-green-700 rounded-2xl font-bold"><MessageSquare className="mr-2 h-4 w-4" /> Send Invoice</Button>}
+                                <Button variant="outline" className="w-full h-12 rounded-2xl" onClick={() => setShowPostSaleDialog(false)}>Done</Button>
+                            </div>
                         </div>
-                    </div>
-                </DialogContent>
+                    </DialogContent>
+                </Dialog>
             </Dialog>
         </div>
     );
