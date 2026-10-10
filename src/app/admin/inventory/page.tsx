@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { AppShell } from '@/components/layout/app-shell';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -131,7 +131,7 @@ export default function AdminInventoryPage() {
         return new Promise((resolve) => {
             const reader = new FileReader();
             reader.onload = (e) => {
-                const img = document.createElement('img');
+                const img = new (window as any).Image();
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
                     let { width, height } = img;
@@ -174,9 +174,13 @@ export default function AdminInventoryPage() {
         let lookupId = code.toUpperCase().trim();
         
         if (code.includes('?id=')) {
-            const url = new URL(code);
-            const idFromUrl = url.searchParams.get('id');
-            if (idFromUrl) lookupId = idFromUrl.toUpperCase();
+            try {
+                const url = new URL(code);
+                const idFromUrl = url.searchParams.get('id');
+                if (idFromUrl) lookupId = idFromUrl.toUpperCase();
+            } catch (e) {
+                // Not a URL, use raw code
+            }
         }
 
         const cleanLookupId = lookupId.replace(/[^A-Z0-9]/g, '');
@@ -212,7 +216,6 @@ export default function AdminInventoryPage() {
     const processImage = useCallback(async (file: File) => {
         setIsAnalyzing(true);
         try {
-            // Compress image BEFORE setting for fallback or AI
             const compressedUri = await resizeImage(file);
             setFailedImageUri(compressedUri);
             
@@ -280,10 +283,22 @@ export default function AdminInventoryPage() {
             setFailedImageUri(null);
         } catch (e: any) {
             console.error("Manual Save Error:", e);
-            toast({ variant: 'destructive', title: 'Listing Failed', description: 'Could not save to database. Photo might be too large.' });
+            toast({ variant: 'destructive', title: 'Listing Failed', description: 'Could not save to database.' });
         } finally {
             setIsAnalyzing(false);
         }
+    };
+
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) processImage(file);
+        e.target.value = '';
+    };
+
+    const handleRestockUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) processRestockImage(file);
+        e.target.value = '';
     };
 
     const processRestockImage = useCallback(async (file: File) => {
@@ -311,7 +326,7 @@ export default function AdminInventoryPage() {
                     toast({ 
                         variant: 'destructive', 
                         title: 'Match Not Found', 
-                        description: `Identified as "${aiData.productName}", but no matching product exists in your stock.` 
+                        description: `Identified as "${aiData.productName}", but no matching product exists.` 
                     });
                 }
             } catch (err) {
@@ -323,18 +338,6 @@ export default function AdminInventoryPage() {
             setIsRestocking(false);
         }
     }, [inventory, toast]);
-
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) processImage(file);
-        e.target.value = '';
-    };
-
-    const handleRestockUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) processRestockImage(file);
-        e.target.value = '';
-    };
 
     const updateItem = async (id: string, updates: Partial<InventoryItem>) => {
         const updated = inventory.map(item => item.id === id ? { ...item, ...updates, lastUpdated: new Date().toISOString() } : item);
@@ -467,7 +470,7 @@ export default function AdminInventoryPage() {
                                                 <TableCell>
                                                     <div className="flex flex-col items-center gap-1">
                                                         <div className="relative w-10 h-10 rounded border overflow-hidden bg-white flex items-center justify-center">
-                                                           {item.imageDataUri ? <Image src={item.imageDataUri} fill alt="p" className="object-cover" /> : <QrCode className="h-6 w-6 text-slate-300" />}
+                                                           {item.imageDataUri ? <Image src={item.imageDataUri} fill alt="p" className="object-cover" unoptimized /> : <QrCode className="h-6 w-6 text-slate-300" />}
                                                         </div>
                                                         <span className="text-[10px] font-mono font-bold text-primary">{item.id.substring(0,8)}</span>
                                                     </div>
@@ -483,7 +486,7 @@ export default function AdminInventoryPage() {
                                                             <DialogContent className="max-w-3xl rounded-[32px] p-0 overflow-hidden bg-white border-none">
                                                                 <div className="grid grid-cols-1 md:grid-cols-2">
                                                                     <div className="relative aspect-square">
-                                                                        {selectedDetailItem?.imageDataUri && <Image src={selectedDetailItem.imageDataUri} fill alt="p" className="object-cover" />}
+                                                                        {selectedDetailItem?.imageDataUri && <Image src={selectedDetailItem.imageDataUri} fill alt="p" className="object-cover" unoptimized />}
                                                                         <Badge className="absolute top-4 left-4 bg-primary text-white italic">{selectedDetailItem?.category}</Badge>
                                                                     </div>
                                                                     <div className="p-8 space-y-6">

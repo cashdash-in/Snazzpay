@@ -19,7 +19,7 @@ import { v4 as uuidv4 } from 'uuid';
 import Image from 'next/image';
 import { format, startOfDay } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { cn, sanitizePhoneNumber } from "@/lib/utils";
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { useAuth } from '@/hooks/use-auth';
@@ -103,7 +103,7 @@ export default function StaffInventoryPage() {
         return new Promise((resolve) => {
             const reader = new FileReader();
             reader.onload = (e) => {
-                const img = document.createElement('img');
+                const img = new (window as any).Image();
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
                     let { width, height } = img;
@@ -146,9 +146,11 @@ export default function StaffInventoryPage() {
         let lookupId = code.toUpperCase().trim();
         
         if (code.includes('?id=')) {
-            const url = new URL(code);
-            const idFromUrl = url.searchParams.get('id');
-            if (idFromUrl) lookupId = idFromUrl.toUpperCase();
+            try {
+                const url = new URL(code);
+                const idFromUrl = url.searchParams.get('id');
+                if (idFromUrl) lookupId = idFromUrl.toUpperCase();
+            } catch (e) {}
         }
 
         const cleanLookupId = lookupId.replace(/[^A-Z0-9]/g, '');
@@ -256,7 +258,7 @@ export default function StaffInventoryPage() {
             setFailedImageUri(null);
         } catch (e: any) {
             console.error("Manual Save Error:", e);
-            toast({ variant: 'destructive', title: 'Listing Failed', description: 'Photo might be too large for the database.' });
+            toast({ variant: 'destructive', title: 'Listing Failed' });
         } finally {
             setIsAnalyzing(false);
         }
@@ -409,7 +411,7 @@ export default function StaffInventoryPage() {
                                 ) : filteredInventory.map(item => (
                                     <TableRow key={item.id} className={cn(item.quantity === 0 && "bg-red-50/50")}>
                                         <TableCell>
-                                            <div className="relative w-12 h-12 rounded-xl overflow-hidden border bg-white"><Image src={item.imageDataUri} fill alt="p" className="object-cover" /></div>
+                                            <div className="relative w-12 h-12 rounded-xl overflow-hidden border bg-white"><Image src={item.imageDataUri} fill alt="p" className="object-cover" unoptimized /></div>
                                         </TableCell>
                                         <TableCell>
                                             <div className="space-y-1">
@@ -456,7 +458,7 @@ export default function StaffInventoryPage() {
             <Dialog open={!!selectedDetailItem} onOpenChange={open => !open && setSelectedDetailItem(null)}>
                 <DialogContent className="max-w-xl rounded-[32px] overflow-hidden p-0 border-none bg-white">
                     <div className="relative aspect-square w-full">
-                        {selectedDetailItem?.imageDataUri && <Image src={selectedDetailItem.imageDataUri} fill className="object-cover" alt="p" />}
+                        {selectedDetailItem?.imageDataUri && <Image src={selectedDetailItem.imageDataUri} fill className="object-cover" alt="p" unoptimized />}
                         <Badge className="absolute top-6 left-6 bg-primary/90 text-white font-black italic">{selectedDetailItem?.category}</Badge>
                     </div>
                     <div className="p-8 space-y-6">
