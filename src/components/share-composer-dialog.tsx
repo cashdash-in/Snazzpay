@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -54,14 +53,20 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
     const [logoDataUri, setLogoDataUri] = useState<string | null>(null);
     const [showBrandText, setShowBrandText] = useState(true);
     const [showWatermark, setShowWatermark] = useState(true);
+    const [mounted, setMounted] = useState(false);
+    const [origin, setOrigin] = useState('');
+
+    useEffect(() => {
+        setMounted(true);
+        setOrigin(window.location.origin);
+    }, []);
 
     const productPrice = useMemo(() => product.price || product.costPrice || 0, [product]);
 
     const getCatalogueLink = () => {
-        const currentUrl = typeof window !== 'undefined' ? window.location.origin : '';
+        if (!mounted) return '';
         const params = new URLSearchParams();
         params.set('id', product.id);
-        const role = getCookie('userRole');
         
         if (user) {
             params.set('sellerId', user.uid);
@@ -72,7 +77,7 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
             if (sellerId) params.set('sellerId', sellerId);
             if (sellerName) params.set('sellerName', sellerName);
         }
-        return `${currentUrl}/catalogue?${params.toString()}`;
+        return `${origin}/catalogue?${params.toString()}`;
     };
 
     const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -325,4 +330,3 @@ export function ShareComposerDialog({ product }: ShareComposerDialogProps) {
         </DialogContent>
     );
 }
-

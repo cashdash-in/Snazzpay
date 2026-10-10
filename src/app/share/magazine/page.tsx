@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -26,6 +25,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SocialAdCard } from '@/components/social-ad-card';
+import { cn } from "@/lib/utils";
 
 type Magazine = {
     id: string;
@@ -53,15 +53,20 @@ export default function ShareMagazinePage() {
     const [discount, setDiscount] = useState<number>(0);
     const [logoDataUri, setLogoDataUri] = useState<string | null>(null);
     
+    // Hydration stability
+    const [mounted, setMounted] = useState(false);
+    const [origin, setOrigin] = useState('');
+    
     // Social Studio States
     const [globalAdHeadline, setGlobalAdHeadline] = useState('Exclusive Limited Offer');
     const [showWatermark, setShowWatermark] = useState(true);
     const [showBrandText, setShowBrandText] = useState(true);
     const [generatedAdUrls, setGeneratedAdUrls] = useState<Record<string, string>>({});
 
-    const userRole = useMemo(() => getCookie('userRole'), []);
-
     useEffect(() => {
+        setMounted(true);
+        setOrigin(window.location.origin);
+
         async function loadData() {
             if (!user) {
                 setIsLoading(false);
@@ -126,7 +131,7 @@ export default function ShareMagazinePage() {
             vendorTitle: vendorTitle || undefined
         };
         await saveDocument('smart_magazines', newMagazine, finalId);
-        setMagazineLink(`${window.location.origin}/collection/${finalId}${discount > 0 ? `?discount=${discount}` : ''}`);
+        setMagazineLink(`${origin}/collection/${finalId}${discount > 0 ? `?discount=${discount}` : ''}`);
         toast({ title: 'Collection Saved & Linked!' });
     };
 
@@ -145,6 +150,14 @@ export default function ShareMagazinePage() {
         const msg = `Check out our new ${magazineTitle} here: ${magazineLink}`;
         window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
     };
+
+    if (!mounted) {
+        return (
+            <AppShell title="Marketing & Creative Studio">
+                <div className="flex justify-center p-20"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>
+            </AppShell>
+        );
+    }
 
     return (
         <AppShell title="Marketing & Creative Studio">
@@ -269,7 +282,7 @@ export default function ShareMagazinePage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
                             {products.filter(p => selectedProductIds.includes(p.id)).map(p => {
                                 const price = (p as any).price || (p as any).costPrice;
-                                const qrLink = `${window.location.origin}/catalogue?id=${p.id}&sellerId=${user?.uid}&sellerName=${encodeURIComponent(user?.displayName || 'Our Store')}`;
+                                const qrLink = `${origin}/catalogue?id=${p.id}&sellerId=${user?.uid}&sellerName=${encodeURIComponent(user?.displayName || 'Our Store')}`;
                                 return (
                                     <div key={p.id} className="space-y-6 group">
                                         <SocialAdCard 
@@ -319,4 +332,3 @@ export default function ShareMagazinePage() {
         </AppShell>
     );
 }
-
