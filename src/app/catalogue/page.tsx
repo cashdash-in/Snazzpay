@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Suspense, useState, useEffect } from 'react';
@@ -65,7 +64,6 @@ const createNewShaktiCard = async (order: EditableOrder): Promise<ShaktiCardData
         const existingCards = await getCollection<ShaktiCardData>('shakti_cards');
         const cardExists = existingCards.find(card => card.customerPhone === sanitizedMobile);
         if (cardExists) {
-            console.log("Shakti Card already exists for this customer.");
             return cardExists;
         }
 
@@ -127,29 +125,12 @@ function CatalogueOrderPageContent() {
         script.async = true;
         document.body.appendChild(script);
 
-        // Track session start
         fetch('/api/track', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ event: 'magazineSessionStart' }),
             keepalive: true,
         });
-
-        const handleUnload = () => {
-             fetch('/api/track', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ event: 'sessionEnd', type: 'magazine' }),
-                keepalive: true,
-            });
-        };
-
-        window.addEventListener('beforeunload', handleUnload);
-
-        return () => {
-            window.removeEventListener('beforeunload', handleUnload);
-            handleUnload();
-        };
     }, []);
 
     useEffect(() => {
@@ -170,7 +151,6 @@ function CatalogueOrderPageContent() {
                 const { keyId } = await response.json();
                 setRazorpayKeyId(keyId);
 
-                // Fetch Seller/Vendor Logo if ID is provided
                 if (urlSellerId) {
                     const sellerData = await getDocument<any>('seller_users', urlSellerId);
                     if (sellerData?.logoDataUri) {
@@ -184,7 +164,7 @@ function CatalogueOrderPageContent() {
                 }
 
                 if (!productId) {
-                    toast({ variant: 'destructive', title: "Product not found" });
+                    setIsLoadingProduct(false);
                     return;
                 }
 
@@ -235,12 +215,9 @@ function CatalogueOrderPageContent() {
                         bestDiscount = productDiscount || vendorDiscount || collectionDiscount || null;
                     }
                     setAppliedDiscount(bestDiscount);
-                } else {
-                    toast({ variant: 'destructive', title: "Product not found" });
                 }
             } catch (e) {
                 console.error("Error fetching data:", e);
-                toast({ variant: 'destructive', title: "Error", description: "There was a problem loading the product or payment gateway." });
             } finally {
                 setIsLoadingProduct(false);
             }
@@ -269,15 +246,15 @@ function CatalogueOrderPageContent() {
         const { name, contact, address, pincode, email } = customerDetails;
         
         if (!name || !contact || !address || !pincode) {
-            toast({ variant: 'destructive', title: "Missing Details", description: "Please fill out your name, contact, address, and pincode." });
+            toast({ variant: 'destructive', title: "Missing Details", description: "Please fill out all details." });
             return;
         }
 
         setIsSubmitting(true);
-        const orderId = uuidv4();
+        const leadId = uuidv4();
 
         const orderData: EditableOrder = {
-            id: orderId,
+            id: leadId,
             orderId: '#SMRT-' + Math.floor(1000 + Math.random() * 9000),
             productId: product.productId,
             customerName: name, customerEmail: email, customerAddress: address, pincode, contactNo: contact,
@@ -288,45 +265,25 @@ function CatalogueOrderPageContent() {
             imageDataUris: product.imageDataUris,
         };
 
-        if ((paymentMethod === 'Secure COD' || paymentMethod === 'Prepaid') && appliedDiscount) {
-            orderData.discountPercentage = appliedDiscount.discount;
-            orderData.discountAmount = originalPrice - totalPrice;
-        }
-
         if (paymentMethod === 'Cash on Delivery') {
             orderData.paymentStatus = 'Pending';
             await saveDocument('orders', orderData, orderData.id);
-            toast({ title: 'Order Placed!', description: `Your Cash on Delivery order has been confirmed.` });
             setIsOrderComplete(true);
             setIsSubmitting(false);
             return;
         }
         
         if (paymentMethod === 'Secure COD') {
-            await saveDocument('leads', orderData, orderData.id);
+            await saveDocument('leads', orderData, leadId);
             const secureCodUrl = new URL(`${window.location.origin}/secure-cod`);
-            
-            secureCodUrl.searchParams.set('amount', totalPrice.toString());
-            secureCodUrl.searchParams.set('name', product.title);
-            secureCodUrl.searchParams.set('order_id', orderData.id); // pass the new lead ID
-            if (product.imageDataUris && product.imageDataUris.length > 0) {
-              secureCodUrl.searchParams.set('image', product.imageDataUris[0]);
-            }
-            if(selectedSize) secureCodUrl.searchParams.set('sizes', selectedSize);
-            if(selectedColor) secureCodUrl.searchParams.set('colors', selectedColor);
-
-            Object.entries(customerDetails).forEach(([key, value]) => {
-                if (value) {
-                    secureCodUrl.searchParams.set(`customer${key.charAt(0).toUpperCase() + key.slice(1)}`, value);
-                }
-            });
+            secureCodUrl.searchParams.set('order_id', leadId);
             router.push(secureCodUrl.toString());
             return;
         }
 
         if (paymentMethod === 'Prepaid') {
             if (!razorpayKeyId) {
-                toast({ variant: 'destructive', title: "Payment Gateway Error", description: "Could not initialize payment. Please try again later." });
+                toast({ variant: 'destructive', title: "Payment Error" });
                 setIsSubmitting(false);
                 return;
             }
@@ -345,27 +302,13 @@ function CatalogueOrderPageContent() {
                     handler: async (response: any) => {
                         const paidOrder: EditableOrder = { ...orderData, paymentStatus: 'Paid' };
                         await saveDocument('orders', paidOrder, paidOrder.id);
-                        
-                        let recipientEmail = 'customer.service@snazzify.co.in';
-                        if (product.sellerId) {
-                            const seller = await getDocument<SellerUser>('seller_users', product.sellerId);
-                            if (seller?.email) recipientEmail = seller.email;
-                        }
-                        await fetch('/api/send-notification', {
-                            method: 'POST', headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ type: 'internal_alert', recipientEmail, subject: `✅ New PREPAID Order from ${name}`, body: `<p>A new prepaid order for ${product.title} (₹${totalPrice.toFixed(2)}) has been placed.</p>` })
-                        });
-
                         const card = await createNewShaktiCard(paidOrder);
                         if (card) setNewlyCreatedCard(card);
-                        
-                        toast({ title: "Payment Successful!", description: `Your payment is confirmed.` });
                         setIsOrderComplete(true);
                     },
                     modal: { 
                         ondismiss: async () => {
                             await saveDocument('leads', orderData, orderData.id);
-                            toast({ variant: 'destructive', title: 'Payment Incomplete', description: 'Your order has been saved as a lead. The seller may contact you to complete the purchase.' });
                             setIsSubmitting(false);
                         }
                     },
@@ -392,16 +335,14 @@ function CatalogueOrderPageContent() {
                     <CardHeader>
                          <CheckCircle className="mx-auto h-12 w-12 text-green-500" />
                         <CardTitle>Thank You!</CardTitle>
-                        <CardDescription>{paymentMethod === 'Cash on Delivery' ? 'Your Order Has Been Placed' : 'Your Order Request Has Been Sent'}</CardDescription>
+                        <CardDescription>Your Order Has Been Placed</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <p className="text-muted-foreground">{paymentMethod === 'Cash on Delivery' ? 'You will receive a confirmation call or message shortly.' : 'The seller has received your request and will contact you shortly to confirm the order and arrange payment.'}</p>
+                        <p className="text-muted-foreground">The seller has been notified and will process your order.</p>
                          {newlyCreatedCard && (
                             <div className="pt-4 border-t">
                                 <h4 className="font-semibold mb-2">Your Shakti Card is Ready!</h4>
-                                <div className="flex justify-center">
-                                    <ShaktiCard card={newlyCreatedCard} />
-                                </div>
+                                <div className="flex justify-center"><ShaktiCard card={newlyCreatedCard} /></div>
                             </div>
                         )}
                     </CardContent>
@@ -409,19 +350,6 @@ function CatalogueOrderPageContent() {
                          <a href={returnUrl} className="w-full"><Button className="w-full" variant="outline">Continue Shopping</Button></a>
                     </CardFooter>
                  </Card>
-            </div>
-        )
-    }
-    
-    if (!product) {
-         return (
-             <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
-                <Card className="w-full max-w-2xl shadow-lg text-center">
-                    <CardHeader>
-                        <CardTitle>Product Not Available</CardTitle>
-                        <CardDescription>The product you are looking for is no longer available or the link is invalid.</CardDescription>
-                    </CardHeader>
-                </Card>
             </div>
         )
     }
@@ -434,12 +362,12 @@ function CatalogueOrderPageContent() {
                         {sellerLogo && (
                             <div className="flex justify-center mb-4">
                                 <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 border-white shadow-md bg-white">
-                                    <Image src={sellerLogo} alt="Brand Logo" fill className="object-contain p-1" />
+                                    <Image src={sellerLogo} alt="Brand Logo" fill className="object-contain p-1" unoptimized />
                                 </div>
                             </div>
                         )}
-                        <CardTitle className="text-3xl font-bold">{product.title}</CardTitle>
-                        <CardDescription>Order from {product.sellerName}</CardDescription>
+                        <CardTitle className="text-3xl font-bold">{product?.title}</CardTitle>
+                        <CardDescription>Order from {product?.sellerName}</CardDescription>
                          {appliedDiscount && (
                             <div className="!mt-4">
                                 <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
@@ -452,19 +380,21 @@ function CatalogueOrderPageContent() {
                         <div className="space-y-4">
                              <Carousel className="w-full rounded-lg shadow-md">
                                 <CarouselContent>
-                                    {product.imageDataUris.map((uri, index) => (
+                                    {product?.imageDataUris.map((uri, index) => (
                                         <CarouselItem key={index}>
-                                            <Image
-                                                src={uri}
-                                                alt={`${product.title} image ${index + 1}`}
-                                                width={500}
-                                                height={500}
-                                                className="object-cover w-full aspect-square rounded-lg"
-                                            />
+                                            <div className="relative w-full aspect-square">
+                                                <Image
+                                                    src={uri}
+                                                    alt={`${product?.title} image ${index + 1}`}
+                                                    fill
+                                                    className="object-cover rounded-lg"
+                                                    unoptimized
+                                                />
+                                            </div>
                                         </CarouselItem>
                                     ))}
                                 </CarouselContent>
-                                {product.imageDataUris.length > 1 && (
+                                {product && product.imageDataUris.length > 1 && (
                                     <>
                                         <CarouselPrevious className="absolute left-2" />
                                         <CarouselNext className="absolute right-2" />
@@ -473,7 +403,7 @@ function CatalogueOrderPageContent() {
                             </Carousel>
                             <div>
                                 <h3 className="font-semibold text-lg">Product Description</h3>
-                                <p className="text-muted-foreground text-sm mt-1">{product.description}</p>
+                                <p className="text-muted-foreground text-sm mt-1">{product?.description}</p>
                             </div>
                         </div>
                         <div className="space-y-6">
@@ -524,37 +454,20 @@ function CatalogueOrderPageContent() {
                                 </div>
                                 <div className="space-y-3">
                                     <Label>Payment Method</Label>
-                                    {allowedPaymentMethods.length > 0 ? (
-                                        <RadioGroup value={paymentMethod} onValueChange={(value: any) => setPaymentMethod(value)} className="grid grid-cols-2 gap-4">
-                                            {allowedPaymentMethods.includes('Secure COD') && (
-                                                <Label htmlFor="r-scod" className={cn("flex flex-col items-center justify-center rounded-md border-2 p-4 cursor-pointer", paymentMethod === 'Secure COD' && 'border-primary')}>
-                                                    <RadioGroupItem value="Secure COD" id="r-scod" className="sr-only"/>
-                                                    <span className="font-bold">Secure COD</span>
-                                                    <span className={cn("text-sm text-center", appliedDiscount ? 'text-green-600' : 'text-muted-foreground')}>
-                                                        {appliedDiscount ? `${appliedDiscount.discount}% discount!` : 'Pay online now, safely.'}
-                                                    </span>
-                                                </Label>
-                                            )}
-                                            {allowedPaymentMethods.includes('Cash on Delivery') && (
-                                                <Label htmlFor="r-cod" className={cn("flex flex-col items-center justify-center rounded-md border-2 p-4 cursor-pointer", paymentMethod === 'Cash on Delivery' && 'border-primary')}>
-                                                    <RadioGroupItem value="Cash on Delivery" id="r-cod" className="sr-only"/>
-                                                    <span className="font-bold">Cash on Delivery</span>
-                                                    <span className="text-sm text-muted-foreground text-center">Pay cash to the courier.</span>
-                                                </Label>
-                                            )}
-                                            {allowedPaymentMethods.includes('Prepaid') && (
-                                                <Label htmlFor="r-prepaid" className={cn("flex flex-col items-center justify-center rounded-md border-2 p-4 cursor-pointer", paymentMethod === 'Prepaid' && 'border-primary')}>
-                                                    <RadioGroupItem value="Prepaid" id="r-prepaid" className="sr-only"/>
-                                                    <span className="font-bold">Prepaid</span>
-                                                    <span className="text-sm text-muted-foreground text-center">Pay full amount now.</span>
-                                                </Label>
-                                            )}
-                                        </RadioGroup>
-                                    ) : (
-                                        <div className="p-4 border rounded-md bg-destructive/10 text-destructive text-center">
-                                            <p className="font-semibold">No payment methods available.</p>
-                                        </div>
-                                    )}
+                                    <RadioGroup value={paymentMethod} onValueChange={(value: any) => setPaymentMethod(value)} className="grid grid-cols-2 gap-4">
+                                        <Label htmlFor="r-scod" className={cn("flex flex-col items-center justify-center rounded-md border-2 p-4 cursor-pointer", paymentMethod === 'Secure COD' && 'border-primary')}>
+                                            <RadioGroupItem value="Secure COD" id="r-scod" className="sr-only"/>
+                                            <span className="font-bold text-xs">Secure COD</span>
+                                            <span className={cn("text-[10px] text-center", appliedDiscount ? 'text-green-600' : 'text-muted-foreground')}>
+                                                {appliedDiscount ? `${appliedDiscount.discount}% OFF!` : 'Pay online, safely.'}
+                                            </span>
+                                        </Label>
+                                        <Label htmlFor="r-cod" className={cn("flex flex-col items-center justify-center rounded-md border-2 p-4 cursor-pointer", paymentMethod === 'Cash on Delivery' && 'border-primary')}>
+                                            <RadioGroupItem value="Cash on Delivery" id="r-cod" className="sr-only"/>
+                                            <span className="font-bold text-xs">Cash on Delivery</span>
+                                            <span className="text-[10px] text-muted-foreground text-center">Standard COD</span>
+                                        </Label>
+                                    </RadioGroup>
                                 </div>
                                 <div className="text-3xl font-bold flex justify-between items-center pt-2 border-t">
                                     <span>Total:</span>
@@ -564,11 +477,10 @@ function CatalogueOrderPageContent() {
                                     </div>
                                 </div>
                             </div>
-                            
                         </div>
                     </CardContent>
                     <CardFooter>
-                        <Button type="submit" className="w-full" size="lg" disabled={isSubmitting || allowedPaymentMethods.length === 0}>
+                        <Button type="submit" className="w-full" size="lg" disabled={isSubmitting}>
                             {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShoppingCart className="mr-2 h-5 w-5" />}
                             Place Order Request
                         </Button>
