@@ -402,6 +402,7 @@ export function SecureCodPaymentForm() {
                                             width={150}
                                             height={150}
                                             className="rounded-lg object-contain bg-white"
+                                            unoptimized
                                         />
                                     </div>
                                 )}
