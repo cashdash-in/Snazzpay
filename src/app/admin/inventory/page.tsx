@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { AppShell } from '@/components/layout/app-shell';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,33 +13,21 @@ import {
     Camera, 
     Plus, 
     Minus, 
-    Trash2, 
-    Package, 
     Search, 
-    DollarSign, 
-    History,
-    QrCode,
     Scan,
-    MessageSquare,
-    CheckCircle2,
-    Printer,
-    TrendingUp,
-    Info,
-    Sparkles,
-    Copy,
     PackagePlus,
     AlertTriangle,
-    X
+    Copy,
+    Info,
+    DollarSign
 } from 'lucide-react';
-import { getCollection, saveDocument, deleteDocument, addDocument } from '@/services/firestore';
+import { getCollection, saveDocument } from '@/services/firestore';
 import { analyzeInventoryItem } from '@/ai/flows/inventory-analyzer';
 import { v4 as uuidv4 } from 'uuid';
 import Image from 'next/image';
-import { format, startOfDay } from 'date-fns';
-import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { cn, sanitizePhoneNumber } from "@/lib/utils";
+import { startOfDay } from 'date-fns';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { cn } from "@/lib/utils";
 
 interface CompetitorInfo {
     sellerName: string;
@@ -74,7 +62,7 @@ interface SaleTransaction {
     customerPhone?: string;
 }
 
-const MAX_IMAGE_SIZE_PX = 600; // Aggressive compression for stability
+const MAX_IMAGE_SIZE_PX = 600;
 
 export default function AdminInventoryPage() {
     const { toast } = useToast();
@@ -82,19 +70,14 @@ export default function AdminInventoryPage() {
     const [sales, setSales] = useState<SaleTransaction[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
-    const [isRestocking, setIsRestocking] = useState(false);
     const [searchTerm, setSearchQuery] = useState('');
     const [isMounted, setIsMounted] = useState(false);
     const [todayTimestamp, setTodayTimestamp] = useState<number | null>(null);
-
-    const [isScanning, setIsScanning] = useState(false);
-    const [selectedItemForLabel, setSelectedItemForLabel] = useState<InventoryItem | null>(null);
 
     const [selectedSaleItem, setSelectedSaleItem] = useState<InventoryItem | null>(null);
     const [selectedDetailItem, setSelectedDetailItem] = useState<InventoryItem | null>(null);
     const [saleQty, setSaleQty] = useState(1);
     const [actualSellPrice, setSalePrice] = useState(0);
-    const [customerPhone, setCustomerPhone] = useState('');
 
     const [showNoAiDialog, setShowNoAiDialog] = useState(false);
     const [failedImageUri, setFailedImageUri] = useState<string | null>(null);
@@ -144,7 +127,7 @@ export default function AdminInventoryPage() {
                     canvas.height = height;
                     const ctx = canvas.getContext('2d');
                     ctx?.drawImage(img, 0, 0, width, height);
-                    resolve(canvas.toDataURL('image/jpeg', 0.6)); // High compression
+                    resolve(canvas.toDataURL('image/jpeg', 0.6));
                 };
                 img.src = e.target?.result as string;
             };
@@ -260,7 +243,6 @@ export default function AdminInventoryPage() {
                         <Input placeholder="Search..." className="pl-9" value={searchTerm} onChange={e => setSearchQuery(e.target.value)} />
                     </div>
                     <div className="flex gap-2">
-                        <Button onClick={() => setIsScanning(true)}><Scan className="mr-2 h-5 w-5" /> Scan to Sell</Button>
                         <Button onClick={() => document.getElementById('cam-in')?.click()} disabled={isAnalyzing}>
                              {isAnalyzing ? <Loader2 className="animate-spin mr-2 h-4 w-4"/> : <Camera className="mr-2 h-4 w-4"/>} Capture New
                         </Button>

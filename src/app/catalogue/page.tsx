@@ -17,8 +17,6 @@ import type { SellerProduct } from '../seller/ai-product-uploader/page';
 import type { ProductDrop } from '../vendor/product-drops/page';
 import { cn, sanitizePhoneNumber } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { format, addYears } from 'date-fns';
-import { ShaktiCard, ShaktiCardData } from '@/components/shakti-card';
 import {
   Carousel,
   CarouselContent,
@@ -53,7 +51,7 @@ type DiscountRule = {
     discount: number;
 };
 
-const MAX_TRYON_SIZE_PX = 512; // Optimized for reliability and server limits
+const MAX_TRYON_SIZE_PX = 448; // Forced aggressive resizing for Gemini reliability
 
 function CatalogueOrderPageContent() {
     const searchParams = useSearchParams();
@@ -157,7 +155,8 @@ function CatalogueOrderPageContent() {
                 canvas.height = height;
                 const ctx = canvas.getContext('2d');
                 ctx?.drawImage(img, 0, 0, width, height);
-                resolve(canvas.toDataURL('image/jpeg', 0.6));
+                // Lower quality to ensure extremely light payload
+                resolve(canvas.toDataURL('image/jpeg', 0.5));
             };
             img.onerror = reject;
             if (typeof fileOrUri === 'string') {
@@ -178,7 +177,7 @@ function CatalogueOrderPageContent() {
         setIsTryOnLoading(true);
         setTryOnResult(null);
         try {
-            // Resize User Selfie and Product Image to ensure payload < 1MB
+            // Resize User Selfie and Product Image to forced small size
             const [personUri, productUri] = await Promise.all([
                 resizeImage(file),
                 resizeImage(product.imageDataUris[0])
@@ -194,7 +193,7 @@ function CatalogueOrderPageContent() {
             toast({ title: "Magic Mirror Ready!", description: "AI has virtually dressed you in this item." });
         } catch (err: any) {
             console.error("Try-On Error:", err);
-            toast({ variant: 'destructive', title: "Try-On Failed", description: "AI encountered an issue. Please try a clearer photo." });
+            toast({ variant: 'destructive', title: "Try-On Failed", description: err.message });
         } finally {
             setIsTryOnLoading(false);
             if (e.target) e.target.value = ''; // Reset input
