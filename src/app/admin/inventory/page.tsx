@@ -306,13 +306,13 @@ export default function AdminInventoryPage() {
                 </Dialog>
 
                 <Dialog open={showNoAiDialog} onOpenChange={setShowNoAiDialog}>
-                    <DialogContent className="max-w-md text-center">
+                    <DialogContent className="max-w-md text-center border-none rounded-[32px]">
                         <AlertTriangle className="mx-auto h-12 w-12 text-amber-500 mb-4" />
-                        <h3 className="text-xl font-bold">No Analytics Found</h3>
-                        <p className="text-sm text-muted-foreground mt-2">AI couldn't identify this product. Add it manually?</p>
+                        <h3 className="text-xl font-bold uppercase italic tracking-tighter">No Analytics Found</h3>
+                        <p className="text-sm text-muted-foreground mt-2">AI couldn't identify this product. Add it manually to your stock list?</p>
                         <DialogFooter className="mt-6">
-                            <Button variant="outline" onClick={() => { setShowNoAiDialog(false); setFailedImageUri(null); }}>Discard</Button>
-                            <Button onClick={handleManualAdd}>Add to List Anyway</Button>
+                            <Button variant="outline" className="rounded-2xl" onClick={() => { setShowNoAiDialog(false); setFailedImageUri(null); }}>Discard</Button>
+                            <Button className="rounded-2xl" onClick={handleManualAdd}>Add to List Anyway</Button>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
