@@ -4,12 +4,13 @@ import { Suspense, useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, ShieldCheck, ShoppingCart, User, Phone, Mail as MailIcon, Home, MapPin, CheckCircle, Percent, Sparkles, Camera, ImagePlus, RefreshCcw, Play } from 'lucide-react';
+import { Loader2, ShieldCheck, ShoppingCart, User, Phone, Mail as MailIcon, Home, MapPin, CheckCircle, Percent, Sparkles, Camera, ImagePlus, RefreshCcw, Play, Download, MessageSquare } from 'lucide-react';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Checkbox } from '@/components/ui/checkbox';
 import { saveDocument, getDocument, getCollection } from '@/services/firestore';
 import type { EditableOrder } from '../orders/page';
 import { v4 as uuidv4 } from 'uuid';
@@ -65,6 +66,7 @@ function CatalogueOrderPageContent() {
     // Try-On State
     const [isTryOnLoading, setIsTryOnLoading] = useState(false);
     const [tryOnResult, setTryOnResult] = useState<string | null>(null);
+    const [hasConsented, setHasConsented] = useState(false);
     const cameraInputRef = useRef<HTMLInputElement>(null);
     const galleryInputRef = useRef<HTMLInputElement>(null);
 
@@ -170,6 +172,10 @@ function CatalogueOrderPageContent() {
     };
 
     const handleTryOnUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!hasConsented) {
+            toast({ variant: 'destructive', title: "Consent Required", description: "Please accept the privacy terms first." });
+            return;
+        }
         const file = e.target.files?.[0];
         if (!file || !product) return;
 
@@ -196,6 +202,12 @@ function CatalogueOrderPageContent() {
             setIsTryOnLoading(false);
             if (e.target) e.target.value = '';
         }
+    };
+
+    const handleShareWhatsApp = () => {
+        if (!tryOnResult || !product) return;
+        const msg = `Hey! I just virtually tried on this ${product.title}! What do you think? Order link: ${window.location.href}`;
+        window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -257,7 +269,7 @@ function CatalogueOrderPageContent() {
                                 <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center text-center p-8 gap-4 z-20">
                                     <Sparkles className="h-16 w-16 text-primary animate-bounce" />
                                     <h3 className="text-2xl font-black italic uppercase tracking-tighter">AI Fitting Room...</h3>
-                                    <p className="text-sm text-muted-foreground animate-pulse max-w-xs">Replacing outfit & matching blouse. This takes about 15-20 seconds.</p>
+                                    <p className="text-sm text-muted-foreground animate-pulse max-w-xs">Experience a perfect virtual fit with traditional styling and accessories instantly.</p>
                                 </div>
                             )}
                         </div>
@@ -268,19 +280,57 @@ function CatalogueOrderPageContent() {
                         <div className="flex flex-col gap-6 relative z-10">
                             <div className="space-y-1">
                                 <h3 className="text-xl font-black italic uppercase flex items-center gap-2"><Sparkles className="h-5 w-5 text-purple-400" /> Magic Mirror</h3>
-                                <p className="text-xs text-slate-400">Completely replace your outfit with this saree and a matching blouse instantly.</p>
+                                <p className="text-xs text-slate-400">Experience a perfect virtual fit with traditional styling and accessories instantly.</p>
                             </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                {tryOnResult ? (
-                                    <Button onClick={() => setTryOnResult(null)} variant="outline" className="w-full border-white/20 text-white hover:bg-white/10 rounded-xl h-12 font-bold"><RefreshCcw className="mr-2 h-4 w-4" /> Try Again</Button>
-                                ) : (
-                                    <>
-                                        <Button onClick={() => cameraInputRef.current?.click()} className="bg-primary hover:bg-primary/90 text-white rounded-xl h-12 font-bold shadow-lg"><Camera className="mr-2 h-4 w-4" /> Take a Selfie</Button>
-                                        <Button onClick={() => galleryInputRef.current?.click()} variant="secondary" className="bg-white/10 hover:bg-white/20 text-white border-white/10 rounded-xl h-12 font-bold"><ImagePlus className="mr-2 h-4 w-4" /> From Gallery</Button>
-                                    </>
-                                )}
-                                <input ref={cameraInputRef} type="file" accept="image/*" capture="user" className="hidden" onChange={handleTryOnUpload} />
-                                <input ref={galleryInputRef} type="file" accept="image/*" className="hidden" onChange={handleTryOnUpload} />
+                            
+                            <div className="bg-white/5 border border-white/10 p-4 rounded-2xl space-y-4">
+                                <div className="flex items-start gap-3">
+                                    <Checkbox 
+                                        id="privacy-consent" 
+                                        checked={hasConsented} 
+                                        onCheckedChange={(val) => setHasConsented(val as boolean)}
+                                        className="mt-1 border-white/50"
+                                    />
+                                    <Label htmlFor="privacy-consent" className="text-[10px] leading-relaxed text-slate-300">
+                                        <span className="font-bold text-white uppercase block mb-1">Privacy & Terms</span>
+                                        We do not save any pics to our server. Your selfie is processed instantly and will be removed immediately after this session for personal data protection and security.
+                                    </Label>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    {tryOnResult ? (
+                                        <div className="col-span-full grid grid-cols-2 gap-3">
+                                            <Button onClick={() => setTryOnResult(null)} variant="outline" className="w-full border-white/20 text-white hover:bg-white/10 rounded-xl h-12 font-bold"><RefreshCcw className="mr-2 h-4 w-4" /> Try Again</Button>
+                                            <Button onClick={() => {
+                                                const link = document.createElement('a');
+                                                link.href = tryOnResult;
+                                                link.download = `my_look_${product?.id}.jpg`;
+                                                link.click();
+                                            }} className="bg-green-600 hover:bg-green-700 text-white rounded-xl h-12 font-bold"><Download className="mr-2 h-4 w-4" /> Save Look</Button>
+                                            <Button onClick={handleShareWhatsApp} className="col-span-full bg-primary/80 hover:bg-primary text-white rounded-xl h-12 font-bold"><MessageSquare className="mr-2 h-4 w-4" /> Share on WhatsApp</Button>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <Button 
+                                                onClick={() => cameraInputRef.current?.click()} 
+                                                disabled={!hasConsented || isTryOnLoading}
+                                                className="bg-primary hover:bg-primary/90 text-white rounded-xl h-12 font-bold shadow-lg disabled:opacity-50"
+                                            >
+                                                <Camera className="mr-2 h-4 w-4" /> Take a Selfie
+                                            </Button>
+                                            <Button 
+                                                onClick={() => galleryInputRef.current?.click()} 
+                                                disabled={!hasConsented || isTryOnLoading}
+                                                variant="secondary" 
+                                                className="bg-white/10 hover:bg-white/20 text-white border-white/10 rounded-xl h-12 font-bold disabled:opacity-50"
+                                            >
+                                                <ImagePlus className="mr-2 h-4 w-4" /> From Gallery
+                                            </Button>
+                                        </>
+                                    )}
+                                    <input ref={cameraInputRef} type="file" accept="image/*" capture="user" className="hidden" onChange={handleTryOnUpload} />
+                                    <input ref={galleryInputRef} type="file" accept="image/*" className="hidden" onChange={handleTryOnUpload} />
+                                </div>
                             </div>
                         </div>
                     </Card>
