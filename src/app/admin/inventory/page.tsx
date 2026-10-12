@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
@@ -41,8 +40,6 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn, sanitizePhoneNumber } from "@/lib/utils";
-import { useReactToPrint } from 'react-to-print';
-import { Html5QrcodeScanner } from 'html5-qrcode';
 
 interface CompetitorInfo {
     sellerName: string;
@@ -92,15 +89,12 @@ export default function AdminInventoryPage() {
 
     const [isScanning, setIsScanning] = useState(false);
     const [selectedItemForLabel, setSelectedItemForLabel] = useState<InventoryItem | null>(null);
-    const labelRef = useRef<HTMLDivElement>(null);
 
     const [selectedSaleItem, setSelectedSaleItem] = useState<InventoryItem | null>(null);
     const [selectedDetailItem, setSelectedDetailItem] = useState<InventoryItem | null>(null);
     const [saleQty, setSaleQty] = useState(1);
     const [actualSellPrice, setSalePrice] = useState(0);
     const [customerPhone, setCustomerPhone] = useState('');
-    const [showPostSaleDialog, setShowPostSaleDialog] = useState(false);
-    const [lastProcessedSale, setLastProcessedSale] = useState<SaleTransaction | null>(null);
 
     const [showNoAiDialog, setShowNoAiDialog] = useState(false);
     const [failedImageUri, setFailedImageUri] = useState<string | null>(null);
@@ -158,13 +152,10 @@ export default function AdminInventoryPage() {
         });
     };
 
-    const getProductLink = (item: InventoryItem) => {
-        const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
-        return `${baseUrl}/catalogue?id=${item.id}&sellerId=admin&sellerName=Snazzify`;
-    };
-
     const handleCopyLink = (item: InventoryItem) => {
-        navigator.clipboard.writeText(getProductLink(item));
+        const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+        const link = `${baseUrl}/catalogue?id=${item.id}&sellerId=admin&sellerName=Snazzify`;
+        navigator.clipboard.writeText(link);
         toast({ title: "Link Copied!" });
     };
 

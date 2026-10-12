@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Suspense, useState, useEffect, useRef } from 'react';
@@ -54,7 +53,7 @@ type DiscountRule = {
     discount: number;
 };
 
-const MAX_TRYON_SIZE_PX = 800;
+const MAX_TRYON_SIZE_PX = 512; // Optimized for reliability and server limits
 
 function CatalogueOrderPageContent() {
     const searchParams = useSearchParams();
@@ -142,30 +141,33 @@ function CatalogueOrderPageContent() {
         }
     }, [quantity, product, paymentMethod, appliedDiscount]);
 
-    const resizeImage = (file: File): Promise<string> => {
+    const resizeImage = (fileOrUri: File | string, maxSize: number = MAX_TRYON_SIZE_PX): Promise<string> => {
         return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const img = new (window as any).Image();
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    let { width, height } = img;
-                    if (width > height) {
-                        if (width > MAX_TRYON_SIZE_PX) { height *= MAX_TRYON_SIZE_PX / width; width = MAX_TRYON_SIZE_PX; }
-                    } else {
-                        if (height > MAX_TRYON_SIZE_PX) { width *= MAX_TRYON_SIZE_PX / height; height = MAX_TRYON_SIZE_PX; }
-                    }
-                    canvas.width = width;
-                    canvas.height = height;
-                    const ctx = canvas.getContext('2d');
-                    ctx?.drawImage(img, 0, 0, width, height);
-                    resolve(canvas.toDataURL('image/jpeg', 0.6)); // High compression to avoid server limits
-                };
-                img.onerror = reject;
-                img.src = e.target?.result as string;
+            const img = new (window as any).Image();
+            img.crossOrigin = "anonymous";
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let { width, height } = img;
+                if (width > height) {
+                    if (width > maxSize) { height *= maxSize / width; width = maxSize; }
+                } else {
+                    if (height > maxSize) { width *= maxSize / height; height = maxSize; }
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', 0.6));
             };
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
+            img.onerror = reject;
+            if (typeof fileOrUri === 'string') {
+                img.src = fileOrUri;
+            } else {
+                const reader = new FileReader();
+                reader.onload = (e) => img.src = e.target?.result as string;
+                reader.onerror = reject;
+                reader.readAsDataURL(fileOrUri);
+            }
         });
     };
 
@@ -176,8 +178,11 @@ function CatalogueOrderPageContent() {
         setIsTryOnLoading(true);
         setTryOnResult(null);
         try {
-            const personUri = await resizeImage(file);
-            const productUri = product.imageDataUris[0];
+            // Resize User Selfie and Product Image to ensure payload < 1MB
+            const [personUri, productUri] = await Promise.all([
+                resizeImage(file),
+                resizeImage(product.imageDataUris[0])
+            ]);
             
             const result = await virtualTryOn({
                 personImageDataUri: personUri,
