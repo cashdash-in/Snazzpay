@@ -117,6 +117,7 @@ function SmartMagazineContent() {
     
     const resizeImageForAI = (fileOrUri: File | string, maxSize: number = MAX_TRYON_SIZE_PX): Promise<string> => {
         return new Promise((resolve, reject) => {
+            if (typeof window === 'undefined') return reject('Window undefined');
             const img = new (window as any).Image();
             img.crossOrigin = "anonymous";
             img.onload = () => {
@@ -273,6 +274,9 @@ function SmartMagazineContent() {
                                     <p className="text-xs text-slate-400 animate-pulse">Designing your matching blouse and accessories.</p>
                                 </div>
                             )}
+                            <div className="absolute top-4 left-4">
+                                <Badge className="bg-primary/90 text-white font-black italic text-lg px-4 py-1 animate-pulse">✨ TRY ON WITH AI</Badge>
+                            </div>
                         </div>
                         <div className="p-8 md:p-16 flex flex-col justify-center space-y-8">
                             <div className="space-y-4">
@@ -340,7 +344,7 @@ function SmartMagazineContent() {
                                             link.download = `my_look_${mainProduct.id}.jpg`;
                                             link.click();
                                         }}>
-                                            <Download className="h-4 w-4" />
+                                            <Download className="mr-2 h-4 w-4" />
                                         </Button>
                                         <Button variant="outline" className="h-11 rounded-xl border-white/20 text-white" onClick={() => { setTryOnResult(null); setTryOnProductId(null); }}>
                                             <RefreshCcw className="h-4 w-4" />

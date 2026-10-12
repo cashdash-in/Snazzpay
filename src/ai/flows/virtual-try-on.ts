@@ -32,31 +32,36 @@ export async function virtualTryOn(input: VirtualTryOnInput) {
           { media: { url: input.personImageDataUri } },
           { media: { url: input.productImageDataUri } },
           { 
-            text: `ACT AS AN EXPERT VIRTUAL STYLIST SPECIALIZING IN TRADITIONAL INDIAN ATTIRE. 
-            TASK: VIRTUALLY DRESS the person in the first photo using the clothing item shown in the second photo ("${input.productTitle}"). 
+            text: `ACT AS AN EXPERT VIRTUAL STYLIST SPECIALIZING IN TRADITIONAL EAST INDIAN CATHOLIC AND MAHARASHTRIAN ATTIRE. 
             
-            STYLING INSTRUCTION: ${isLugraStyle ? 'APPLY AUTHENTIC EAST INDIAN LUGRA STYLE' : 'APPLY STANDARD SAREE STYLE'}
+            TASK: COMPLETELY RE-DRESS the person in the first photo using the saree/lugra shown in the second photo ("${input.productTitle}"). 
+            
+            STYLING MODE: ${isLugraStyle ? 'AUTHENTIC EAST INDIAN LUGRA (GAOTHAN STYLE)' : 'STANDARD NIVI SAREE'}
             
             ${isLugraStyle ? `
-            CRITICAL INSTRUCTIONS FOR EAST INDIAN LUGRA:
-            - DRAPE: APPLY THE AUTHENTIC EAST INDIAN CATHOLIC / GAOTHAN VILLAGE DRAPE.
-            - LENGTH: THIS IS A SHORT DRAPE. The fabric MUST end at MID-CALF or KNEE LENGTH.
-            - VISIBILITY: THE LOWER LEGS MUST BE CLEARLY VISIBLE and realistic. DO NOT drape to the floor.
-            - BLOUSE: Generate a perfectly matching blouse with TRADITIONAL ELBOW-LENGTH SLEEVES and a thick gold zari border.
-            - JEWELRY: Automatically add traditional East Indian gold jewelry: a long "Laxmi Haar" (gold coin necklace), a "Pote" (gold bead choker), and multiple gold "Bangadi" bangles on both wrists.
+            MANDATORY TRADITIONAL REQUIREMENTS FOR EAST INDIAN LUGRA:
+            1. DRAPE: Apply the traditional "Gaothan" or "East Indian Catholic" style. The drape MUST be ankle-length or mid-calf (shorter than a standard saree).
+            2. WAIST: Create the distinctive gathered pleats and tucks at the waist.
+            3. BLOUSE: Generate a matching blouse with TRADITIONAL ELBOW-LENGTH SLEEVES. The sleeves MUST have a thick gold zari border.
+            4. JEWELRY (ESSENTIAL): Automatically add traditional East Indian gold jewelry:
+               - A long "Laxmi Haar" (gold coin necklace) reaching down to the stomach.
+               - 1-2 shorter gold chokers or necklaces around the neck.
+               - Multiple gold "Bangadi" bangles on BOTH wrists, covering a significant part of the forearms.
+               - A gold "Kamarbandh" (waist belt) if appropriate for the drape.
+            5. HAIR: Add a traditional bun or braid with a fresh "Gajra" (white flower garland).
             ` : `
-            CRITICAL INSTRUCTIONS FOR STANDARD SAREE:
-            - DRAPE: Apply a realistic Nivi drape.
-            - LENGTH: The fabric MUST reach the floor, covering the feet or just showing toes.
-            - BLOUSE: Generate a matching blouse with half-sleeves.
+            MANDATORY REQUIREMENTS FOR STANDARD SAREE:
+            - DRAPE: Apply a crisp, professional Nivi drape.
+            - LENGTH: Floor-length, elegantly covering the feet.
+            - BLOUSE: Generate a perfectly matching blouse with standard half-sleeves.
             `}
 
-            GENERAL CONSTRAINTS FOR ALL ATTIRE:
-            1. COMPLETELY REPLACE the person's current clothing. Their old clothes (collars, sleeves, jeans, T-shirts) must be 100% invisible.
-            2. FACIAL PRESERVATION: Keep the person's face, hair, and original background perfectly intact and sharp.
-            3. REALISTIC FIT: Drape the fabric realistically over their unique body structure, following their natural curves and posture.
+            CRITICAL CONSTRAINTS:
+            - ZERO CLOTHING BLEED: The person's current clothes (t-shirt collars, jeans, jacket sleeves, etc.) must be 100% invisible. The new virtual outfit must completely replace them.
+            - FACIAL INTEGRITY: Keep the person's face, features, and hair texture exactly as they are in the original selfie.
+            - REALISTIC PHYSICS: The fabric must fold, crease, and drape realistically according to the person's pose and body shape.
             
-            Return ONLY the final processed image.` 
+            Return ONLY the final high-resolution processed image.` 
           },
         ],
         config: {
@@ -71,6 +76,6 @@ export async function virtualTryOn(input: VirtualTryOnInput) {
       return { generatedImageDataUri: media.url };
   } catch (err: any) {
       console.error("[Magic Mirror] Service Error:", err);
-      throw new Error(`Try-on service error: ${err.message || 'The AI service is temporarily busy. Please try again in a few seconds.'}`);
+      throw new Error(`Try-on service error: ${err.message || 'The AI service is temporarily busy.'}`);
   }
 }
