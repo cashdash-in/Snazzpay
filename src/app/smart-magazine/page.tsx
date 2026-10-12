@@ -353,20 +353,7 @@ function SmartMagazineContent() {
                                                 <p className="text-[10px] font-black uppercase italic text-slate-900">AI Fitting...</p>
                                             </div>
                                         )}
-
-                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-6 gap-3">
-                                            <Button onClick={() => handleOrderClick(product)} className="w-full h-12 rounded-xl font-black uppercase italic bg-primary text-white">
-                                                <ShoppingCart className="mr-2 h-4 w-4" /> Order Now
-                                            </Button>
-                                            <div className="grid grid-cols-2 gap-2 w-full">
-                                                <Button onClick={() => { setTryOnProductId(product.id); cameraInputRef.current?.click(); }} variant="secondary" className="h-10 rounded-xl font-bold text-[10px] uppercase bg-white text-primary">
-                                                    <Camera className="mr-1 h-3 w-3" /> Selfie
-                                                </Button>
-                                                <Button onClick={() => { setTryOnProductId(product.id); galleryInputRef.current?.click(); }} variant="secondary" className="h-10 rounded-xl font-bold text-[10px] uppercase bg-white text-primary">
-                                                    <ImagePlus className="mr-1 h-3 w-3" /> Gallery
-                                                </Button>
-                                            </div>
-                                        </div>
+                                        
                                         {discount > 0 && <Badge className="absolute top-4 right-4 bg-destructive text-white font-black italic">-{discount}%</Badge>}
                                         {isProductTryOn && tryOnResult && (
                                             <div className="absolute top-2 left-2 flex gap-1">
@@ -386,24 +373,43 @@ function SmartMagazineContent() {
                                         </div>
                                         <div className="pt-4 border-t mt-4 flex justify-between items-center">
                                             <span className="text-xl font-black text-primary">₹{price}</span>
-                                            <Dialog onOpenChange={(open) => !open && setEnquiryProduct(null)}>
-                                                <DialogTrigger asChild>
-                                                    <Button variant="ghost" size="sm" className="font-bold text-xs uppercase" onClick={() => setEnquiryProduct(product)}>Enquire</Button>
-                                                </DialogTrigger>
-                                                {enquiryProduct?.id === product.id && (
-                                                    <DialogContent className="rounded-[32px] p-8 border-none">
-                                                        <DialogHeader><DialogTitle className="text-2xl font-black italic uppercase">Product Enquiry</DialogTitle></DialogHeader>
-                                                        <div className="space-y-4 py-4">
-                                                            <div className="space-y-1"><Label className="text-[10px] uppercase font-black">Your Name</Label><Input value={enquiryForm.name} onChange={e => setEnquiryForm({...enquiryForm, name: e.target.value})} className="h-12 rounded-xl" /></div>
-                                                            <div className="space-y-1"><Label className="text-[10px] uppercase font-black">WhatsApp Number</Label><Input value={enquiryForm.phone} onChange={e => setEnquiryForm({...enquiryForm, phone: e.target.value})} className="h-12 rounded-xl" /></div>
-                                                            <div className="space-y-1"><Label className="text-[10px] uppercase font-black">Message</Label><Textarea value={enquiryForm.message} onChange={e => setEnquiryForm({...enquiryForm, message: e.target.value})} className="rounded-xl" /></div>
-                                                        </div>
-                                                        <DialogFooter><Button onClick={handleSendEnquiry} className="w-full h-14 rounded-2xl font-black uppercase italic" disabled={isEnquiring}>{isEnquiring ? <Loader2 className="animate-spin"/> : "Send Request"}</Button></DialogFooter>
-                                                    </DialogContent>
-                                                )}
-                                            </Dialog>
+                                            <div className="flex gap-2">
+                                                 <Dialog onOpenChange={(open) => !open && setEnquiryProduct(null)}>
+                                                    <DialogTrigger asChild>
+                                                        <Button variant="ghost" size="sm" className="font-bold text-[10px] uppercase" onClick={() => setEnquiryProduct(product)}>Enquire</Button>
+                                                    </DialogTrigger>
+                                                    {enquiryProduct?.id === product.id && (
+                                                        <DialogContent className="rounded-[32px] p-8 border-none">
+                                                            <DialogHeader><DialogTitle className="text-2xl font-black italic uppercase">Product Enquiry</DialogTitle></DialogHeader>
+                                                            <div className="space-y-4 py-4">
+                                                                <div className="space-y-1"><Label className="text-[10px] uppercase font-black">Your Name</Label><Input value={enquiryForm.name} onChange={e => setEnquiryForm({...enquiryForm, name: e.target.value})} className="h-12 rounded-xl" /></div>
+                                                                <div className="space-y-1"><Label className="text-[10px] uppercase font-black">WhatsApp Number</Label><Input value={enquiryForm.phone} onChange={e => setEnquiryForm({...enquiryForm, phone: e.target.value})} className="h-12 rounded-xl" /></div>
+                                                                <div className="space-y-1"><Label className="text-[10px] uppercase font-black">Message</Label><Textarea value={enquiryForm.message} onChange={e => setEnquiryForm({...enquiryForm, message: e.target.value})} className="rounded-xl" /></div>
+                                                            </div>
+                                                            <DialogFooter><Button onClick={handleSendEnquiry} className="w-full h-14 rounded-2xl font-black uppercase italic" disabled={isEnquiring}>{isEnquiring ? <Loader2 className="animate-spin"/> : "Send Request"}</Button></DialogFooter>
+                                                        </DialogContent>
+                                                    )}
+                                                </Dialog>
+                                            </div>
                                         </div>
                                     </CardContent>
+                                    <CardFooter className="p-0 border-t bg-slate-50 grid grid-cols-2">
+                                        <Button 
+                                            variant="ghost" 
+                                            className="h-12 rounded-none border-r font-black uppercase italic text-[10px] flex items-center gap-1"
+                                            disabled={!hasConsented || isTryOnLoading}
+                                            onClick={() => { setTryOnProductId(product.id); cameraInputRef.current?.click(); }}
+                                        >
+                                            <Sparkles className="h-3 w-3 text-primary" /> Magic Mirror
+                                        </Button>
+                                        <Button 
+                                            variant="ghost" 
+                                            className="h-12 rounded-none font-black uppercase italic text-[10px] flex items-center gap-1 text-primary"
+                                            onClick={() => handleOrderClick(product)}
+                                        >
+                                            <ShoppingCart className="h-3 w-3" /> Order
+                                        </Button>
+                                    </CardFooter>
                                 </Card>
                             );
                         })}
