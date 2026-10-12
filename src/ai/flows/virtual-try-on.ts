@@ -23,6 +23,8 @@ export async function virtualTryOn(input: VirtualTryOnInput) {
   try {
       console.log(`[Magic Mirror] Processing advanced try-on for: ${input.productTitle}`);
       
+      const isLugra = input.productTitle.toUpperCase().includes("EAST INDIAN LUGRA");
+      
       const { media } = await ai.generate({
         model: 'googleai/gemini-2.5-flash-image',
         prompt: [
@@ -33,14 +35,19 @@ export async function virtualTryOn(input: VirtualTryOnInput) {
             TASK: VIRTUALLY DRESS the person in the first photo using the clothing item shown in the second photo ("${input.productTitle}"). 
             
             CRITICAL INSTRUCTIONS:
-            1. COMPLETELY REPLACE the person's current clothing. Their old clothes must be 100% invisible under the new outfit.
-            2. If the product name contains "EAST INDIAN LUGRA":
-               - DRAPE STYLE: Follow the authentic East Indian Catholic / Gaothan traditional drape style. This is a specific village-style drape where the fabric is tucked firmly at the waist with specific front pleats and a decorative pallu.
-               - BLOUSE: Generate a perfectly matching or beautifully contrasting designer blouse with TRADITIONAL ELBOW-LENGTH SLEEVES and a thick gold zari border.
-               - ACCESSORIES: Automatically add traditional East Indian gold jewelry: a long "Laxmi Haar" (gold coin necklace), a "Pote" (gold bead choker), and multiple gold "Bangadi" bangles on both wrists.
-            3. For SAREES: Automatically generate and fit a matching, designer BLOUSE that complements the saree's color and pattern.
-            4. FACIAL PRESERVATION: Keep the person's face, hair, and original background perfectly intact.
-            5. REALISTIC FIT: Drape the fabric realistically over their unique body structure, following the natural curves and posture.
+            1. COMPLETELY REPLACE the person's current clothing. Their old clothes (collars, sleeves, jeans, T-shirts) must be 100% invisible.
+            2. IF THE PRODUCT IS AN "EAST INDIAN LUGRA":
+               - DRAPE STYLE: Apply the AUTHENTIC EAST INDIAN CATHOLIC / GAOTHAN VILLAGE STYLE.
+               - LENGTH: The Lugra MUST be draped as a SHORT DRAPE (Mid-calf or Knee-length), showing the person's lower legs realistically.
+               - WAIST: Tucked firmly and gathered at the waist with traditional pleats.
+               - PALLU: The pallu should be narrow, draped over the left shoulder and tucked at the back/side.
+               - BLOUSE: Generate a perfectly matching blouse with TRADITIONAL ELBOW-LENGTH SLEEVES and a thick gold zari border.
+               - JEWELRY: Automatically add traditional East Indian gold jewelry: a long "Laxmi Haar" (gold coin necklace), a "Pote" (gold bead choker), and multiple gold "Bangadi" bangles on both wrists.
+            3. IF THE PRODUCT IS A STANDARD SAREE:
+               - Automatically generate and fit a matching, designer BLOUSE with ELBOW-LENGTH SLEEVES that complements the saree's color and pattern.
+               - Apply a realistic Nivi or traditional drape.
+            4. FACIAL PRESERVATION: Keep the person's face, hair, and original background perfectly intact and sharp.
+            5. REALISTIC FIT: Drape the fabric realistically over their unique body structure, following their natural curves, posture, and arm positions.
             
             Return ONLY the final processed image.` 
           },

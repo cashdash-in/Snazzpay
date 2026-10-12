@@ -355,6 +355,16 @@ function SmartMagazineContent() {
                                         )}
                                         
                                         {discount > 0 && <Badge className="absolute top-4 right-4 bg-destructive text-white font-black italic">-{discount}%</Badge>}
+                                        
+                                        {/* TRY ON OVERLAY BUTTON */}
+                                        {!isProductTryOn && (
+                                            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                                                <Button size="sm" className="pointer-events-auto rounded-full bg-white/90 text-slate-900 hover:bg-white font-black italic text-[10px] scale-90 group-hover:scale-100 transition-transform" onClick={() => { setTryOnProductId(product.id); cameraInputRef.current?.click(); }}>
+                                                    <Sparkles className="mr-1 h-3 w-3 text-primary" /> MAGIC MIRROR
+                                                </Button>
+                                            </div>
+                                        )}
+
                                         {isProductTryOn && tryOnResult && (
                                             <div className="absolute top-2 left-2 flex gap-1">
                                                 <Button onClick={() => handleShareWhatsApp(tryOnResult!, product.title)} size="icon" className="h-8 w-8 rounded-full bg-green-600 shadow-lg">
@@ -396,7 +406,7 @@ function SmartMagazineContent() {
                                     <CardFooter className="p-0 border-t bg-slate-50 grid grid-cols-2">
                                         <Button 
                                             variant="ghost" 
-                                            className="h-12 rounded-none border-r font-black uppercase italic text-[10px] flex items-center gap-1"
+                                            className="h-12 rounded-none border-r font-black uppercase italic text-[10px] flex items-center gap-1 bg-primary/5 hover:bg-primary/10 transition-colors"
                                             disabled={!hasConsented || isTryOnLoading}
                                             onClick={() => { setTryOnProductId(product.id); cameraInputRef.current?.click(); }}
                                         >
@@ -404,7 +414,7 @@ function SmartMagazineContent() {
                                         </Button>
                                         <Button 
                                             variant="ghost" 
-                                            className="h-12 rounded-none font-black uppercase italic text-[10px] flex items-center gap-1 text-primary"
+                                            className="h-12 rounded-none font-black uppercase italic text-[10px] flex items-center gap-1 text-primary hover:bg-slate-100 transition-colors"
                                             onClick={() => handleOrderClick(product)}
                                         >
                                             <ShoppingCart className="h-3 w-3" /> Order
