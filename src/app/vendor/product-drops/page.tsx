@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, PackagePlus, Wand2, ImagePlus, Lock } from 'lucide-react';
+import { Loader2, PackagePlus, Wand2, ImagePlus, Lock, ShieldCheck } from 'lucide-react';
 import Image from 'next/image';
 import { useAuth } from '@/hooks/use-auth';
 import { v4 as uuidv4 } from 'uuid';
@@ -34,6 +34,7 @@ export interface ProductDrop {
     colors: string[];
     allowedPaymentMethods?: ('Secure COD' | 'Cash on Delivery' | 'Prepaid')[];
     videoDataUri?: string;
+    isEastIndianLugra?: boolean;
 }
 
 const PRODUCT_DROP_LIMIT = 50;
@@ -58,6 +59,7 @@ export default function VendorProductDropsPage() {
     const [showShareDialog, setShowShareDialog] = useState(false);
     const [createdProduct, setCreatedProduct] = useState<ProductDrop | null>(null);
     const [allowedPaymentMethods, setAllowedPaymentMethods] = useState<('Secure COD' | 'Cash on Delivery' | 'Prepaid')[]>(['Secure COD', 'Cash on Delivery', 'Prepaid']);
+    const [isEastIndianLugra, setIsEastIndianLugra] = useState(false);
 
     const handlePaymentMethodChange = (method: 'Secure COD' | 'Cash on Delivery' | 'Prepaid', checked: boolean) => {
         setAllowedPaymentMethods(prev => {
@@ -93,7 +95,6 @@ export default function VendorProductDropsPage() {
                     canvas.height = height;
                     const ctx = canvas.getContext('2d');
                     ctx?.drawImage(img, 0, 0, width, height);
-                    // Force JPEG format with 70% quality for significant size reduction
                     resolve(canvas.toDataURL('image/jpeg', 0.7));
                 };
                 img.src = e.target?.result as string;
@@ -133,14 +134,12 @@ export default function VendorProductDropsPage() {
     
     const handlePaste = (event: ClipboardEvent<HTMLTextAreaElement | HTMLInputElement>) => {
         const pastedText = event.clipboardData?.getData('text');
-      // If clipboard contains files, let the image handler take it.
       if (event.clipboardData.files.length > 0) {
         event.preventDefault();
         handleFiles(event.clipboardData.files);
-        toast({ title: 'Image(s) Pasted!', description: 'The image has been added to your product.' });
+        toast({ title: 'Image(s) Pasted!' });
         return;
       }
-      // If it's just text, let the default magic paste handler do its job (defined on the Textarea)
       if (!pastedText) {
           const items = event.clipboardData?.items;
           if (!items) return;
@@ -148,15 +147,13 @@ export default function VendorProductDropsPage() {
           for (let i = 0; i < items.length; i++) {
             if (items[i].type.indexOf('image') !== -1) {
               const file = items[i].getAsFile();
-              if (file) {
-                files.push(file);
-              }
+              if (file) files.push(file);
             }
           }
           if(files.length > 0) {
             event.preventDefault();
             handleFiles(files);
-            toast({ title: 'Image(s) Pasted!', description: 'The image has been added to your product.' });
+            toast({ title: 'Image(s) Pasted!' });
           }
       }
     };
@@ -166,7 +163,7 @@ export default function VendorProductDropsPage() {
         const files = event.dataTransfer.files;
         if (files) {
             handleFiles(files);
-            toast({ title: 'Image(s) Dropped!', description: 'The image has been added to your product.' });
+            toast({ title: 'Image(s) Dropped!' });
         }
     };
     
@@ -176,17 +173,14 @@ export default function VendorProductDropsPage() {
                 const role = getCookie('userRole');
                 if (role === 'admin') {
                     setIsLimitReached(false);
-                    setLimit(Infinity); // Admin has infinite limit
+                    setLimit(Infinity);
                     return;
                 }
-
                 const permissions = await getDocument<{productDropLimit?: number}>('user_permissions', user.uid);
                 const currentLimit = permissions?.productDropLimit || PRODUCT_DROP_LIMIT;
                 setLimit(currentLimit);
-
                 const drops = await getCollection<ProductDrop>('product_drops');
-                const vendorDrops = drops.filter(d => d.vendorId === user.uid);
-                const count = vendorDrops.length;
+                const count = drops.filter(d => d.vendorId === user.uid).length;
                 setUsageCount(count);
                 setIsLimitReached(count >= currentLimit);
             }
@@ -196,29 +190,13 @@ export default function VendorProductDropsPage() {
     
     const handleSendDrop = async () => {
         if (!title || !description || !costPrice || resizedImageDataUris.length === 0) {
-            toast({
-                variant: 'destructive',
-                title: 'Missing Information',
-                description: 'Please fill out all fields and upload at least one image.',
-            });
+            toast({ variant: 'destructive', title: 'Missing Information' });
             return;
         }
-        if (!user) {
-             toast({ variant: 'destructive', title: 'Authentication Error', description: 'You must be logged in to create a drop.' });
-            return;
-        }
-
-        if (isLimitReached) {
-            toast({
-                variant: 'destructive',
-                title: 'Product Drop Limit Reached',
-                description: `You have used your quota of ${limit} product drops. Please contact the admin to upgrade.`,
-            });
-            return;
-        }
+        if (!user) return;
+        if (isLimitReached) return;
 
         setIsLoading(true);
-
         const newDrop: ProductDrop = {
             id: uuidv4(),
             vendorId: user.uid,
@@ -226,41 +204,23 @@ export default function VendorProductDropsPage() {
             title,
             description,
             costPrice: parseFloat(costPrice),
-            imageDataUris: resizedImageDataUris, // Use resized data
+            imageDataUris: resizedImageDataUris,
             createdAt: new Date().toISOString(),
             sizes: sizes.split(',').map(s => s.trim()).filter(s => s),
             colors: colors.split(',').map(c => c.trim()).filter(c => c),
             allowedPaymentMethods,
+            isEastIndianLugra,
         };
 
         try {
             await saveDocument('product_drops', newDrop, newDrop.id);
             setUsageCount(prev => prev + 1);
-            
-            toast({
-                title: 'Product Drop Sent!',
-                description: 'Your new product has been made available to all sellers in your network.',
-            });
-
             setCreatedProduct(newDrop);
             setShowShareDialog(true);
-            
-            // Reset form
-            setTitle('');
-            setDescription('');
-            setCostPrice('');
-            setSizes('');
-            setColors('');
-            setImagePreviews([]);
-            setResizedImageDataUris([]);
-            setAllowedPaymentMethods(['Secure COD', 'Cash on Delivery', 'Prepaid']);
-
+            setTitle(''); setDescription(''); setCostPrice(''); setSizes(''); setColors(''); setImagePreviews([]); setResizedImageDataUris([]); setIsEastIndianLugra(false);
+            toast({ title: 'Product Drop Sent!' });
         } catch (error: any) {
-            toast({
-                variant: 'destructive',
-                title: 'Failed to Send Drop',
-                description: error.message || 'An error occurred while saving the product drop.',
-            });
+            toast({ variant: 'destructive', title: 'Failed to Send Drop' });
         } finally {
             setIsLoading(false);
         }
@@ -268,84 +228,71 @@ export default function VendorProductDropsPage() {
 
     const handleMagicPaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
         const pastedText = e.clipboardData.getData('text');
-        if (pastedText.trim().length < 10) return;
-        if (e.clipboardData.files.length > 0) return;
-
+        if (pastedText.trim().length < 10 || e.clipboardData.files.length > 0) return;
         e.preventDefault();
         e.stopPropagation();
-        
         setIsPasting(true);
         try {
             const result = await createProductFromText({ text: pastedText });
             setTitle(result.title);
             setDescription(result.description);
-             toast({
-                title: "AI Parsing Complete!",
-                description: "Product title and description have been filled in.",
-            });
+            toast({ title: "AI Parsing Complete!" });
         } catch (error: any) {
-             toast({
-                variant: 'destructive',
-                title: 'AI Parsing Failed',
-                description: error.message || 'Could not process the pasted text.',
-            });
+             toast({ variant: 'destructive', title: 'AI Parsing Failed' });
         } finally {
             setIsPasting(false);
         }
     };
 
-
     return (
         <AppShell title="Create Product Drop">
              {isLimitReached && (
                 <Alert variant="destructive" className="mb-6 max-w-3xl mx-auto">
-                    
                     <AlertTitle>Feature Limit Reached</AlertTitle>
-                    <AlertDescription>
-                        You have reached your limit of {limit} product drops. Please contact the administrator to upgrade your plan for a higher limit.
-                    </AlertDescription>
+                    <AlertDescription>You have reached your limit of {limit} product drops.</AlertDescription>
                 </Alert>
             )}
             <Card className="max-w-3xl mx-auto">
                 <CardHeader>
                     <CardTitle>New Product Drop</CardTitle>
-                    <CardDescription>
-                        Share a new product with your network of sellers. It will automatically be added to your "My Products" page.
-                    </CardDescription>
+                    <CardDescription>Share a new product with your network of sellers.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <div className="relative space-y-2">
                         <Label htmlFor="magic-paste">Magic Paste Box (AI-Powered)</Label>
                         {isPasting && <Loader2 className="absolute top-8 right-2 h-4 w-4 animate-spin text-primary" />}
-                        <Textarea 
-                            id="magic-paste"
-                            placeholder="Paste a WhatsApp chat here to auto-fill the form."
-                            onPaste={handleMagicPaste}
-                            className="bg-purple-50/50 border-purple-200 focus-visible:ring-purple-400"
-                        />
+                        <Textarea id="magic-paste" placeholder="Paste product details here..." onPaste={handleMagicPaste} className="bg-purple-50/50 border-purple-200" />
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="title">Product Title</Label>
-                        <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g., Premium Cotton Summer T-Shirt"/>
+                        <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} />
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="description">Product Description</Label>
-                        <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Include details like material, available sizes, colors, and key features." rows={5}/>
+                        <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} rows={5}/>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="costPrice">Your Cost Price (INR)</Label>
-                            <Input id="costPrice" type="number" value={costPrice} onChange={(e) => setCostPrice(e.target.value)} placeholder="e.g., 250"/>
+                            <Input id="costPrice" type="number" value={costPrice} onChange={(e) => setCostPrice(e.target.value)} />
+                        </div>
+                        <div className="flex items-center space-x-2 pt-8">
+                            <Checkbox id="lugra-check" checked={isEastIndianLugra} onCheckedChange={(val) => setIsEastIndianLugra(val as boolean)} />
+                            <Label htmlFor="lugra-check" className="flex items-center gap-1 font-bold text-primary">
+                                <ShieldCheck className="h-4 w-4" /> Is East Indian Lugra?
+                            </Label>
                         </div>
                     </div>
+
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="sizes">Sizes (comma-separated)</Label>
-                            <Input id="sizes" value={sizes} onChange={(e) => setSizes(e.target.value)} placeholder="e.g., S, M, L" />
+                            <Input id="sizes" value={sizes} onChange={(e) => setSizes(e.target.value)} />
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="colors">Colors (comma-separated)</Label>
-                            <Input id="colors" value={colors} onChange={(e) => setColors(e.target.value)} placeholder="e.g., Red, Blue" />
+                            <Input id="colors" value={colors} onChange={(e) => setColors(e.target.value)} />
                         </div>
                     </div>
                     <div className="space-y-2">
@@ -367,38 +314,16 @@ export default function VendorProductDropsPage() {
                     </div>
                     <div className="space-y-2">
                         <Label>Product Images</Label>
-                          <div 
-                            className="relative flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-muted/50"
-                            onDrop={handleDrop}
-                            onDragOver={(e) => e.preventDefault()}
-                            onClick={() => document.getElementById('product-image-input')?.click()}
-                          >
+                          <div className="relative flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-muted/50" onDrop={handleDrop} onDragOver={(e) => e.preventDefault()} onClick={() => document.getElementById('product-image-input')?.click()}>
                               <div className="text-center">
                                 <ImagePlus className="mx-auto h-8 w-8 text-muted-foreground" />
-                                <p className="mt-2 text-sm text-muted-foreground">
-                                  <span className="font-semibold">Click to upload</span> or drag and drop
-                                </p>
+                                <p className="mt-2 text-sm text-muted-foreground">Click or drag images</p>
                               </div>
                           </div>
-                           <Textarea 
-                            placeholder="Or paste images here." 
-                            onPaste={handlePaste} 
-                            className="text-center placeholder:text-muted-foreground"
-                            rows={2}
-                          />
-                          <Input
-                            id="product-image-input"
-                            type="file"
-                            accept="image/*"
-                            onChange={handleImageChange}
-                            className="hidden"
-                            multiple
-                          />
+                          <Input id="product-image-input" type="file" accept="image/*" onChange={handleImageChange} className="hidden" multiple />
                         {imagePreviews.length > 0 && (
                             <div className="mt-4 grid grid-cols-3 md:grid-cols-5 gap-4 p-4 border rounded-lg">
-                                {imagePreviews.map((src, index) => (
-                                    <Image key={index} src={src} alt={`Preview ${index + 1}`} width={150} height={150} className="object-contain rounded-md aspect-square"/>
-                                ))}
+                                {imagePreviews.map((src, index) => <Image key={index} src={src} alt="p" width={150} height={150} className="object-contain aspect-square"/>)}
                             </div>
                         )}
                     </div>
@@ -409,9 +334,7 @@ export default function VendorProductDropsPage() {
                             {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : isLimitReached ? <Lock className="mr-2 h-4 w-4"/> : <PackagePlus className="mr-2 h-4 w-4"/>}
                             {isLimitReached ? 'Limit Reached' : 'Create & Share Product Drop'}
                         </Button>
-                         {createdProduct && (
-                            <ShareComposerDialog product={createdProduct} />
-                        )}
+                         {createdProduct && <ShareComposerDialog product={createdProduct} />}
                     </Dialog>
                 </CardFooter>
             </Card>

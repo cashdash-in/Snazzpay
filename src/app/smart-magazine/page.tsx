@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useState, useRef } from 'react';
+import { Suspense, useEffect, useState, useRef, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,8 +26,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { useToast } from '@/hooks/use-toast';
 import { virtualTryOn } from '@/ai/flows/virtual-try-on';
 import { cn, sanitizePhoneNumber } from '@/lib/utils';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 
-type DisplayProduct = SellerProduct | ProductDrop;
+type DisplayProduct = (SellerProduct | ProductDrop) & { isEastIndianLugra?: boolean };
 
 type Magazine = {
     id: string;
@@ -57,6 +58,7 @@ function SmartMagazineContent() {
     const [tryOnResult, setTryOnResult] = useState<string | null>(null);
     const [tryOnProductId, setTryOnProductId] = useState<string | null>(null);
     const [hasConsented, setHasConsented] = useState(false);
+    const [selectedDrapeStyle, setSelectedDrapeStyle] = useState<'Standard Saree' | 'East Indian Lugra'>('Standard Saree');
     const cameraInputRef = useRef<HTMLInputElement>(null);
     const galleryInputRef = useRef<HTMLInputElement>(null);
 
@@ -165,10 +167,11 @@ function SmartMagazineContent() {
                 personImageDataUri: personUri,
                 productImageDataUri: productUri,
                 productTitle: product.title,
+                drapeStyle: selectedDrapeStyle,
             });
             
             setTryOnResult(result.generatedImageDataUri);
-            toast({ title: "Magic Mirror Ready!", description: "AI has successfully fitted the outfit." });
+            toast({ title: "Magic Mirror Ready!", description: `Look generated in ${selectedDrapeStyle} style.` });
         } catch (err: any) {
             toast({ variant: 'destructive', title: "Try-On Failed", description: err.message });
             setTryOnProductId(null);
@@ -230,6 +233,13 @@ function SmartMagazineContent() {
         }
     };
 
+    const isEthnicWear = (p: DisplayProduct) => {
+        const keywords = ['saree', 'sari', 'lugra', 'lehenga', 'suit'];
+        return keywords.some(k => p.title.toLowerCase().includes(k)) || 
+               keywords.some(k => p.category.toLowerCase().includes(k)) ||
+               p.isEastIndianLugra;
+    };
+
     if (isLoading) return <div className="flex h-screen w-full items-center justify-center"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
 
     const mainProduct = products[0];
@@ -286,16 +296,31 @@ function SmartMagazineContent() {
                                     </div>
                                 </div>
 
+                                {isEthnicWear(mainProduct) && !tryOnResult && (
+                                    <div className="space-y-2 pt-2 border-t border-white/10">
+                                        <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Select Drape style</Label>
+                                        <Select value={selectedDrapeStyle} onValueChange={(val: any) => setSelectedDrapeStyle(val)}>
+                                            <SelectTrigger className="h-10 bg-white/10 border-white/20 text-white rounded-xl text-xs font-bold">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="Standard Saree">Standard Saree (Floor Length)</SelectItem>
+                                                <SelectItem value="East Indian Lugra">East Indian Lugra (Short Drape)</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                )}
+
                                 <div className="grid grid-cols-2 gap-4">
                                     <Button 
-                                        onClick={() => { setTryOnProductId(mainProduct.id); cameraInputRef.current?.click(); }}
+                                        onClick={() => { setTryOnProductId(mainProduct.id); if (mainProduct.isEastIndianLugra) setSelectedDrapeStyle('East Indian Lugra'); cameraInputRef.current?.click(); }}
                                         disabled={!hasConsented || isTryOnLoading}
                                         className="h-14 rounded-2xl font-black uppercase italic bg-primary hover:bg-primary/90 text-white shadow-xl"
                                     >
                                         <Camera className="mr-2 h-5 w-5" /> Take Selfie
                                     </Button>
                                     <Button 
-                                        onClick={() => { setTryOnProductId(mainProduct.id); galleryInputRef.current?.click(); }}
+                                        onClick={() => { setTryOnProductId(mainProduct.id); if (mainProduct.isEastIndianLugra) setSelectedDrapeStyle('East Indian Lugra'); galleryInputRef.current?.click(); }}
                                         disabled={!hasConsented || isTryOnLoading}
                                         variant="secondary" 
                                         className="h-14 rounded-2xl font-black uppercase italic bg-white/10 hover:bg-white/20 text-white border-white/10"
@@ -337,6 +362,7 @@ function SmartMagazineContent() {
                         {products.map(product => {
                             const price = (product as any).price || (product as any).costPrice;
                             const isProductTryOn = tryOnProductId === product.id;
+                            const ethnic = isEthnicWear(product);
 
                             return (
                                 <Card key={product.id} className="group rounded-[32px] border-none shadow-lg hover:shadow-2xl transition-all duration-500 overflow-hidden bg-white flex flex-col">
@@ -359,7 +385,7 @@ function SmartMagazineContent() {
                                         {/* TRY ON OVERLAY BUTTON */}
                                         {!isProductTryOn && (
                                             <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-                                                <Button size="sm" className="pointer-events-auto rounded-full bg-white/90 text-slate-900 hover:bg-white font-black italic text-[10px] scale-90 group-hover:scale-100 transition-transform" onClick={() => { setTryOnProductId(product.id); cameraInputRef.current?.click(); }}>
+                                                <Button size="sm" className="pointer-events-auto rounded-full bg-white/90 text-slate-900 hover:bg-white font-black italic text-[10px] scale-90 group-hover:scale-100 transition-transform" onClick={() => { setTryOnProductId(product.id); if (product.isEastIndianLugra) setSelectedDrapeStyle('East Indian Lugra'); cameraInputRef.current?.click(); }}>
                                                     <Sparkles className="mr-1 h-3 w-3 text-primary" /> MAGIC MIRROR
                                                 </Button>
                                             </div>
@@ -381,6 +407,22 @@ function SmartMagazineContent() {
                                             <h3 className="font-black italic uppercase text-slate-800 line-clamp-1">{product.title}</h3>
                                             <p className="text-xs text-muted-foreground line-clamp-2 italic">"{product.description}"</p>
                                         </div>
+
+                                        {ethnic && !isProductTryOn && (
+                                            <div className="mt-4 pt-4 border-t space-y-2">
+                                                 <Label className="text-[9px] font-black uppercase text-slate-400 tracking-widest">Drape Style</Label>
+                                                 <Select value={selectedDrapeStyle} onValueChange={(val: any) => setSelectedDrapeStyle(val)}>
+                                                    <SelectTrigger className="h-8 text-[10px] font-bold rounded-lg bg-slate-50 border-none">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="Standard Saree">Standard Saree</SelectItem>
+                                                        <SelectItem value="East Indian Lugra">East Indian Lugra</SelectItem>
+                                                    </SelectContent>
+                                                 </Select>
+                                            </div>
+                                        )}
+
                                         <div className="pt-4 border-t mt-4 flex justify-between items-center">
                                             <span className="text-xl font-black text-primary">₹{price}</span>
                                             <div className="flex gap-2">
@@ -408,7 +450,7 @@ function SmartMagazineContent() {
                                             variant="ghost" 
                                             className="h-12 rounded-none border-r font-black uppercase italic text-[10px] flex items-center gap-1 bg-primary/5 hover:bg-primary/10 transition-colors"
                                             disabled={!hasConsented || isTryOnLoading}
-                                            onClick={() => { setTryOnProductId(product.id); cameraInputRef.current?.click(); }}
+                                            onClick={() => { setTryOnProductId(product.id); if (product.isEastIndianLugra) setSelectedDrapeStyle('East Indian Lugra'); cameraInputRef.current?.click(); }}
                                         >
                                             <Sparkles className="h-3 w-3 text-primary" /> Magic Mirror
                                         </Button>

@@ -4,7 +4,7 @@ import { Suspense, useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, ShieldCheck, ShoppingCart, User, Phone, Mail as MailIcon, Home, MapPin, CheckCircle, Percent, Sparkles, Camera, ImagePlus, RefreshCcw, Play, Download, MessageSquare } from 'lucide-react';
+import { Loader2, ShieldCheck, ShoppingCart, User, Phone, Mail as MailIcon, Home, MapPin, CheckCircle, Percent, Sparkles, Camera, ImagePlus, RefreshCcw, Play, Download, MessageSquare, Shirt } from 'lucide-react';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
@@ -26,6 +26,7 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel";
 import { virtualTryOn } from '@/ai/flows/virtual-try-on';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 
 type DisplayProduct = (SellerProduct | ProductDrop) & { 
     price: number; 
@@ -35,6 +36,7 @@ type DisplayProduct = (SellerProduct | ProductDrop) & {
     vendor: string;
     collection: string;
     allowedPaymentMethods?: string[];
+    isEastIndianLugra?: boolean;
 };
 
 type CustomerDetails = {
@@ -52,7 +54,7 @@ type DiscountRule = {
     discount: number;
 };
 
-const MAX_TRYON_SIZE_PX = 448; // Forced aggressive resizing for Gemini reliability
+const MAX_TRYON_SIZE_PX = 448;
 
 function CatalogueOrderPageContent() {
     const searchParams = useSearchParams();
@@ -67,6 +69,7 @@ function CatalogueOrderPageContent() {
     const [isTryOnLoading, setIsTryOnLoading] = useState(false);
     const [tryOnResult, setTryOnResult] = useState<string | null>(null);
     const [hasConsented, setHasConsented] = useState(false);
+    const [selectedDrapeStyle, setSelectedDrapeStyle] = useState<'Standard Saree' | 'East Indian Lugra'>('Standard Saree');
     const cameraInputRef = useRef<HTMLInputElement>(null);
     const galleryInputRef = useRef<HTMLInputElement>(null);
 
@@ -117,6 +120,10 @@ function CatalogueOrderPageContent() {
                     };
                     setProduct(displayProduct);
                     
+                    if (displayProduct.isEastIndianLugra) {
+                        setSelectedDrapeStyle('East Indian Lugra');
+                    }
+
                     const discounts = await getCollection<DiscountRule>('discounts');
                     const best = discounts.find(d => d.id === `product_${productId}` || d.id === `vendor_${displayProduct.vendor}`) || null;
                     setAppliedDiscount(best);
@@ -191,10 +198,11 @@ function CatalogueOrderPageContent() {
                 personImageDataUri: personUri,
                 productImageDataUri: productUri,
                 productTitle: product.title,
+                drapeStyle: selectedDrapeStyle,
             });
             
             setTryOnResult(result.generatedImageDataUri);
-            toast({ title: "Magic Mirror Ready!", description: "AI has fitted the saree and matched the blouse." });
+            toast({ title: "Magic Mirror Ready!", description: `Look generated in ${selectedDrapeStyle} style.` });
         } catch (err: any) {
             console.error("Try-On Error:", err);
             toast({ variant: 'destructive', title: "Try-On Failed", description: err.message });
@@ -204,11 +212,13 @@ function CatalogueOrderPageContent() {
         }
     };
 
-    const handleShareWhatsApp = () => {
-        if (!tryOnResult || !product) return;
-        const msg = `Hey! I just virtually tried on this ${product.title}! What do you think? Order link: ${window.location.href}`;
-        window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
-    };
+    const isEthnicWear = useMemo(() => {
+        if (!product) return false;
+        const keywords = ['saree', 'sari', 'lugra', 'lehenga', 'suit'];
+        return keywords.some(k => product.title.toLowerCase().includes(k)) || 
+               keywords.some(k => product.category.toLowerCase().includes(k)) ||
+               product.isEastIndianLugra;
+    }, [product]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -297,6 +307,21 @@ function CatalogueOrderPageContent() {
                                     </Label>
                                 </div>
 
+                                {isEthnicWear && !tryOnResult && (
+                                    <div className="space-y-2 pt-2 border-t border-white/10">
+                                        <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Select Drape style</Label>
+                                        <Select value={selectedDrapeStyle} onValueChange={(val: any) => setSelectedDrapeStyle(val)}>
+                                            <SelectTrigger className="h-10 bg-white/10 border-white/20 text-white rounded-xl text-xs font-bold">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="Standard Saree">Standard Saree (Floor Length)</SelectItem>
+                                                <SelectItem value="East Indian Lugra">East Indian Lugra (Short Drape)</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                )}
+
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     {tryOnResult ? (
                                         <div className="col-span-full grid grid-cols-2 gap-3">
@@ -307,7 +332,6 @@ function CatalogueOrderPageContent() {
                                                 link.download = `my_look_${product?.id}.jpg`;
                                                 link.click();
                                             }} className="bg-green-600 hover:bg-green-700 text-white rounded-xl h-12 font-bold"><Download className="mr-2 h-4 w-4" /> Save Look</Button>
-                                            <Button onClick={handleShareWhatsApp} className="col-span-full bg-primary/80 hover:bg-primary text-white rounded-xl h-12 font-bold"><MessageSquare className="mr-2 h-4 w-4" /> Share on WhatsApp</Button>
                                         </div>
                                     ) : (
                                         <>

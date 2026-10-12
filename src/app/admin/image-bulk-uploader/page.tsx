@@ -23,6 +23,7 @@ import {
   ImagePlus,
   Factory,
   Book,
+  ShieldCheck,
 } from 'lucide-react';
 import Image from 'next/image';
 import { createProductDescription } from '@/ai/flows/create-product-description';
@@ -39,6 +40,7 @@ type GeneratedProduct = ProductListingOutput & {
   vendorName?: string;
   costPrice?: number;
   allowedPaymentMethods?: ('Secure COD' | 'Cash on Delivery' | 'Prepaid')[];
+  isEastIndianLugra?: boolean;
 };
 
 const MAX_IMAGE_SIZE_PX = 800; // Max width/height for resizing
@@ -56,15 +58,10 @@ export default function ImageBulkUploaderPage() {
   const handleFiles = (files: FileList | File[]) => {
     const fileArray = Array.from(files).filter(f => f.type.startsWith('image/'));
     setImageFiles(prev => [...prev, ...fileArray]);
-
-    const newPreviews: string[] = [];
     fileArray.forEach(file => {
       const reader = new FileReader();
       reader.onload = (e) => {
-        newPreviews.push(e.target?.result as string);
-        if (newPreviews.length === fileArray.length) {
-          setImagePreviews(prev => [...prev, ...newPreviews]);
-        }
+        setImagePreviews(prev => [...prev, e.target?.result as string]);
       };
       reader.readAsDataURL(file);
     });
@@ -76,9 +73,7 @@ export default function ImageBulkUploaderPage() {
   };
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files) {
-      handleFiles(event.target.files);
-    }
+    if (event.target.files) handleFiles(event.target.files);
   };
 
   const resizeImage = (file: File): Promise<string> => {
@@ -89,20 +84,9 @@ export default function ImageBulkUploaderPage() {
             img.onload = () => {
                 const canvas = document.createElement('canvas');
                 let { width, height } = img;
-
-                if (width > height) {
-                    if (width > MAX_IMAGE_SIZE_PX) {
-                        height *= MAX_IMAGE_SIZE_PX / width;
-                        width = MAX_IMAGE_SIZE_PX;
-                    }
-                } else {
-                    if (height > MAX_IMAGE_SIZE_PX) {
-                        width *= MAX_IMAGE_SIZE_PX / height;
-                        height = MAX_IMAGE_SIZE_PX;
-                    }
-                }
-                canvas.width = width;
-                canvas.height = height;
+                if (width > height) { if (width > MAX_IMAGE_SIZE_PX) { height *= MAX_IMAGE_SIZE_PX / width; width = MAX_IMAGE_SIZE_PX; } }
+                else { if (height > MAX_IMAGE_SIZE_PX) { width *= MAX_IMAGE_SIZE_PX / height; height = MAX_IMAGE_SIZE_PX; } }
+                canvas.width = width; canvas.height = height;
                 const ctx = canvas.getContext('2d');
                 ctx?.drawImage(img, 0, 0, width, height);
                 resolve(canvas.toDataURL('image/jpeg', 0.7));
@@ -116,282 +100,95 @@ export default function ImageBulkUploaderPage() {
   const handleGenerateListings = async () => {
     if (imageFiles.length === 0) return;
     setIsProcessing(true);
-    setGeneratedProducts([]);
-
-    const resizedUris = await Promise.all(
-        imageFiles.map(file => resizeImage(file))
-    );
-
+    const resizedUris = await Promise.all(imageFiles.map(file => resizeImage(file)));
     const generated: GeneratedProduct[] = [];
-
     for (const [index, uri] of resizedUris.entries()) {
         try {
             const result = await createProductDescription({ imageDataUri: uri });
             generated.push({
-                id: uuidv4(),
-                ...result,
-                imageDataUri: uri,
-                price: 0, // Default price
-                sizes: [], // Default sizes
-                colors: [], // Default colors
-                vendorName: defaultVendor || 'Snazzify AI', // Apply default vendor
-                category: defaultCategory || result.category, // Apply default category
+                id: uuidv4(), ...result, imageDataUri: uri, price: 0, sizes: [], colors: [],
+                vendorName: defaultVendor || 'Snazzify AI',
+                category: defaultCategory || result.category,
                 allowedPaymentMethods: ['Secure COD', 'Cash on Delivery', 'Prepaid'],
+                isEastIndianLugra: false,
             });
-            // Update progress if needed
         } catch (error: any) {
-            console.error("Error generating description for image", index, error);
-            toast({
-                variant: 'destructive',
-                title: `Error for image ${index + 1}`,
-                description: error.message,
-            });
+            toast({ variant: 'destructive', title: `Error for image ${index + 1}` });
         }
     }
-    
     setGeneratedProducts(generated);
     setIsProcessing(false);
-    toast({
-      title: 'Listings Generated!',
-      description: 'The AI has created product details. Review and set prices below.',
-    });
+    toast({ title: 'Listings Generated!' });
   };
 
-  const handleProductChange = (id: string, field: keyof GeneratedProduct, value: string | number | string[] | GeneratedProduct['allowedPaymentMethods']) => {
-    setGeneratedProducts(prev =>
-      prev.map(p => (p.id === id ? { ...p, [field]: value } : p))
-    );
+  const handleProductChange = (id: string, field: keyof GeneratedProduct, value: any) => {
+    setGeneratedProducts(prev => prev.map(p => (p.id === id ? { ...p, [field]: value } : p)));
   };
   
   const handlePushToShopify = async () => {
     if (generatedProducts.length === 0) return;
     setIsPushing(true);
-
-    let successCount = 0;
-    let errorCount = 0;
-
     for (const product of generatedProducts) {
         try {
-             // Save to Firestore "My Products" (product_drops)
             const newProductDrop: ProductDrop = {
-                id: uuidv4(),
-                vendorId: 'admin_snazzify',
-                vendorName: product.vendorName || 'SnazzifyOfficial',
-                title: product.title,
-                description: product.description,
-                costPrice: product.costPrice || 0,
-                imageDataUris: [product.imageDataUri],
-                createdAt: new Date().toISOString(),
-                category: product.category,
-                sizes: product.sizes,
-                colors: product.colors,
-                allowedPaymentMethods: product.allowedPaymentMethods,
+                id: uuidv4(), vendorId: 'admin_snazzify', vendorName: product.vendorName || 'SnazzifyOfficial', title: product.title, description: product.description, costPrice: product.costPrice || 0, imageDataUris: [product.imageDataUri], createdAt: new Date().toISOString(), category: product.category, sizes: product.sizes, colors: product.colors, allowedPaymentMethods: product.allowedPaymentMethods, isEastIndianLugra: product.isEastIndianLugra,
             };
             await saveDocument('product_drops', newProductDrop, newProductDrop.id);
-
-            // Push to Shopify
              const productData = {
-                title: product.title,
-                body_html: product.description,
-                product_type: product.category,
-                vendor: product.vendorName || 'Snazzify AI',
-                variants: [{ price: product.price, option1: product.sizes[0] || 'Default', option2: product.colors[0] || 'Default' }],
-                options: [
-                    { name: "Size", values: product.sizes.length > 0 ? product.sizes : ["Default"] },
-                    { name: "Color", values: product.colors.length > 0 ? product.colors : ["Default"] },
-                ],
+                title: product.title, body_html: product.description, product_type: product.category, vendor: product.vendorName,
+                variants: [{ price: product.price }],
                 images: [{ attachment: product.imageDataUri.split(',')[1] }],
             };
-
-            const response = await fetch('/api/shopify/products/create', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(productData),
-            });
-            
-            const result = await response.json();
-            if (!response.ok) throw new Error(result.error);
-            successCount++;
-
+            await fetch('/api/shopify/products/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(productData) });
         } catch (error: any) {
-            errorCount++;
-            console.error(`Failed to push product "${product.title}":`, error);
+            console.error(error);
         }
     }
-
-    toast({
-        title: 'Shopify Push Complete!',
-        description: `${successCount} products pushed successfully and saved to "My Products". ${errorCount} failed. Check console for details.`,
-    });
+    toast({ title: 'Push Complete!' });
     setGeneratedProducts([]);
     setIsPushing(false);
   };
   
-  useEffect(() => {
-    if (defaultVendor) {
-        setGeneratedProducts(prev => prev.map(p => ({...p, vendorName: defaultVendor})))
-    }
-  }, [defaultVendor]);
-
-   useEffect(() => {
-    if (defaultCategory) {
-        setGeneratedProducts(prev => prev.map(p => ({...p, category: defaultCategory})))
-    }
-  }, [defaultCategory]);
-
   return (
     <AppShell title="Image Bulk Uploader">
       <Card>
-        <CardHeader>
-          <CardTitle>1. Upload Images</CardTitle>
-          <CardDescription>
-            Select or drag and drop multiple product images at once. Set default vendor and collection names to apply to all uploaded images.
-          </CardDescription>
-        </CardHeader>
+        <CardHeader><CardTitle>1. Upload Images</CardTitle></CardHeader>
         <CardContent className="space-y-4">
-          <div
-            className="relative flex flex-col items-center justify-center w-full min-h-[12rem] border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-muted/50 p-4"
-            onDrop={handleDrop}
-            onDragOver={(e) => e.preventDefault()}
-            onClick={() => document.getElementById('product-image-input')?.click()}
-          >
-            {imagePreviews.length === 0 ? (
-              <div className="text-center">
-                <ImagePlus className="mx-auto h-12 w-12 text-muted-foreground" />
-                <p className="mt-2 text-sm text-muted-foreground">
-                  <span className="font-semibold">Click to upload</span> or drag & drop images
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-4">
-                {imagePreviews.map((src, index) => (
-                  <Image key={index} src={src} alt={`preview ${index}`} width={100} height={100} className="object-cover rounded-md aspect-square" />
-                ))}
-              </div>
-            )}
+          <div className="relative flex flex-col items-center justify-center w-full min-h-[12rem] border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-muted/50 p-4" onDrop={handleDrop} onDragOver={(e) => e.preventDefault()} onClick={() => document.getElementById('product-image-input')?.click()}>
+            {imagePreviews.length === 0 ? <ImagePlus className="h-12 w-12 text-muted-foreground" /> : <div className="grid grid-cols-4 sm:grid-cols-8 gap-4">{imagePreviews.map((src, i) => <Image key={i} src={src} alt="p" width={100} height={100} className="object-cover rounded-md aspect-square" />)}</div>}
           </div>
           <Input id="product-image-input" type="file" accept="image/*" onChange={handleFileChange} className="hidden" multiple />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="default-vendor">Default Vendor Name</Label>
-                <div className="relative">
-                    <Factory className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input id="default-vendor" value={defaultVendor} onChange={e => setDefaultVendor(e.target.value)} placeholder="e.g., Snazzify Official" className="pl-9"/>
-                </div>
-            </div>
-             <div className="space-y-2">
-                <Label htmlFor="default-category">Default Collection/Category</Label>
-                 <div className="relative">
-                    <Book className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input id="default-category" value={defaultCategory} onChange={e => setDefaultCategory(e.target.value)} placeholder="e.g., Summer Collection" className="pl-9"/>
-                </div>
-            </div>
+              <div className="space-y-2"><Label>Default Vendor</Label><Input value={defaultVendor} onChange={e => setDefaultVendor(e.target.value)} /></div>
+              <div className="space-y-2"><Label>Default Category</Label><Input value={defaultCategory} onChange={e => setDefaultCategory(e.target.value)} /></div>
           </div>
         </CardContent>
-        <CardFooter>
-          <Button onClick={handleGenerateListings} disabled={isProcessing || imageFiles.length === 0}>
-            {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
-            Generate {imageFiles.length > 0 ? imageFiles.length : ''} Listings with AI
-          </Button>
-        </CardFooter>
+        <CardFooter><Button onClick={handleGenerateListings} disabled={isProcessing || imageFiles.length === 0}>Generate Listings</Button></CardFooter>
       </Card>
-
-      {isProcessing && (
-         <div className="flex flex-col items-center justify-center p-12 gap-4 text-center">
-            <Sparkles className="h-12 w-12 text-primary animate-pulse" />
-            <h3 className="text-xl font-semibold">AI is analyzing your images...</h3>
-            <p className="text-muted-foreground">Generating titles and descriptions for each product. This may take a moment.</p>
-        </div>
-      )}
-
       {generatedProducts.length > 0 && (
          <Card className="mt-8">
-             <CardHeader>
-                <CardTitle>2. Review, Price & Push</CardTitle>
-                <CardDescription>Adjust the AI-generated details and set your pricing for each product.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-6 pt-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {generatedProducts.map(p => (
                         <Card key={p.id}>
-                            <CardHeader className="p-0">
-                                <Image src={p.imageDataUri} alt={p.title} width={300} height={300} className="rounded-t-lg object-cover aspect-square w-full" />
-                            </CardHeader>
+                            <CardHeader className="p-0"><Image src={p.imageDataUri} alt="p" width={300} height={300} className="rounded-t-lg object-cover aspect-square w-full" /></CardHeader>
                             <CardContent className="p-4 space-y-2">
-                                <div className="space-y-1">
-                                    <Label htmlFor={`title-${p.id}`}>Title</Label>
-                                    <Input id={`title-${p.id}`} value={p.title} onChange={e => handleProductChange(p.id, 'title', e.target.value)} />
-                                </div>
-                                 <div className="space-y-1">
-                                    <Label htmlFor={`desc-${p.id}`}>Description</Label>
-                                    <Textarea id={`desc-${p.id}`} value={p.description} onChange={e => handleProductChange(p.id, 'description', e.target.value)} rows={4} />
-                                </div>
+                                <div className="space-y-1"><Label>Title</Label><Input value={p.title} onChange={e => handleProductChange(p.id, 'title', e.target.value)} /></div>
                                 <div className="grid grid-cols-2 gap-4">
-                                     <div className="space-y-1">
-                                        <Label htmlFor={`cost-${p.id}`}>Cost Price</Label>
-                                        <Input id={`cost-${p.id}`} type="number" value={p.costPrice} onChange={e => handleProductChange(p.id, 'costPrice', Number(e.target.value))} />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <Label htmlFor={`price-${p.id}`}>Selling Price</Label>
-                                        <Input id={`price-${p.id}`} type="number" value={p.price} onChange={e => handleProductChange(p.id, 'price', Number(e.target.value))} />
-                                    </div>
-                                </div>
-                                 <div className="space-y-1">
-                                    <Label htmlFor={`category-${p.id}`}>Category</Label>
-                                    <Input id={`category-${p.id}`} value={p.category} onChange={e => handleProductChange(p.id, 'category', e.target.value)} />
-                                </div>
-                                <div className="space-y-1">
-                                    <Label htmlFor={`vendor-${p.id}`}>Vendor</Label>
-                                    <Input id={`vendor-${p.id}`} value={p.vendorName} onChange={e => handleProductChange(p.id, 'vendorName', e.target.value)} />
-                                </div>
-                                <div className="space-y-1">
-                                    <Label htmlFor={`sizes-${p.id}`}>Sizes (comma-separated)</Label>
-                                    <Input id={`sizes-${p.id}`} value={p.sizes.join(', ')} onChange={e => handleProductChange(p.id, 'sizes', e.target.value.split(',').map(s=>s.trim()))} />
-                                </div>
-                                <div className="space-y-1">
-                                    <Label htmlFor={`colors-${p.id}`}>Colors (comma-separated)</Label>
-                                    <Input id={`colors-${p.id}`} value={p.colors.join(', ')} onChange={e => handleProductChange(p.id, 'colors', e.target.value.split(',').map(s=>s.trim()))} />
-                                </div>
-                                <div className="space-y-1">
-                                    <Label>Payment Methods</Label>
-                                    <div className="flex gap-4 pt-1">
-                                        <div className="flex items-center space-x-2">
-                                            <Checkbox id={`scod-${p.id}`} checked={p.allowedPaymentMethods?.includes('Secure COD')} onCheckedChange={checked => {
-                                                const newMethods = checked ? [...(p.allowedPaymentMethods || []), 'Secure COD'] : (p.allowedPaymentMethods || []).filter(m => m !== 'Secure COD');
-                                                handleProductChange(p.id, 'allowedPaymentMethods', newMethods);
-                                            }} />
-                                            <Label htmlFor={`scod-${p.id}`} className="text-xs">Secure COD</Label>
-                                        </div>
-                                         <div className="flex items-center space-x-2">
-                                            <Checkbox id={`cod-${p.id}`} checked={p.allowedPaymentMethods?.includes('Cash on Delivery')} onCheckedChange={checked => {
-                                                const newMethods = checked ? [...(p.allowedPaymentMethods || []), 'Cash on Delivery'] : (p.allowedPaymentMethods || []).filter(m => m !== 'Cash on Delivery');
-                                                handleProductChange(p.id, 'allowedPaymentMethods', newMethods);
-                                            }} />
-                                            <Label htmlFor={`cod-${p.id}`} className="text-xs">COD</Label>
-                                        </div>
-                                         <div className="flex items-center space-x-2">
-                                            <Checkbox id={`prepaid-${p.id}`} checked={p.allowedPaymentMethods?.includes('Prepaid')} onCheckedChange={checked => {
-                                                const newMethods = checked ? [...(p.allowedPaymentMethods || []), 'Prepaid'] : (p.allowedPaymentMethods || []).filter(m => m !== 'Prepaid');
-                                                handleProductChange(p.id, 'allowedPaymentMethods', newMethods);
-                                            }} />
-                                            <Label htmlFor={`prepaid-${p.id}`} className="text-xs">Prepaid</Label>
-                                        </div>
-                                    </div>
+                                     <div className="space-y-1"><Label>Price</Label><Input type="number" value={p.price} onChange={e => handleProductChange(p.id, 'price', Number(e.target.value))} /></div>
+                                     <div className="flex items-center space-x-2 pt-6">
+                                        <Checkbox id={`lugra-${p.id}`} checked={p.isEastIndianLugra} onCheckedChange={checked => handleProductChange(p.id, 'isEastIndianLugra', !!checked)} />
+                                        <Label htmlFor={`lugra-${p.id}`} className="text-[10px] font-bold text-primary">Lugra?</Label>
+                                     </div>
                                 </div>
                             </CardContent>
                         </Card>
                     ))}
                 </div>
             </CardContent>
-             <CardFooter>
-                <Button onClick={handlePushToShopify} disabled={isPushing} size="lg">
-                    {isPushing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Rocket className="mr-2 h-4 w-4" />}
-                    Push All {generatedProducts.length} Products to Shopify
-                </Button>
-            </CardFooter>
+             <CardFooter><Button onClick={handlePushToShopify} disabled={isPushing} size="lg">Push All to Shopify</Button></CardFooter>
          </Card>
       )}
-
     </AppShell>
   );
 }
