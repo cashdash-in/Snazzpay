@@ -105,7 +105,8 @@ export default function AdminInventoryPage() {
     }, [loadData]);
 
     const resizeImage = (file: File): Promise<string> => {
-        return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
+            if (typeof window === 'undefined') return reject('Window undefined');
             const reader = new FileReader();
             reader.onload = (e) => {
                 const img = new (window as any).Image();
@@ -263,7 +264,7 @@ export default function AdminInventoryPage() {
                                                     <Image src={item.imageDataUri} fill alt="p" className="object-cover" unoptimized />
                                                 </div>
                                                 <div>
-                                                    <button onClick={() => setSelectedDetailItem(item)} className="font-bold hover:underline">{item.name}</button>
+                                                    <button onClick={() => setSelectedDetailItem(item)} className="font-bold hover:underline text-left">{item.name}</button>
                                                     <p className="text-[10px] text-muted-foreground font-mono">{item.id}</p>
                                                 </div>
                                             </div>
