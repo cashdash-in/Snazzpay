@@ -5,7 +5,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, ShoppingCart, Percent, MessageCircle, Send } from 'lucide-react';
+import { Loader2, ShoppingCart, Percent, MessageCircle, Send, Sparkles, Camera } from 'lucide-react';
 import Image from 'next/image';
 import type { SellerProduct } from '../seller/ai-product-uploader/page';
 import { getCollection, getDocument, saveDocument } from '@/services/firestore';
@@ -60,25 +60,6 @@ function SmartMagazineContent() {
             setDiscount(parseFloat(discountParam));
         }
 
-        // Track session start
-        fetch('/api/track', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ event: 'magazineSessionStart' }),
-            keepalive: true,
-        });
-
-        const handleUnload = () => {
-             fetch('/api/track', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ event: 'sessionEnd', type: 'magazine' }),
-                keepalive: true,
-            });
-        };
-
-        window.addEventListener('beforeunload', handleUnload);
-
         async function fetchProducts() {
             const magazineId = searchParams.get('id');
 
@@ -88,14 +69,6 @@ function SmartMagazineContent() {
             }
 
             try {
-                // Track visit
-                fetch('/api/track', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ event: 'magazineVisit' }),
-                    keepalive: true,
-                });
-
                 const fetchedMagazine = await getDocument<Magazine>('smart_magazines', magazineId);
                 if (!fetchedMagazine) {
                     setIsLoading(false);
@@ -109,7 +82,6 @@ function SmartMagazineContent() {
                     return;
                 }
                 
-                const fetchedProducts: DisplayProduct[] = [];
                 const [sellerProducts, productDrops] = await Promise.all([
                     getCollection<SellerProduct>('seller_products'),
                     getCollection<ProductDrop>('product_drops')
@@ -119,13 +91,8 @@ function SmartMagazineContent() {
                 sellerProducts.forEach(p => productMap.set(p.id, p));
                 productDrops.forEach(p => productMap.set(p.id, p));
 
-                for (const id of productIds) {
-                    const product = productMap.get(id);
-                    if (product) {
-                        fetchedProducts.push(product);
-                    }
-                }
-                setProducts(fetchedProducts);
+                const fetched = productIds.map(id => productMap.get(id)).filter(p => !!p) as DisplayProduct[];
+                setProducts(fetched);
             } catch (error) {
                 console.error("Failed to fetch products for magazine:", error);
             } finally {
@@ -133,16 +100,10 @@ function SmartMagazineContent() {
             }
         }
         fetchProducts();
-
-        return () => {
-            window.removeEventListener('beforeunload', handleUnload);
-            handleUnload();
-        };
     }, [searchParams]);
     
     const handleOrderClick = (product: DisplayProduct) => {
         const catalogueParams = new URLSearchParams();
-        
         catalogueParams.set('id', product.id);
         catalogueParams.set('return_url', window.location.href);
 
@@ -151,213 +112,107 @@ function SmartMagazineContent() {
             catalogueParams.set('sellerName', magazine.creatorName);
         }
 
-        const discountFromMagazine = searchParams.get('discount');
-        if (discountFromMagazine) {
-            catalogueParams.set('discount', discountFromMagazine);
-        }
-    
+        if (discount > 0) catalogueParams.set('discount', discount.toString());
         router.push(`/catalogue?${catalogueParams.toString()}`);
     };
 
     const handleSendEnquiry = async () => {
         if (!enquiryProduct || !enquiryForm.name || !enquiryForm.phone) {
-            toast({ variant: 'destructive', title: "Details Required", description: "Please provide your name and phone number." });
+            toast({ variant: 'destructive', title: "Details Required" });
             return;
         }
-
         setIsEnquiring(true);
-        const leadId = uuidv4();
-        const price = ((enquiryProduct as SellerProduct).price || (enquiryProduct as ProductDrop).costPrice);
-        const finalPrice = discount > 0 ? price - (price * (discount / 100)) : price;
-
         try {
-            const leadData = {
+            const leadId = uuidv4();
+            await saveDocument('leads', {
                 id: leadId,
-                orderId: `ENQ-${uuidv4().substring(0, 6).toUpperCase()}`,
                 customerName: enquiryForm.name,
                 contactNo: enquiryForm.phone,
                 productOrdered: enquiryProduct.title,
                 productId: enquiryProduct.id,
-                price: finalPrice.toString(),
+                price: ((enquiryProduct as any).price || (enquiryProduct as any).costPrice).toString(),
                 paymentStatus: 'Enquiry',
                 date: new Date().toISOString(),
                 sellerId: magazine?.creatorId || 'admin',
                 sellerName: magazine?.creatorName || 'Admin',
                 source: 'SmartMagazine',
-                message: enquiryForm.message,
                 isRead: false,
                 imageDataUris: enquiryProduct.imageDataUris,
-            };
-
-            await saveDocument('leads', leadData, leadId);
-            
-            toast({ title: "Enquiry Sent!", description: "We have received your interest. Our team will contact you shortly." });
+            }, leadId);
+            toast({ title: "Enquiry Sent!" });
             setEnquiryProduct(null);
             setEnquiryForm({ name: '', phone: '', message: '' });
         } catch (error) {
-            toast({ variant: 'destructive', title: "Failed to send enquiry" });
+            toast({ variant: 'destructive', title: "Failed to send" });
         } finally {
             setIsEnquiring(false);
         }
     };
 
-    if (isLoading) {
-        return <div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
-    }
-
-    if (!magazine || products.length === 0) {
-        return (
-             <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
-                <Card className="w-full max-w-2xl shadow-lg text-center">
-                    <CardHeader>
-                        <CardTitle>Magazine Not Found</CardTitle>
-                        <CardDescription>The requested magazine is empty or the link is invalid.</CardDescription>
-                    </CardHeader>
-                </Card>
-            </div>
-        )
-    }
+    if (isLoading) return <div className="flex h-screen w-full items-center justify-center"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
 
     return (
-        <div className="min-h-screen bg-gray-50 p-4 sm:p-8">
-            <div className="max-w-6xl mx-auto">
-                 <header className="text-center mb-12 space-y-6">
-                    {magazine.logoDataUri && (
-                        <div className="flex justify-center mb-6">
-                            <div className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-full overflow-hidden border-4 border-white shadow-xl bg-white">
-                                <Image 
-                                    src={magazine.logoDataUri} 
-                                    alt="Brand Logo" 
-                                    fill 
-                                    className="object-contain p-2"
-                                />
-                            </div>
-                        </div>
-                    )}
-                    <div>
-                        <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-gray-900">{magazine.title}</h1>
-                        <p className="mt-4 text-lg text-muted-foreground">
-                            {magazine.vendorTitle || `A curated collection by ${magazine.creatorName}`}
-                        </p>
+        <div className="min-h-screen bg-slate-50 pb-20">
+            <header className="bg-white border-b sticky top-0 z-50 px-4 py-6 md:px-8 text-center">
+                {magazine?.logoDataUri && (
+                    <div className="relative w-20 h-20 mx-auto mb-4 rounded-full overflow-hidden border-2 border-white shadow-lg">
+                        <Image src={magazine.logoDataUri} fill alt="logo" className="object-contain p-1" />
                     </div>
-                </header>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                    {products.map(product => {
-                         const price = ((product as SellerProduct).price || (product as ProductDrop).costPrice);
-                         const discountedPrice = discount > 0 ? price - (price * (discount / 100)) : price;
-                         const hasVideo = !!(product as any).videoDataUri;
+                )}
+                <h1 className="text-3xl md:text-5xl font-black italic uppercase tracking-tighter text-slate-900">{magazine?.title}</h1>
+                <p className="text-sm text-muted-foreground mt-2 font-bold uppercase tracking-widest">{magazine?.vendorTitle || `Curated by ${magazine?.creatorName}`}</p>
+            </header>
 
-                        return (
-                        <Card key={product.id} className="shadow-md hover:shadow-xl transition-shadow overflow-hidden flex flex-col group rounded-lg">
-                            {hasVideo ? (
-                                <video
-                                    src={(product as any).videoDataUri}
-                                    width="400"
-                                    height="400"
-                                    autoPlay
-                                    loop
-                                    muted
-                                    playsInline
-                                    className="object-cover w-full h-48 sm:h-64"
-                                />
-                            ) : (
-                                <Carousel className="w-full relative group/carousel">
-                                    <CarouselContent>
-                                        {product.imageDataUris.map((uri, index) => (
-                                            <CarouselItem key={index}>
-                                                <Image
-                                                    src={uri}
-                                                    alt={`${product.title} image ${index + 1}`}
-                                                    width={400}
-                                                    height={400}
-                                                    className="object-cover w-full h-48 sm:h-64"
-                                                />
-                                            </CarouselItem>
-                                        ))}
-                                    </CarouselContent>
-                                    {product.imageDataUris.length > 1 && (
-                                        <>
-                                            <CarouselPrevious className="absolute left-2 top-1/2 -translate-y-1/2 opacity-0 group-hover/carousel:opacity-100 transition-opacity" />
-                                            <CarouselNext className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover/carousel:opacity-100 transition-opacity" />
-                                        </>
-                                    )}
-                                    {discount > 0 && (
-                                        <Badge className="absolute top-2 right-2 z-10 bg-destructive text-destructive-foreground">
-                                            <Percent className="h-3 w-3 mr-1" />
-                                            {discount}% OFF
-                                        </Badge>
-                                    )}
-                                </Carousel>
-                            )}
-                             <CardContent className="p-4 flex-grow flex flex-col">
-                                <h3 className="text-base font-semibold mb-1 line-clamp-2 flex-grow">{product.title}</h3>
-                                <div className="mt-2">
-                                     <p className="text-lg font-bold text-primary">
-                                        ₹{discountedPrice.toFixed(2)}
-                                        {discount > 0 && (
-                                            <span className="text-sm font-normal text-muted-foreground ml-2 line-through">
-                                                ₹{price.toFixed(2)}
-                                            </span>
+            <main className="max-w-7xl mx-auto p-4 md:p-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                {products.map(product => {
+                    const price = (product as any).price || (product as any).costPrice;
+                    return (
+                        <Card key={product.id} className="group rounded-[32px] border-none shadow-lg hover:shadow-2xl transition-all duration-500 overflow-hidden bg-white flex flex-col">
+                            <div className="relative aspect-[4/5] bg-slate-100 overflow-hidden">
+                                <Image src={product.imageDataUris[0]} fill alt={product.title} className="object-cover transition-transform duration-700 group-hover:scale-105" unoptimized />
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-6 gap-3">
+                                    <Button onClick={() => handleOrderClick(product)} className="w-full h-12 rounded-xl font-black uppercase italic bg-primary text-white">
+                                        <ShoppingCart className="mr-2 h-4 w-4" /> Order Now
+                                    </Button>
+                                    <Button onClick={() => handleOrderClick(product)} variant="secondary" className="w-full h-12 rounded-xl font-black uppercase italic bg-white text-primary">
+                                        <Sparkles className="mr-2 h-4 w-4" /> Magic Mirror
+                                    </Button>
+                                </div>
+                                {discount > 0 && <Badge className="absolute top-4 right-4 bg-destructive text-white font-black italic">-{discount}%</Badge>}
+                            </div>
+                            <CardContent className="p-6 flex-1 flex flex-col justify-between">
+                                <div className="space-y-1">
+                                    <h3 className="font-black italic uppercase text-slate-800 line-clamp-1">{product.title}</h3>
+                                    <p className="text-xs text-muted-foreground line-clamp-2 italic">"{product.description}"</p>
+                                </div>
+                                <div className="pt-4 border-t mt-4 flex justify-between items-center">
+                                    <span className="text-xl font-black text-primary">₹{price}</span>
+                                    <Dialog onOpenChange={(open) => !open && setEnquiryProduct(null)}>
+                                        <DialogTrigger asChild>
+                                            <Button variant="ghost" size="sm" className="font-bold text-xs uppercase" onClick={() => setEnquiryProduct(product)}>Enquire</Button>
+                                        </DialogTrigger>
+                                        {enquiryProduct?.id === product.id && (
+                                            <DialogContent className="rounded-[32px] p-8 border-none">
+                                                <DialogHeader><DialogTitle className="text-2xl font-black italic uppercase">Product Enquiry</DialogTitle></DialogHeader>
+                                                <div className="space-y-4 py-4">
+                                                    <div className="space-y-1"><Label className="text-[10px] uppercase font-black">Your Name</Label><Input value={enquiryForm.name} onChange={e => setEnquiryForm({...enquiryForm, name: e.target.value})} className="h-12 rounded-xl" /></div>
+                                                    <div className="space-y-1"><Label className="text-[10px] uppercase font-black">WhatsApp Number</Label><Input value={enquiryForm.phone} onChange={e => setEnquiryForm({...enquiryForm, phone: e.target.value})} className="h-12 rounded-xl" /></div>
+                                                    <div className="space-y-1"><Label className="text-[10px] uppercase font-black">Message</Label><Textarea value={enquiryForm.message} onChange={e => setEnquiryForm({...enquiryForm, message: e.target.value})} className="rounded-xl" /></div>
+                                                </div>
+                                                <DialogFooter><Button onClick={handleSendEnquiry} className="w-full h-14 rounded-2xl font-black uppercase italic" disabled={isEnquiring}>{isEnquiring ? <Loader2 className="animate-spin"/> : "Send Request"}</Button></DialogFooter>
+                                            </DialogContent>
                                         )}
-                                    </p>
+                                    </Dialog>
                                 </div>
                             </CardContent>
-                            <CardFooter className="p-2 bg-slate-50 flex flex-col gap-2">
-                                <Button className="w-full" size="sm" onClick={() => handleOrderClick(product)}>
-                                    <ShoppingCart className="mr-2 h-4 w-4" />
-                                    Order Now
-                                </Button>
-                                <Dialog onOpenChange={(open) => !open && setEnquiryProduct(null)}>
-                                    <DialogTrigger asChild>
-                                        <Button className="w-full" variant="outline" size="sm" onClick={() => setEnquiryProduct(product)}>
-                                            <MessageCircle className="mr-2 h-4 w-4" />
-                                            Enquire
-                                        </Button>
-                                    </DialogTrigger>
-                                    {enquiryProduct?.id === product.id && (
-                                        <DialogContent className="sm:max-w-md">
-                                            <DialogHeader>
-                                                <DialogTitle>Enquire about this product</DialogTitle>
-                                                <DialogDescription>
-                                                    Interested in {product.title}? Send us your details and we'll get back to you.
-                                                </DialogDescription>
-                                            </DialogHeader>
-                                            <div className="space-y-4 py-4">
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="enq-name">Your Name</Label>
-                                                    <Input id="enq-name" value={enquiryForm.name} onChange={e => setEnquiryForm({...enquiryForm, name: e.target.value})} />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="enq-phone">Phone Number</Label>
-                                                    <Input id="enq-phone" type="tel" value={enquiryForm.phone} onChange={e => setEnquiryForm({...enquiryForm, phone: e.target.value})} />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="enq-msg">Message (Optional)</Label>
-                                                    <Textarea id="enq-msg" placeholder="Tell us what you'd like to know..." value={enquiryForm.message} onChange={e => setEnquiryForm({...enquiryForm, message: e.target.value})} />
-                                                </div>
-                                            </div>
-                                            <DialogFooter>
-                                                <Button onClick={handleSendEnquiry} disabled={isEnquiring} className="w-full">
-                                                    {isEnquiring ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <Send className="mr-2 h-4 w-4" />}
-                                                    Send Enquiry
-                                                </Button>
-                                            </DialogFooter>
-                                        </DialogContent>
-                                    )}
-                                </Dialog>
-                            </CardFooter>
                         </Card>
-                    )})}
-                </div>
-            </div>
+                    );
+                })}
+            </main>
         </div>
     );
 }
 
 export default function SmartMagazinePage() {
-    return (
-        <Suspense fallback={<div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
-            <SmartMagazineContent />
-        </Suspense>
-    );
+    return <Suspense fallback={<div className="flex h-screen w-full items-center justify-center"><Loader2 className="animate-spin" /></div>}><SmartMagazineContent /></Suspense>;
 }
