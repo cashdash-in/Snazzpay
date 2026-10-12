@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
@@ -216,6 +217,13 @@ export default function AdminInventoryPage() {
         }
     };
 
+    const updateItem = async (id: string, updates: Partial<InventoryItem>) => {
+        const updated = inventory.map(item => item.id === id ? { ...item, ...updates, lastUpdated: new Date().toISOString() } : item);
+        setInventory(updated);
+        const item = updated.find(i => i.id === id);
+        if (item) await saveDocument('inventory', item, id);
+    };
+
     const dailyPnL = useMemo(() => {
         if (!todayTimestamp) return { revenue: 0, profit: 0, itemsSold: 0 };
         const todaySales = sales.filter(s => startOfDay(new Date(s.date)).getTime() === todayTimestamp);
@@ -226,12 +234,10 @@ export default function AdminInventoryPage() {
         };
     }, [sales, todayTimestamp]);
 
-    const filteredInventory = useMemo(() => {
-        return inventory.filter(i => 
-            (i.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
-            (i.id || '').toLowerCase().includes(searchTerm.toLowerCase())
-        );
-    }, [inventory, searchTerm]);
+    const filteredInventory = inventory.filter(i => 
+        (i.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+        (i.id || '').toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
     if (!isMounted) return null;
 

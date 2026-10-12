@@ -40,6 +40,8 @@ const virtualTryOnFlow = ai.defineFlow(
   },
   async (input) => {
     try {
+      console.log(`Starting Virtual Try-On for: ${input.productTitle}`);
+      
       const response = await ai.generate({
         model: 'googleai/gemini-2.5-flash-image',
         prompt: [
@@ -53,7 +55,9 @@ const virtualTryOnFlow = ai.defineFlow(
             1. PERSERVE IDENTITY: Keep the person's face, hair, and basic body structure exactly the same.
             2. REALISTIC FIT: Drape the clothing item (e.g. saree, shirt) realistically over their body.
             3. CONSISTENCY: Keep the background and lighting of the first image.
-            4. QUALITY: The output should look like a professional photograph of them wearing the item.` 
+            4. QUALITY: The output should look like a professional photograph of them wearing the item.
+            
+            DO NOT add any text overlays. Return ONLY the edited image.` 
           },
         ],
         config: {
@@ -64,13 +68,14 @@ const virtualTryOnFlow = ai.defineFlow(
       const mediaPart = response.output?.message?.content.find((p) => !!p.media);
       
       if (!mediaPart || !mediaPart.media?.url) {
-        throw new Error('AI failed to generate the try-on image.');
+        throw new Error('The AI model completed but did not return a generated image.');
       }
 
+      console.log('Virtual Try-On successful.');
       return { generatedImageDataUri: mediaPart.media.url };
     } catch (error: any) {
-      console.error("Virtual Try-On Error:", error);
-      throw new Error(`Try-on failed: ${error.message}`);
+      console.error("Virtual Try-On Error Details:", error);
+      throw new Error(`Try-on failed: ${error.message || 'The AI service is currently overloaded. Please try again with a smaller photo.'}`);
     }
   }
 );
