@@ -4,7 +4,7 @@ import { Suspense, useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, ShieldCheck, ShoppingCart, User, Phone, Mail as MailIcon, Home, MapPin, CheckCircle, Percent, Sparkles, Camera, ImagePlus, RefreshCcw } from 'lucide-react';
+import { Loader2, ShieldCheck, ShoppingCart, User, Phone, Mail as MailIcon, Home, MapPin, CheckCircle, Percent, Sparkles, Camera, ImagePlus, RefreshCcw, Play } from 'lucide-react';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
@@ -139,7 +139,7 @@ function CatalogueOrderPageContent() {
         }
     }, [quantity, product, paymentMethod, appliedDiscount]);
 
-    const resizeImage = (fileOrUri: File | string, maxSize: number = MAX_TRYON_SIZE_PX): Promise<string> => {
+    const resizeImageForAI = (fileOrUri: File | string, maxSize: number = MAX_TRYON_SIZE_PX): Promise<string> => {
         return new Promise((resolve, reject) => {
             const img = new (window as any).Image();
             img.crossOrigin = "anonymous";
@@ -155,7 +155,6 @@ function CatalogueOrderPageContent() {
                 canvas.height = height;
                 const ctx = canvas.getContext('2d');
                 ctx?.drawImage(img, 0, 0, width, height);
-                // Lower quality to ensure extremely light payload
                 resolve(canvas.toDataURL('image/jpeg', 0.5));
             };
             img.onerror = reject;
@@ -177,10 +176,9 @@ function CatalogueOrderPageContent() {
         setIsTryOnLoading(true);
         setTryOnResult(null);
         try {
-            // Resize User Selfie and Product Image to forced small size
             const [personUri, productUri] = await Promise.all([
-                resizeImage(file),
-                resizeImage(product.imageDataUris[0])
+                resizeImageForAI(file),
+                resizeImageForAI(product.imageDataUris[0])
             ]);
             
             const result = await virtualTryOn({
@@ -190,13 +188,13 @@ function CatalogueOrderPageContent() {
             });
             
             setTryOnResult(result.generatedImageDataUri);
-            toast({ title: "Magic Mirror Ready!", description: "AI has virtually dressed you in this item." });
+            toast({ title: "Magic Mirror Ready!", description: "AI has fitted the saree and matched the blouse." });
         } catch (err: any) {
             console.error("Try-On Error:", err);
             toast({ variant: 'destructive', title: "Try-On Failed", description: err.message });
         } finally {
             setIsTryOnLoading(false);
-            if (e.target) e.target.value = ''; // Reset input
+            if (e.target) e.target.value = '';
         }
     };
 
@@ -240,7 +238,6 @@ function CatalogueOrderPageContent() {
     return (
         <div className="min-h-screen bg-slate-50 p-4 md:p-8">
             <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Left: Product & Magic Mirror */}
                 <div className="space-y-6">
                     <Card className="rounded-[32px] overflow-hidden shadow-xl border-none bg-white">
                         <div className="relative aspect-square">
@@ -260,37 +257,26 @@ function CatalogueOrderPageContent() {
                                 <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center text-center p-8 gap-4 z-20">
                                     <Sparkles className="h-16 w-16 text-primary animate-bounce" />
                                     <h3 className="text-2xl font-black italic uppercase tracking-tighter">AI Fitting Room...</h3>
-                                    <p className="text-sm text-muted-foreground animate-pulse max-w-xs">We are virtually dressing you in this item. This takes about 20 seconds.</p>
+                                    <p className="text-sm text-muted-foreground animate-pulse max-w-xs">Replacing outfit & matching blouse. This takes about 15-20 seconds.</p>
                                 </div>
                             )}
                         </div>
                     </Card>
 
                     <Card className="rounded-[24px] bg-slate-900 text-white p-6 shadow-2xl overflow-hidden relative border-none">
-                        <div className="absolute top-0 right-0 p-4 opacity-10">
-                            <Sparkles className="h-20 w-20" />
-                        </div>
+                        <div className="absolute top-0 right-0 p-4 opacity-10"><Sparkles className="h-20 w-20" /></div>
                         <div className="flex flex-col gap-6 relative z-10">
                             <div className="space-y-1">
-                                <h3 className="text-xl font-black italic uppercase flex items-center gap-2">
-                                    <Sparkles className="h-5 w-5 text-purple-400" /> Magic Mirror
-                                </h3>
-                                <p className="text-xs text-slate-400">See how this outfit looks on you instantly with AI.</p>
+                                <h3 className="text-xl font-black italic uppercase flex items-center gap-2"><Sparkles className="h-5 w-5 text-purple-400" /> Magic Mirror</h3>
+                                <p className="text-xs text-slate-400">Completely replace your outfit with this saree and a matching blouse instantly.</p>
                             </div>
-                            
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 {tryOnResult ? (
-                                    <Button onClick={() => setTryOnResult(null)} variant="outline" className="w-full border-white/20 text-white hover:bg-white/10 rounded-xl h-12 font-bold">
-                                        <RefreshCcw className="mr-2 h-4 w-4" /> Try Again
-                                    </Button>
+                                    <Button onClick={() => setTryOnResult(null)} variant="outline" className="w-full border-white/20 text-white hover:bg-white/10 rounded-xl h-12 font-bold"><RefreshCcw className="mr-2 h-4 w-4" /> Try Again</Button>
                                 ) : (
                                     <>
-                                        <Button onClick={() => cameraInputRef.current?.click()} className="bg-primary hover:bg-primary/90 text-white rounded-xl h-12 font-bold shadow-lg">
-                                            <Camera className="mr-2 h-4 w-4" /> Take a Selfie
-                                        </Button>
-                                        <Button onClick={() => galleryInputRef.current?.click()} variant="secondary" className="bg-white/10 hover:bg-white/20 text-white border-white/10 rounded-xl h-12 font-bold">
-                                            <ImagePlus className="mr-2 h-4 w-4" /> From Gallery
-                                        </Button>
+                                        <Button onClick={() => cameraInputRef.current?.click()} className="bg-primary hover:bg-primary/90 text-white rounded-xl h-12 font-bold shadow-lg"><Camera className="mr-2 h-4 w-4" /> Take a Selfie</Button>
+                                        <Button onClick={() => galleryInputRef.current?.click()} variant="secondary" className="bg-white/10 hover:bg-white/20 text-white border-white/10 rounded-xl h-12 font-bold"><ImagePlus className="mr-2 h-4 w-4" /> From Gallery</Button>
                                     </>
                                 )}
                                 <input ref={cameraInputRef} type="file" accept="image/*" capture="user" className="hidden" onChange={handleTryOnUpload} />
@@ -300,7 +286,6 @@ function CatalogueOrderPageContent() {
                     </Card>
                 </div>
 
-                {/* Right: Checkout Form */}
                 <div className="space-y-6">
                     <Card className="rounded-[32px] shadow-xl border-none p-6 md:p-10 bg-white">
                         <form onSubmit={handleSubmit} className="space-y-8">
@@ -313,22 +298,11 @@ function CatalogueOrderPageContent() {
                                     )}
                                 </div>
                             </div>
-
                             <div className="space-y-4">
-                                <div className="space-y-1">
-                                    <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Full Name</Label>
-                                    <Input required value={customerDetails.name} onChange={e => setCustomerDetails({...customerDetails, name: e.target.value})} className="h-12 rounded-xl bg-slate-50 border-none font-bold" />
-                                </div>
-                                <div className="space-y-1">
-                                    <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">WhatsApp Mobile</Label>
-                                    <Input required type="tel" value={customerDetails.contact} onChange={e => setCustomerDetails({...customerDetails, contact: e.target.value})} className="h-12 rounded-xl bg-slate-50 border-none font-bold" />
-                                </div>
-                                <div className="space-y-1">
-                                    <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Delivery Address</Label>
-                                    <Input required value={customerDetails.address} onChange={e => setCustomerDetails({...customerDetails, address: e.target.value})} className="h-12 rounded-xl bg-slate-50 border-none font-bold" />
-                                </div>
+                                <div className="space-y-1"><Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Full Name</Label><Input required value={customerDetails.name} onChange={e => setCustomerDetails({...customerDetails, name: e.target.value})} className="h-12 rounded-xl bg-slate-50 border-none font-bold" /></div>
+                                <div className="space-y-1"><Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">WhatsApp Mobile</Label><Input required type="tel" value={customerDetails.contact} onChange={e => setCustomerDetails({...customerDetails, contact: e.target.value})} className="h-12 rounded-xl bg-slate-50 border-none font-bold" /></div>
+                                <div className="space-y-1"><Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Delivery Address</Label><Input required value={customerDetails.address} onChange={e => setCustomerDetails({...customerDetails, address: e.target.value})} className="h-12 rounded-xl bg-slate-50 border-none font-bold" /></div>
                             </div>
-
                             <div className="space-y-3">
                                 <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Select Payment</Label>
                                 <RadioGroup value={paymentMethod} onValueChange={(v: any) => setPaymentMethod(v)} className="grid grid-cols-2 gap-4">
@@ -344,16 +318,11 @@ function CatalogueOrderPageContent() {
                                     </Label>
                                 </RadioGroup>
                             </div>
-
-                            <Button type="submit" size="lg" className="w-full h-16 text-xl font-black uppercase italic rounded-2xl shadow-xl shadow-primary/20" disabled={isSubmitting}>
-                                {isSubmitting ? <Loader2 className="animate-spin mr-2" /> : "Confirm Order"}
-                            </Button>
+                            <Button type="submit" size="lg" className="w-full h-16 text-xl font-black uppercase italic rounded-2xl shadow-xl shadow-primary/20" disabled={isSubmitting}>{isSubmitting ? <Loader2 className="animate-spin mr-2" /> : "Confirm Order"}</Button>
                         </form>
                     </Card>
                 </div>
             </div>
-
-            {/* Complete Screen */}
             {isOrderComplete && (
                 <div className="fixed inset-0 z-50 bg-white flex flex-col items-center justify-center p-8 text-center space-y-6 animate-in fade-in duration-300">
                     <div className="w-24 h-24 bg-green-100 text-green-600 rounded-full flex items-center justify-center shadow-inner"><CheckCircle className="h-14 w-14" /></div>

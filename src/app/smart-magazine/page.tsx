@@ -1,11 +1,10 @@
-
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useState, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, ShoppingCart, Percent, MessageCircle, Send, Sparkles, Camera } from 'lucide-react';
+import { Loader2, ShoppingCart, Percent, MessageCircle, Send, Sparkles, Camera, ImagePlus, RefreshCcw } from 'lucide-react';
 import Image from 'next/image';
 import type { SellerProduct } from '../seller/ai-product-uploader/page';
 import { getCollection, getDocument, saveDocument } from '@/services/firestore';
@@ -24,6 +23,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { v4 as uuidv4 } from 'uuid';
 import { useToast } from '@/hooks/use-toast';
+import { virtualTryOn } from '@/ai/flows/virtual-try-on';
 
 type DisplayProduct = SellerProduct | ProductDrop;
 
@@ -39,6 +39,7 @@ type Magazine = {
     logoDataUri?: string;
 };
 
+const MAX_TRYON_SIZE_PX = 448;
 
 function SmartMagazineContent() {
     const searchParams = useSearchParams();
@@ -49,6 +50,13 @@ function SmartMagazineContent() {
     const [isLoading, setIsLoading] = useState(true);
     const [discount, setDiscount] = useState<number>(0);
     
+    // Try-On State
+    const [isTryOnLoading, setIsTryOnLoading] = useState(false);
+    const [tryOnResult, setTryOnResult] = useState<string | null>(null);
+    const [tryOnProductId, setTryOnProductId] = useState<string | null>(null);
+    const cameraInputRef = useRef<HTMLInputElement>(null);
+    const galleryInputRef = useRef<HTMLInputElement>(null);
+
     // Enquiry State
     const [enquiryProduct, setEnquiryProduct] = useState<DisplayProduct | null>(null);
     const [enquiryForm, setEnquiryForm] = useState({ name: '', phone: '', message: '' });
@@ -102,6 +110,67 @@ function SmartMagazineContent() {
         fetchProducts();
     }, [searchParams]);
     
+    const resizeImageForAI = (fileOrUri: File | string, maxSize: number = MAX_TRYON_SIZE_PX): Promise<string> => {
+        return new Promise((resolve, reject) => {
+            const img = new (window as any).Image();
+            img.crossOrigin = "anonymous";
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let { width, height } = img;
+                if (width > height) {
+                    if (width > maxSize) { height *= maxSize / width; width = maxSize; }
+                } else {
+                    if (height > maxSize) { width *= maxSize / height; height = maxSize; }
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', 0.5));
+            };
+            img.onerror = reject;
+            if (typeof fileOrUri === 'string') {
+                img.src = fileOrUri;
+            } else {
+                const reader = new FileReader();
+                reader.onload = (e) => img.src = e.target?.result as string;
+                reader.onerror = reject;
+                reader.readAsDataURL(fileOrUri);
+            }
+        });
+    };
+
+    const handleTryOnUpload = async (e: React.ChangeEvent<HTMLInputElement>, product: DisplayProduct) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setIsTryOnLoading(true);
+        setTryOnResult(null);
+        setTryOnProductId(product.id);
+        
+        try {
+            const [personUri, productUri] = await Promise.all([
+                resizeImageForAI(file),
+                resizeImageForAI(product.imageDataUris[0])
+            ]);
+            
+            const result = await virtualTryOn({
+                personImageDataUri: personUri,
+                productImageDataUri: productUri,
+                productTitle: product.title,
+            });
+            
+            setTryOnResult(result.generatedImageDataUri);
+            toast({ title: "Magic Mirror Ready!", description: "AI has successfully fitted the outfit." });
+        } catch (err: any) {
+            toast({ variant: 'destructive', title: "Try-On Failed", description: err.message });
+            setTryOnProductId(null);
+        } finally {
+            setIsTryOnLoading(false);
+            if (e.target) e.target.value = '';
+        }
+    };
+
     const handleOrderClick = (product: DisplayProduct) => {
         const catalogueParams = new URLSearchParams();
         catalogueParams.set('id', product.id);
@@ -153,10 +222,10 @@ function SmartMagazineContent() {
 
     return (
         <div className="min-h-screen bg-slate-50 pb-20">
-            <header className="bg-white border-b sticky top-0 z-50 px-4 py-6 md:px-8 text-center">
+            <header className="bg-white border-b sticky top-0 z-50 px-4 py-6 md:px-8 text-center shadow-sm">
                 {magazine?.logoDataUri && (
                     <div className="relative w-20 h-20 mx-auto mb-4 rounded-full overflow-hidden border-2 border-white shadow-lg">
-                        <Image src={magazine.logoDataUri} fill alt="logo" className="object-contain p-1" />
+                        <Image src={magazine.logoDataUri} fill alt="logo" className="object-contain p-1" unoptimized />
                     </div>
                 )}
                 <h1 className="text-3xl md:text-5xl font-black italic uppercase tracking-tighter text-slate-900">{magazine?.title}</h1>
@@ -166,19 +235,43 @@ function SmartMagazineContent() {
             <main className="max-w-7xl mx-auto p-4 md:p-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
                 {products.map(product => {
                     const price = (product as any).price || (product as any).costPrice;
+                    const isProductTryOn = tryOnProductId === product.id;
+
                     return (
                         <Card key={product.id} className="group rounded-[32px] border-none shadow-lg hover:shadow-2xl transition-all duration-500 overflow-hidden bg-white flex flex-col">
                             <div className="relative aspect-[4/5] bg-slate-100 overflow-hidden">
-                                <Image src={product.imageDataUris[0]} fill alt={product.title} className="object-cover transition-transform duration-700 group-hover:scale-105" unoptimized />
+                                {isProductTryOn && tryOnResult ? (
+                                    <Image src={tryOnResult} fill alt="Try On" className="object-cover animate-in fade-in duration-500" unoptimized />
+                                ) : (
+                                    <Image src={product.imageDataUris[0]} fill alt={product.title} className="object-cover transition-transform duration-700 group-hover:scale-105" unoptimized />
+                                )}
+                                
+                                {isProductTryOn && isTryOnLoading && (
+                                    <div className="absolute inset-0 bg-white/70 backdrop-blur-sm flex flex-col items-center justify-center p-4 text-center">
+                                        <Sparkles className="h-10 w-10 text-primary animate-bounce mb-2" />
+                                        <p className="text-[10px] font-black uppercase italic text-slate-900">AI Fitting...</p>
+                                    </div>
+                                )}
+
                                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-6 gap-3">
                                     <Button onClick={() => handleOrderClick(product)} className="w-full h-12 rounded-xl font-black uppercase italic bg-primary text-white">
                                         <ShoppingCart className="mr-2 h-4 w-4" /> Order Now
                                     </Button>
-                                    <Button onClick={() => handleOrderClick(product)} variant="secondary" className="w-full h-12 rounded-xl font-black uppercase italic bg-white text-primary">
-                                        <Sparkles className="mr-2 h-4 w-4" /> Magic Mirror
-                                    </Button>
+                                    <div className="grid grid-cols-2 gap-2 w-full">
+                                        <Button onClick={() => { setTryOnProductId(product.id); cameraInputRef.current?.click(); }} variant="secondary" className="h-10 rounded-xl font-bold text-[10px] uppercase bg-white text-primary">
+                                            <Camera className="mr-1 h-3 w-3" /> Selfie
+                                        </Button>
+                                        <Button onClick={() => { setTryOnProductId(product.id); galleryInputRef.current?.click(); }} variant="secondary" className="h-10 rounded-xl font-bold text-[10px] uppercase bg-white text-primary">
+                                            <ImagePlus className="mr-1 h-3 w-3" /> Gallery
+                                        </Button>
+                                    </div>
                                 </div>
                                 {discount > 0 && <Badge className="absolute top-4 right-4 bg-destructive text-white font-black italic">-{discount}%</Badge>}
+                                {isProductTryOn && tryOnResult && (
+                                    <Button onClick={() => { setTryOnResult(null); setTryOnProductId(null); }} size="icon" variant="destructive" className="absolute top-4 left-4 h-8 w-8 rounded-full shadow-lg">
+                                        <RefreshCcw className="h-4 w-4" />
+                                    </Button>
+                                )}
                             </div>
                             <CardContent className="p-6 flex-1 flex flex-col justify-between">
                                 <div className="space-y-1">
@@ -209,6 +302,16 @@ function SmartMagazineContent() {
                     );
                 })}
             </main>
+
+            {/* Global Hidden Inputs for Try-On */}
+            <input ref={cameraInputRef} type="file" accept="image/*" capture="user" className="hidden" onChange={(e) => {
+                const product = products.find(p => p.id === tryOnProductId);
+                if (product) handleTryOnUpload(e, product);
+            }} />
+            <input ref={galleryInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
+                const product = products.find(p => p.id === tryOnProductId);
+                if (product) handleTryOnUpload(e, product);
+            }} />
         </div>
     );
 }
