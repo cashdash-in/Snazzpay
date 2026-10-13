@@ -1,10 +1,10 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, ShoppingCart, Percent, MessageCircle, Send, Play } from 'lucide-react';
+import { Loader2, ShoppingCart, Percent, MessageCircle, Send, Play, Sparkles, Camera, ImagePlus, RefreshCcw, Download, ShieldCheck } from 'lucide-react';
 import Image from 'next/image';
 import type { SellerProduct } from '@/app/seller/ai-product-uploader/page';
 import { getCollection, getDocument, saveDocument } from '@/services/firestore';
@@ -21,10 +21,14 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { v4 as uuidv4 } from 'uuid';
 import { useToast } from '@/hooks/use-toast';
+import { virtualTryOn } from '@/ai/flows/virtual-try-on';
+import { cn, sanitizePhoneNumber } from '@/lib/utils';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 
-type DisplayProduct = SellerProduct | ProductDrop;
+type DisplayProduct = (SellerProduct | ProductDrop) & { isTryOnEnabled?: boolean; isEastIndianLugra?: boolean };
 
 type Magazine = {
     id: string;
@@ -36,8 +40,10 @@ type Magazine = {
     createdAt: string;
     discount?: number;
     logoDataUri?: string;
+    isTryOnEnabled?: boolean;
 };
 
+const MAX_TRYON_SIZE_PX = 448;
 
 function BrandedCollectionContent() {
     const params = useParams();
@@ -49,6 +55,16 @@ function BrandedCollectionContent() {
     const [isLoading, setIsLoading] = useState(true);
     const [discount, setDiscount] = useState<number>(0);
     
+    // Try-On State
+    const [isTryOnLoading, setIsTryOnLoading] = useState(false);
+    const [tryOnResult, setTryOnResult] = useState<string | null>(null);
+    const [tryOnProductId, setTryOnProductId] = useState<string | null>(null);
+    const [hasConsented, setHasConsented] = useState(false);
+    const [selectedDrapeStyle, setSelectedDrapeStyle] = useState<'Standard Saree' | 'East Indian Lugra' | 'Western Wear'>('Western Wear');
+    const cameraInputRef = useRef<HTMLInputElement>(null);
+    const galleryInputRef = useRef<HTMLInputElement>(null);
+
+    // Enquiry State
     const [enquiryProduct, setEnquiryProduct] = useState<DisplayProduct | null>(null);
     const [enquiryForm, setEnquiryForm] = useState({ name: '', phone: '', message: '' });
     const [isEnquiring, setIsEnquiring] = useState(false);
@@ -114,6 +130,82 @@ function BrandedCollectionContent() {
         }
         fetchProducts();
     }, [params.id, searchParams]);
+
+    const isEthnicWear = (p: DisplayProduct) => {
+        if (!p) return false;
+        const ethnicKeywords = ['saree', 'sari', 'lugra', 'lehenga', 'suit', 'dhoti', 'kurta', 'ethnic'];
+        return ethnicKeywords.some(k => p.title.toLowerCase().includes(k)) || 
+               ethnicKeywords.some(k => p.category?.toLowerCase().includes(k)) ||
+               p.isEastIndianLugra;
+    };
+
+    const resizeImageForAI = (fileOrUri: File | string, maxSize: number = MAX_TRYON_SIZE_PX): Promise<string> => {
+        return new Promise((resolve, reject) => {
+            if (typeof window === 'undefined') return reject('Window undefined');
+            const img = new (window as any).Image();
+            img.crossOrigin = "anonymous";
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let { width, height } = img;
+                if (width > height) {
+                    if (width > maxSize) { height *= maxSize / width; width = maxSize; }
+                } else {
+                    if (height > maxSize) { width *= maxSize / height; height = maxSize; }
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', 0.5));
+            };
+            img.onerror = reject;
+            if (typeof fileOrUri === 'string') {
+                img.src = fileOrUri;
+            } else {
+                const reader = new FileReader();
+                reader.onload = (e) => img.src = e.target?.result as string;
+                reader.onerror = reject;
+                reader.readAsDataURL(fileOrUri);
+            }
+        });
+    };
+
+    const handleTryOnUpload = async (e: React.ChangeEvent<HTMLInputElement>, product: DisplayProduct) => {
+        if (!hasConsented) {
+            toast({ variant: 'destructive', title: "Consent Required", description: "Please accept the privacy terms first." });
+            return;
+        }
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setIsTryOnLoading(true);
+        setTryOnResult(null);
+        setTryOnProductId(product.id);
+        
+        try {
+            const [personUri, productUri] = await Promise.all([
+                resizeImageForAI(file),
+                resizeImageForAI(product.imageDataUris[0])
+            ]);
+            
+            const isEthnic = isEthnicWear(product);
+            const result = await virtualTryOn({
+                personImageDataUri: personUri,
+                productImageDataUri: productUri,
+                productTitle: product.title,
+                drapeStyle: isEthnic ? (selectedDrapeStyle === 'Western Wear' ? 'Standard Saree' : selectedDrapeStyle) : 'Western Wear',
+            });
+            
+            setTryOnResult(result.generatedImageDataUri);
+            toast({ title: "Look Generated!", description: `Your virtual fit is ready.` });
+        } catch (err: any) {
+            toast({ variant: 'destructive', title: "Try-On Failed", description: err.message });
+            setTryOnProductId(null);
+        } finally {
+            setIsTryOnLoading(false);
+            if (e.target) e.target.value = '';
+        }
+    };
     
     const handleOrderClick = (product: DisplayProduct) => {
         const catalogueParams = new URLSearchParams();
@@ -191,48 +283,43 @@ function BrandedCollectionContent() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 p-4 sm:p-8">
-            <div className="max-w-6xl mx-auto">
-                 <header className="text-center mb-12 space-y-6">
-                    {magazine.logoDataUri && (
-                        <div className="flex justify-center mb-6">
-                            <div className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-full overflow-hidden border-4 border-white shadow-xl bg-white">
-                                <Image src={magazine.logoDataUri} alt="Brand Logo" fill className="object-contain p-2" />
-                            </div>
+        <div className="min-h-screen bg-gray-50 pb-20">
+             <header className="bg-white border-b sticky top-0 z-50 px-4 py-6 md:px-8 text-center shadow-sm">
+                {magazine.logoDataUri && (
+                    <div className="flex justify-center mb-4">
+                        <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 border-white shadow-lg bg-white">
+                            <Image src={magazine.logoDataUri} alt="Brand Logo" fill className="object-contain p-1" unoptimized />
                         </div>
-                    )}
-                    <div>
-                        <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-gray-900">{magazine.title}</h1>
-                        <p className="mt-4 text-lg text-muted-foreground">
-                            {magazine.vendorTitle || `A curated collection by ${magazine.creatorName}`}
-                        </p>
                     </div>
-                </header>
+                )}
+                <div>
+                    <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-gray-900">{magazine.title}</h1>
+                    <p className="mt-2 text-sm text-muted-foreground uppercase tracking-widest font-bold">
+                        {magazine.vendorTitle || `A curated collection by ${magazine.creatorName}`}
+                    </p>
+                </div>
+            </header>
+
+            <main className="max-w-7xl mx-auto p-4 md:p-10 space-y-10">
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                     {products.map(product => {
                          const price = ((product as SellerProduct).price || (product as ProductDrop).costPrice);
                          const discountedPrice = discount > 0 ? price - (price * (discount / 100)) : price;
-                         const videoUrl = product.videoDataUri;
+                         const isProductTryOn = tryOnProductId === product.id;
+                         const canTryOn = magazine.isTryOnEnabled || product.isTryOnEnabled;
 
                         return (
-                        <Card key={product.id} className="shadow-md hover:shadow-xl transition-shadow overflow-hidden flex flex-col group rounded-lg">
-                            <div className="relative w-full h-48 sm:h-64 bg-slate-100">
-                                {videoUrl ? (
-                                    <video 
-                                        src={videoUrl} 
-                                        className="w-full h-full object-cover" 
-                                        autoPlay 
-                                        muted 
-                                        loop 
-                                        playsInline 
-                                    />
+                        <Card key={product.id} className="shadow-md hover:shadow-xl transition-shadow overflow-hidden flex flex-col group rounded-[24px] bg-white border-none">
+                            <div className="relative w-full h-48 sm:h-64 bg-slate-100 overflow-hidden">
+                                {isProductTryOn && tryOnResult ? (
+                                    <Image src={tryOnResult} fill alt="Try On Result" className="object-cover animate-in fade-in duration-500" unoptimized />
                                 ) : (
                                     <Carousel className="w-full h-full relative group/carousel">
                                         <CarouselContent>
                                             {product.imageDataUris.map((uri, index) => (
                                                 <CarouselItem key={index}>
                                                     <div className="relative w-full h-48 sm:h-64">
-                                                        <Image src={uri} alt={product.title} fill className="object-cover" />
+                                                        <Image src={uri} alt={product.title} fill className="object-cover" unoptimized />
                                                     </div>
                                                 </CarouselItem>
                                             ))}
@@ -245,79 +332,158 @@ function BrandedCollectionContent() {
                                         )}
                                     </Carousel>
                                 )}
+                                
+                                {isProductTryOn && isTryOnLoading && (
+                                    <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center p-4 text-center z-20">
+                                        <Sparkles className="h-10 w-10 text-primary animate-bounce mb-2" />
+                                        <p className="text-[10px] font-black uppercase italic text-slate-900">AI Fitting...</p>
+                                    </div>
+                                )}
+
+                                {canTryOn && !isProductTryOn && !tryOnResult && (
+                                    <div className="absolute top-4 left-4 z-10">
+                                        <Badge className="bg-primary/90 text-white font-black italic text-[9px] px-3 py-1 rounded-full shadow-lg flex items-center gap-1 animate-pulse">
+                                            <Sparkles className="h-2 w-2" /> TRY ME
+                                        </Badge>
+                                    </div>
+                                )}
+
                                 {discount > 0 && (
-                                    <Badge className="absolute top-2 right-2 z-10 bg-destructive text-destructive-foreground">
-                                        <Percent className="h-3 w-3 mr-1" />
-                                        {discount}% OFF
+                                    <Badge className="absolute top-4 right-4 z-10 bg-destructive text-white font-black italic">
+                                        -{discount}% OFF
                                     </Badge>
                                 )}
-                                {videoUrl && (
-                                    <Badge className="absolute top-2 left-2 z-10 bg-black/70 text-white border-none backdrop-blur-sm">
-                                        <Play className="h-3 w-3 mr-1 fill-current" /> VIDEO
-                                    </Badge>
+
+                                {isProductTryOn && tryOnResult && (
+                                    <div className="absolute top-2 left-2 flex gap-1 z-30">
+                                        <Button onClick={() => { setTryOnResult(null); setTryOnProductId(null); }} size="icon" variant="destructive" className="h-8 w-8 rounded-full shadow-lg">
+                                            <RefreshCcw className="h-4 w-4" />
+                                        </Button>
+                                    </div>
                                 )}
                             </div>
                              <CardContent className="p-4 flex-grow flex flex-col">
-                                <h3 className="text-base font-semibold mb-1 line-clamp-2 flex-grow">{product.title}</h3>
-                                <div className="mt-2">
-                                     <p className="text-lg font-bold text-primary">
+                                <h3 className="text-base font-bold mb-1 line-clamp-1 flex-grow uppercase italic">{product.title}</h3>
+                                <p className="text-xs text-muted-foreground line-clamp-2 italic mb-3">"{product.description}"</p>
+                                <div className="mt-auto border-t pt-2 flex justify-between items-center">
+                                     <p className="text-lg font-black text-primary">
                                         ₹{discountedPrice.toFixed(2)}
-                                        {discount > 0 && (
-                                            <span className="text-sm font-normal text-muted-foreground ml-2 line-through">
-                                                ₹{price.toFixed(2)}
-                                            </span>
-                                        )}
                                     </p>
+                                    <Badge variant="secondary" className="text-[9px] uppercase font-bold">{product.category}</Badge>
                                 </div>
                             </CardContent>
-                            <CardFooter className="p-2 bg-slate-50 flex flex-col gap-2">
-                                <Button className="w-full" size="sm" onClick={() => handleOrderClick(product)}>
-                                    <ShoppingCart className="mr-2 h-4 w-4" />
-                                    Order Now
-                                </Button>
+                            <CardFooter className="p-0 border-t bg-slate-50 grid grid-cols-2">
                                 <Dialog onOpenChange={(open) => !open && setEnquiryProduct(null)}>
                                     <DialogTrigger asChild>
-                                        <Button className="w-full" variant="outline" size="sm" onClick={() => setEnquiryProduct(product)}>
-                                            <MessageCircle className="mr-2 h-4 w-4" />
-                                            Enquire
+                                        <Button variant="ghost" className="h-12 rounded-none border-r text-[10px] font-bold uppercase" onClick={() => setEnquiryProduct(product)}>
+                                            <MessageCircle className="mr-1 h-3 w-3" /> Enquire
                                         </Button>
                                     </DialogTrigger>
                                     {enquiryProduct?.id === product.id && (
-                                        <DialogContent className="sm:max-w-md">
-                                            <DialogHeader>
-                                                <DialogTitle>Enquire about this product</DialogTitle>
-                                                <DialogDescription>
-                                                    Interested in {product.title}? Send us your details and we'll get back to you.
-                                                </DialogDescription>
-                                            </DialogHeader>
+                                        <DialogContent className="rounded-[32px] p-8 border-none">
+                                            <DialogHeader><DialogTitle className="text-2xl font-black italic uppercase">Product Enquiry</DialogTitle></DialogHeader>
                                             <div className="space-y-4 py-4">
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="enq-name">Your Name</Label>
-                                                    <Input id="enq-name" value={enquiryForm.name} onChange={e => setEnquiryForm({...enquiryForm, name: e.target.value})} />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="enq-phone">Phone Number</Label>
-                                                    <Input id="enq-phone" type="tel" value={enquiryForm.phone} onChange={e => setEnquiryForm({...enquiryForm, phone: e.target.value})} />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="enq-msg">Message (Optional)</Label>
-                                                    <Textarea id="enq-msg" placeholder="Tell us what you'd like to know..." value={enquiryForm.message} onChange={e => setEnquiryForm({...enquiryForm, message: e.target.value})} />
-                                                </div>
+                                                <div className="space-y-1"><Label className="text-[10px] uppercase font-black">Your Name</Label><Input value={enquiryForm.name} onChange={e => setEnquiryForm({...enquiryForm, name: e.target.value})} className="h-12 rounded-xl" /></div>
+                                                <div className="space-y-1"><Label className="text-[10px] uppercase font-black">WhatsApp Number</Label><Input value={enquiryForm.phone} onChange={e => setEnquiryForm({...enquiryForm, phone: e.target.value})} className="h-12 rounded-xl" /></div>
+                                                <div className="space-y-1"><Label className="text-[10px] uppercase font-black">Message</Label><Textarea value={enquiryForm.message} onChange={e => setEnquiryForm({...enquiryForm, message: e.target.value})} className="rounded-xl" /></div>
                                             </div>
-                                            <DialogFooter>
-                                                <Button onClick={handleSendEnquiry} disabled={isEnquiring} className="w-full">
-                                                    {isEnquiring ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <Send className="mr-2 h-4 w-4" />}
-                                                    Send Enquiry
-                                                </Button>
-                                            </DialogFooter>
+                                            <DialogFooter><Button onClick={handleSendEnquiry} className="w-full h-14 rounded-2xl font-black uppercase italic" disabled={isEnquiring}>{isEnquiring ? <Loader2 className="animate-spin"/> : "Send Request"}</Button></DialogFooter>
                                         </DialogContent>
                                     )}
                                 </Dialog>
+
+                                <Button 
+                                    variant="ghost" 
+                                    className="h-12 rounded-none font-black text-[10px] uppercase text-primary hover:bg-slate-100"
+                                    onClick={() => handleOrderClick(product)}
+                                >
+                                    <ShoppingCart className="mr-1 h-3 w-3" /> Order
+                                </Button>
+
+                                {canTryOn && (
+                                    <div className="col-span-2 border-t">
+                                        <Dialog>
+                                            <DialogTrigger asChild>
+                                                <Button variant="ghost" className="w-full h-10 rounded-none bg-primary/5 hover:bg-primary/10 text-primary font-black italic text-[10px]">
+                                                    <Sparkles className="mr-1.5 h-3 w-3" /> MAGIC MIRROR FITTING ROOM
+                                                </Button>
+                                            </DialogTrigger>
+                                            <DialogContent className="max-w-md rounded-[32px] p-8 border-none">
+                                                <DialogHeader>
+                                                    <DialogTitle className="text-2xl font-black italic uppercase flex items-center gap-2">
+                                                        <Sparkles className="h-6 w-6 text-primary" /> Magic Mirror
+                                                    </DialogTitle>
+                                                    <DialogDescription>Experience a virtual fit for {product.title}</DialogDescription>
+                                                </DialogHeader>
+                                                <div className="py-6 space-y-6">
+                                                    <div className="bg-slate-50 p-4 rounded-2xl border-2 border-dashed border-slate-200">
+                                                        <div className="flex items-start gap-3">
+                                                            <Checkbox 
+                                                                id={`consent-${product.id}`} 
+                                                                checked={hasConsented} 
+                                                                onCheckedChange={(val) => setHasConsented(val as boolean)}
+                                                                className="mt-1"
+                                                            />
+                                                            <Label htmlFor={`consent-${product.id}`} className="text-[10px] leading-relaxed text-muted-foreground">
+                                                                <span className="font-bold text-slate-900 uppercase block mb-1">Privacy Promise</span>
+                                                                We do not store your photos on our server. Your selfie is processed instantly and deleted immediately after the session.
+                                                            </Label>
+                                                        </div>
+                                                    </div>
+
+                                                    {isEthnicWear(product) && (
+                                                        <div className="space-y-2">
+                                                            <Label className="text-[10px] font-black uppercase text-slate-400">Select Drape Style</Label>
+                                                            <Select value={selectedDrapeStyle} onValueChange={(val: any) => setSelectedDrapeStyle(val)}>
+                                                                <SelectTrigger className="h-10 rounded-xl bg-slate-50 border-none font-bold text-xs">
+                                                                    <SelectValue />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="Standard Saree">Standard Saree (Floor Length)</SelectItem>
+                                                                    <SelectItem value="East Indian Lugra">East Indian Lugra (Short Drape)</SelectItem>
+                                                                    <SelectItem value="Western Wear">Auto Fitting</SelectItem>
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+                                                    )}
+
+                                                    <div className="grid grid-cols-2 gap-4">
+                                                        <Button 
+                                                            disabled={!hasConsented || isTryOnLoading}
+                                                            onClick={() => { setTryOnProductId(product.id); cameraInputRef.current?.click(); }}
+                                                            className="h-14 rounded-2xl font-black uppercase italic shadow-lg"
+                                                        >
+                                                            <Camera className="mr-2 h-5 w-5" /> Take Selfie
+                                                        </Button>
+                                                        <Button 
+                                                            disabled={!hasConsented || isTryOnLoading}
+                                                            variant="secondary" 
+                                                            onClick={() => { setTryOnProductId(product.id); galleryInputRef.current?.click(); }}
+                                                            className="h-14 rounded-2xl font-black uppercase italic"
+                                                        >
+                                                            <ImagePlus className="mr-2 h-5 w-5" /> Gallery
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </DialogContent>
+                                        </Dialog>
+                                    </div>
+                                )}
                             </CardFooter>
                         </Card>
                     )})}
                 </div>
-            </div>
+            </main>
+
+            {/* Global Hidden Inputs for Try-On */}
+            <input ref={cameraInputRef} type="file" accept="image/*" capture="user" className="hidden" onChange={(e) => {
+                const product = products.find(p => p.id === tryOnProductId);
+                if (product) handleTryOnUpload(e, product);
+            }} />
+            <input ref={galleryInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
+                const product = products.find(p => p.id === tryOnProductId);
+                if (product) handleTryOnUpload(e, product);
+            }} />
         </div>
     );
 }

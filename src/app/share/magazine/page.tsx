@@ -37,6 +37,7 @@ type Magazine = {
     createdAt: string;
     discount?: number;
     logoDataUri?: string;
+    isTryOnEnabled?: boolean;
 };
 
 export default function ShareMagazinePage() {
@@ -52,6 +53,7 @@ export default function ShareMagazinePage() {
     const [vendorTitle, setVendorTitle] = useState('');
     const [discount, setDiscount] = useState<number>(0);
     const [logoDataUri, setLogoDataUri] = useState<string | null>(null);
+    const [isTryOnEnabled, setIsTryOnEnabled] = useState(true);
     
     // Hydration stability
     const [mounted, setMounted] = useState(false);
@@ -65,7 +67,9 @@ export default function ShareMagazinePage() {
 
     useEffect(() => {
         setMounted(true);
-        setOrigin(window.location.origin);
+        if (typeof window !== 'undefined') {
+            setOrigin(window.location.origin);
+        }
 
         async function loadData() {
             if (!user) {
@@ -128,7 +132,8 @@ export default function ShareMagazinePage() {
             createdAt: new Date().toISOString(),
             logoDataUri: logoDataUri || undefined,
             discount: discount || undefined,
-            vendorTitle: vendorTitle || undefined
+            vendorTitle: vendorTitle || undefined,
+            isTryOnEnabled: isTryOnEnabled,
         };
         await saveDocument('smart_magazines', newMagazine, finalId);
         setMagazineLink(`${origin}/collection/${finalId}${discount > 0 ? `?discount=${discount}` : ''}`);
@@ -195,7 +200,7 @@ export default function ShareMagazinePage() {
                                                 }}>
                                                     <Checkbox checked={selectedProductIds.includes(p.id)} />
                                                     <div className="relative h-12 w-12 rounded-lg overflow-hidden shrink-0">
-                                                        <Image src={p.imageDataUris[0]} alt={p.title} fill className="object-cover" />
+                                                        <Image src={p.imageDataUris[0]} alt={p.title} fill className="object-cover" unoptimized />
                                                     </div>
                                                     <div className="flex-1 truncate">
                                                         <p className="font-black text-sm truncate uppercase italic">{p.title}</p>
@@ -224,6 +229,13 @@ export default function ShareMagazinePage() {
                                     <div className="space-y-2">
                                         <Label className="text-[10px] font-black uppercase text-slate-400">Discount Label (%)</Label>
                                         <Input type="number" value={discount} onChange={e => setDiscount(Number(e.target.value))} className="font-bold" />
+                                    </div>
+                                    <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border">
+                                        <div className="space-y-0.5">
+                                            <Label className="text-xs font-bold uppercase italic tracking-tighter">Enable Magic Mirror</Label>
+                                            <p className="text-[10px] text-muted-foreground">Allow virtual try-on for this entire collection.</p>
+                                        </div>
+                                        <Switch checked={isTryOnEnabled} onCheckedChange={setIsTryOnEnabled} />
                                     </div>
                                     <div className="pt-4 space-y-3">
                                         <Button onClick={handleGenerateLink} className="w-full h-12 font-black uppercase italic tracking-tighter" disabled={selectedProductIds.length === 0}>

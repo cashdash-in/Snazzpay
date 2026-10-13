@@ -53,11 +53,15 @@ export async function virtualTryOn(input: VirtualTryOnInput) {
           `;
       } else {
           styleInstructions = `
-            STYLING MODE: ACCURATE GARMENT REPLACEMENT (WESTERN WEAR)
-            TASK: FIT the item from the second photo ("${input.productTitle}") perfectly onto the person.
-            If the product is a Shirt or T-shirt, replace their top. 
-            If the product is a Dress, replace their entire outfit.
-            Ensure the garment follows the person's body structure and pose naturally.
+            STYLING MODE: HYPER-REALISTIC GARMENT REPLACEMENT (WESTERN WEAR)
+            TASK: COMPLETELY REPLACE the user's upper body or full outfit with the garment shown in the second photo ("${input.productTitle}").
+            
+            PRECISION REQUIREMENTS:
+            - ANATOMICAL FIT: The garment must perfectly follow the person's body contours, shoulders, and pose. 
+            - REALISTIC PHYSICS: Generate natural creases, shadows, and fabric folds that match the person's posture.
+            - TEXTURE INTEGRITY: Maintain the exact pattern, color, and fabric texture of the product image.
+            - COLLAR & SLEEVE SEAMLESSNESS: If it's a shirt, the collar must sit naturally around the person's neck. 
+            - ZERO CLOTHING BLEED: The person's original clothes MUST NOT be visible at the neck, sleeves, or waist.
           `;
       }
 
@@ -74,9 +78,8 @@ export async function virtualTryOn(input: VirtualTryOnInput) {
             ${styleInstructions}
 
             CRITICAL CONSTRAINTS:
-            - ZERO CLOTHING BLEED: The person's current clothes (t-shirt collars, jeans, jacket sleeves, etc.) must be 100% invisible. The new virtual outfit must completely replace them.
             - FACIAL INTEGRITY: Keep the person's face, features, and hair texture exactly as they are in the original selfie.
-            - REALISTIC PHYSICS: The fabric must fold, crease, and drape realistically according to the person's pose and body shape.
+            - CLOTHING REPLACEMENT: The person's original outfit (t-shirts, collars, straps) must be entirely removed and replaced by the new virtual garment.
             
             Return ONLY the final high-resolution processed image.` 
           },
