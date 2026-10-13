@@ -70,13 +70,15 @@ export async function virtualTryOn(input: VirtualTryOnInput) {
             3. SLEEVES: ${input.sleeveLength ? `Modify the garment to have ${input.sleeveLength}.` : 'Maintain original garment sleeves.'}
           `;
       } else {
+          // Western Wear mode (Standard Fit for shirts, or transformation for fabrics)
           styleInstructions = `
-            STYLING MODE: HYPER-REALISTIC FULL GARMENT REPLACEMENT (SHIRT/WESTERN WEAR)
-            TASK: COMPLETELY RE-DRESS the person using ONLY the garment shown in the product photo ("${input.productTitle}").
-            - FULL FIT: Ensure the entire shirt/t-shirt is visible and fits the person's torso perfectly.
-            - ANATOMICAL PHYSICS: Fabric folds, shadows, and creases must realistically match the person's pose and lighting.
-            - SLEEVES: ${input.sleeveLength ? `Force the garment to have ${input.sleeveLength}.` : 'Maintain original sleeves.'}
-            - ZERO CLOTHING BLEED: Ensure 100% removal of original clothes. No original collars or undershirts should be visible.
+            STYLING MODE: MODERN WESTERN WEAR (NON-TRADITIONAL)
+            1. TASK: COMPLETELY RE-DRESS the person using the material and pattern from the second photo ("${input.productTitle}").
+            2. FABRIC TRANSFORMATION: If the second photo is a fabric (like a Saree or Lugra), transform it into a modern WESTERN OUTFIT such as a LONG SKIRT and top or a western dress. DO NOT use traditional draping.
+            3. SHIRT/TOP FIT: If the product is already a shirt or t-shirt, ensure the entire garment is visible and fits the person's torso perfectly.
+            4. ANATOMICAL PHYSICS: Fabric folds, shadows, and creases must realistically match the person's pose and lighting.
+            5. SLEEVES: ${input.sleeveLength ? `Force the garment to have ${input.sleeveLength}.` : 'Maintain appropriate sleeves for the style.'}
+            6. ZERO CLOTHING BLEED: Ensure 100% removal of original clothes. No original collars or undershirts should be visible.
           `;
       }
 
@@ -88,7 +90,7 @@ export async function virtualTryOn(input: VirtualTryOnInput) {
           { 
             text: `ACT AS AN ELITE VIRTUAL STYLIST. 
             
-            TASK: COMPLETELY RE-DRESS the person in the first photo using the garment shown in the second photo ("${input.productTitle}"). 
+            TASK: COMPLETELY RE-DRESS the person in the first photo using the garment/material shown in the second photo ("${input.productTitle}"). 
             
             ${styleInstructions}
 

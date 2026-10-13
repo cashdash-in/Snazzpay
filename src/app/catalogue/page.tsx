@@ -92,7 +92,7 @@ function CatalogueOrderPageContent() {
     const isShirt = useMemo(() => {
         if (!product) return false;
         const title = product.title.toLowerCase();
-        return title.includes('shirt') && !title.includes('t-shirt');
+        return (title.includes('shirt') || title.includes('t-shirt')) && !title.includes('dress');
     }, [product]);
 
     const isEthnicWear = useMemo(() => {
@@ -105,7 +105,7 @@ function CatalogueOrderPageContent() {
 
     const showSleeveOption = useMemo(() => {
         if (isShirt) return false;
-        return ['Western Wear', 'Kurti', 'Western Dress', 'Standard Saree'].includes(selectedDrapeStyle);
+        return ['Western Wear', 'Kurti', 'Western Dress', 'Standard Saree', 'East Indian Lugra'].includes(selectedDrapeStyle);
     }, [selectedDrapeStyle, isShirt]);
 
     const showStyleOption = useMemo(() => {
@@ -150,7 +150,7 @@ function CatalogueOrderPageContent() {
                     const titleLower = displayProduct.title.toLowerCase();
                     if (displayProduct.isEastIndianLugra) {
                         setSelectedDrapeStyle('East Indian Lugra');
-                    } else if (titleLower.includes('shirt') && !titleLower.includes('t-shirt')) {
+                    } else if ((titleLower.includes('shirt') || titleLower.includes('t-shirt')) && !titleLower.includes('dress')) {
                          setSelectedDrapeStyle('Western Wear');
                     } else if (['saree', 'sari'].some(k => titleLower.includes(k))) {
                         setSelectedDrapeStyle('Standard Saree');
@@ -363,11 +363,11 @@ function CatalogueOrderPageContent() {
                                                         <SelectValue />
                                                     </SelectTrigger>
                                                     <SelectContent>
-                                                        <SelectItem value="Western Wear">Standard Fit</SelectItem>
-                                                        <SelectItem value="Western Dress">Western Dress</SelectItem>
+                                                        <SelectItem value="Western Wear">Western Fit (Skirt/Dress)</SelectItem>
+                                                        <SelectItem value="Western Dress">Modern Western Dress</SelectItem>
                                                         <SelectItem value="Kurti">Traditional Kurti</SelectItem>
-                                                        <SelectItem value="Standard Saree">Standard Saree</SelectItem>
-                                                        <SelectItem value="East Indian Lugra">East Indian Lugra</SelectItem>
+                                                        <SelectItem value="Standard Saree">Standard Saree (Floor Length)</SelectItem>
+                                                        <SelectItem value="East Indian Lugra">East Indian Lugra (Authentic)</SelectItem>
                                                     </SelectContent>
                                                 </Select>
                                             </div>

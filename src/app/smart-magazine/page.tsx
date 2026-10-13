@@ -118,7 +118,7 @@ function SmartMagazineContent() {
     }, [searchParams]);
 
     const showSleeveOption = useMemo(() => {
-        return ['Western Wear', 'Kurti', 'Western Dress', 'Standard Saree'].includes(selectedDrapeStyle);
+        return ['Western Wear', 'Kurti', 'Western Dress', 'Standard Saree', 'East Indian Lugra'].includes(selectedDrapeStyle);
     }, [selectedDrapeStyle]);
 
     const resizeImageForAI = (fileOrUri: File | string, maxSize: number = MAX_TRYON_SIZE_PX): Promise<string> => {
@@ -309,8 +309,8 @@ function SmartMagazineContent() {
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="Western Wear">Western Fit</SelectItem>
-                                                <SelectItem value="Western Dress">Western Dress</SelectItem>
+                                                <SelectItem value="Western Wear">Western Fit (Skirt/Dress)</SelectItem>
+                                                <SelectItem value="Western Dress">Modern Western Dress</SelectItem>
                                                 <SelectItem value="Kurti">Traditional Kurti</SelectItem>
                                                 <SelectItem value="Standard Saree">Standard Saree</SelectItem>
                                                 <SelectItem value="East Indian Lugra">East Indian Lugra</SelectItem>
@@ -391,6 +391,8 @@ function SmartMagazineContent() {
                             const price = (product as any).price || (product as any).costPrice;
                             const isProductTryOn = tryOnProductId === product.id;
                             const canTryOn = magazine?.isTryOnEnabled || product.isTryOnEnabled;
+                            
+                            const isShirt = (product.title.toLowerCase().includes('shirt') || product.title.toLowerCase().includes('t-shirt')) && !product.title.toLowerCase().includes('dress');
 
                             return (
                                 <Card key={product.id} className="group rounded-[32px] border-none shadow-lg hover:shadow-2xl transition-all duration-500 overflow-hidden bg-white flex flex-col">

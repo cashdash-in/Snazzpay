@@ -133,7 +133,7 @@ function BrandedCollectionContent() {
     }, [params.id, searchParams]);
 
     const showSleeveOption = useMemo(() => {
-        return ['Western Wear', 'Kurti', 'Western Dress', 'Standard Saree'].includes(selectedDrapeStyle);
+        return ['Western Wear', 'Kurti', 'Western Dress', 'Standard Saree', 'East Indian Lugra'].includes(selectedDrapeStyle);
     }, [selectedDrapeStyle]);
 
     const resizeImageForAI = (fileOrUri: File | string, maxSize: number = MAX_TRYON_SIZE_PX): Promise<string> => {
@@ -310,6 +310,8 @@ function BrandedCollectionContent() {
                          const discountedPrice = discount > 0 ? price - (price * (discount / 100)) : price;
                          const isProductTryOn = tryOnProductId === product.id;
                          const canTryOn = magazine.isTryOnEnabled || product.isTryOnEnabled;
+                         
+                         const isShirt = product.title.toLowerCase().includes('shirt') && !product.title.toLowerCase().includes('dress');
 
                         return (
                         <Card key={product.id} className="shadow-md hover:shadow-xl transition-shadow overflow-hidden flex flex-col group rounded-[24px] bg-white border-none">
@@ -446,21 +448,32 @@ function BrandedCollectionContent() {
                                                     </div>
 
                                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                                        <div className="space-y-2">
-                                                            <Label className="text-[10px] font-black uppercase text-slate-400">Select Style</Label>
-                                                            <Select value={selectedDrapeStyle} onValueChange={(val: any) => setSelectedDrapeStyle(val)}>
-                                                                <SelectTrigger className="h-10 rounded-xl bg-slate-50 border-none font-bold text-xs">
-                                                                    <SelectValue />
-                                                                </SelectTrigger>
-                                                                <SelectContent>
-                                                                    <SelectItem value="Western Wear">Western Fit</SelectItem>
-                                                                    <SelectItem value="Western Dress">Western Dress</SelectItem>
-                                                                    <SelectItem value="Kurti">Traditional Kurti</SelectItem>
-                                                                    <SelectItem value="Standard Saree">Standard Saree</SelectItem>
-                                                                    <SelectItem value="East Indian Lugra">East Indian Lugra</SelectItem>
-                                                                </SelectContent>
-                                                            </Select>
-                                                        </div>
+                                                        {!isShirt && (
+                                                            <div className="space-y-2">
+                                                                <Label className="text-[10px] font-black uppercase text-slate-400">Select Style</Label>
+                                                                <Select value={selectedDrapeStyle} onValueChange={(val: any) => setSelectedDrapeStyle(val)}>
+                                                                    <SelectTrigger className="h-10 rounded-xl bg-slate-50 border-none font-bold text-xs">
+                                                                        <SelectValue />
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
+                                                                        <SelectItem value="Western Wear">Western Fit (Skirt/Dress)</SelectItem>
+                                                                        <SelectItem value="Western Dress">Western Dress</SelectItem>
+                                                                        <SelectItem value="Kurti">Traditional Kurti</SelectItem>
+                                                                        <SelectItem value="Standard Saree">Standard Saree</SelectItem>
+                                                                        <SelectItem value="East Indian Lugra">East Indian Lugra</SelectItem>
+                                                                    </SelectContent>
+                                                                </Select>
+                                                            </div>
+                                                        )}
+                                                        
+                                                        {isShirt && (
+                                                            <div className="space-y-2">
+                                                                <Label className="text-[10px] font-black uppercase text-slate-400">Fit Mode</Label>
+                                                                <div className="h-10 px-3 bg-slate-50 text-slate-900 rounded-xl text-xs font-bold flex items-center">
+                                                                    Standard Fitting
+                                                                </div>
+                                                            </div>
+                                                        )}
 
                                                         {showSleeveOption && (
                                                             <div className="space-y-2">
