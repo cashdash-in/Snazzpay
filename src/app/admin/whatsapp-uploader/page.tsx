@@ -41,6 +41,7 @@ type ParsedProduct = ProductListingOutput & {
     id: string; // Add a temporary client-side ID
     vendorName?: string;
     allowedPaymentMethods?: ('Secure COD' | 'Cash on Delivery' | 'Prepaid')[];
+    isTryOnEnabled?: boolean;
 };
 
 export default function WhatsAppUploaderPage() {
@@ -86,6 +87,7 @@ export default function WhatsAppUploaderPage() {
             vendorName: defaultVendor || 'Snazzify AI', // Apply defaults
             category: defaultCategory || p.category,
             allowedPaymentMethods: ['Secure COD', 'Cash on Delivery', 'Prepaid'],
+            isTryOnEnabled: false,
         }));
         setParsedProducts(productsWithIds);
         toast({ title: `${result.products.length} Products Found!`, description: 'AI has parsed the chat. Review the products below.'});
@@ -96,7 +98,7 @@ export default function WhatsAppUploaderPage() {
     }
   };
 
-  const handleProductChange = (id: string, field: keyof ParsedProduct, value: string | number | string[] | ParsedProduct['allowedPaymentMethods']) => {
+  const handleProductChange = (id: string, field: keyof ParsedProduct, value: string | number | string[] | ParsedProduct['allowedPaymentMethods'] | boolean) => {
     setParsedProducts(prev =>
       prev.map(p => (p.id === id ? { ...p, [field]: value } : p))
     );
@@ -145,6 +147,7 @@ export default function WhatsAppUploaderPage() {
                 sizes: product.sizes,
                 colors: product.colors,
                 allowedPaymentMethods: product.allowedPaymentMethods,
+                isTryOnEnabled: product.isTryOnEnabled,
             };
             await saveDocument('product_drops', newProductDrop, newProductDrop.id);
 
@@ -324,6 +327,10 @@ export default function WhatsAppUploaderPage() {
                                                 value={p.price}
                                                 onChange={(e) => handleProductChange(p.id, 'price', parseFloat(e.target.value))}
                                             />
+                                        </div>
+                                         <div className="flex items-center space-x-2 py-2">
+                                            <Checkbox id={`tryon-${p.id}`} checked={p.isTryOnEnabled} onCheckedChange={checked => handleProductChange(p.id, 'isTryOnEnabled', !!checked)} />
+                                            <Label htmlFor={`tryon-${p.id}`} className="text-xs font-bold text-indigo-600">Enable Try-On</Label>
                                         </div>
                                          <div className="space-y-1 pt-2">
                                             <Label>Payment Methods</Label>

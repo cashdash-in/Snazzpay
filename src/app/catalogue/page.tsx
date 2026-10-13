@@ -37,6 +37,7 @@ type DisplayProduct = (SellerProduct | ProductDrop) & {
     collection: string;
     allowedPaymentMethods?: string[];
     isEastIndianLugra?: boolean;
+    isTryOnEnabled?: boolean;
 };
 
 type CustomerDetails = {
@@ -266,7 +267,14 @@ function CatalogueOrderPageContent() {
         <div className="min-h-screen bg-slate-50 p-4 md:p-8">
             <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div className="space-y-6">
-                    <Card className="rounded-[32px] overflow-hidden shadow-xl border-none bg-white">
+                    <Card className="rounded-[32px] overflow-hidden shadow-xl border-none bg-white relative">
+                        {product?.isTryOnEnabled && !tryOnResult && (
+                            <div className="absolute top-6 left-6 z-10 pointer-events-none">
+                                <Badge className="bg-primary/90 text-white font-black italic text-xs py-1.5 px-4 rounded-full shadow-lg flex items-center gap-1.5 animate-pulse">
+                                    <Sparkles className="h-3 w-3" /> TRY ME
+                                </Badge>
+                            </div>
+                        )}
                         <div className="relative aspect-square">
                             {tryOnResult ? (
                                 <Image src={tryOnResult} fill alt="Try-On Result" className="object-cover animate-in fade-in zoom-in-95 duration-500" unoptimized />
@@ -290,80 +298,82 @@ function CatalogueOrderPageContent() {
                         </div>
                     </Card>
 
-                    <Card className="rounded-[24px] bg-slate-900 text-white p-6 shadow-2xl overflow-hidden relative border-none">
-                        <div className="absolute top-0 right-0 p-4 opacity-10"><Sparkles className="h-20 w-20" /></div>
-                        <div className="flex flex-col gap-6 relative z-10">
-                            <div className="space-y-1">
-                                <h3 className="text-xl font-black italic uppercase flex items-center gap-2"><Sparkles className="h-5 w-5 text-purple-400" /> Magic Mirror</h3>
-                                <p className="text-xs text-slate-400">Experience a perfect virtual fit instantly.</p>
-                            </div>
-                            
-                            <div className="bg-white/5 border border-white/10 p-4 rounded-2xl space-y-4">
-                                <div className="flex items-start gap-3">
-                                    <Checkbox 
-                                        id="privacy-consent" 
-                                        checked={hasConsented} 
-                                        onCheckedChange={(val) => setHasConsented(val as boolean)}
-                                        className="mt-1 border-white/50"
-                                    />
-                                    <Label htmlFor="privacy-consent" className="text-[10px] leading-relaxed text-slate-300">
-                                        <span className="font-bold text-white uppercase block mb-1">Privacy & Terms</span>
-                                        We do not save any pics to our server. Your selfie is processed instantly and removed immediately after this session.
-                                    </Label>
+                    {product?.isTryOnEnabled && (
+                        <Card className="rounded-[24px] bg-slate-900 text-white p-6 shadow-2xl overflow-hidden relative border-none">
+                            <div className="absolute top-0 right-0 p-4 opacity-10"><Sparkles className="h-20 w-20" /></div>
+                            <div className="flex flex-col gap-6 relative z-10">
+                                <div className="space-y-1">
+                                    <h3 className="text-xl font-black italic uppercase flex items-center gap-2"><Sparkles className="h-5 w-5 text-purple-400" /> Magic Mirror</h3>
+                                    <p className="text-xs text-slate-400">Experience a perfect virtual fit instantly.</p>
                                 </div>
-
-                                {isEthnicWear && !tryOnResult && (
-                                    <div className="space-y-2 pt-2 border-t border-white/10">
-                                        <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Select Style Preference</Label>
-                                        <Select value={selectedDrapeStyle} onValueChange={(val: any) => setSelectedDrapeStyle(val)}>
-                                            <SelectTrigger className="h-10 bg-white/10 border-white/20 text-white rounded-xl text-xs font-bold">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="Standard Saree">Standard Saree (Floor Length)</SelectItem>
-                                                <SelectItem value="East Indian Lugra">East Indian Lugra (Authentic Short Drape)</SelectItem>
-                                                <SelectItem value="Western Wear">Auto Fitting (Best Fit)</SelectItem>
-                                            </SelectContent>
-                                        </Select>
+                                
+                                <div className="bg-white/5 border border-white/10 p-4 rounded-2xl space-y-4">
+                                    <div className="flex items-start gap-3">
+                                        <Checkbox 
+                                            id="privacy-consent" 
+                                            checked={hasConsented} 
+                                            onCheckedChange={(val) => setHasConsented(val as boolean)}
+                                            className="mt-1 border-white/50"
+                                        />
+                                        <Label htmlFor="privacy-consent" className="text-[10px] leading-relaxed text-slate-300">
+                                            <span className="font-bold text-white uppercase block mb-1">Privacy & Terms</span>
+                                            We do not save any pics to our server. Your selfie is processed instantly and removed immediately after this session.
+                                        </Label>
                                     </div>
-                                )}
 
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                    {tryOnResult ? (
-                                        <div className="col-span-full grid grid-cols-2 gap-3">
-                                            <Button onClick={() => setTryOnResult(null)} variant="outline" className="w-full border-white/20 text-white hover:bg-white/10 rounded-xl h-12 font-bold"><RefreshCcw className="mr-2 h-4 w-4" /> Try Again</Button>
-                                            <Button onClick={() => {
-                                                const link = document.createElement('a');
-                                                link.href = tryOnResult;
-                                                link.download = `my_look_${product?.id}.jpg`;
-                                                link.click();
-                                            }} className="bg-green-600 hover:bg-green-700 text-white rounded-xl h-12 font-bold"><Download className="mr-2 h-4 w-4" /> Save Look</Button>
+                                    {isEthnicWear && !tryOnResult && (
+                                        <div className="space-y-2 pt-2 border-t border-white/10">
+                                            <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Select Style Preference</Label>
+                                            <Select value={selectedDrapeStyle} onValueChange={(val: any) => setSelectedDrapeStyle(val)}>
+                                                <SelectTrigger className="h-10 bg-white/10 border-white/20 text-white rounded-xl text-xs font-bold">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="Standard Saree">Standard Saree (Floor Length)</SelectItem>
+                                                    <SelectItem value="East Indian Lugra">East Indian Lugra (Authentic Short Drape)</SelectItem>
+                                                    <SelectItem value="Western Wear">Auto Fitting (Best Fit)</SelectItem>
+                                                </SelectContent>
+                                            </Select>
                                         </div>
-                                    ) : (
-                                        <>
-                                            <Button 
-                                                onClick={() => cameraInputRef.current?.click()} 
-                                                disabled={!hasConsented || isTryOnLoading}
-                                                className="bg-primary hover:bg-primary/90 text-white rounded-xl h-12 font-bold shadow-lg disabled:opacity-50"
-                                            >
-                                                <Camera className="mr-2 h-4 w-4" /> Take a Selfie
-                                            </Button>
-                                            <Button 
-                                                onClick={() => galleryInputRef.current?.click()} 
-                                                disabled={!hasConsented || isTryOnLoading}
-                                                variant="secondary" 
-                                                className="bg-white/10 hover:bg-white/20 text-white border-white/10 rounded-xl h-12 font-bold disabled:opacity-50"
-                                            >
-                                                <ImagePlus className="mr-2 h-4 w-4" /> From Gallery
-                                            </Button>
-                                        </>
                                     )}
-                                    <input ref={cameraInputRef} type="file" accept="image/*" capture="user" className="hidden" onChange={handleTryOnUpload} />
-                                    <input ref={galleryInputRef} type="file" accept="image/*" className="hidden" onChange={handleTryOnUpload} />
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        {tryOnResult ? (
+                                            <div className="col-span-full grid grid-cols-2 gap-3">
+                                                <Button onClick={() => setTryOnResult(null)} variant="outline" className="w-full border-white/20 text-white hover:bg-white/10 rounded-xl h-12 font-bold"><RefreshCcw className="mr-2 h-4 w-4" /> Try Again</Button>
+                                                <Button onClick={() => {
+                                                    const link = document.createElement('a');
+                                                    link.href = tryOnResult;
+                                                    link.download = `my_look_${product?.id}.jpg`;
+                                                    link.click();
+                                                }} className="bg-green-600 hover:bg-green-700 text-white rounded-xl h-12 font-bold"><Download className="mr-2 h-4 w-4" /> Save Look</Button>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <Button 
+                                                    onClick={() => cameraInputRef.current?.click()} 
+                                                    disabled={!hasConsented || isTryOnLoading}
+                                                    className="bg-primary hover:bg-primary/90 text-white rounded-xl h-12 font-bold shadow-lg disabled:opacity-50"
+                                                >
+                                                    <Camera className="mr-2 h-4 w-4" /> Take a Selfie
+                                                </Button>
+                                                <Button 
+                                                    onClick={() => galleryInputRef.current?.click()} 
+                                                    disabled={!hasConsented || isTryOnLoading}
+                                                    variant="secondary" 
+                                                    className="bg-white/10 hover:bg-white/20 text-white border-white/10 rounded-xl h-12 font-bold disabled:opacity-50"
+                                                >
+                                                    <ImagePlus className="mr-2 h-4 w-4" /> From Gallery
+                                                </Button>
+                                            </>
+                                        )}
+                                        <input ref={cameraInputRef} type="file" accept="image/*" capture="user" className="hidden" onChange={handleTryOnUpload} />
+                                        <input ref={galleryInputRef} type="file" accept="image/*" className="hidden" onChange={handleTryOnUpload} />
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    </Card>
+                        </Card>
+                    )}
                 </div>
 
                 <div className="space-y-6">
@@ -410,7 +420,7 @@ function CatalogueOrderPageContent() {
                         <h2 className="text-4xl md:text-5xl font-black italic uppercase tracking-tighter">Order Received!</h2>
                         <p className="text-muted-foreground max-w-sm mx-auto font-medium">Thank you for shopping. Our team will contact you on WhatsApp to finalize fulfillment.</p>
                     </div>
-                    <Button onClick={() => window.location.href = returnUrl} size="lg" className="rounded-2xl px-12 h-14 font-black uppercase italic tracking-widest">Back to Store</Button>
+                    <Button onClick = {() => window.location.href = returnUrl} size="lg" className="rounded-2xl px-12 h-14 font-black uppercase italic tracking-widest">Back to Store</Button>
                 </div>
             )}
         </div>

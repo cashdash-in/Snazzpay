@@ -37,7 +37,8 @@ const MAX_IMAGE_SIZE_PX = 800; // Max width/height for resizing
 
 type GeneratedListingWithPayments = ProductListingOutput & { 
     allowedPaymentMethods?: ('Secure COD' | 'Cash on Delivery' | 'Prepaid')[],
-    isEastIndianLugra?: boolean
+    isEastIndianLugra?: boolean,
+    isTryOnEnabled?: boolean
 };
 
 export default function AiProductUploaderPage() {
@@ -53,6 +54,7 @@ export default function AiProductUploaderPage() {
   const [generatedListing, setGeneratedListing] = useState<GeneratedListingWithPayments | null>(null);
   const [vendorName, setVendorName] = useState('Snazzify AI');
   const [isEastIndianLugra, setIsEastIndianLugra] = useState(false);
+  const [isTryOnEnabled, setIsTryOnEnabled] = useState(false);
 
   const handlePaymentMethodChange = (method: 'Secure COD' | 'Cash on Delivery' | 'Prepaid', checked: boolean) => {
     setGeneratedListing(prev => {
@@ -131,7 +133,7 @@ export default function AiProductUploaderPage() {
         cost: parseFloat(cost),
         margin: parseFloat(margin),
       });
-      setGeneratedListing({ ...result, allowedPaymentMethods: ['Secure COD', 'Cash on Delivery', 'Prepaid'], isEastIndianLugra });
+      setGeneratedListing({ ...result, allowedPaymentMethods: ['Secure COD', 'Cash on Delivery', 'Prepaid'], isEastIndianLugra, isTryOnEnabled });
       toast({ title: 'Listing Generated!' });
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Generation Failed' });
@@ -158,6 +160,7 @@ export default function AiProductUploaderPage() {
             colors: generatedListing.colors,
             allowedPaymentMethods: generatedListing.allowedPaymentMethods,
             isEastIndianLugra: generatedListing.isEastIndianLugra,
+            isTryOnEnabled: generatedListing.isTryOnEnabled,
         };
         await saveDocument('product_drops', newProductDrop, newProductDrop.id);
         const productData = {
@@ -221,11 +224,19 @@ export default function AiProductUploaderPage() {
               <div className="space-y-2"><Label htmlFor="cost">Your Cost</Label><Input id="cost" type="number" value={cost} onChange={(e) => setCost(e.target.value)} /></div>
               <div className="space-y-2"><Label htmlFor="margin">Margin (%)</Label><Input id="margin" type="number" value={margin} onChange={(e) => setMargin(e.target.value)} /></div>
             </div>
-             <div className="flex items-center space-x-2 pt-2">
-                <Checkbox id="lugra-check" checked={isEastIndianLugra} onCheckedChange={(val) => setIsEastIndianLugra(val as boolean)} />
-                <Label htmlFor="lugra-check" className="flex items-center gap-1 font-bold text-primary">
-                    <ShieldCheck className="h-4 w-4" /> Is East Indian Lugra?
-                </Label>
+             <div className="flex flex-col gap-4 pt-2">
+                <div className="flex items-center space-x-2">
+                    <Checkbox id="lugra-check" checked={isEastIndianLugra} onCheckedChange={(val) => setIsEastIndianLugra(val as boolean)} />
+                    <Label htmlFor="lugra-check" className="flex items-center gap-1 font-bold text-primary">
+                        <ShieldCheck className="h-4 w-4" /> Is East Indian Lugra?
+                    </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                    <Checkbox id="tryon-check" checked={isTryOnEnabled} onCheckedChange={(val) => setIsTryOnEnabled(val as boolean)} />
+                    <Label htmlFor="tryon-check" className="flex items-center gap-1 font-bold text-indigo-600">
+                        <Sparkles className="h-4 w-4" /> Enable Virtual Try-On
+                    </Label>
+                </div>
             </div>
           </CardContent>
           <CardFooter><Button onClick={handleGenerateListing} disabled={isLoading} className="w-full">Generate Listing</Button></CardFooter>
@@ -242,9 +253,15 @@ export default function AiProductUploaderPage() {
                     <div className="space-y-2"><Label>Category</Label><Input value={generatedListing.category} onChange={(e) => setGeneratedListing(p => p ? { ...p, category: e.target.value } : null)} /></div>
                     <div className="space-y-2"><Label>Price</Label><Input type="number" value={generatedListing.price} onChange={(e) => setGeneratedListing(p => p ? { ...p, price: parseFloat(e.target.value) || 0 } : null)} /></div>
                 </div>
-                 <div className="flex items-center space-x-2 pt-2">
-                    <Checkbox id="gen-lugra-check" checked={generatedListing.isEastIndianLugra} onCheckedChange={(val) => setGeneratedListing(p => p ? { ...p, isEastIndianLugra: val as boolean } : null)} />
-                    <Label htmlFor="gen-lugra-check" className="font-bold text-primary">Confirmed East Indian Lugra</Label>
+                 <div className="flex flex-col gap-4 pt-2">
+                    <div className="flex items-center space-x-2">
+                        <Checkbox id="gen-lugra-check" checked={generatedListing.isEastIndianLugra} onCheckedChange={(val) => setGeneratedListing(p => p ? { ...p, isEastIndianLugra: val as boolean } : null)} />
+                        <Label htmlFor="gen-lugra-check" className="font-bold text-primary">Confirmed East Indian Lugra</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <Checkbox id="gen-tryon-check" checked={generatedListing.isTryOnEnabled} onCheckedChange={(val) => setGeneratedListing(p => p ? { ...p, isTryOnEnabled: val as boolean } : null)} />
+                        <Label htmlFor="gen-tryon-check" className="font-bold text-indigo-600">Try-On Button Enabled</Label>
+                    </div>
                 </div>
               </CardContent>
               <CardFooter><Button onClick={handlePushToShopify} className="w-full" disabled={isPushing}>Push to Products</Button></CardFooter>

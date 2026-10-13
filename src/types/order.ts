@@ -45,4 +45,5 @@ export type EditableOrder = {
   videoDataUri?: string;
   vendorPaymentReceived?: 'Yes' | 'No';
   isRead?: boolean;
+  isTryOnEnabled?: boolean;
 };

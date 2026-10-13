@@ -41,6 +41,7 @@ type GeneratedProduct = ProductListingOutput & {
   costPrice?: number;
   allowedPaymentMethods?: ('Secure COD' | 'Cash on Delivery' | 'Prepaid')[];
   isEastIndianLugra?: boolean;
+  isTryOnEnabled?: boolean;
 };
 
 const MAX_IMAGE_SIZE_PX = 800; // Max width/height for resizing
@@ -111,6 +112,7 @@ export default function ImageBulkUploaderPage() {
                 category: defaultCategory || result.category,
                 allowedPaymentMethods: ['Secure COD', 'Cash on Delivery', 'Prepaid'],
                 isEastIndianLugra: false,
+                isTryOnEnabled: false,
             });
         } catch (error: any) {
             toast({ variant: 'destructive', title: `Error for image ${index + 1}` });
@@ -131,7 +133,7 @@ export default function ImageBulkUploaderPage() {
     for (const product of generatedProducts) {
         try {
             const newProductDrop: ProductDrop = {
-                id: uuidv4(), vendorId: 'admin_snazzify', vendorName: product.vendorName || 'SnazzifyOfficial', title: product.title, description: product.description, costPrice: product.costPrice || 0, imageDataUris: [product.imageDataUri], createdAt: new Date().toISOString(), category: product.category, sizes: product.sizes, colors: product.colors, allowedPaymentMethods: product.allowedPaymentMethods, isEastIndianLugra: product.isEastIndianLugra,
+                id: uuidv4(), vendorId: 'admin_snazzify', vendorName: product.vendorName || 'SnazzifyOfficial', title: product.title, description: product.description, costPrice: product.costPrice || 0, imageDataUris: [product.imageDataUri], createdAt: new Date().toISOString(), category: product.category, sizes: product.sizes, colors: product.colors, allowedPaymentMethods: product.allowedPaymentMethods, isEastIndianLugra: product.isEastIndianLugra, isTryOnEnabled: product.isTryOnEnabled,
             };
             await saveDocument('product_drops', newProductDrop, newProductDrop.id);
              const productData = {
@@ -176,9 +178,15 @@ export default function ImageBulkUploaderPage() {
                                 <div className="space-y-1"><Label>Title</Label><Input value={p.title} onChange={e => handleProductChange(p.id, 'title', e.target.value)} /></div>
                                 <div className="grid grid-cols-2 gap-4">
                                      <div className="space-y-1"><Label>Price</Label><Input type="number" value={p.price} onChange={e => handleProductChange(p.id, 'price', Number(e.target.value))} /></div>
-                                     <div className="flex items-center space-x-2 pt-6">
-                                        <Checkbox id={`lugra-${p.id}`} checked={p.isEastIndianLugra} onCheckedChange={checked => handleProductChange(p.id, 'isEastIndianLugra', !!checked)} />
-                                        <Label htmlFor={`lugra-${p.id}`} className="text-[10px] font-bold text-primary">Lugra?</Label>
+                                     <div className="flex flex-col gap-2 pt-2">
+                                        <div className="flex items-center space-x-2">
+                                            <Checkbox id={`lugra-${p.id}`} checked={p.isEastIndianLugra} onCheckedChange={checked => handleProductChange(p.id, 'isEastIndianLugra', !!checked)} />
+                                            <Label htmlFor={`lugra-${p.id}`} className="text-[10px] font-bold text-primary">Lugra?</Label>
+                                        </div>
+                                        <div className="flex items-center space-x-2">
+                                            <Checkbox id={`tryon-${p.id}`} checked={p.isTryOnEnabled} onCheckedChange={checked => handleProductChange(p.id, 'isTryOnEnabled', !!checked)} />
+                                            <Label htmlFor={`tryon-${p.id}`} className="text-[10px] font-bold text-indigo-600">Try-On?</Label>
+                                        </div>
                                      </div>
                                 </div>
                             </CardContent>

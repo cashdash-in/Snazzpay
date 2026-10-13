@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, PackagePlus, Wand2, ImagePlus, Lock, ShieldCheck } from 'lucide-react';
+import { Loader2, PackagePlus, Wand2, ImagePlus, Lock, ShieldCheck, Sparkles } from 'lucide-react';
 import Image from 'next/image';
 import { useAuth } from '@/hooks/use-auth';
 import { v4 as uuidv4 } from 'uuid';
@@ -35,6 +35,7 @@ export interface ProductDrop {
     allowedPaymentMethods?: ('Secure COD' | 'Cash on Delivery' | 'Prepaid')[];
     videoDataUri?: string;
     isEastIndianLugra?: boolean;
+    isTryOnEnabled?: boolean;
 }
 
 const PRODUCT_DROP_LIMIT = 50;
@@ -60,6 +61,7 @@ export default function VendorProductDropsPage() {
     const [createdProduct, setCreatedProduct] = useState<ProductDrop | null>(null);
     const [allowedPaymentMethods, setAllowedPaymentMethods] = useState<('Secure COD' | 'Cash on Delivery' | 'Prepaid')[]>(['Secure COD', 'Cash on Delivery', 'Prepaid']);
     const [isEastIndianLugra, setIsEastIndianLugra] = useState(false);
+    const [isTryOnEnabled, setIsTryOnEnabled] = useState(false);
 
     const handlePaymentMethodChange = (method: 'Secure COD' | 'Cash on Delivery' | 'Prepaid', checked: boolean) => {
         setAllowedPaymentMethods(prev => {
@@ -210,6 +212,7 @@ export default function VendorProductDropsPage() {
             colors: colors.split(',').map(c => c.trim()).filter(c => c),
             allowedPaymentMethods,
             isEastIndianLugra,
+            isTryOnEnabled,
         };
 
         try {
@@ -217,7 +220,7 @@ export default function VendorProductDropsPage() {
             setUsageCount(prev => prev + 1);
             setCreatedProduct(newDrop);
             setShowShareDialog(true);
-            setTitle(''); setDescription(''); setCostPrice(''); setSizes(''); setColors(''); setImagePreviews([]); setResizedImageDataUris([]); setIsEastIndianLugra(false);
+            setTitle(''); setDescription(''); setCostPrice(''); setSizes(''); setColors(''); setImagePreviews([]); setResizedImageDataUris([]); setIsEastIndianLugra(false); setIsTryOnEnabled(false);
             toast({ title: 'Product Drop Sent!' });
         } catch (error: any) {
             toast({ variant: 'destructive', title: 'Failed to Send Drop' });
@@ -277,11 +280,19 @@ export default function VendorProductDropsPage() {
                             <Label htmlFor="costPrice">Your Cost Price (INR)</Label>
                             <Input id="costPrice" type="number" value={costPrice} onChange={(e) => setCostPrice(e.target.value)} />
                         </div>
-                        <div className="flex items-center space-x-2 pt-8">
-                            <Checkbox id="lugra-check" checked={isEastIndianLugra} onCheckedChange={(val) => setIsEastIndianLugra(val as boolean)} />
-                            <Label htmlFor="lugra-check" className="flex items-center gap-1 font-bold text-primary">
-                                <ShieldCheck className="h-4 w-4" /> Is East Indian Lugra?
-                            </Label>
+                        <div className="flex flex-col gap-4 pt-2">
+                            <div className="flex items-center space-x-2">
+                                <Checkbox id="lugra-check" checked={isEastIndianLugra} onCheckedChange={(val) => setIsEastIndianLugra(val as boolean)} />
+                                <Label htmlFor="lugra-check" className="flex items-center gap-1 font-bold text-primary">
+                                    <ShieldCheck className="h-4 w-4" /> Is East Indian Lugra?
+                                </Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <Checkbox id="tryon-check" checked={isTryOnEnabled} onCheckedChange={(val) => setIsTryOnEnabled(val as boolean)} />
+                                <Label htmlFor="tryon-check" className="flex items-center gap-1 font-bold text-indigo-600">
+                                    <Sparkles className="h-4 w-4" /> Enable Virtual Try-On
+                                </Label>
+                            </div>
                         </div>
                     </div>
 

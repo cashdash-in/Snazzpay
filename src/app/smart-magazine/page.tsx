@@ -28,7 +28,7 @@ import { virtualTryOn } from '@/ai/flows/virtual-try-on';
 import { cn, sanitizePhoneNumber } from '@/lib/utils';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 
-type DisplayProduct = (SellerProduct | ProductDrop) & { isEastIndianLugra?: boolean };
+type DisplayProduct = (SellerProduct | ProductDrop) & { isEastIndianLugra?: boolean; isTryOnEnabled?: boolean };
 
 type Magazine = {
     id: string;
@@ -261,7 +261,7 @@ function SmartMagazineContent() {
 
             <main className="max-w-7xl mx-auto p-4 md:p-10 space-y-12">
                 {/* Hero Magic Mirror Section */}
-                {mainProduct && (
+                {mainProduct && mainProduct.isTryOnEnabled && (
                     <Card className="rounded-[40px] border-none shadow-2xl overflow-hidden bg-slate-900 text-white grid grid-cols-1 lg:grid-cols-2">
                         <div className="relative aspect-[4/5] lg:aspect-auto">
                             {tryOnProductId === mainProduct.id && tryOnResult ? (
@@ -387,9 +387,17 @@ function SmartMagazineContent() {
                                             </div>
                                         )}
                                         
+                                        {product.isTryOnEnabled && !isProductTryOn && !tryOnResult && (
+                                            <div className="absolute top-4 left-4 z-10">
+                                                <Badge className="bg-primary/90 text-white font-black italic text-[9px] px-3 py-1 rounded-full shadow-lg flex items-center gap-1 animate-pulse">
+                                                    <Sparkles className="h-2 w-2" /> TRY ME
+                                                </Badge>
+                                            </div>
+                                        )}
+
                                         {discount > 0 && <Badge className="absolute top-4 right-4 bg-destructive text-white font-black italic">-{discount}%</Badge>}
                                         
-                                        {!isProductTryOn && (
+                                        {product.isTryOnEnabled && !isProductTryOn && (
                                             <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
                                                 <Button size="sm" className="pointer-events-auto rounded-full bg-white/90 text-slate-900 hover:bg-white font-black italic text-[10px] scale-90 group-hover:scale-100 transition-transform" onClick={() => { setTryOnProductId(product.id); if (product.isEastIndianLugra) setSelectedDrapeStyle('East Indian Lugra'); cameraInputRef.current?.click(); }}>
                                                     <Sparkles className="mr-1 h-3 w-3 text-primary" /> MAGIC MIRROR
@@ -414,7 +422,7 @@ function SmartMagazineContent() {
                                             <p className="text-xs text-muted-foreground line-clamp-2 italic">"{product.description}"</p>
                                         </div>
 
-                                        {ethnic && !isProductTryOn && (
+                                        {ethnic && product.isTryOnEnabled && !isProductTryOn && (
                                             <div className="mt-4 pt-4 border-t space-y-2">
                                                  <Label className="text-[9px] font-black uppercase text-slate-400 tracking-widest">Drape Style</Label>
                                                  <Select value={selectedDrapeStyle} onValueChange={(val: any) => setSelectedDrapeStyle(val)}>
@@ -455,11 +463,14 @@ function SmartMagazineContent() {
                                     <CardFooter className="p-0 border-t bg-slate-50 grid grid-cols-2">
                                         <Button 
                                             variant="ghost" 
-                                            className="h-12 rounded-none border-r font-black uppercase italic text-[10px] flex items-center gap-1 bg-primary/5 hover:bg-primary/10 transition-colors"
-                                            disabled={!hasConsented || isTryOnLoading}
+                                            className={cn(
+                                                "h-12 rounded-none border-r font-black uppercase italic text-[10px] flex items-center gap-1 transition-colors",
+                                                product.isTryOnEnabled ? "bg-primary/5 hover:bg-primary/10" : "opacity-50 cursor-not-allowed"
+                                            )}
+                                            disabled={!product.isTryOnEnabled || !hasConsented || isTryOnLoading}
                                             onClick={() => { setTryOnProductId(product.id); if (product.isEastIndianLugra) setSelectedDrapeStyle('East Indian Lugra'); cameraInputRef.current?.click(); }}
                                         >
-                                            <Sparkles className="h-3 w-3 text-primary" /> MAGIC MIRROR
+                                            <Sparkles className="h-3 w-3 text-primary" /> {product.isTryOnEnabled ? 'MAGIC MIRROR' : 'TRY-ON OFF'}
                                         </Button>
                                         <Button 
                                             variant="ghost" 
