@@ -2,7 +2,7 @@
 /**
  * @fileOverview AI flow for Virtual Try-On (Magic Mirror).
  * Uses Gemini 2.5 Flash Image to blend a product onto a customer's photo.
- * Optimized for sarees, lugras, and complete clothing replacement with user-selected styles.
+ * Optimized for contextual fitting: Saree/Lugra vs. Shirts/T-shirts/Dresses.
  */
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
@@ -15,16 +15,51 @@ const VirtualTryOnInputSchema = z.object({
     .string()
     .describe("Product photo as a data URI."),
   productTitle: z.string().describe('Name of the product.'),
-  drapeStyle: z.enum(['Standard Saree', 'East Indian Lugra']).optional().describe('The specific draping style requested by the user.'),
+  drapeStyle: z.enum(['Standard Saree', 'East Indian Lugra', 'Western Wear']).optional().describe('The specific style requested by the user.'),
 });
 
 export type VirtualTryOnInput = z.infer<typeof VirtualTryOnInputSchema>;
 
 export async function virtualTryOn(input: VirtualTryOnInput) {
   try {
-      console.log(`[Magic Mirror] Processing ${input.drapeStyle || 'standard'} try-on for: ${input.productTitle}`);
+      console.log(`[Magic Mirror] Processing try-on for: ${input.productTitle} | Style: ${input.drapeStyle || 'Auto'}`);
       
-      const isLugraStyle = input.drapeStyle === 'East Indian Lugra' || input.productTitle.toLowerCase().includes('lugra');
+      const isLugraStyle = input.drapeStyle === 'East Indian Lugra';
+      const isSareeStyle = input.drapeStyle === 'Standard Saree';
+      const isEthnic = isLugraStyle || isSareeStyle;
+
+      let styleInstructions = '';
+
+      if (isLugraStyle) {
+          styleInstructions = `
+            STYLING MODE: AUTHENTIC EAST INDIAN LUGRA (GAOTHAN STYLE)
+            MANDATORY TRADITIONAL REQUIREMENTS:
+            1. DRAPE: Apply the traditional "Gaothan" or "East Indian Catholic" style. The drape MUST be ankle-length or mid-calf (shorter than a standard saree).
+            2. WAIST: Create the distinctive gathered pleats and tucks at the waist.
+            3. BLOUSE: Generate a matching blouse with TRADITIONAL ELBOW-LENGTH SLEEVES. The sleeves MUST have a thick gold zari border.
+            4. JEWELRY (ESSENTIAL): Automatically add traditional East Indian gold jewelry:
+               - A long "Laxmi Haar" (gold coin necklace) reaching down to the stomach.
+               - 1-2 shorter gold chokers or necklaces around the neck.
+               - Multiple gold "Bangadi" bangles on BOTH wrists.
+            5. HAIR: Add a traditional bun with a fresh "Gajra" (white flower garland).
+          `;
+      } else if (isSareeStyle) {
+          styleInstructions = `
+            STYLING MODE: STANDARD NIVI SAREE
+            MANDATORY REQUIREMENTS:
+            1. DRAPE: Apply a crisp, professional Nivi drape.
+            2. LENGTH: Floor-length, elegantly covering the feet.
+            3. BLOUSE: Generate a perfectly matching blouse with standard half-sleeves.
+          `;
+      } else {
+          styleInstructions = `
+            STYLING MODE: ACCURATE GARMENT REPLACEMENT (WESTERN WEAR)
+            TASK: FIT the item from the second photo ("${input.productTitle}") perfectly onto the person.
+            If the product is a Shirt or T-shirt, replace their top. 
+            If the product is a Dress, replace their entire outfit.
+            Ensure the garment follows the person's body structure and pose naturally.
+          `;
+      }
 
       const { media } = await ai.generate({
         model: 'googleai/gemini-2.5-flash-image',
@@ -32,29 +67,11 @@ export async function virtualTryOn(input: VirtualTryOnInput) {
           { media: { url: input.personImageDataUri } },
           { media: { url: input.productImageDataUri } },
           { 
-            text: `ACT AS AN EXPERT VIRTUAL STYLIST SPECIALIZING IN TRADITIONAL EAST INDIAN CATHOLIC AND MAHARASHTRIAN ATTIRE. 
+            text: `ACT AS AN EXPERT VIRTUAL STYLIST. 
             
-            TASK: COMPLETELY RE-DRESS the person in the first photo using the saree/lugra shown in the second photo ("${input.productTitle}"). 
+            TASK: COMPLETELY RE-DRESS the person in the first photo using the garment shown in the second photo ("${input.productTitle}"). 
             
-            STYLING MODE: ${isLugraStyle ? 'AUTHENTIC EAST INDIAN LUGRA (GAOTHAN STYLE)' : 'STANDARD NIVI SAREE'}
-            
-            ${isLugraStyle ? `
-            MANDATORY TRADITIONAL REQUIREMENTS FOR EAST INDIAN LUGRA:
-            1. DRAPE: Apply the traditional "Gaothan" or "East Indian Catholic" style. The drape MUST be ankle-length or mid-calf (shorter than a standard saree).
-            2. WAIST: Create the distinctive gathered pleats and tucks at the waist.
-            3. BLOUSE: Generate a matching blouse with TRADITIONAL ELBOW-LENGTH SLEEVES. The sleeves MUST have a thick gold zari border.
-            4. JEWELRY (ESSENTIAL): Automatically add traditional East Indian gold jewelry:
-               - A long "Laxmi Haar" (gold coin necklace) reaching down to the stomach.
-               - 1-2 shorter gold chokers or necklaces around the neck.
-               - Multiple gold "Bangadi" bangles on BOTH wrists, covering a significant part of the forearms.
-               - A gold "Kamarbandh" (waist belt) if appropriate for the drape.
-            5. HAIR: Add a traditional bun or braid with a fresh "Gajra" (white flower garland).
-            ` : `
-            MANDATORY REQUIREMENTS FOR STANDARD SAREE:
-            - DRAPE: Apply a crisp, professional Nivi drape.
-            - LENGTH: Floor-length, elegantly covering the feet.
-            - BLOUSE: Generate a perfectly matching blouse with standard half-sleeves.
-            `}
+            ${styleInstructions}
 
             CRITICAL CONSTRAINTS:
             - ZERO CLOTHING BLEED: The person's current clothes (t-shirt collars, jeans, jacket sleeves, etc.) must be 100% invisible. The new virtual outfit must completely replace them.

@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { saveDocument, getDocument, getCollection } from '@/services/firestore';
-import type { EditableOrder } from '../orders/page';
+import type { EditableOrder } from '@/types/order';
 import { v4 as uuidv4 } from 'uuid';
 import type { SellerProduct } from '../seller/ai-product-uploader/page';
 import type { ProductDrop } from '../vendor/product-drops/page';
@@ -69,7 +69,7 @@ function CatalogueOrderPageContent() {
     const [isTryOnLoading, setIsTryOnLoading] = useState(false);
     const [tryOnResult, setTryOnResult] = useState<string | null>(null);
     const [hasConsented, setHasConsented] = useState(false);
-    const [selectedDrapeStyle, setSelectedDrapeStyle] = useState<'Standard Saree' | 'East Indian Lugra'>('Standard Saree');
+    const [selectedDrapeStyle, setSelectedDrapeStyle] = useState<'Standard Saree' | 'East Indian Lugra' | 'Western Wear'>('Western Wear');
     const cameraInputRef = useRef<HTMLInputElement>(null);
     const galleryInputRef = useRef<HTMLInputElement>(null);
 
@@ -86,6 +86,14 @@ function CatalogueOrderPageContent() {
     const [totalPrice, setTotalPrice] = useState(0);
     const [appliedDiscount, setAppliedDiscount] = useState<DiscountRule | null>(null);
     const [returnUrl, setReturnUrl] = useState('https://www.snazzify.co.in');
+
+    const isEthnicWear = useMemo(() => {
+        if (!product) return false;
+        const ethnicKeywords = ['saree', 'sari', 'lugra', 'lehenga', 'suit', 'ethnic', 'dhoti', 'kurta'];
+        return ethnicKeywords.some(k => product.title.toLowerCase().includes(k)) || 
+               ethnicKeywords.some(k => product.category?.toLowerCase().includes(k)) ||
+               product.isEastIndianLugra;
+    }, [product]);
 
     useEffect(() => {
         setMounted(true);
@@ -122,6 +130,10 @@ function CatalogueOrderPageContent() {
                     
                     if (displayProduct.isEastIndianLugra) {
                         setSelectedDrapeStyle('East Indian Lugra');
+                    } else if (['saree', 'sari', 'ethnic'].some(k => displayProduct.title.toLowerCase().includes(k))) {
+                        setSelectedDrapeStyle('Standard Saree');
+                    } else {
+                        setSelectedDrapeStyle('Western Wear');
                     }
 
                     const discounts = await getCollection<DiscountRule>('discounts');
@@ -199,11 +211,11 @@ function CatalogueOrderPageContent() {
                 personImageDataUri: personUri,
                 productImageDataUri: productUri,
                 productTitle: product.title,
-                drapeStyle: selectedDrapeStyle,
+                drapeStyle: isEthnicWear ? (selectedDrapeStyle === 'Western Wear' ? 'Standard Saree' : selectedDrapeStyle) : 'Western Wear',
             });
             
             setTryOnResult(result.generatedImageDataUri);
-            toast({ title: "Magic Mirror Ready!", description: `Look generated in ${selectedDrapeStyle} style.` });
+            toast({ title: "Magic Mirror Ready!", description: `Look generated successfully.` });
         } catch (err: any) {
             console.error("Try-On Error:", err);
             toast({ variant: 'destructive', title: "Try-On Failed", description: err.message });
@@ -212,14 +224,6 @@ function CatalogueOrderPageContent() {
             if (e.target) e.target.value = '';
         }
     };
-
-    const isEthnicWear = useMemo(() => {
-        if (!product) return false;
-        const keywords = ['saree', 'sari', 'lugra', 'lehenga', 'suit'];
-        return keywords.some(k => product.title.toLowerCase().includes(k)) || 
-               keywords.some(k => product.category.toLowerCase().includes(k)) ||
-               product.isEastIndianLugra;
-    }, [product]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -280,7 +284,7 @@ function CatalogueOrderPageContent() {
                                 <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center text-center p-8 gap-4 z-20">
                                     <Sparkles className="h-16 w-16 text-primary animate-bounce" />
                                     <h3 className="text-2xl font-black italic uppercase tracking-tighter">AI Fitting Room...</h3>
-                                    <p className="text-sm text-muted-foreground animate-pulse max-w-xs">Experience a perfect virtual fit with traditional styling and accessories instantly.</p>
+                                    <p className="text-sm text-muted-foreground animate-pulse max-w-xs">Crafting your perfect virtual look with high-end precision.</p>
                                 </div>
                             )}
                         </div>
@@ -291,7 +295,7 @@ function CatalogueOrderPageContent() {
                         <div className="flex flex-col gap-6 relative z-10">
                             <div className="space-y-1">
                                 <h3 className="text-xl font-black italic uppercase flex items-center gap-2"><Sparkles className="h-5 w-5 text-purple-400" /> Magic Mirror</h3>
-                                <p className="text-xs text-slate-400">Experience a perfect virtual fit with traditional styling and accessories instantly.</p>
+                                <p className="text-xs text-slate-400">Experience a perfect virtual fit instantly.</p>
                             </div>
                             
                             <div className="bg-white/5 border border-white/10 p-4 rounded-2xl space-y-4">
@@ -304,20 +308,21 @@ function CatalogueOrderPageContent() {
                                     />
                                     <Label htmlFor="privacy-consent" className="text-[10px] leading-relaxed text-slate-300">
                                         <span className="font-bold text-white uppercase block mb-1">Privacy & Terms</span>
-                                        We do not save any pics to our server. Your selfie is processed instantly and will be removed immediately after this session for personal data protection and security.
+                                        We do not save any pics to our server. Your selfie is processed instantly and removed immediately after this session.
                                     </Label>
                                 </div>
 
                                 {isEthnicWear && !tryOnResult && (
                                     <div className="space-y-2 pt-2 border-t border-white/10">
-                                        <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Select Drape style</Label>
+                                        <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Select Style Preference</Label>
                                         <Select value={selectedDrapeStyle} onValueChange={(val: any) => setSelectedDrapeStyle(val)}>
                                             <SelectTrigger className="h-10 bg-white/10 border-white/20 text-white rounded-xl text-xs font-bold">
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 <SelectItem value="Standard Saree">Standard Saree (Floor Length)</SelectItem>
-                                                <SelectItem value="East Indian Lugra">East Indian Lugra (Short Drape)</SelectItem>
+                                                <SelectItem value="East Indian Lugra">East Indian Lugra (Authentic Short Drape)</SelectItem>
+                                                <SelectItem value="Western Wear">Auto Fitting (Best Fit)</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>

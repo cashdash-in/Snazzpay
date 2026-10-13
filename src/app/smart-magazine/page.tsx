@@ -58,7 +58,7 @@ function SmartMagazineContent() {
     const [tryOnResult, setTryOnResult] = useState<string | null>(null);
     const [tryOnProductId, setTryOnProductId] = useState<string | null>(null);
     const [hasConsented, setHasConsented] = useState(false);
-    const [selectedDrapeStyle, setSelectedDrapeStyle] = useState<'Standard Saree' | 'East Indian Lugra'>('Standard Saree');
+    const [selectedDrapeStyle, setSelectedDrapeStyle] = useState<'Standard Saree' | 'East Indian Lugra' | 'Western Wear'>('Western Wear');
     const cameraInputRef = useRef<HTMLInputElement>(null);
     const galleryInputRef = useRef<HTMLInputElement>(null);
 
@@ -66,6 +66,14 @@ function SmartMagazineContent() {
     const [enquiryProduct, setEnquiryProduct] = useState<DisplayProduct | null>(null);
     const [enquiryForm, setEnquiryForm] = useState({ name: '', phone: '', message: '' });
     const [isEnquiring, setIsEnquiring] = useState(false);
+
+    const isEthnicWear = (p: DisplayProduct) => {
+        if (!p) return false;
+        const ethnicKeywords = ['saree', 'sari', 'lugra', 'lehenga', 'suit', 'dhoti', 'kurta', 'ethnic'];
+        return ethnicKeywords.some(k => p.title.toLowerCase().includes(k)) || 
+               ethnicKeywords.some(k => p.category?.toLowerCase().includes(k)) ||
+               p.isEastIndianLugra;
+    };
 
     useEffect(() => {
         const discountParam = searchParams.get('discount');
@@ -164,15 +172,16 @@ function SmartMagazineContent() {
                 resizeImageForAI(product.imageDataUris[0])
             ]);
             
+            const isEthnic = isEthnicWear(product);
             const result = await virtualTryOn({
                 personImageDataUri: personUri,
                 productImageDataUri: productUri,
                 productTitle: product.title,
-                drapeStyle: selectedDrapeStyle,
+                drapeStyle: isEthnic ? (selectedDrapeStyle === 'Western Wear' ? 'Standard Saree' : selectedDrapeStyle) : 'Western Wear',
             });
             
             setTryOnResult(result.generatedImageDataUri);
-            toast({ title: "Magic Mirror Ready!", description: `Look generated in ${selectedDrapeStyle} style.` });
+            toast({ title: "Look Generated!", description: `Success.` });
         } catch (err: any) {
             toast({ variant: 'destructive', title: "Try-On Failed", description: err.message });
             setTryOnProductId(null);
@@ -234,13 +243,6 @@ function SmartMagazineContent() {
         }
     };
 
-    const isEthnicWear = (p: DisplayProduct) => {
-        const keywords = ['saree', 'sari', 'lugra', 'lehenga', 'suit'];
-        return keywords.some(k => p.title.toLowerCase().includes(k)) || 
-               keywords.some(k => p.category.toLowerCase().includes(k)) ||
-               p.isEastIndianLugra;
-    };
-
     if (isLoading) return <div className="flex h-screen w-full items-center justify-center"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
 
     const mainProduct = products[0];
@@ -271,7 +273,7 @@ function SmartMagazineContent() {
                                 <div className="absolute inset-0 bg-black/60 backdrop-blur-md flex flex-col items-center justify-center text-center p-8 gap-4">
                                     <Sparkles className="h-16 w-16 text-primary animate-bounce" />
                                     <h3 className="text-2xl font-black italic uppercase tracking-tighter">AI Fitting Room...</h3>
-                                    <p className="text-xs text-slate-400 animate-pulse">Designing your matching blouse and accessories.</p>
+                                    <p className="text-xs text-slate-400 animate-pulse">Personalizing your outfit with precision.</p>
                                 </div>
                             )}
                             <div className="absolute top-4 left-4">
@@ -280,9 +282,9 @@ function SmartMagazineContent() {
                         </div>
                         <div className="p-8 md:p-16 flex flex-col justify-center space-y-8">
                             <div className="space-y-4">
-                                <Badge className="bg-primary text-white font-black italic">FEATURED LOOK</Badge>
+                                <Badge className="bg-primary text-white font-black italic">FEATURED PRODUCT</Badge>
                                 <h2 className="text-4xl md:text-6xl font-black italic uppercase tracking-tighter leading-none">{mainProduct.title}</h2>
-                                <p className="text-slate-400 text-lg italic">"Experience a perfect virtual fit with traditional styling and accessories instantly."</p>
+                                <p className="text-slate-400 text-lg italic">"Experience a perfect virtual fit instantly."</p>
                             </div>
                             
                             <div className="bg-white/5 border border-white/10 p-6 rounded-3xl space-y-6">
@@ -295,21 +297,22 @@ function SmartMagazineContent() {
                                             className="mt-1 border-white/50"
                                         />
                                         <Label htmlFor="hero-consent" className="text-[10px] leading-relaxed text-slate-300 font-medium">
-                                            I agree to the Terms of Service. <span className="font-bold text-white">Privacy Promise:</span> We do not save your photos to our server. They are processed instantly and deleted immediately after your preview is generated.
+                                            Privacy Policy: We do not store your photos. They are processed instantly and deleted immediately after generation.
                                         </Label>
                                     </div>
                                 </div>
 
                                 {isEthnicWear(mainProduct) && !tryOnResult && (
                                     <div className="space-y-2 pt-2 border-t border-white/10">
-                                        <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Select Drape style</Label>
+                                        <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Select Style Preference</Label>
                                         <Select value={selectedDrapeStyle} onValueChange={(val: any) => setSelectedDrapeStyle(val)}>
                                             <SelectTrigger className="h-10 bg-white/10 border-white/20 text-white rounded-xl text-xs font-bold">
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 <SelectItem value="Standard Saree">Standard Saree (Floor Length)</SelectItem>
-                                                <SelectItem value="East Indian Lugra">East Indian Lugra (Short Drape)</SelectItem>
+                                                <SelectItem value="East Indian Lugra">East Indian Lugra (Authentic Short Drape)</SelectItem>
+                                                <SelectItem value="Western Wear">Auto Fitting (Best Fit)</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>
@@ -354,7 +357,7 @@ function SmartMagazineContent() {
                             </div>
 
                             <Button onClick={() => handleOrderClick(mainProduct)} size="lg" className="w-full h-16 rounded-2xl font-black uppercase italic text-xl border-4 border-white/10 bg-transparent hover:bg-white hover:text-slate-900 transition-all">
-                                <ShoppingCart className="mr-2 h-6 w-6" /> Order This Look
+                                <ShoppingCart className="mr-2 h-6 w-6" /> Order This Item
                             </Button>
                         </div>
                     </Card>
@@ -386,7 +389,6 @@ function SmartMagazineContent() {
                                         
                                         {discount > 0 && <Badge className="absolute top-4 right-4 bg-destructive text-white font-black italic">-{discount}%</Badge>}
                                         
-                                        {/* TRY ON OVERLAY BUTTON */}
                                         {!isProductTryOn && (
                                             <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
                                                 <Button size="sm" className="pointer-events-auto rounded-full bg-white/90 text-slate-900 hover:bg-white font-black italic text-[10px] scale-90 group-hover:scale-100 transition-transform" onClick={() => { setTryOnProductId(product.id); if (product.isEastIndianLugra) setSelectedDrapeStyle('East Indian Lugra'); cameraInputRef.current?.click(); }}>
@@ -422,6 +424,7 @@ function SmartMagazineContent() {
                                                     <SelectContent>
                                                         <SelectItem value="Standard Saree">Standard Saree</SelectItem>
                                                         <SelectItem value="East Indian Lugra">East Indian Lugra</SelectItem>
+                                                        <SelectItem value="Western Wear">Auto Fitting</SelectItem>
                                                     </SelectContent>
                                                  </Select>
                                             </div>
@@ -456,7 +459,7 @@ function SmartMagazineContent() {
                                             disabled={!hasConsented || isTryOnLoading}
                                             onClick={() => { setTryOnProductId(product.id); if (product.isEastIndianLugra) setSelectedDrapeStyle('East Indian Lugra'); cameraInputRef.current?.click(); }}
                                         >
-                                            <Sparkles className="h-3 w-3 text-primary" /> Magic Mirror
+                                            <Sparkles className="h-3 w-3 text-primary" /> MAGIC MIRROR
                                         </Button>
                                         <Button 
                                             variant="ghost" 
