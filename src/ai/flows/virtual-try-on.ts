@@ -39,12 +39,13 @@ export async function virtualTryOn(input: VirtualTryOnInput) {
             
             MANDATORY TRADITIONAL REQUIREMENTS:
             1. DRAPE: Apply the traditional "Gaothan" East Indian village style. The drape MUST be mid-calf or ankle-length, clearly showing the feet/ankles.
-            2. WAIST & BELT: Automatically add a prominent ORNATE GOLD WAIST BELT (KAMARBAND) over the Lugra at the waist level to hold the gathered pleats.
+            2. WAIST: The drape is tucked at the waist. DO NOT add any waist belt or Kamar Pata.
             3. BLOUSE: Generate a matching blouse with TRADITIONAL ELBOW-LENGTH SLEEVES. The sleeves MUST end at the elbow and feature a gold zari border.
-            4. ACCESSORIES: Automatically add authentic gold jewelry:
-               - "Laxmi Haar": A long gold coin necklace reaching the navel.
-               - "Gold Chokers": Multiple layered gold bead necklaces around the neck.
+            4. ACCESSORIES: Automatically add ONLY these authentic gold jewelry items:
+               - "Long Pote": A long, traditional gold bead necklace.
                - "Bangadi": A stack of thick gold bangles on BOTH wrists.
+               - DO NOT add a "Laxmi Haar" or any long coin necklace.
+               - DO NOT add a "Kamar Pata" or any waist belt.
             5. HAIR: Style the person's hair into a neat bun adorned with a white flower garland (Gajra).
           `;
       } else if (isSareeStyle) {
