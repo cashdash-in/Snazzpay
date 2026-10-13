@@ -40,6 +40,7 @@ type Magazine = {
     createdAt: string;
     discount?: number;
     logoDataUri?: string;
+    isTryOnEnabled?: boolean;
 };
 
 const MAX_TRYON_SIZE_PX = 448;
@@ -58,7 +59,8 @@ function SmartMagazineContent() {
     const [tryOnResult, setTryOnResult] = useState<string | null>(null);
     const [tryOnProductId, setTryOnProductId] = useState<string | null>(null);
     const [hasConsented, setHasConsented] = useState(false);
-    const [selectedDrapeStyle, setSelectedDrapeStyle] = useState<'Standard Saree' | 'East Indian Lugra' | 'Western Wear'>('Western Wear');
+    const [selectedDrapeStyle, setSelectedDrapeStyle] = useState<'Standard Saree' | 'East Indian Lugra' | 'Western Wear' | 'Western Dress' | 'Kurti'>('Western Wear');
+    const [selectedSleeves, setSelectedSleeves] = useState<'Half Sleeves' | 'Full Sleeves' | 'Sleeveless'>('Half Sleeves');
     const cameraInputRef = useRef<HTMLInputElement>(null);
     const galleryInputRef = useRef<HTMLInputElement>(null);
 
@@ -66,14 +68,6 @@ function SmartMagazineContent() {
     const [enquiryProduct, setEnquiryProduct] = useState<DisplayProduct | null>(null);
     const [enquiryForm, setEnquiryForm] = useState({ name: '', phone: '', message: '' });
     const [isEnquiring, setIsEnquiring] = useState(false);
-
-    const isEthnicWear = (p: DisplayProduct) => {
-        if (!p) return false;
-        const ethnicKeywords = ['saree', 'sari', 'lugra', 'lehenga', 'suit', 'dhoti', 'kurta', 'ethnic'];
-        return ethnicKeywords.some(k => p.title.toLowerCase().includes(k)) || 
-               ethnicKeywords.some(k => p.category?.toLowerCase().includes(k)) ||
-               p.isEastIndianLugra;
-    };
 
     useEffect(() => {
         const discountParam = searchParams.get('discount');
@@ -122,7 +116,11 @@ function SmartMagazineContent() {
         }
         fetchProducts();
     }, [searchParams]);
-    
+
+    const showSleeveOption = useMemo(() => {
+        return ['Western Wear', 'Kurti', 'Western Dress', 'Standard Saree'].includes(selectedDrapeStyle);
+    }, [selectedDrapeStyle]);
+
     const resizeImageForAI = (fileOrUri: File | string, maxSize: number = MAX_TRYON_SIZE_PX): Promise<string> => {
         return new Promise((resolve, reject) => {
             if (typeof window === 'undefined') return reject('Window undefined');
@@ -172,12 +170,12 @@ function SmartMagazineContent() {
                 resizeImageForAI(product.imageDataUris[0])
             ]);
             
-            const isEthnic = isEthnicWear(product);
             const result = await virtualTryOn({
                 personImageDataUri: personUri,
                 productImageDataUri: productUri,
                 productTitle: product.title,
-                drapeStyle: isEthnic ? (selectedDrapeStyle === 'Western Wear' ? 'Standard Saree' : selectedDrapeStyle) : 'Western Wear',
+                drapeStyle: selectedDrapeStyle,
+                sleeveLength: selectedSleeves
             });
             
             setTryOnResult(result.generatedImageDataUri);
@@ -262,7 +260,7 @@ function SmartMagazineContent() {
 
             <main className="max-w-7xl mx-auto p-4 md:p-10 space-y-12">
                 {/* Hero Magic Mirror Section */}
-                {mainProduct && mainProduct.isTryOnEnabled && (
+                {mainProduct && (magazine?.isTryOnEnabled || mainProduct.isTryOnEnabled) && (
                     <Card className="rounded-[40px] border-none shadow-2xl overflow-hidden bg-slate-900 text-white grid grid-cols-1 lg:grid-cols-2">
                         <div className="relative aspect-[4/5] lg:aspect-auto">
                             {tryOnProductId === mainProduct.id && tryOnResult ? (
@@ -303,21 +301,39 @@ function SmartMagazineContent() {
                                     </div>
                                 </div>
 
-                                {isEthnicWear(mainProduct) && !tryOnResult && (
-                                    <div className="space-y-2 pt-2 border-t border-white/10">
-                                        <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Select Style Preference</Label>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-white/10">
+                                    <div className="space-y-2">
+                                        <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Select Style</Label>
                                         <Select value={selectedDrapeStyle} onValueChange={(val: any) => setSelectedDrapeStyle(val)}>
                                             <SelectTrigger className="h-10 bg-white/10 border-white/20 text-white rounded-xl text-xs font-bold">
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="Standard Saree">Standard Saree (Floor Length)</SelectItem>
-                                                <SelectItem value="East Indian Lugra">East Indian Lugra (Authentic Short Drape)</SelectItem>
-                                                <SelectItem value="Western Wear">Auto Fitting (Best Fit)</SelectItem>
+                                                <SelectItem value="Western Wear">Western Fit</SelectItem>
+                                                <SelectItem value="Western Dress">Western Dress</SelectItem>
+                                                <SelectItem value="Kurti">Traditional Kurti</SelectItem>
+                                                <SelectItem value="Standard Saree">Standard Saree</SelectItem>
+                                                <SelectItem value="East Indian Lugra">East Indian Lugra</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>
-                                )}
+
+                                    {showSleeveOption && (
+                                        <div className="space-y-2">
+                                            <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Sleeves</Label>
+                                            <Select value={selectedSleeves} onValueChange={(val: any) => setSelectedSleeves(val)}>
+                                                <SelectTrigger className="h-10 bg-white/10 border-white/20 text-white rounded-xl text-xs font-bold">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="Half Sleeves">Half Sleeves</SelectItem>
+                                                    <SelectItem value="Full Sleeves">Full Sleeves</SelectItem>
+                                                    <SelectItem value="Sleeveless">Sleeveless</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    )}
+                                </div>
 
                                 <div className="grid grid-cols-2 gap-4">
                                     {tryOnResult && tryOnProductId === mainProduct.id ? (
@@ -336,7 +352,7 @@ function SmartMagazineContent() {
                                                 </Button>
                                             </div>
                                             <Button onClick={() => handleShareWhatsAppTryOn(tryOnResult!, mainProduct.title)} className="w-full h-14 bg-green-600 hover:bg-green-700 text-white font-black uppercase italic rounded-2xl shadow-xl">
-                                                <Share2 className="mr-2 h-6 w-6" /> Share to WhatsApp
+                                                <Share2 className="mr-2 h-6 w-6" /> Share Look
                                             </Button>
                                         </div>
                                     ) : (
@@ -374,7 +390,7 @@ function SmartMagazineContent() {
                         {products.map(product => {
                             const price = (product as any).price || (product as any).costPrice;
                             const isProductTryOn = tryOnProductId === product.id;
-                            const ethnic = isEthnicWear(product);
+                            const canTryOn = magazine?.isTryOnEnabled || product.isTryOnEnabled;
 
                             return (
                                 <Card key={product.id} className="group rounded-[32px] border-none shadow-lg hover:shadow-2xl transition-all duration-500 overflow-hidden bg-white flex flex-col">
@@ -392,7 +408,7 @@ function SmartMagazineContent() {
                                             </div>
                                         )}
                                         
-                                        {product.isTryOnEnabled && !isProductTryOn && !tryOnResult && (
+                                        {canTryOn && !isProductTryOn && !tryOnResult && (
                                             <div className="absolute top-4 left-4 z-10">
                                                 <Badge className="bg-primary/90 text-white font-black italic text-[9px] px-3 py-1 rounded-full shadow-lg flex items-center gap-1 animate-pulse">
                                                     <Sparkles className="h-2 w-2" /> TRY ME
@@ -402,7 +418,7 @@ function SmartMagazineContent() {
 
                                         {discount > 0 && <Badge className="absolute top-4 right-4 bg-destructive text-white font-black italic">-{discount}%</Badge>}
                                         
-                                        {product.isTryOnEnabled && !isProductTryOn && (
+                                        {canTryOn && !isProductTryOn && (
                                             <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
                                                 <Button size="sm" className="pointer-events-auto rounded-full bg-white/90 text-slate-900 hover:bg-white font-black italic text-[10px] scale-90 group-hover:scale-100 transition-transform" onClick={() => { setTryOnProductId(product.id); cameraInputRef.current?.click(); }}>
                                                     <Sparkles className="mr-1 h-3 w-3 text-primary" /> MAGIC MIRROR
@@ -435,22 +451,6 @@ function SmartMagazineContent() {
                                             <p className="text-xs text-muted-foreground line-clamp-2 italic">"{product.description}"</p>
                                         </div>
 
-                                        {ethnic && product.isTryOnEnabled && !isProductTryOn && (
-                                            <div className="mt-4 pt-4 border-t space-y-2">
-                                                 <Label className="text-[9px] font-black uppercase text-slate-400 tracking-widest">Drape Style</Label>
-                                                 <Select value={selectedDrapeStyle} onValueChange={(val: any) => setSelectedDrapeStyle(val)}>
-                                                    <SelectTrigger className="h-8 text-[10px] font-bold rounded-lg bg-slate-50 border-none">
-                                                        <SelectValue />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="Standard Saree">Standard Saree</SelectItem>
-                                                        <SelectItem value="East Indian Lugra">East Indian Lugra</SelectItem>
-                                                        <SelectItem value="Western Wear">Auto Fitting</SelectItem>
-                                                    </SelectContent>
-                                                 </Select>
-                                            </div>
-                                        )}
-
                                         <div className="pt-4 border-t mt-4 flex justify-between items-center">
                                             <span className="text-xl font-black text-primary">₹{price}</span>
                                             <div className="flex gap-2">
@@ -478,12 +478,12 @@ function SmartMagazineContent() {
                                             variant="ghost" 
                                             className={cn(
                                                 "h-12 rounded-none border-r font-black uppercase italic text-[10px] flex items-center gap-1 transition-colors",
-                                                product.isTryOnEnabled ? "bg-primary/5 hover:bg-primary/10" : "opacity-50 cursor-not-allowed"
+                                                canTryOn ? "bg-primary/5 hover:bg-primary/10" : "opacity-50 cursor-not-allowed"
                                             )}
-                                            disabled={!product.isTryOnEnabled || !hasConsented || isTryOnLoading}
+                                            disabled={!canTryOn || !hasConsented || isTryOnLoading}
                                             onClick={() => { setTryOnProductId(product.id); cameraInputRef.current?.click(); }}
                                         >
-                                            <Sparkles className="h-3 w-3 text-primary" /> {product.isTryOnEnabled ? 'MAGIC MIRROR' : 'TRY-ON OFF'}
+                                            <Sparkles className="h-3 w-3 text-primary" /> {canTryOn ? 'MAGIC MIRROR' : 'TRY-ON OFF'}
                                         </Button>
                                         <Button 
                                             variant="ghost" 

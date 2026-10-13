@@ -2,7 +2,7 @@
 /**
  * @fileOverview AI flow for Virtual Try-On (Magic Mirror).
  * Uses Gemini 2.5 Flash Image to blend a product onto a customer's photo.
- * Optimized for contextual fitting: Saree/Lugra vs. Shirts/T-shirts/Dresses.
+ * Optimized for contextual fitting: Saree/Lugra, Kurti, Western Dress, and Sleeve variations.
  */
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
@@ -15,53 +15,65 @@ const VirtualTryOnInputSchema = z.object({
     .string()
     .describe("Product photo as a data URI."),
   productTitle: z.string().describe('Name of the product.'),
-  drapeStyle: z.enum(['Standard Saree', 'East Indian Lugra', 'Western Wear']).optional().describe('The specific style requested by the user.'),
+  drapeStyle: z.enum(['Standard Saree', 'East Indian Lugra', 'Western Wear', 'Western Dress', 'Kurti']).optional().describe('The specific style requested by the user.'),
+  sleeveLength: z.enum(['Half Sleeves', 'Full Sleeves', 'Sleeveless']).optional().describe('Preferred sleeve length for the garment.'),
 });
 
 export type VirtualTryOnInput = z.infer<typeof VirtualTryOnInputSchema>;
 
 export async function virtualTryOn(input: VirtualTryOnInput) {
   try {
-      console.log(`[Magic Mirror] Processing try-on for: ${input.productTitle} | Style: ${input.drapeStyle || 'Auto'}`);
+      console.log(`[Magic Mirror] Processing try-on for: ${input.productTitle} | Style: ${input.drapeStyle || 'Auto'} | Sleeves: ${input.sleeveLength || 'Default'}`);
       
       const isLugraStyle = input.drapeStyle === 'East Indian Lugra';
       const isSareeStyle = input.drapeStyle === 'Standard Saree';
+      const isKurtiStyle = input.drapeStyle === 'Kurti';
+      const isDressStyle = input.drapeStyle === 'Western Dress';
 
       let styleInstructions = '';
 
       if (isLugraStyle) {
           styleInstructions = `
             STYLING MODE: AUTHENTIC EAST INDIAN LUGRA (GAOTHAN PATTERN)
-            MANDATORY TRADITIONAL REQUIREMENTS (MATCH REFERENCE PATTERN):
-            1. DRAPE: Apply the traditional "Gaothan" East Indian Catholic village style. The drape MUST be mid-calf or ankle-length, showing the feet/ankles. It should have characteristic gathered pleats at the waist.
-            2. WAIST & BELT: Automatically add a prominent, large, and heavy ORNATE GOLD WAIST BELT (KAMARBAND) over the Lugra at the waist level. This is essential for the authentic look.
-            3. BLOUSE: Generate a matching or contrasting blouse with TRADITIONAL ELBOW-LENGTH SLEEVES. The sleeves MUST end exactly at the elbow and feature a broad, thick gold zari/brocade border.
-            4. JEWELRY (HEAVY GOLD): Automatically add this specific jewelry set to the person:
-               - "Laxmi Haar": A very long gold coin necklace that reaches down to the navel/waist belt.
-               - "Layered Chokers": 2-3 shorter gold chokers (Pote) layered around the neck.
-               - "Bangadi": A thick stack of gold bangles (Bangadi) covering a significant portion of BOTH wrists.
-               - "Earrings": Large gold traditional studs or Jhumkas.
-            5. HAIR: Add a traditional neat bun with a fresh white flower garland (Gajra).
+            MANDATORY TRADITIONAL REQUIREMENTS:
+            1. DRAPE: Apply the traditional "Gaothan" East Indian Catholic village style. The drape MUST be mid-calf or ankle-length, showing the feet/ankles.
+            2. WAIST & BELT: Automatically add a prominent ORNATE GOLD WAIST BELT (KAMARBAND) over the Lugra at the waist level.
+            3. BLOUSE: Generate a matching blouse with TRADITIONAL ELBOW-LENGTH SLEEVES. The sleeves MUST end at the elbow and feature a gold zari border.
+            4. JEWELRY: Automatically add:
+               - "Laxmi Haar": A long gold coin necklace reaching the navel.
+               - "Layered Chokers": Gold chokers around the neck.
+               - "Bangadi": Thick gold bangles on BOTH wrists.
+            5. HAIR: Add a neat bun with a white flower garland (Gajra).
           `;
       } else if (isSareeStyle) {
           styleInstructions = `
             STYLING MODE: STANDARD NIVI SAREE
-            MANDATORY REQUIREMENTS:
-            1. DRAPE: Apply a crisp, professional Nivi drape.
-            2. LENGTH: Floor-length, elegantly covering the feet.
-            3. BLOUSE: Generate a perfectly matching blouse with standard sleeves.
-            4. ACCESSORIES: Add a gold necklace and small earrings for a complete look.
+            1. DRAPE: Apply a crisp, professional floor-length Nivi drape.
+            2. BLOUSE: Generate a perfectly matching blouse. ${input.sleeveLength ? `Ensure sleeves are ${input.sleeveLength}.` : 'Standard short sleeves.'}
+            3. ACCESSORIES: Add a simple gold necklace and earrings.
+          `;
+      } else if (isKurtiStyle) {
+          styleInstructions = `
+            STYLING MODE: TRADITIONAL KURTI FIT
+            1. TASK: Fit the Kurti from the second photo onto the person. 
+            2. LENGTH: Maintain the Kurti's original length (usually hip or knee length).
+            3. SLEEVES: ${input.sleeveLength ? `Modify the garment to have ${input.sleeveLength}.` : 'Maintain original garment sleeves.'}
+            4. BOTTOM: Match with neutral leggings or jeans if legs are visible.
+          `;
+      } else if (isDressStyle) {
+          styleInstructions = `
+            STYLING MODE: WESTERN DRESS FIT
+            1. TASK: Re-dress the person in the one-piece dress shown in the product photo.
+            2. SILHOUETTE: Follow the flow and cut of the dress perfectly.
+            3. SLEEVES: ${input.sleeveLength ? `Modify the garment to have ${input.sleeveLength}.` : 'Maintain original garment sleeves.'}
           `;
       } else {
           styleInstructions = `
             STYLING MODE: HYPER-REALISTIC GARMENT REPLACEMENT (WESTERN WEAR)
-            TASK: COMPLETELY RE-DRESS the person in the first photo using ONLY the garment shown in the second photo ("${input.productTitle}").
-            
-            PRECISION REQUIREMENTS:
-            - ANATOMICAL PHYSICS: The garment must follow the person's body structure, shoulders, and pose perfectly.
-            - REALISTIC TEXTURE: Generate natural fabric folds, creases, and shadows that correspond to the wearer's posture and the lighting of the room.
-            - ZERO CLOTHING BLEED: The wearer's original clothes (t-shirts, collars, necklines) MUST be 100% removed and replaced. No "peeking" of old clothes.
-            - COLLAR & FIT: If it's a shirt, the collar must sit realistically around the neck. The garment should look like it was worn during the original photo shoot.
+            TASK: COMPLETELY RE-DRESS the person using ONLY the garment shown in the product photo ("${input.productTitle}").
+            - ANATOMICAL PHYSICS: Fabric folds must match the person's pose and lighting.
+            - SLEEVES: ${input.sleeveLength ? `Force the garment to have ${input.sleeveLength}.` : 'Maintain original sleeves.'}
+            - ZERO CLOTHING BLEED: Ensure 100% removal of original clothes.
           `;
       }
 
@@ -71,15 +83,16 @@ export async function virtualTryOn(input: VirtualTryOnInput) {
           { media: { url: input.personImageDataUri } },
           { media: { url: input.productImageDataUri } },
           { 
-            text: `ACT AS AN ELITE VIRTUAL STYLIST AND IMAGE EDITOR. 
+            text: `ACT AS AN ELITE VIRTUAL STYLIST. 
             
             TASK: COMPLETELY RE-DRESS the person in the first photo using the garment shown in the second photo ("${input.productTitle}"). 
             
             ${styleInstructions}
 
             CRITICAL CONSTRAINTS:
-            - FACIAL INTEGRITY: Keep the person's face, features, skin tone, and hair texture exactly as they are in the original selfie. Only change the clothes and add the specified traditional accessories if requested.
-            - REALISM: The final output must look like a real photograph, not a digital overlay. Match the lighting, grain, and shadows of the original selfie.
+            - FACIAL INTEGRITY: Keep the person's face, features, and hair exactly as they are.
+            - REALISM: The final output must look like a high-resolution real photograph.
+            - CLEANLINESS: The person's original clothes must be totally invisible.
             
             Return ONLY the final high-resolution processed image.` 
           },
@@ -90,7 +103,7 @@ export async function virtualTryOn(input: VirtualTryOnInput) {
       });
 
       if (!media?.url) {
-          throw new Error('AI processed the request but did not return the image. Please try a different photo.');
+          throw new Error('AI processed the request but did not return the image.');
       }
 
       return { generatedImageDataUri: media.url };

@@ -70,7 +70,8 @@ function CatalogueOrderPageContent() {
     const [isTryOnLoading, setIsTryOnLoading] = useState(false);
     const [tryOnResult, setTryOnResult] = useState<string | null>(null);
     const [hasConsented, setHasConsented] = useState(false);
-    const [selectedDrapeStyle, setSelectedDrapeStyle] = useState<'Standard Saree' | 'East Indian Lugra' | 'Western Wear'>('Western Wear');
+    const [selectedDrapeStyle, setSelectedDrapeStyle] = useState<'Standard Saree' | 'East Indian Lugra' | 'Western Wear' | 'Western Dress' | 'Kurti'>('Western Wear');
+    const [selectedSleeves, setSelectedSleeves] = useState<'Half Sleeves' | 'Full Sleeves' | 'Sleeveless'>('Half Sleeves');
     const cameraInputRef = useRef<HTMLInputElement>(null);
     const galleryInputRef = useRef<HTMLInputElement>(null);
 
@@ -90,11 +91,15 @@ function CatalogueOrderPageContent() {
 
     const isEthnicWear = useMemo(() => {
         if (!product) return false;
-        const ethnicKeywords = ['saree', 'sari', 'lugra', 'lehenga', 'suit', 'ethnic', 'dhoti', 'kurta'];
+        const ethnicKeywords = ['saree', 'sari', 'lugra', 'lehenga', 'suit', 'ethnic', 'dhoti', 'kurta', 'kurti'];
         return ethnicKeywords.some(k => product.title.toLowerCase().includes(k)) || 
                ethnicKeywords.some(k => product.category?.toLowerCase().includes(k)) ||
                product.isEastIndianLugra;
     }, [product]);
+
+    const showSleeveOption = useMemo(() => {
+        return ['Western Wear', 'Kurti', 'Western Dress', 'Standard Saree'].includes(selectedDrapeStyle);
+    }, [selectedDrapeStyle]);
 
     useEffect(() => {
         setMounted(true);
@@ -129,10 +134,15 @@ function CatalogueOrderPageContent() {
                     };
                     setProduct(displayProduct);
                     
+                    // Intelligent Style Pre-selection
                     if (displayProduct.isEastIndianLugra) {
                         setSelectedDrapeStyle('East Indian Lugra');
-                    } else if (['saree', 'sari', 'ethnic'].some(k => displayProduct.title.toLowerCase().includes(k))) {
+                    } else if (['saree', 'sari'].some(k => displayProduct.title.toLowerCase().includes(k))) {
                         setSelectedDrapeStyle('Standard Saree');
+                    } else if (['kurta', 'kurti'].some(k => displayProduct.title.toLowerCase().includes(k))) {
+                        setSelectedDrapeStyle('Kurti');
+                    } else if (['dress', 'frock'].some(k => displayProduct.title.toLowerCase().includes(k))) {
+                        setSelectedDrapeStyle('Western Dress');
                     } else {
                         setSelectedDrapeStyle('Western Wear');
                     }
@@ -212,7 +222,8 @@ function CatalogueOrderPageContent() {
                 personImageDataUri: personUri,
                 productImageDataUri: productUri,
                 productTitle: product.title,
-                drapeStyle: isEthnicWear ? (selectedDrapeStyle === 'Western Wear' ? 'Standard Saree' : selectedDrapeStyle) : 'Western Wear',
+                drapeStyle: selectedDrapeStyle,
+                sleeveLength: selectedSleeves
             });
             
             setTryOnResult(result.generatedImageDataUri);
@@ -328,21 +339,39 @@ function CatalogueOrderPageContent() {
                                         </Label>
                                     </div>
 
-                                    {isEthnicWear && !tryOnResult && (
-                                        <div className="space-y-2 pt-2 border-t border-white/10">
-                                            <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Select Style Preference</Label>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-white/10">
+                                        <div className="space-y-2">
+                                            <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Style Mode</Label>
                                             <Select value={selectedDrapeStyle} onValueChange={(val: any) => setSelectedDrapeStyle(val)}>
                                                 <SelectTrigger className="h-10 bg-white/10 border-white/20 text-white rounded-xl text-xs font-bold">
                                                     <SelectValue />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    <SelectItem value="Standard Saree">Standard Saree (Floor Length)</SelectItem>
-                                                    <SelectItem value="East Indian Lugra">East Indian Lugra (Authentic Short Drape)</SelectItem>
-                                                    <SelectItem value="Western Wear">Auto Fitting (Best Fit)</SelectItem>
+                                                    <SelectItem value="Western Wear">Standard Fit</SelectItem>
+                                                    <SelectItem value="Western Dress">Western Dress</SelectItem>
+                                                    <SelectItem value="Kurti">Traditional Kurti</SelectItem>
+                                                    <SelectItem value="Standard Saree">Standard Saree</SelectItem>
+                                                    <SelectItem value="East Indian Lugra">East Indian Lugra</SelectItem>
                                                 </SelectContent>
                                             </Select>
                                         </div>
-                                    )}
+
+                                        {showSleeveOption && (
+                                            <div className="space-y-2">
+                                                <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Sleeves</Label>
+                                                <Select value={selectedSleeves} onValueChange={(val: any) => setSelectedSleeves(val)}>
+                                                    <SelectTrigger className="h-10 bg-white/10 border-white/20 text-white rounded-xl text-xs font-bold">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="Half Sleeves">Half Sleeves</SelectItem>
+                                                        <SelectItem value="Full Sleeves">Full Sleeves</SelectItem>
+                                                        <SelectItem value="Sleeveless">Sleeveless</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        )}
+                                    </div>
 
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         {tryOnResult ? (
@@ -357,7 +386,7 @@ function CatalogueOrderPageContent() {
                                                     }} className="bg-white text-slate-900 hover:bg-slate-100 rounded-xl h-12 font-bold"><Download className="mr-2 h-4 w-4" /> Save Look</Button>
                                                 </div>
                                                 <Button onClick={handleShareWhatsApp} className="w-full bg-green-600 hover:bg-green-700 text-white rounded-xl h-12 font-bold">
-                                                    <MessageSquare className="mr-2 h-5 w-5" /> Share on WhatsApp
+                                                    <MessageSquare className="mr-2 h-5 w-5" /> Share on WhatsApp Status
                                                 </Button>
                                             </div>
                                         ) : (

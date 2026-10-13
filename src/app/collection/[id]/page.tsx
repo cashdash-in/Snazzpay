@@ -60,7 +60,8 @@ function BrandedCollectionContent() {
     const [tryOnResult, setTryOnResult] = useState<string | null>(null);
     const [tryOnProductId, setTryOnProductId] = useState<string | null>(null);
     const [hasConsented, setHasConsented] = useState(false);
-    const [selectedDrapeStyle, setSelectedDrapeStyle] = useState<'Standard Saree' | 'East Indian Lugra' | 'Western Wear'>('Western Wear');
+    const [selectedDrapeStyle, setSelectedDrapeStyle] = useState<'Standard Saree' | 'East Indian Lugra' | 'Western Wear' | 'Western Dress' | 'Kurti'>('Western Wear');
+    const [selectedSleeves, setSelectedSleeves] = useState<'Half Sleeves' | 'Full Sleeves' | 'Sleeveless'>('Half Sleeves');
     const cameraInputRef = useRef<HTMLInputElement>(null);
     const galleryInputRef = useRef<HTMLInputElement>(null);
 
@@ -131,13 +132,9 @@ function BrandedCollectionContent() {
         fetchProducts();
     }, [params.id, searchParams]);
 
-    const isEthnicWear = (p: DisplayProduct) => {
-        if (!p) return false;
-        const ethnicKeywords = ['saree', 'sari', 'lugra', 'lehenga', 'suit', 'dhoti', 'kurta', 'ethnic'];
-        return ethnicKeywords.some(k => p.title.toLowerCase().includes(k)) || 
-               ethnicKeywords.some(k => p.category?.toLowerCase().includes(k)) ||
-               p.isEastIndianLugra;
-    };
+    const showSleeveOption = useMemo(() => {
+        return ['Western Wear', 'Kurti', 'Western Dress', 'Standard Saree'].includes(selectedDrapeStyle);
+    }, [selectedDrapeStyle]);
 
     const resizeImageForAI = (fileOrUri: File | string, maxSize: number = MAX_TRYON_SIZE_PX): Promise<string> => {
         return new Promise((resolve, reject) => {
@@ -188,16 +185,16 @@ function BrandedCollectionContent() {
                 resizeImageForAI(product.imageDataUris[0])
             ]);
             
-            const isEthnic = isEthnicWear(product);
             const result = await virtualTryOn({
                 personImageDataUri: personUri,
                 productImageDataUri: productUri,
                 productTitle: product.title,
-                drapeStyle: isEthnic ? (selectedDrapeStyle === 'Western Wear' ? 'Standard Saree' : selectedDrapeStyle) : 'Western Wear',
+                drapeStyle: selectedDrapeStyle,
+                sleeveLength: selectedSleeves
             });
             
             setTryOnResult(result.generatedImageDataUri);
-            toast({ title: "Look Generated!", description: `Your virtual fit is ready.` });
+            toast({ title: "Magic Mirror Ready!", description: `Look generated successfully.` });
         } catch (err: any) {
             toast({ variant: 'destructive', title: "Try-On Failed", description: err.message });
             setTryOnProductId(null);
@@ -448,21 +445,39 @@ function BrandedCollectionContent() {
                                                         </div>
                                                     </div>
 
-                                                    {isEthnicWear(product) && (
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                         <div className="space-y-2">
-                                                            <Label className="text-[10px] font-black uppercase text-slate-400">Select Drape Style</Label>
+                                                            <Label className="text-[10px] font-black uppercase text-slate-400">Select Style</Label>
                                                             <Select value={selectedDrapeStyle} onValueChange={(val: any) => setSelectedDrapeStyle(val)}>
                                                                 <SelectTrigger className="h-10 rounded-xl bg-slate-50 border-none font-bold text-xs">
                                                                     <SelectValue />
                                                                 </SelectTrigger>
                                                                 <SelectContent>
-                                                                    <SelectItem value="Standard Saree">Standard Saree (Floor Length)</SelectItem>
-                                                                    <SelectItem value="East Indian Lugra">East Indian Lugra (Short Drape)</SelectItem>
-                                                                    <SelectItem value="Western Wear">Auto Fitting</SelectItem>
+                                                                    <SelectItem value="Western Wear">Western Fit</SelectItem>
+                                                                    <SelectItem value="Western Dress">Western Dress</SelectItem>
+                                                                    <SelectItem value="Kurti">Traditional Kurti</SelectItem>
+                                                                    <SelectItem value="Standard Saree">Standard Saree</SelectItem>
+                                                                    <SelectItem value="East Indian Lugra">East Indian Lugra</SelectItem>
                                                                 </SelectContent>
                                                             </Select>
                                                         </div>
-                                                    )}
+
+                                                        {showSleeveOption && (
+                                                            <div className="space-y-2">
+                                                                <Label className="text-[10px] font-black uppercase text-slate-400">Sleeves</Label>
+                                                                <Select value={selectedSleeves} onValueChange={(val: any) => setSelectedSleeves(val)}>
+                                                                    <SelectTrigger className="h-10 rounded-xl bg-slate-50 border-none font-bold text-xs">
+                                                                        <SelectValue />
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
+                                                                        <SelectItem value="Half Sleeves">Half Sleeves</SelectItem>
+                                                                        <SelectItem value="Full Sleeves">Full Sleeves</SelectItem>
+                                                                        <SelectItem value="Sleeveless">Sleeveless</SelectItem>
+                                                                    </SelectContent>
+                                                                </Select>
+                                                            </div>
+                                                        )}
+                                                    </div>
 
                                                     <div className="grid grid-cols-2 gap-4">
                                                         <Button 
