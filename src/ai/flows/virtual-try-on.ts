@@ -34,23 +34,25 @@ export async function virtualTryOn(input: VirtualTryOnInput) {
 
       if (isLugraStyle) {
           styleInstructions = `
-            STYLING MODE: AUTHENTIC EAST INDIAN LUGRA (GAOTHAN PATTERN)
+            STYLING MODE: AUTHENTIC EAST INDIAN LUGRA (GAOTHAN VILLAGE PATTERN)
+            CRITICAL STYLE CONSTRAINT: Use ONLY authentic East Indian Catholic Gaothan accessories. DO NOT use South Indian or Temple jewelry.
+            
             MANDATORY TRADITIONAL REQUIREMENTS:
-            1. DRAPE: Apply the traditional "Gaothan" East Indian Catholic village style. The drape MUST be mid-calf or ankle-length, showing the feet/ankles.
-            2. WAIST & BELT: Automatically add a prominent ORNATE GOLD WAIST BELT (KAMARBAND) over the Lugra at the waist level.
+            1. DRAPE: Apply the traditional "Gaothan" East Indian village style. The drape MUST be mid-calf or ankle-length, clearly showing the feet/ankles.
+            2. WAIST & BELT: Automatically add a prominent ORNATE GOLD WAIST BELT (KAMARBAND) over the Lugra at the waist level to hold the gathered pleats.
             3. BLOUSE: Generate a matching blouse with TRADITIONAL ELBOW-LENGTH SLEEVES. The sleeves MUST end at the elbow and feature a gold zari border.
-            4. JEWELRY: Automatically add:
+            4. ACCESSORIES: Automatically add authentic gold jewelry:
                - "Laxmi Haar": A long gold coin necklace reaching the navel.
-               - "Layered Chokers": Gold chokers around the neck.
-               - "Bangadi": Thick gold bangles on BOTH wrists.
-            5. HAIR: Add a neat bun with a white flower garland (Gajra).
+               - "Gold Chokers": Multiple layered gold bead necklaces around the neck.
+               - "Bangadi": A stack of thick gold bangles on BOTH wrists.
+            5. HAIR: Style the person's hair into a neat bun adorned with a white flower garland (Gajra).
           `;
       } else if (isSareeStyle) {
           styleInstructions = `
             STYLING MODE: STANDARD NIVI SAREE
             1. DRAPE: Apply a crisp, professional floor-length Nivi drape.
             2. BLOUSE: Generate a perfectly matching blouse. ${input.sleeveLength ? `Ensure sleeves are ${input.sleeveLength}.` : 'Standard short sleeves.'}
-            3. ACCESSORIES: Add a simple gold necklace and earrings.
+            3. ACCESSORIES: Add simple, elegant gold jewelry suitable for a standard saree.
           `;
       } else if (isKurtiStyle) {
           styleInstructions = `
@@ -69,11 +71,12 @@ export async function virtualTryOn(input: VirtualTryOnInput) {
           `;
       } else {
           styleInstructions = `
-            STYLING MODE: HYPER-REALISTIC GARMENT REPLACEMENT (WESTERN WEAR)
+            STYLING MODE: HYPER-REALISTIC FULL GARMENT REPLACEMENT (SHIRT/WESTERN WEAR)
             TASK: COMPLETELY RE-DRESS the person using ONLY the garment shown in the product photo ("${input.productTitle}").
-            - ANATOMICAL PHYSICS: Fabric folds must match the person's pose and lighting.
+            - FULL FIT: Ensure the entire shirt/t-shirt is visible and fits the person's torso perfectly.
+            - ANATOMICAL PHYSICS: Fabric folds, shadows, and creases must realistically match the person's pose and lighting.
             - SLEEVES: ${input.sleeveLength ? `Force the garment to have ${input.sleeveLength}.` : 'Maintain original sleeves.'}
-            - ZERO CLOTHING BLEED: Ensure 100% removal of original clothes.
+            - ZERO CLOTHING BLEED: Ensure 100% removal of original clothes. No original collars or undershirts should be visible.
           `;
       }
 
@@ -90,8 +93,8 @@ export async function virtualTryOn(input: VirtualTryOnInput) {
             ${styleInstructions}
 
             CRITICAL CONSTRAINTS:
-            - FACIAL INTEGRITY: Keep the person's face, features, and hair exactly as they are.
-            - REALISM: The final output must look like a high-resolution real photograph.
+            - FACIAL INTEGRITY: Keep the person's face, features, and hair exactly as they are (unless a bun/Gajra is specified for Lugra).
+            - REALISM: The final output must look like a high-resolution professional photograph.
             - CLEANLINESS: The person's original clothes must be totally invisible.
             
             Return ONLY the final high-resolution processed image.` 

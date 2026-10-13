@@ -4,7 +4,7 @@ import { Suspense, useState, useEffect, useRef, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, ShieldCheck, ShoppingCart, User, Phone, Mail as MailIcon, Home, MapPin, CheckCircle, Percent, Sparkles, Camera, ImagePlus, RefreshCcw, Play, Download, MessageSquare, Shirt } from 'lucide-react';
+import { Loader2, ShieldCheck, ShoppingCart, User, Phone, Mail as MailIcon, Home, MapPin, CheckCircle, Percent, Sparkles, Camera, ImagePlus, RefreshCcw, Download, MessageSquare, Share2 } from 'lucide-react';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
@@ -89,6 +89,12 @@ function CatalogueOrderPageContent() {
     const [appliedDiscount, setAppliedDiscount] = useState<DiscountRule | null>(null);
     const [returnUrl, setReturnUrl] = useState('https://www.snazzify.co.in');
 
+    const isShirt = useMemo(() => {
+        if (!product) return false;
+        const title = product.title.toLowerCase();
+        return title.includes('shirt') && !title.includes('t-shirt');
+    }, [product]);
+
     const isEthnicWear = useMemo(() => {
         if (!product) return false;
         const ethnicKeywords = ['saree', 'sari', 'lugra', 'lehenga', 'suit', 'ethnic', 'dhoti', 'kurta', 'kurti'];
@@ -98,8 +104,14 @@ function CatalogueOrderPageContent() {
     }, [product]);
 
     const showSleeveOption = useMemo(() => {
+        if (isShirt) return false;
         return ['Western Wear', 'Kurti', 'Western Dress', 'Standard Saree'].includes(selectedDrapeStyle);
-    }, [selectedDrapeStyle]);
+    }, [selectedDrapeStyle, isShirt]);
+
+    const showStyleOption = useMemo(() => {
+        if (isShirt) return false;
+        return isEthnicWear || selectedDrapeStyle === 'Western Dress' || selectedDrapeStyle === 'Kurti';
+    }, [isShirt, isEthnicWear, selectedDrapeStyle]);
 
     useEffect(() => {
         setMounted(true);
@@ -135,13 +147,16 @@ function CatalogueOrderPageContent() {
                     setProduct(displayProduct);
                     
                     // Intelligent Style Pre-selection
+                    const titleLower = displayProduct.title.toLowerCase();
                     if (displayProduct.isEastIndianLugra) {
                         setSelectedDrapeStyle('East Indian Lugra');
-                    } else if (['saree', 'sari'].some(k => displayProduct.title.toLowerCase().includes(k))) {
+                    } else if (titleLower.includes('shirt') && !titleLower.includes('t-shirt')) {
+                         setSelectedDrapeStyle('Western Wear');
+                    } else if (['saree', 'sari'].some(k => titleLower.includes(k))) {
                         setSelectedDrapeStyle('Standard Saree');
-                    } else if (['kurta', 'kurti'].some(k => displayProduct.title.toLowerCase().includes(k))) {
+                    } else if (['kurta', 'kurti'].some(k => titleLower.includes(k))) {
                         setSelectedDrapeStyle('Kurti');
-                    } else if (['dress', 'frock'].some(k => displayProduct.title.toLowerCase().includes(k))) {
+                    } else if (['dress', 'frock'].some(k => titleLower.includes(k))) {
                         setSelectedDrapeStyle('Western Dress');
                     } else {
                         setSelectedDrapeStyle('Western Wear');
@@ -223,7 +238,7 @@ function CatalogueOrderPageContent() {
                 productImageDataUri: productUri,
                 productTitle: product.title,
                 drapeStyle: selectedDrapeStyle,
-                sleeveLength: selectedSleeves
+                sleeveLength: isShirt ? undefined : selectedSleeves
             });
             
             setTryOnResult(result.generatedImageDataUri);
@@ -340,21 +355,32 @@ function CatalogueOrderPageContent() {
                                     </div>
 
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-white/10">
-                                        <div className="space-y-2">
-                                            <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Style Mode</Label>
-                                            <Select value={selectedDrapeStyle} onValueChange={(val: any) => setSelectedDrapeStyle(val)}>
-                                                <SelectTrigger className="h-10 bg-white/10 border-white/20 text-white rounded-xl text-xs font-bold">
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="Western Wear">Standard Fit</SelectItem>
-                                                    <SelectItem value="Western Dress">Western Dress</SelectItem>
-                                                    <SelectItem value="Kurti">Traditional Kurti</SelectItem>
-                                                    <SelectItem value="Standard Saree">Standard Saree</SelectItem>
-                                                    <SelectItem value="East Indian Lugra">East Indian Lugra</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
+                                        {showStyleOption && (
+                                            <div className="space-y-2">
+                                                <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Style Mode</Label>
+                                                <Select value={selectedDrapeStyle} onValueChange={(val: any) => setSelectedDrapeStyle(val)}>
+                                                    <SelectTrigger className="h-10 bg-white/10 border-white/20 text-white rounded-xl text-xs font-bold">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="Western Wear">Standard Fit</SelectItem>
+                                                        <SelectItem value="Western Dress">Western Dress</SelectItem>
+                                                        <SelectItem value="Kurti">Traditional Kurti</SelectItem>
+                                                        <SelectItem value="Standard Saree">Standard Saree</SelectItem>
+                                                        <SelectItem value="East Indian Lugra">East Indian Lugra</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        )}
+                                        
+                                        {isShirt && (
+                                            <div className="space-y-2">
+                                                <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Fit Mode</Label>
+                                                <div className="h-10 px-3 bg-white/10 border border-white/20 text-white rounded-xl text-xs font-bold flex items-center">
+                                                    Standard Fitting
+                                                </div>
+                                            </div>
+                                        )}
 
                                         {showSleeveOption && (
                                             <div className="space-y-2">
