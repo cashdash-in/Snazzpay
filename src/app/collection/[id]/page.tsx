@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, ShoppingCart, Percent, MessageCircle, Send, Play, Sparkles, Camera, ImagePlus, RefreshCcw, Download, ShieldCheck } from 'lucide-react';
+import { Loader2, ShoppingCart, Percent, MessageCircle, Send, Play, Sparkles, Camera, ImagePlus, RefreshCcw, Download, ShieldCheck, Share2 } from 'lucide-react';
 import Image from 'next/image';
 import type { SellerProduct } from '@/app/seller/ai-product-uploader/page';
 import { getCollection, getDocument, saveDocument } from '@/services/firestore';
@@ -207,6 +207,12 @@ function BrandedCollectionContent() {
         }
     };
     
+    const handleShareWhatsAppTryOn = (imgUrl: string, title: string) => {
+        const message = `Check out my new virtual look with this ${title} from Snazzify! ${window.location.href}`;
+        const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
+        window.open(url, '_blank');
+    };
+
     const handleOrderClick = (product: DisplayProduct) => {
         const catalogueParams = new URLSearchParams();
         catalogueParams.set('id', product.id);
@@ -336,7 +342,7 @@ function BrandedCollectionContent() {
                                 {isProductTryOn && isTryOnLoading && (
                                     <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center p-4 text-center z-20">
                                         <Sparkles className="h-10 w-10 text-primary animate-bounce mb-2" />
-                                        <p className="text-[10px] font-black uppercase italic text-slate-900">AI Fitting...</p>
+                                        <p className="text-[10px] font-black uppercase italic text-slate-900">AI Fitting room...</p>
                                     </div>
                                 )}
 
@@ -356,6 +362,17 @@ function BrandedCollectionContent() {
 
                                 {isProductTryOn && tryOnResult && (
                                     <div className="absolute top-2 left-2 flex gap-1 z-30">
+                                        <Button onClick={() => handleShareWhatsAppTryOn(tryOnResult!, product.title)} size="icon" className="h-8 w-8 rounded-full bg-green-600 shadow-lg border-none text-white hover:bg-green-700">
+                                            <Share2 className="h-4 w-4" />
+                                        </Button>
+                                        <Button onClick={() => {
+                                            const link = document.createElement('a');
+                                            link.href = tryOnResult!;
+                                            link.download = `my_look_${product.id}.jpg`;
+                                            link.click();
+                                        }} size="icon" className="h-8 w-8 rounded-full bg-white shadow-lg border-none text-slate-900 hover:bg-slate-100">
+                                            <Download className="h-4 w-4" />
+                                        </Button>
                                         <Button onClick={() => { setTryOnResult(null); setTryOnProductId(null); }} size="icon" variant="destructive" className="h-8 w-8 rounded-full shadow-lg">
                                             <RefreshCcw className="h-4 w-4" />
                                         </Button>

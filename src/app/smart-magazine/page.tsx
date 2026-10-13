@@ -191,9 +191,10 @@ function SmartMagazineContent() {
         }
     };
 
-    const handleShareWhatsApp = (imgUrl: string, title: string) => {
-        const msg = `Hey! Look at me wearing this ${title} virtually using Snazzify AI! Check out the collection here: ${window.location.href}`;
-        window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+    const handleShareWhatsAppTryOn = (imgUrl: string, title: string) => {
+        const message = `Check out my new virtual look with this ${title} from Snazzify! ${window.location.href}`;
+        const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
+        window.open(url, '_blank');
     };
 
     const handleOrderClick = (product: DisplayProduct) => {
@@ -249,7 +250,7 @@ function SmartMagazineContent() {
 
     return (
         <div className="min-h-screen bg-slate-50 pb-20">
-            <header className="bg-white border-b sticky top-0 z-50 px-4 py-6 md:px-8 text-center shadow-sm">
+            <header className="bg-white border-b sticky top-0 z-50 px-4 py-4 md:px-8 shadow-sm">
                 {magazine?.logoDataUri && (
                     <div className="relative w-20 h-20 mx-auto mb-4 rounded-full overflow-hidden border-2 border-white shadow-lg">
                         <Image src={magazine.logoDataUri} fill alt="logo" className="object-contain p-1" unoptimized />
@@ -319,41 +320,45 @@ function SmartMagazineContent() {
                                 )}
 
                                 <div className="grid grid-cols-2 gap-4">
-                                    <Button 
-                                        onClick={() => { setTryOnProductId(mainProduct.id); if (mainProduct.isEastIndianLugra) setSelectedDrapeStyle('East Indian Lugra'); cameraInputRef.current?.click(); }}
-                                        disabled={!hasConsented || isTryOnLoading}
-                                        className="h-14 rounded-2xl font-black uppercase italic bg-primary hover:bg-primary/90 text-white shadow-xl"
-                                    >
-                                        <Camera className="mr-2 h-5 w-5" /> Take Selfie
-                                    </Button>
-                                    <Button 
-                                        onClick={() => { setTryOnProductId(mainProduct.id); if (mainProduct.isEastIndianLugra) setSelectedDrapeStyle('East Indian Lugra'); galleryInputRef.current?.click(); }}
-                                        disabled={!hasConsented || isTryOnLoading}
-                                        variant="secondary" 
-                                        className="h-14 rounded-2xl font-black uppercase italic bg-white/10 hover:bg-white/20 text-white border-white/10"
-                                    >
-                                        <ImagePlus className="mr-2 h-5 w-5" /> Gallery
-                                    </Button>
+                                    {tryOnResult && tryOnProductId === mainProduct.id ? (
+                                        <div className="col-span-full space-y-3">
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <Button onClick={() => { setTryOnResult(null); setTryOnProductId(null); }} variant="outline" className="h-14 rounded-2xl font-black uppercase italic border-white/20 text-white">
+                                                    <RefreshCcw className="mr-2 h-5 w-5" /> Retake
+                                                </Button>
+                                                <Button onClick={() => {
+                                                    const link = document.createElement('a');
+                                                    link.href = tryOnResult!;
+                                                    link.download = `my_look_${mainProduct.id}.jpg`;
+                                                    link.click();
+                                                }} className="h-14 rounded-2xl font-black uppercase italic bg-white text-slate-900 shadow-xl">
+                                                    <Download className="mr-2 h-5 w-5" /> Save
+                                                </Button>
+                                            </div>
+                                            <Button onClick={() => handleShareWhatsAppTryOn(tryOnResult!, mainProduct.title)} className="w-full h-14 bg-green-600 hover:bg-green-700 text-white font-black uppercase italic rounded-2xl shadow-xl">
+                                                <Share2 className="mr-2 h-6 w-6" /> Share to WhatsApp
+                                            </Button>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <Button 
+                                                onClick={() => { setTryOnProductId(mainProduct.id); cameraInputRef.current?.click(); }}
+                                                disabled={!hasConsented || isTryOnLoading}
+                                                className="h-14 rounded-2xl font-black uppercase italic bg-primary hover:bg-primary/90 text-white shadow-xl"
+                                            >
+                                                <Camera className="mr-2 h-5 w-5" /> Take Selfie
+                                            </Button>
+                                            <Button 
+                                                onClick={() => { setTryOnProductId(mainProduct.id); galleryInputRef.current?.click(); }}
+                                                disabled={!hasConsented || isTryOnLoading}
+                                                variant="secondary" 
+                                                className="h-14 rounded-2xl font-black uppercase italic bg-white/10 hover:bg-white/20 text-white border-white/10"
+                                            >
+                                                <ImagePlus className="mr-2 h-5 w-5" /> Gallery
+                                            </Button>
+                                        </>
+                                    )}
                                 </div>
-
-                                {tryOnResult && tryOnProductId === mainProduct.id && (
-                                    <div className="grid grid-cols-3 gap-2 pt-4 border-t border-white/10">
-                                        <Button variant="outline" className="h-11 rounded-xl border-white/20 text-white bg-green-600 hover:bg-green-700" onClick={() => handleShareWhatsApp(tryOnResult!, mainProduct.title)}>
-                                            <MessageSquare className="h-4 w-4" />
-                                        </Button>
-                                        <Button variant="outline" className="h-11 rounded-xl border-white/20 text-white" onClick={() => {
-                                            const link = document.createElement('a');
-                                            link.href = tryOnResult!;
-                                            link.download = `my_look_${mainProduct.id}.jpg`;
-                                            link.click();
-                                        }}>
-                                            <Download className="mr-2 h-4 w-4" />
-                                        </Button>
-                                        <Button variant="outline" className="h-11 rounded-xl border-white/20 text-white" onClick={() => { setTryOnResult(null); setTryOnProductId(null); }}>
-                                            <RefreshCcw className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                )}
                             </div>
 
                             <Button onClick={() => handleOrderClick(mainProduct)} size="lg" className="w-full h-16 rounded-2xl font-black uppercase italic text-xl border-4 border-white/10 bg-transparent hover:bg-white hover:text-slate-900 transition-all">
@@ -399,7 +404,7 @@ function SmartMagazineContent() {
                                         
                                         {product.isTryOnEnabled && !isProductTryOn && (
                                             <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-                                                <Button size="sm" className="pointer-events-auto rounded-full bg-white/90 text-slate-900 hover:bg-white font-black italic text-[10px] scale-90 group-hover:scale-100 transition-transform" onClick={() => { setTryOnProductId(product.id); if (product.isEastIndianLugra) setSelectedDrapeStyle('East Indian Lugra'); cameraInputRef.current?.click(); }}>
+                                                <Button size="sm" className="pointer-events-auto rounded-full bg-white/90 text-slate-900 hover:bg-white font-black italic text-[10px] scale-90 group-hover:scale-100 transition-transform" onClick={() => { setTryOnProductId(product.id); cameraInputRef.current?.click(); }}>
                                                     <Sparkles className="mr-1 h-3 w-3 text-primary" /> MAGIC MIRROR
                                                 </Button>
                                             </div>
@@ -407,8 +412,16 @@ function SmartMagazineContent() {
 
                                         {isProductTryOn && tryOnResult && (
                                             <div className="absolute top-2 left-2 flex gap-1">
-                                                <Button onClick={() => handleShareWhatsApp(tryOnResult!, product.title)} size="icon" className="h-8 w-8 rounded-full bg-green-600 shadow-lg">
-                                                    <MessageSquare className="h-4 w-4 text-white" />
+                                                <Button onClick={() => handleShareWhatsAppTryOn(tryOnResult!, product.title)} size="icon" className="h-8 w-8 rounded-full bg-green-600 shadow-lg border-none text-white">
+                                                    <Share2 className="h-4 w-4" />
+                                                </Button>
+                                                <Button onClick={() => {
+                                                    const link = document.createElement('a');
+                                                    link.href = tryOnResult!;
+                                                    link.download = `my_look_${product.id}.jpg`;
+                                                    link.click();
+                                                }} size="icon" className="h-8 w-8 rounded-full bg-white shadow-lg border-none text-slate-900">
+                                                    <Download className="h-4 w-4" />
                                                 </Button>
                                                 <Button onClick={() => { setTryOnResult(null); setTryOnProductId(null); }} size="icon" variant="destructive" className="h-8 w-8 rounded-full shadow-lg">
                                                     <RefreshCcw className="h-4 w-4" />
@@ -468,7 +481,7 @@ function SmartMagazineContent() {
                                                 product.isTryOnEnabled ? "bg-primary/5 hover:bg-primary/10" : "opacity-50 cursor-not-allowed"
                                             )}
                                             disabled={!product.isTryOnEnabled || !hasConsented || isTryOnLoading}
-                                            onClick={() => { setTryOnProductId(product.id); if (product.isEastIndianLugra) setSelectedDrapeStyle('East Indian Lugra'); cameraInputRef.current?.click(); }}
+                                            onClick={() => { setTryOnProductId(product.id); cameraInputRef.current?.click(); }}
                                         >
                                             <Sparkles className="h-3 w-3 text-primary" /> {product.isTryOnEnabled ? 'MAGIC MIRROR' : 'TRY-ON OFF'}
                                         </Button>

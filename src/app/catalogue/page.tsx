@@ -226,6 +226,13 @@ function CatalogueOrderPageContent() {
         }
     };
 
+    const handleShareWhatsApp = () => {
+        if (!tryOnResult) return;
+        const message = `Check out my new virtual look with this ${product?.title} from Snazzify! ${window.location.href}`;
+        const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
+        window.open(url, '_blank');
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!product) return;
@@ -339,14 +346,19 @@ function CatalogueOrderPageContent() {
 
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         {tryOnResult ? (
-                                            <div className="col-span-full grid grid-cols-2 gap-3">
-                                                <Button onClick={() => setTryOnResult(null)} variant="outline" className="w-full border-white/20 text-white hover:bg-white/10 rounded-xl h-12 font-bold"><RefreshCcw className="mr-2 h-4 w-4" /> Try Again</Button>
-                                                <Button onClick={() => {
-                                                    const link = document.createElement('a');
-                                                    link.href = tryOnResult;
-                                                    link.download = `my_look_${product?.id}.jpg`;
-                                                    link.click();
-                                                }} className="bg-green-600 hover:bg-green-700 text-white rounded-xl h-12 font-bold"><Download className="mr-2 h-4 w-4" /> Save Look</Button>
+                                            <div className="col-span-full space-y-3">
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <Button onClick={() => setTryOnResult(null)} variant="outline" className="w-full border-white/20 text-white hover:bg-white/10 rounded-xl h-12 font-bold"><RefreshCcw className="mr-2 h-4 w-4" /> Try Again</Button>
+                                                    <Button onClick={() => {
+                                                        const link = document.createElement('a');
+                                                        link.href = tryOnResult;
+                                                        link.download = `my_look_${product?.id}.jpg`;
+                                                        link.click();
+                                                    }} className="bg-white text-slate-900 hover:bg-slate-100 rounded-xl h-12 font-bold"><Download className="mr-2 h-4 w-4" /> Save Look</Button>
+                                                </div>
+                                                <Button onClick={handleShareWhatsApp} className="w-full bg-green-600 hover:bg-green-700 text-white rounded-xl h-12 font-bold">
+                                                    <MessageSquare className="mr-2 h-5 w-5" /> Share on WhatsApp
+                                                </Button>
                                             </div>
                                         ) : (
                                             <>
