@@ -348,8 +348,8 @@ function CatalogueOrderPageContent() {
                                             onCheckedChange={(val) => setHasConsented(val as boolean)}
                                             className="mt-1 border-white/50"
                                         />
-                                        <Label htmlFor="privacy-consent" className="text-[10px] leading-relaxed text-slate-300">
-                                            <span className="font-bold text-white uppercase block mb-1">Privacy & Terms</span>
+                                        <Label htmlFor="privacy-consent" className="text-[10px] font-medium leading-relaxed text-slate-300">
+                                            <span className="font-bold text-white uppercase block mb-1">Privacy Promise</span>
                                             We do not save any pics to our server. Your selfie is processed instantly and removed immediately after this session.
                                         </Label>
                                     </div>
