@@ -4,7 +4,7 @@ import { Suspense, useState, useEffect, useRef, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, ShieldCheck, ShoppingCart, User, Phone, Mail as MailIcon, Home, MapPin, CheckCircle, Percent, Sparkles, Camera, ImagePlus, RefreshCcw, Download, MessageSquare, Share2, ArrowLeft, Store } from 'lucide-react';
+import { Loader2, ShieldCheck, ShoppingCart, User, Phone, Mail as MailIcon, Home, MapPin, CheckCircle, Percent, Sparkles, Camera, ImagePlus, RefreshCcw, Download, MessageSquare, Share2, ArrowLeft, Store, CreditCard } from 'lucide-react';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
@@ -14,8 +14,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { saveDocument, getDocument, getCollection } from '@/services/firestore';
 import type { EditableOrder } from '@/types/order';
 import { v4 as uuidv4 } from 'uuid';
-import type { SellerProduct } from '../seller/ai-product-uploader/page';
-import type { ProductDrop } from '../vendor/product-drops/page';
 import { cn, sanitizePhoneNumber } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -27,15 +25,16 @@ import {
 } from "@/components/ui/carousel";
 import { virtualTryOn } from '@/ai/flows/virtual-try-on';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import type { PaymentMethod } from '@/types/product';
 
-type DisplayProduct = (SellerProduct | ProductDrop) & { 
+type DisplayProduct = any & { 
     price: number; 
     sellerName: string; 
     sellerId: string;
     productId: string;
     vendor: string;
     collection: string;
-    allowedPaymentMethods?: string[];
+    allowedPaymentMethods?: PaymentMethod[];
     isEastIndianLugra?: boolean;
     isTryOnEnabled?: boolean;
 };
@@ -79,7 +78,7 @@ function CatalogueOrderPageContent() {
     const [customerDetails, setCustomerDetails] = useState<CustomerDetails>({
         name: '', email: '', contact: '', address: '', pincode: ''
     });
-    const [paymentMethod, setPaymentMethod] = useState<'Secure Charge on Delivery' | 'Cash on Delivery'>('Secure Charge on Delivery');
+    const [paymentMethod, setPaymentMethod] = useState<'Secure Charge on Delivery' | 'Cash on Delivery' | 'Prepaid'>('Secure Charge on Delivery');
     const [quantity, setQuantity] = useState(1);
     const [selectedSize, setSelectedSize] = useState('');
     const [selectedColor, setSelectedColor] = useState('');
@@ -132,7 +131,6 @@ function CatalogueOrderPageContent() {
 
             try {
                 if (urlSellerId) {
-                    // Try to find logo in seller_users or vendors
                     const sellerData = await getDocument<any>('seller_users', urlSellerId);
                     if (sellerData?.logoDataUri) {
                         setSellerLogo(sellerData.logoDataUri);
@@ -160,7 +158,13 @@ function CatalogueOrderPageContent() {
                     };
                     setProduct(displayProduct);
                     
-                    // Intelligent Style Pre-selection
+                    // Set initial payment method based on allowed methods
+                    if (displayProduct.allowedPaymentMethods && displayProduct.allowedPaymentMethods.length > 0) {
+                        if (displayProduct.allowedPaymentMethods.includes('Secure COD')) setPaymentMethod('Secure Charge on Delivery');
+                        else if (displayProduct.allowedPaymentMethods.includes('Prepaid')) setPaymentMethod('Prepaid');
+                        else if (displayProduct.allowedPaymentMethods.includes('Cash on Delivery')) setPaymentMethod('Cash on Delivery');
+                    }
+
                     const titleLower = displayProduct.title.toLowerCase();
                     if (displayProduct.isEastIndianLugra) {
                         setSelectedDrapeStyle('East Indian Lugra');
@@ -292,7 +296,7 @@ function CatalogueOrderPageContent() {
                 quantity,
                 price: totalPrice.toString(),
                 date: new Date().toISOString(),
-                paymentStatus: paymentMethod === 'Cash on Delivery' ? 'Pending' : 'Lead',
+                paymentStatus: paymentMethod === 'Cash on Delivery' ? 'Pending' : (paymentMethod === 'Prepaid' ? 'Pending Payment' : 'Lead'),
                 paymentMethod,
                 source: 'Catalogue',
                 sellerId: product.sellerId,
@@ -300,6 +304,12 @@ function CatalogueOrderPageContent() {
                 imageDataUris: product.imageDataUris,
             };
             await saveDocument('orders', orderData, orderData.id);
+            
+            if (paymentMethod === 'Prepaid') {
+                 router.push(`/payment?amount=${totalPrice}&name=${encodeURIComponent(product.title)}&order_id=${orderData.id}&prepaid=true`);
+                 return;
+            }
+
             setIsOrderComplete(true);
         } catch (err) {
             toast({ variant: 'destructive', title: "Order Failed" });
@@ -309,6 +319,8 @@ function CatalogueOrderPageContent() {
     };
 
     if (!mounted || isLoadingProduct) return <div className="flex h-screen w-full items-center justify-center"><Loader2 className="animate-spin text-primary h-12 w-12" /></div>;
+
+    const allowedMethods = product?.allowedPaymentMethods || ['Secure COD', 'Cash on Delivery', 'Prepaid'];
 
     return (
         <div className="min-h-screen bg-slate-50">
@@ -400,7 +412,7 @@ function CatalogueOrderPageContent() {
                                                         <SelectValue />
                                                     </SelectTrigger>
                                                     <SelectContent>
-                                                        <SelectItem value="Western Wear">Western Fit (Mini/Tight Skirts)</SelectItem>
+                                                        <SelectItem value="Western Wear">Western Fit (Mini/Tight Fit)</SelectItem>
                                                         <SelectItem value="Western Dress">Modern Western Dress</SelectItem>
                                                         <SelectItem value="Kurti">Traditional Kurti</SelectItem>
                                                         <SelectItem value="Standard Saree">Standard Saree (Floor Length)</SelectItem>
@@ -499,17 +511,28 @@ function CatalogueOrderPageContent() {
                             </div>
                             <div className="space-y-3">
                                 <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Select Payment</Label>
-                                <RadioGroup value={paymentMethod} onValueChange={(v: any) => setPaymentMethod(v)} className="grid grid-cols-2 gap-4">
-                                    <Label htmlFor="r-scod" className={cn("flex flex-col items-center justify-center p-4 border-4 rounded-2xl cursor-pointer transition-all gap-1", paymentMethod === 'Secure Charge on Delivery' ? "border-primary bg-primary/5" : "border-slate-100 hover:border-slate-200")}>
-                                        <RadioGroupItem value="Secure Charge on Delivery" id="r-scod" className="sr-only" />
-                                        <ShieldCheck className={cn("h-6 w-6", paymentMethod === 'Secure Charge on Delivery' ? "text-primary" : "text-slate-300")} />
-                                        <span className="font-black text-[10px] uppercase italic">Secure COD</span>
-                                    </Label>
-                                    <Label htmlFor="r-cod" className={cn("flex flex-col items-center justify-center p-4 border-4 rounded-2xl cursor-pointer transition-all gap-1", paymentMethod === 'Cash on Delivery' ? "border-primary bg-primary/5" : "border-slate-100 hover:border-slate-200")}>
-                                        <RadioGroupItem value="Cash on Delivery" id="r-cod" className="sr-only" />
-                                        <ShoppingCart className={cn("h-6 w-6", paymentMethod === 'Cash on Delivery' ? "text-primary" : "text-slate-300")} />
-                                        <span className="font-black text-[10px] uppercase italic">Standard COD</span>
-                                    </Label>
+                                <RadioGroup value={paymentMethod} onValueChange={(v: any) => setPaymentMethod(v)} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    {allowedMethods.includes('Secure COD') && (
+                                        <Label htmlFor="r-scod" className={cn("flex flex-col items-center justify-center p-4 border-4 rounded-2xl cursor-pointer transition-all gap-1", paymentMethod === 'Secure Charge on Delivery' ? "border-primary bg-primary/5" : "border-slate-100 hover:border-slate-200")}>
+                                            <RadioGroupItem value="Secure Charge on Delivery" id="r-scod" className="sr-only" />
+                                            <ShieldCheck className={cn("h-6 w-6", paymentMethod === 'Secure Charge on Delivery' ? "text-primary" : "text-slate-300")} />
+                                            <span className="font-black text-[10px] uppercase italic">Secure COD</span>
+                                        </Label>
+                                    )}
+                                    {allowedMethods.includes('Prepaid') && (
+                                        <Label htmlFor="r-prepaid" className={cn("flex flex-col items-center justify-center p-4 border-4 rounded-2xl cursor-pointer transition-all gap-1", paymentMethod === 'Prepaid' ? "border-primary bg-primary/5" : "border-slate-100 hover:border-slate-200")}>
+                                            <RadioGroupItem value="Prepaid" id="r-prepaid" className="sr-only" />
+                                            <CreditCard className={cn("h-6 w-6", paymentMethod === 'Prepaid' ? "text-primary" : "text-slate-300")} />
+                                            <span className="font-black text-[10px] uppercase italic">Online Payment</span>
+                                        </Label>
+                                    )}
+                                    {allowedMethods.includes('Cash on Delivery') && (
+                                        <Label htmlFor="r-cod" className={cn("flex flex-col items-center justify-center p-4 border-4 rounded-2xl cursor-pointer transition-all gap-1", paymentMethod === 'Cash on Delivery' ? "border-primary bg-primary/5" : "border-slate-100 hover:border-slate-200")}>
+                                            <RadioGroupItem value="Cash on Delivery" id="r-cod" className="sr-only" />
+                                            <ShoppingCart className={cn("h-6 w-6", paymentMethod === 'Cash on Delivery' ? "text-primary" : "text-slate-300")} />
+                                            <span className="font-black text-[10px] uppercase italic">Standard COD</span>
+                                        </Label>
+                                    )}
                                 </RadioGroup>
                             </div>
                             <Button type="submit" size="lg" className="w-full h-16 text-xl font-black uppercase italic rounded-2xl shadow-xl shadow-primary/20" disabled={isSubmitting}>{isSubmitting ? <Loader2 className="animate-spin mr-2" /> : "Confirm Order"}</Button>

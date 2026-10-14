@@ -28,7 +28,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { saveDocument } from '@/services/firestore';
 import { v4 as uuidv4 } from 'uuid';
 import { Checkbox } from '@/components/ui/checkbox';
-import type { SellerProduct } from '@/types/product';
+import type { SellerProduct, PaymentMethod } from '@/types/product';
 
 const MAX_IMAGE_SIZE_PX = 800; // Max width/height for resizing
 
@@ -45,9 +45,9 @@ export default function AiProductUploaderPage() {
   const [price, setPrice] = useState('');
   const [sizes, setSizes] = useState('');
   const [colors, setColors] = useState('');
-  const [allowedPaymentMethods, setAllowedPaymentMethods] = useState<('Secure COD' | 'Cash on Delivery' | 'Prepaid')[]>(['Secure COD', 'Cash on Delivery', 'Prepaid']);
+  const [allowedPaymentMethods, setAllowedPaymentMethods] = useState<PaymentMethod[]>(['Secure COD', 'Cash on Delivery', 'Prepaid']);
 
-  const handlePaymentMethodChange = (method: 'Secure COD' | 'Cash on Delivery' | 'Prepaid', checked: boolean) => {
+  const handlePaymentMethodChange = (method: PaymentMethod, checked: boolean) => {
     setAllowedPaymentMethods(prev => {
         if (checked) return [...prev, method];
         else return prev.filter(m => m !== method);
@@ -330,20 +330,18 @@ export default function AiProductUploaderPage() {
                 </div>
             </div>
              <div className="space-y-2">
-                <Label>Allowed Payment Methods</Label>
-                <div className="flex flex-wrap gap-4 pt-2">
-                    <div className="flex items-center space-x-2">
-                        <Checkbox id="secure-cod" onCheckedChange={(checked) => handlePaymentMethodChange('Secure COD', checked as boolean)} checked={allowedPaymentMethods.includes('Secure COD')} />
-                        <Label htmlFor="secure-cod">Secure COD</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                        <Checkbox id="cod" onCheckedChange={(checked) => handlePaymentMethodChange('Cash on Delivery', checked as boolean)} checked={allowedPaymentMethods.includes('Cash on Delivery')} />
-                        <Label htmlFor="cod">Cash on Delivery</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                        <Checkbox id="prepaid" onCheckedChange={(checked) => handlePaymentMethodChange('Prepaid', checked as boolean)} checked={allowedPaymentMethods.includes('Prepaid')} />
-                        <Label htmlFor="prepaid">Prepaid</Label>
-                    </div>
+                <Label className="text-[10px] font-black uppercase opacity-50 tracking-widest">Allowed Payment Methods</Label>
+                <div className="flex flex-wrap gap-6 pt-2">
+                    {['Secure COD', 'Cash on Delivery', 'Prepaid'].map((method) => (
+                        <div key={method} className="flex items-center space-x-2">
+                            <Checkbox 
+                                id={`pay-sel-${method}`} 
+                                onCheckedChange={(checked) => handlePaymentMethodChange(method as PaymentMethod, checked as boolean)} 
+                                checked={allowedPaymentMethods.includes(method as PaymentMethod)} 
+                            />
+                            <Label htmlFor={`pay-sel-${method}`} className="font-bold text-sm">{method}</Label>
+                        </div>
+                    ))}
                 </div>
             </div>
           </div>

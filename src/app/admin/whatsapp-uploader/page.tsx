@@ -29,18 +29,18 @@ import { type ProductListingOutput } from '@/ai/schemas/product-listing';
 import { parseWhatsAppChat } from '@/ai/flows/whatsapp-product-parser';
 import { saveDocument } from '@/services/firestore';
 import { v4 as uuidv4 } from 'uuid';
-import type { ProductDrop } from '@/app/vendor/product-drops/page';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
+import type { ProductDrop, PaymentMethod } from '@/types/product';
 
 type ParsedProduct = ProductListingOutput & {
     id: string; // Add a temporary client-side ID
     vendorName?: string;
-    allowedPaymentMethods?: ('Secure COD' | 'Cash on Delivery' | 'Prepaid')[];
+    allowedPaymentMethods?: PaymentMethod[];
     isTryOnEnabled?: boolean;
 };
 
@@ -86,7 +86,7 @@ export default function WhatsAppUploaderPage() {
             id: uuidv4(),
             vendorName: defaultVendor || 'Snazzify AI', // Apply defaults
             category: defaultCategory || p.category,
-            allowedPaymentMethods: ['Secure COD', 'Cash on Delivery', 'Prepaid'],
+            allowedPaymentMethods: ['Secure COD', 'Cash on Delivery', 'Prepaid'] as PaymentMethod[],
             isTryOnEnabled: false,
         }));
         setParsedProducts(productsWithIds);
@@ -98,7 +98,7 @@ export default function WhatsAppUploaderPage() {
     }
   };
 
-  const handleProductChange = (id: string, field: keyof ParsedProduct, value: string | number | string[] | ParsedProduct['allowedPaymentMethods'] | boolean) => {
+  const handleProductChange = (id: string, field: keyof ParsedProduct, value: any) => {
     setParsedProducts(prev =>
       prev.map(p => (p.id === id ? { ...p, [field]: value } : p))
     );
@@ -333,29 +333,22 @@ export default function WhatsAppUploaderPage() {
                                             <Label htmlFor={`tryon-${p.id}`} className="text-xs font-bold text-indigo-600">Enable Try-On</Label>
                                         </div>
                                          <div className="space-y-1 pt-2">
-                                            <Label>Payment Methods</Label>
-                                            <div className="flex gap-4 pt-1">
-                                                <div className="flex items-center space-x-2">
-                                                    <Checkbox id={`scod-${p.id}`} checked={p.allowedPaymentMethods?.includes('Secure COD')} onCheckedChange={checked => {
-                                                        const newMethods = checked ? [...(p.allowedPaymentMethods || []), 'Secure COD'] : (p.allowedPaymentMethods || []).filter(m => m !== 'Secure COD');
-                                                        handleProductChange(p.id, 'allowedPaymentMethods', newMethods);
-                                                    }} />
-                                                    <Label htmlFor={`scod-${p.id}`} className="text-xs">Secure COD</Label>
-                                                </div>
-                                                <div className="flex items-center space-x-2">
-                                                    <Checkbox id={`cod-${p.id}`} checked={p.allowedPaymentMethods?.includes('Cash on Delivery')} onCheckedChange={checked => {
-                                                        const newMethods = checked ? [...(p.allowedPaymentMethods || []), 'Cash on Delivery'] : (p.allowedPaymentMethods || []).filter(m => m !== 'Cash on Delivery');
-                                                        handleProductChange(p.id, 'allowedPaymentMethods', newMethods);
-                                                    }} />
-                                                    <Label htmlFor={`cod-${p.id}`} className="text-xs">COD</Label>
-                                                </div>
-                                                <div className="flex items-center space-x-2">
-                                                    <Checkbox id={`prepaid-${p.id}`} checked={p.allowedPaymentMethods?.includes('Prepaid')} onCheckedChange={checked => {
-                                                        const newMethods = checked ? [...(p.allowedPaymentMethods || []), 'Prepaid'] : (p.allowedPaymentMethods || []).filter(m => m !== 'Prepaid');
-                                                        handleProductChange(p.id, 'allowedPaymentMethods', newMethods);
-                                                    }} />
-                                                    <Label htmlFor={`prepaid-${p.id}`} className="text-xs">Prepaid</Label>
-                                                </div>
+                                            <Label className="text-[10px] uppercase opacity-50 font-black">Allowed Payment Methods</Label>
+                                            <div className="flex gap-4 pt-1 flex-wrap">
+                                                {['Secure COD', 'Cash on Delivery', 'Prepaid'].map(method => (
+                                                    <div key={method} className="flex items-center space-x-2">
+                                                        <Checkbox 
+                                                            id={`pay-${method}-${p.id}`} 
+                                                            checked={p.allowedPaymentMethods?.includes(method as PaymentMethod)} 
+                                                            onCheckedChange={checked => {
+                                                                const current = p.allowedPaymentMethods || [];
+                                                                const next = checked ? [...current, method as PaymentMethod] : current.filter(m => m !== method);
+                                                                handleProductChange(p.id, 'allowedPaymentMethods', next);
+                                                            }} 
+                                                        />
+                                                        <Label htmlFor={`pay-${method}-${p.id}`} className="text-xs">{method}</Label>
+                                                    </div>
+                                                ))}
                                             </div>
                                         </div>
                                     </CardContent>

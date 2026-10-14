@@ -19,7 +19,7 @@ import { getCollection, saveDocument, getDocument } from '@/services/firestore';
 import { getCookie } from 'cookies-next';
 import { createProductFromText } from '@/ai/flows/create-product-from-text';
 import { Checkbox } from '@/components/ui/checkbox';
-import type { ProductDrop } from '@/types/product';
+import type { ProductDrop, PaymentMethod } from '@/types/product';
 
 const PRODUCT_DROP_LIMIT = 50;
 const MAX_IMAGE_SIZE_PX = 800; // Max width/height for resizing
@@ -41,11 +41,11 @@ export default function VendorProductDropsPage() {
     const [isLimitReached, setIsLimitReached] = useState(false);
     const [showShareDialog, setShowShareDialog] = useState(false);
     const [createdProduct, setCreatedProduct] = useState<ProductDrop | null>(null);
-    const [allowedPaymentMethods, setAllowedPaymentMethods] = useState<('Secure COD' | 'Cash on Delivery' | 'Prepaid')[]>(['Secure COD', 'Cash on Delivery', 'Prepaid']);
+    const [allowedPaymentMethods, setAllowedPaymentMethods] = useState<PaymentMethod[]>(['Secure COD', 'Cash on Delivery', 'Prepaid']);
     const [isEastIndianLugra, setIsEastIndianLugra] = useState(false);
     const [isTryOnEnabled, setIsTryOnEnabled] = useState(false);
 
-    const handlePaymentMethodChange = (method: 'Secure COD' | 'Cash on Delivery' | 'Prepaid', checked: boolean) => {
+    const handlePaymentMethodChange = (method: PaymentMethod, checked: boolean) => {
         setAllowedPaymentMethods(prev => {
             if (checked) {
                 return [...prev, method];
@@ -289,20 +289,18 @@ export default function VendorProductDropsPage() {
                         </div>
                     </div>
                     <div className="space-y-2">
-                        <Label>Allowed Payment Methods</Label>
-                        <div className="flex flex-wrap gap-4 pt-2">
-                            <div className="flex items-center space-x-2">
-                                <Checkbox id="secure-cod" onCheckedChange={(checked) => handlePaymentMethodChange('Secure COD', checked as boolean)} checked={allowedPaymentMethods.includes('Secure COD')} />
-                                <Label htmlFor="secure-cod">Secure COD</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                                <Checkbox id="cod" onCheckedChange={(checked) => handlePaymentMethodChange('Cash on Delivery', checked as boolean)} checked={allowedPaymentMethods.includes('Cash on Delivery')} />
-                                <Label htmlFor="cod">Cash on Delivery</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                                <Checkbox id="prepaid" onCheckedChange={(checked) => handlePaymentMethodChange('Prepaid', checked as boolean)} checked={allowedPaymentMethods.includes('Prepaid')} />
-                                <Label htmlFor="prepaid">Prepaid</Label>
-                            </div>
+                        <Label className="text-[10px] font-black uppercase opacity-50 tracking-widest">Allowed Payment Methods</Label>
+                        <div className="flex flex-wrap gap-6 pt-2">
+                            {['Secure COD', 'Cash on Delivery', 'Prepaid'].map((method) => (
+                                <div key={method} className="flex items-center space-x-2">
+                                    <Checkbox 
+                                        id={`pay-drop-${method}`} 
+                                        onCheckedChange={(checked) => handlePaymentMethodChange(method as PaymentMethod, checked as boolean)} 
+                                        checked={allowedPaymentMethods.includes(method as PaymentMethod)} 
+                                    />
+                                    <Label htmlFor={`pay-drop-${method}`} className="font-bold text-sm">{method}</Label>
+                                </div>
+                            ))}
                         </div>
                     </div>
                     <div className="space-y-2">

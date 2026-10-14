@@ -30,8 +30,8 @@ import { createProductDescription } from '@/ai/flows/create-product-description'
 import { type ProductListingOutput } from '@/ai/schemas/product-listing';
 import { v4 as uuidv4 } from 'uuid';
 import { saveDocument } from '@/services/firestore';
-import type { ProductDrop } from '@/app/vendor/product-drops/page';
 import { Checkbox } from '@/components/ui/checkbox';
+import type { ProductDrop, PaymentMethod } from '@/types/product';
 
 
 type GeneratedProduct = ProductListingOutput & {
@@ -39,7 +39,7 @@ type GeneratedProduct = ProductListingOutput & {
   imageDataUri: string;
   vendorName?: string;
   costPrice?: number;
-  allowedPaymentMethods?: ('Secure COD' | 'Cash on Delivery' | 'Prepaid')[];
+  allowedPaymentMethods?: PaymentMethod[];
   isEastIndianLugra?: boolean;
   isTryOnEnabled?: boolean;
 };
@@ -127,6 +127,15 @@ export default function ImageBulkUploaderPage() {
     setGeneratedProducts(prev => prev.map(p => (p.id === id ? { ...p, [field]: value } : p)));
   };
   
+  const handlePaymentToggle = (id: string, method: PaymentMethod, checked: boolean) => {
+    setGeneratedProducts(prev => prev.map(p => {
+        if (p.id !== id) return p;
+        const current = p.allowedPaymentMethods || [];
+        const next = checked ? [...current, method] : current.filter(m => m !== method);
+        return { ...p, allowedPaymentMethods: next };
+    }));
+  };
+
   const handlePushToShopify = async () => {
     if (generatedProducts.length === 0) return;
     setIsPushing(true);
@@ -188,6 +197,21 @@ export default function ImageBulkUploaderPage() {
                                             <Label htmlFor={`tryon-${p.id}`} className="text-[10px] font-bold text-indigo-600">Try-On?</Label>
                                         </div>
                                      </div>
+                                </div>
+                                <div className="space-y-1 pt-2">
+                                    <Label className="text-[10px] uppercase opacity-50">Allowed Payments</Label>
+                                    <div className="flex flex-wrap gap-2 pt-1">
+                                        {['Secure COD', 'Cash on Delivery', 'Prepaid'].map((method) => (
+                                            <div key={method} className="flex items-center space-x-1">
+                                                <Checkbox 
+                                                    id={`pay-${method}-${p.id}`} 
+                                                    checked={p.allowedPaymentMethods?.includes(method as PaymentMethod)}
+                                                    onCheckedChange={(checked) => handlePaymentToggle(p.id, method as PaymentMethod, !!checked)}
+                                                />
+                                                <Label htmlFor={`pay-${method}-${p.id}`} className="text-[9px]">{method}</Label>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
                             </CardContent>
                         </Card>

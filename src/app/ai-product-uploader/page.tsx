@@ -31,12 +31,12 @@ import { createProductFromText } from '@/ai/flows/create-product-from-text';
 import { saveDocument } from '@/services/firestore';
 import { v4 as uuidv4 } from 'uuid';
 import { Checkbox } from '@/components/ui/checkbox';
-import type { ProductDrop } from '@/types/product';
+import type { ProductDrop, PaymentMethod } from '@/types/product';
 
 const MAX_IMAGE_SIZE_PX = 800; // Max width/height for resizing
 
 type GeneratedListingWithPayments = ProductListingOutput & { 
-    allowedPaymentMethods?: ('Secure COD' | 'Cash on Delivery' | 'Prepaid')[],
+    allowedPaymentMethods?: PaymentMethod[],
     isEastIndianLugra?: boolean,
     isTryOnEnabled?: boolean
 };
@@ -56,7 +56,7 @@ export default function AiProductUploaderPage() {
   const [isEastIndianLugra, setIsEastIndianLugra] = useState(false);
   const [isTryOnEnabled, setIsTryOnEnabled] = useState(false);
 
-  const handlePaymentMethodChange = (method: 'Secure COD' | 'Cash on Delivery' | 'Prepaid', checked: boolean) => {
+  const handlePaymentMethodChange = (method: PaymentMethod, checked: boolean) => {
     setGeneratedListing(prev => {
         if (!prev) return null;
         const currentMethods = prev.allowedPaymentMethods || [];
@@ -192,7 +192,6 @@ export default function AiProductUploaderPage() {
   };
 
   const handleMagicPaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-    // 1. Check for images first
     const items = e.clipboardData.items;
     const imageFiles: File[] = [];
     for (let i = 0; i < items.length; i++) {
@@ -208,7 +207,6 @@ export default function AiProductUploaderPage() {
         return;
     }
 
-    // 2. Handle text magic paste
     const pastedText = e.clipboardData.getData('text');
     if (pastedText.trim().length < 10) return;
     e.preventDefault();
@@ -290,6 +288,21 @@ export default function AiProductUploaderPage() {
                     <div className="flex items-center space-x-2">
                         <Checkbox id="gen-tryon-check" checked={generatedListing.isTryOnEnabled} onCheckedChange={(val) => setGeneratedListing(p => p ? { ...p, isTryOnEnabled: val as boolean } : null)} />
                         <Label htmlFor="gen-tryon-check" className="font-bold text-indigo-600">Try-On Button Enabled</Label>
+                    </div>
+                    <div className="space-y-2">
+                        <Label className="text-[10px] uppercase font-black opacity-50">Allowed Payment Methods</Label>
+                        <div className="flex flex-wrap gap-4 pt-1">
+                            {['Secure COD', 'Cash on Delivery', 'Prepaid'].map((method) => (
+                                <div key={method} className="flex items-center space-x-2">
+                                    <Checkbox 
+                                        id={`pay-gen-${method}`} 
+                                        checked={generatedListing.allowedPaymentMethods?.includes(method as PaymentMethod)} 
+                                        onCheckedChange={(checked) => handlePaymentMethodChange(method as PaymentMethod, checked as boolean)} 
+                                    />
+                                    <Label htmlFor={`pay-gen-${method}`} className="text-sm">{method}</Label>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
               </CardContent>

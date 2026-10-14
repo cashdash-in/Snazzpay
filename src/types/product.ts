@@ -2,6 +2,8 @@
  * @fileOverview Centralized product and drop types to prevent circular dependencies.
  */
 
+export type PaymentMethod = 'Secure COD' | 'Cash on Delivery' | 'Prepaid';
+
 export interface ProductDrop {
     id: string;
     vendorId: string;
@@ -14,7 +16,7 @@ export interface ProductDrop {
     createdAt: string;
     sizes: string[];
     colors: string[];
-    allowedPaymentMethods?: ('Secure COD' | 'Cash on Delivery' | 'Prepaid')[];
+    allowedPaymentMethods?: PaymentMethod[];
     videoDataUri?: string;
     isEastIndianLugra?: boolean;
     isTryOnEnabled?: boolean;
@@ -33,7 +35,7 @@ export type SellerProduct = {
     colors: string[];
     imageDataUris: string[];
     createdAt: string;
-    allowedPaymentMethods?: ('Secure COD' | 'Cash on Delivery' | 'Prepaid')[];
+    allowedPaymentMethods?: PaymentMethod[];
     videoDataUri?: string;
     isTryOnEnabled?: boolean;
 };
