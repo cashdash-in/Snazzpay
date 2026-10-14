@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -12,31 +10,13 @@ import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { Check, X, MessageSquare, Factory, Sparkles, Send, Loader2, Settings, ShoppingCart } from "lucide-react";
 import { getCollection, saveDocument, createChat, getDocument, type ChatUser } from "@/services/firestore";
-import type { SellerProduct } from "@/app/seller/ai-product-uploader/page";
 import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from "@/components/ui/dialog";
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import type { EditableOrder } from "@/types/order";
-
-export type SellerUser = {
-    id: string;
-    companyName: string;
-    email: string;
-    phone?: string;
-    status: 'pending' | 'approved' | 'rejected';
-    vendorId?: string;
-    vendorName?: string;
-    // Usage stats
-    aiUploads?: number;
-    totalSales?: number;
-    orderCount?: number;
-};
-
-type UserPermissions = {
-    id: string; // same as user.id
-    aiUploadLimit?: number;
-};
+import type { SellerUser, UserPermissions } from "@/types/user";
+import type { SellerProduct } from "@/types/product";
 
 export default function SellerAccountsPage() {
     const { toast } = useToast();
@@ -117,7 +97,7 @@ export default function SellerAccountsPage() {
         try {
             const chatId = `admin_${seller.id}`;
             const participantNames = {
-                'admin': 'Admin', // This should be dynamic in a real multi-admin system
+                'admin': 'Admin',
                 [seller.id]: seller.companyName
             };
             await createChat(chatId, ['admin', seller.id], participantNames);

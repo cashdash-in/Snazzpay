@@ -28,25 +28,9 @@ import { useAuth } from '@/hooks/use-auth';
 import { saveDocument } from '@/services/firestore';
 import { v4 as uuidv4 } from 'uuid';
 import { Checkbox } from '@/components/ui/checkbox';
-
+import type { SellerProduct } from '@/types/product';
 
 const MAX_IMAGE_SIZE_PX = 800; // Max width/height for resizing
-
-export type SellerProduct = {
-    id: string;
-    sellerId: string;
-    sellerName: string;
-    title: string;
-    description: string;
-    category: string;
-    price: number;
-    sizes: string[];
-    colors: string[];
-    imageDataUris: string[];
-    createdAt: string;
-    allowedPaymentMethods?: ('Secure COD' | 'Cash on Delivery' | 'Prepaid')[];
-    videoDataUri?: string;
-};
 
 export default function AiProductUploaderPage() {
   const { toast } = useToast();

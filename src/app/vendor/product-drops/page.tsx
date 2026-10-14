@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, PackagePlus, Wand2, ImagePlus, Lock, ShieldCheck, Sparkles } from 'lucide-react';
+import { Loader2, PackagePlus, ImagePlus, Lock, ShieldCheck, Sparkles } from 'lucide-react';
 import Image from 'next/image';
 import { useAuth } from '@/hooks/use-auth';
 import { v4 as uuidv4 } from 'uuid';
@@ -19,27 +19,9 @@ import { getCollection, saveDocument, getDocument } from '@/services/firestore';
 import { getCookie } from 'cookies-next';
 import { createProductFromText } from '@/ai/flows/create-product-from-text';
 import { Checkbox } from '@/components/ui/checkbox';
-
-export interface ProductDrop {
-    id: string;
-    vendorId: string;
-    vendorName: string;
-    title: string;
-    description: string;
-    costPrice: number;
-    category?: string;
-    imageDataUris: string[];
-    createdAt: string;
-    sizes: string[];
-    colors: string[];
-    allowedPaymentMethods?: ('Secure COD' | 'Cash on Delivery' | 'Prepaid')[];
-    videoDataUri?: string;
-    isEastIndianLugra?: boolean;
-    isTryOnEnabled?: boolean;
-}
+import type { ProductDrop } from '@/types/product';
 
 const PRODUCT_DROP_LIMIT = 50;
-
 const MAX_IMAGE_SIZE_PX = 800; // Max width/height for resizing
 
 export default function VendorProductDropsPage() {
@@ -135,7 +117,7 @@ export default function VendorProductDropsPage() {
     };
     
     const handlePaste = (event: ClipboardEvent<HTMLTextAreaElement | HTMLInputElement>) => {
-        const pastedText = event.clipboardData?.getData('text');
+      const pastedText = event.clipboardData?.getData('text');
       if (event.clipboardData.files.length > 0) {
         event.preventDefault();
         handleFiles(event.clipboardData.files);

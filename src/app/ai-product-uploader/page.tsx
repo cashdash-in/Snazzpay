@@ -31,6 +31,7 @@ import { createProductFromText } from '@/ai/flows/create-product-from-text';
 import { saveDocument } from '@/services/firestore';
 import { v4 as uuidv4 } from 'uuid';
 import { Checkbox } from '@/components/ui/checkbox';
+import type { ProductDrop } from '@/types/product';
 
 const MAX_IMAGE_SIZE_PX = 800; // Max width/height for resizing
 
@@ -156,7 +157,7 @@ export default function AiProductUploaderPage() {
     if (!generatedListing) return;
     setIsPushing(true);
     try {
-        const newProductDrop: any = {
+        const newProductDrop: ProductDrop = {
             id: uuidv4(),
             vendorId: 'admin_snazzify',
             vendorName: vendorName || 'Snazzify Official',
