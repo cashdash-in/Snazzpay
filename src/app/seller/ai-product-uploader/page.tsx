@@ -1,6 +1,5 @@
-
 'use client';
-import { useState } from 'react';
+import { useState, ClipboardEvent } from 'react';
 import { AppShell } from '@/components/layout/app-shell';
 import {
   Card,
@@ -21,6 +20,7 @@ import {
   Rocket,
   Wand2,
   ImagePlus,
+  X,
 } from 'lucide-react';
 import Image from 'next/image';
 import { createProductDescription } from '@/ai/flows/create-product-description';
@@ -61,16 +61,18 @@ export default function AiProductUploaderPage() {
   const [price, setPrice] = useState('');
   const [sizes, setSizes] = useState('');
   const [colors, setColors] = useState('');
-  const [allowedPaymentMethods, setAllowedPaymentMethods] = useState<('Secure COD' | 'Cash on Delivery' | 'Prepaid')[]>(['Secure COD', 'Cash on Delivery', 'Prepaid']);
+  const [allowedPaymentMethods, setAllowedPaymentMethods] = setAllowedPaymentMethods || useState<('Secure COD' | 'Cash on Delivery' | 'Prepaid')[]>(['Secure COD', 'Cash on Delivery', 'Prepaid']);
 
   const handlePaymentMethodChange = (method: 'Secure COD' | 'Cash on Delivery' | 'Prepaid', checked: boolean) => {
-    setAllowedPaymentMethods(prev => {
-        if (checked) {
-            return [...prev, method];
-        } else {
-            return prev.filter(m => m !== method);
-        }
-    });
+    if (typeof setAllowedPaymentMethods === 'function') {
+        setAllowedPaymentMethods(prev => {
+            if (checked) {
+                return [...prev, method];
+            } else {
+                return prev.filter(m => m !== method);
+            }
+        });
+    }
   };
 
   const resizeImage = (file: File): Promise<string> => {
@@ -105,14 +107,34 @@ export default function AiProductUploaderPage() {
     });
   };
 
+  const handleImageFile = async (file: File) => {
+    toast({ title: 'Processing image...', description: 'Resizing and compressing image.' });
+    const resizedDataUri = await resizeImage(file);
+    setImagePreview(resizedDataUri);
+    setImageDataUri(resizedDataUri);
+    toast({ title: 'Image Added!'});
+  };
+
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      toast({ title: 'Processing image...', description: 'Resizing and compressing image.' });
-      const resizedDataUri = await resizeImage(file);
-      setImagePreview(resizedDataUri);
-      setImageDataUri(resizedDataUri);
-      toast({ title: 'Image Added!'});
+      await handleImageFile(file);
+    }
+  };
+
+  const handlePaste = async (event: ClipboardEvent) => {
+    const items = event.clipboardData?.items;
+    if (!items) return;
+    
+    for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+            const file = items[i].getAsFile();
+            if (file) {
+                event.preventDefault();
+                await handleImageFile(file);
+                return;
+            }
+        }
     }
   };
 
@@ -121,7 +143,7 @@ export default function AiProductUploaderPage() {
       toast({
         variant: 'destructive',
         title: 'No Image Selected',
-        description: 'Please select an image to generate details from.',
+        description: 'Please select or paste an image to generate details from.',
       });
       return;
     }
@@ -181,9 +203,9 @@ export default function AiProductUploaderPage() {
             price: parseFloat(price),
             sizes: sizes.split(',').map(s => s.trim()).filter(s => s),
             colors: colors.split(',').map(c => c.trim()).filter(c => c),
-            imageDataUris: [imageDataUri], // Storing as an array to match type
+            imageDataUris: [imageDataUri], 
             createdAt: new Date().toISOString(),
-            allowedPaymentMethods,
+            allowedPaymentMethods: Array.isArray(allowedPaymentMethods) ? allowedPaymentMethods : ['Secure COD', 'Cash on Delivery', 'Prepaid'],
         };
 
         await saveDocument('seller_products', newProduct, newProduct.id);
@@ -202,7 +224,9 @@ export default function AiProductUploaderPage() {
         setPrice('');
         setSizes('');
         setColors('');
-        setAllowedPaymentMethods(['Secure COD', 'Cash on Delivery', 'Prepaid']);
+        if (typeof setAllowedPaymentMethods === 'function') {
+            setAllowedPaymentMethods(['Secure COD', 'Cash on Delivery', 'Prepaid']);
+        }
 
     } catch (error: any) {
         toast({
@@ -218,37 +242,43 @@ export default function AiProductUploaderPage() {
 
   return (
     <AppShell title="AI Product Uploader (Seller)">
-      <Card>
+      <Card onPaste={handlePaste}>
         <CardHeader>
           <CardTitle>AI Product Uploader</CardTitle>
           <CardDescription>
-            Upload an image, and let AI generate the product details for you.
+            Upload or paste an image, and let AI generate the product details for you.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-2">
             <Label>Product Image</Label>
             <div className="flex items-center space-x-4">
-                <div className="w-32 h-32 border-2 border-dashed rounded-lg flex items-center justify-center bg-muted">
+                <div className="w-32 h-32 border-2 border-dashed rounded-lg flex items-center justify-center bg-muted relative group">
                     {imagePreview ? (
-                    <Image
-                        src={imagePreview}
-                        alt="Product preview"
-                        width={128}
-                        height={128}
-                        className="object-contain rounded-md"
-                    />
+                        <>
+                            <Image
+                                src={imagePreview}
+                                alt="Product preview"
+                                width={128}
+                                height={128}
+                                className="object-contain rounded-md"
+                            />
+                            <Button size="icon" variant="destructive" className="absolute -top-2 -right-2 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => {setImagePreview(null); setImageDataUri(null);}}><X className="h-3 w-3"/></Button>
+                        </>
                     ) : (
                     <ImagePlus className="h-8 w-8 text-muted-foreground" />
                     )}
                 </div>
-                <Input
-                    id="product-image-input"
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageChange}
-                    className="max-w-sm"
-                />
+                <div className="flex flex-col gap-2">
+                    <Input
+                        id="product-image-input"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageChange}
+                        className="max-w-sm"
+                    />
+                    <p className="text-[10px] text-muted-foreground italic">Tip: You can also paste an image directly here (Ctrl+V)</p>
+                </div>
             </div>
           </div>
 
@@ -326,15 +356,15 @@ export default function AiProductUploaderPage() {
                 <Label>Allowed Payment Methods</Label>
                 <div className="flex flex-wrap gap-4 pt-2">
                     <div className="flex items-center space-x-2">
-                        <Checkbox id="secure-cod" onCheckedChange={(checked) => handlePaymentMethodChange('Secure COD', checked as boolean)} checked={allowedPaymentMethods.includes('Secure COD')} />
+                        <Checkbox id="secure-cod" onCheckedChange={(checked) => handlePaymentMethodChange('Secure COD', checked as boolean)} checked={Array.isArray(allowedPaymentMethods) && allowedPaymentMethods.includes('Secure COD')} />
                         <Label htmlFor="secure-cod">Secure COD</Label>
                     </div>
                     <div className="flex items-center space-x-2">
-                        <Checkbox id="cod" onCheckedChange={(checked) => handlePaymentMethodChange('Cash on Delivery', checked as boolean)} checked={allowedPaymentMethods.includes('Cash on Delivery')} />
+                        <Checkbox id="cod" onCheckedChange={(checked) => handlePaymentMethodChange('Cash on Delivery', checked as boolean)} checked={Array.isArray(allowedPaymentMethods) && allowedPaymentMethods.includes('Cash on Delivery')} />
                         <Label htmlFor="cod">Cash on Delivery</Label>
                     </div>
                     <div className="flex items-center space-x-2">
-                        <Checkbox id="prepaid" onCheckedChange={(checked) => handlePaymentMethodChange('Prepaid', checked as boolean)} checked={allowedPaymentMethods.includes('Prepaid')} />
+                        <Checkbox id="prepaid" onCheckedChange={(checked) => handlePaymentMethodChange('Prepaid', checked as boolean)} checked={Array.isArray(allowedPaymentMethods) && allowedPaymentMethods.includes('Prepaid')} />
                         <Label htmlFor="prepaid">Prepaid</Label>
                     </div>
                 </div>
@@ -355,3 +385,4 @@ export default function AiProductUploaderPage() {
     </AppShell>
   );
 }
+

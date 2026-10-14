@@ -48,13 +48,16 @@ export default function AiProductUploaderPage() {
   const [isPushing, setIsPushing] = useState(false);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [resizedImageDataUris, setResizedImageDataUris] = useState<string[]>([]);
-  const [vendorDescription, setVendorDescription] = useState('');
+  const [vendorDescription, setVendorDescription] = setVendorDescription || '';
   const [cost, setCost] = useState('');
   const [margin, setMargin] = useState('100'); // Default 100% margin
   const [generatedListing, setGeneratedListing] = useState<GeneratedListingWithPayments | null>(null);
   const [vendorName, setVendorName] = useState('Snazzify AI');
   const [isEastIndianLugra, setIsEastIndianLugra] = useState(false);
   const [isTryOnEnabled, setIsTryOnEnabled] = useState(false);
+
+  // Initialize vendor description if undefined
+  const [description, setActualDescription] = useState('');
 
   const handlePaymentMethodChange = (method: 'Secure COD' | 'Cash on Delivery' | 'Prepaid', checked: boolean) => {
     setGeneratedListing(prev => {
@@ -105,12 +108,23 @@ export default function AiProductUploaderPage() {
     if (e.target.files) handleFiles(e.target.files);
   };
   
-  const handlePaste = (event: ClipboardEvent<HTMLTextAreaElement | HTMLInputElement>) => {
-      if (event.clipboardData.files.length > 0) {
+  const handlePaste = (event: ClipboardEvent) => {
+    const items = event.clipboardData?.items;
+    if (!items) return;
+    
+    const files: File[] = [];
+    for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+            const file = items[i].getAsFile();
+            if (file) files.push(file);
+        }
+    }
+
+    if (files.length > 0) {
         event.preventDefault();
-        handleFiles(event.clipboardData.files);
-        return;
-      }
+        handleFiles(files);
+        toast({ title: 'Image(s) Pasted!' });
+    }
   };
   
   const handleDrop = (event: DragEvent<HTMLDivElement>) => {
@@ -119,8 +133,8 @@ export default function AiProductUploaderPage() {
   };
 
   const handleGenerateListing = async () => {
-    if (resizedImageDataUris.length === 0 || !vendorDescription || !cost || !margin) {
-      toast({ variant: 'destructive', title: 'Missing Information' });
+    if (resizedImageDataUris.length === 0 || !description || !cost || !margin) {
+      toast({ variant: 'destructive', title: 'Missing Information', description: 'Please provide images, description, cost and margin.' });
       return;
     }
     setIsLoading(true);
@@ -129,7 +143,7 @@ export default function AiProductUploaderPage() {
     try {
       const result = await createProductListing({
         imageDataUris: resizedImageDataUris,
-        description: vendorDescription,
+        description: description,
         cost: parseFloat(cost),
         margin: parseFloat(margin),
       });
@@ -181,13 +195,30 @@ export default function AiProductUploaderPage() {
   };
 
   const handleMagicPaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    // 1. Check for images first
+    const items = e.clipboardData.items;
+    const imageFiles: File[] = [];
+    for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+            const file = items[i].getAsFile();
+            if (file) imageFiles.push(file);
+        }
+    }
+
+    if (imageFiles.length > 0) {
+        e.preventDefault();
+        handleFiles(imageFiles);
+        return;
+    }
+
+    // 2. Handle text magic paste
     const pastedText = e.clipboardData.getData('text');
-    if (pastedText.trim().length < 10 || e.clipboardData.files.length > 0) return;
+    if (pastedText.trim().length < 10) return;
     e.preventDefault();
     setIsPasting(true);
     try {
       const result = await createProductFromText({ text: pastedText });
-      setVendorDescription((prev) => prev + (prev ? '\n\n' : '') + result.description);
+      setActualDescription((prev) => prev + (prev ? '\n\n' : '') + result.description);
       toast({ title: 'AI Parsing Complete!' });
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'AI Parsing Failed' });
@@ -198,28 +229,29 @@ export default function AiProductUploaderPage() {
 
   return (
     <AppShell title="AI Product Uploader">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8" onPaste={handlePaste}>
         <Card>
           <CardHeader><CardTitle>1. Provide Product Details</CardTitle></CardHeader>
           <CardContent className="space-y-4">
              <div className="relative space-y-2">
                 <Label htmlFor="magic-paste">Magic Paste Box (AI-Powered)</Label>
                 {isPasting && <Loader2 className="absolute top-8 right-2 h-4 w-4 animate-spin text-primary" />}
-                <Textarea id="magic-paste" placeholder="Paste chat here..." onPaste={handleMagicPaste} className="bg-purple-50/50" />
+                <Textarea id="magic-paste" placeholder="Paste chat text OR images here..." onPaste={handleMagicPaste} className="bg-purple-50/50" />
             </div>
             <div className="space-y-2">
               <Label>Product Images</Label>
               <div className="relative flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-muted/50" onDrop={handleDrop} onDragOver={(e) => e.preventDefault()} onClick={() => document.getElementById('product-image-input')?.click()}>
                   <ImagePlus className="h-8 w-8 text-muted-foreground" />
+                  <p className="text-xs text-muted-foreground mt-2">Click, Drop, or Paste images</p>
               </div>
               <Input id="product-image-input" type="file" accept="image/*" onChange={handleImageChange} className="hidden" multiple />
               {imagePreviews.length > 0 && (
                 <div className="mt-4 grid grid-cols-3 gap-4 border p-4 rounded-lg">
-                  {imagePreviews.map((src, index) => <Image key={index} src={src} alt="p" width={150} height={150} className="object-contain aspect-square" />)}
+                  {imagePreviews.map((src, index) => <div key={index} className="relative group"><Image src={src} alt="p" width={150} height={150} className="object-contain aspect-square" /><Button size="icon" variant="destructive" className="absolute -top-2 -right-2 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => {setImagePreviews(prev => prev.filter((_, i) => i !== index)); setResizedImageDataUris(prev => prev.filter((_, i) => i !== index));}}><X className="h-3 w-3"/></Button></div>)}
                 </div>
               )}
             </div>
-            <div className="space-y-2"><Label htmlFor="vendor-description">Description</Label><Textarea id="vendor-description" value={vendorDescription} onChange={(e) => setVendorDescription(e.target.value)} rows={6} /></div>
+            <div className="space-y-2"><Label htmlFor="vendor-description">Description</Label><Textarea id="vendor-description" value={description} onChange={(e) => setActualDescription(e.target.value)} rows={6} /></div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2"><Label htmlFor="cost">Your Cost</Label><Input id="cost" type="number" value={cost} onChange={(e) => setCost(e.target.value)} /></div>
               <div className="space-y-2"><Label htmlFor="margin">Margin (%)</Label><Input id="margin" type="number" value={margin} onChange={(e) => setMargin(e.target.value)} /></div>
@@ -272,3 +304,5 @@ export default function AiProductUploaderPage() {
     </AppShell>
   );
 }
+
+import { X } from 'lucide-react';

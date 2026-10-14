@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, ClipboardEvent } from 'react';
 import { AppShell } from '@/components/layout/app-shell';
 import {
   Card,
@@ -23,6 +23,7 @@ import {
   Wand2,
   CheckCircle,
   MessageSquare,
+  X,
 } from 'lucide-react';
 import Image from 'next/image';
 import { useAuth } from '@/hooks/use-auth';
@@ -48,24 +49,77 @@ export default function VendorAiProductUploaderPage() {
   const [generatedListing, setGeneratedListing] =
     useState<GeneratedListingWithPayments | null>(null);
 
+  const resizeImage = (file: File): Promise<string> => {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = document.createElement('img');
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let { width, height } = img;
+
+                if (width > height) {
+                    if (width > MAX_IMAGE_SIZE_PX) {
+                        height *= MAX_IMAGE_SIZE_PX / width;
+                        width = MAX_IMAGE_SIZE_PX;
+                    }
+                } else {
+                    if (height > MAX_IMAGE_SIZE_PX) {
+                        width *= MAX_IMAGE_SIZE_PX / height;
+                        height = MAX_IMAGE_SIZE_PX;
+                    }
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', 0.7));
+            };
+            img.src = e.target?.result as string;
+        };
+        reader.readAsDataURL(file);
+    });
+  };
+
+  const handleFiles = async (files: FileList | File[]) => {
+    const fileArray = Array.from(files).filter(f => f.type.startsWith('image/'));
+    if (fileArray.length === 0) return;
+
+    toast({ title: 'Processing images...' });
+    const newPreviews: string[] = [];
+    const newDataUris: string[] = [];
+    for (const file of fileArray) {
+      const result = await resizeImage(file);
+      newPreviews.push(result);
+      newDataUris.push(result);
+    }
+    setImagePreviews(prev => [...prev, ...newPreviews]);
+    setImageDataUris(prev => [...prev, ...newDataUris]);
+  };
+
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files) {
-      const newPreviews: string[] = [];
-      const newDataUris: string[] = [];
-      Array.from(files).forEach((file) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const result = reader.result as string;
-          newPreviews.push(result);
-          newDataUris.push(result);
-          if (newPreviews.length === files.length) {
-            setImagePreviews(newPreviews);
-            setImageDataUris(newDataUris);
-          }
-        };
-        reader.readAsDataURL(file);
-      });
+      handleFiles(files);
+    }
+  };
+
+  const handlePaste = async (event: ClipboardEvent) => {
+    const items = event.clipboardData?.items;
+    if (!items) return;
+    
+    const files: File[] = [];
+    for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+            const file = items[i].getAsFile();
+            if (file) files.push(file);
+        }
+    }
+
+    if (files.length > 0) {
+        event.preventDefault();
+        await handleFiles(files);
+        toast({ title: 'Image(s) Pasted!' });
     }
   };
 
@@ -118,38 +172,48 @@ export default function VendorAiProductUploaderPage() {
         });
     };
 
+  const removeImage = (index: number) => {
+    setImagePreviews(prev => prev.filter((_, i) => i !== index));
+    setImageDataUris(prev => prev.filter((_, i) => i !== index));
+  };
+
   return (
     <AppShell title="AI Product Uploader">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8" onPaste={handlePaste}>
         <Card>
           <CardHeader>
             <CardTitle>1. Provide Product Details</CardTitle>
             <CardDescription>
-              Upload images and paste the raw description for a product.
+              Upload or paste images and provide product description.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="product-image">Product Images</Label>
-              <Input
-                id="product-image"
-                type="file"
-                accept="image/*"
-                onChange={handleImageChange}
-                className="cursor-pointer"
-                multiple
-              />
+              <div className="flex flex-col gap-2">
+                <Input
+                    id="product-image"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="cursor-pointer"
+                    multiple
+                />
+                <p className="text-[10px] text-muted-foreground italic">Tip: Paste images directly with Ctrl+V</p>
+              </div>
               {imagePreviews.length > 0 && (
                 <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-4 rounded-lg border-dashed border-2 p-4">
                   {imagePreviews.map((src, index) => (
-                     <Image
-                        key={index}
-                        src={src}
-                        alt={`Product preview ${index + 1}`}
-                        width={150}
-                        height={150}
-                        className="object-contain rounded-md aspect-square"
-                      />
+                     <div key={index} className="relative group">
+                        <Image
+                            src={src}
+                            alt={`Product preview ${index + 1}`}
+                            width={150}
+                            height={150}
+                            className="object-contain rounded-md aspect-square"
+                        />
+                        <Button size="icon" variant="destructive" className="absolute -top-2 -right-2 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => removeImage(index)}><X className="h-3 w-3"/></Button>
+                     </div>
                   ))}
                 </div>
               )}
@@ -158,7 +222,7 @@ export default function VendorAiProductUploaderPage() {
               <Label htmlFor="vendor-description">Product Description</Label>
               <Textarea
                 id="vendor-description"
-                placeholder="Paste raw text or describe your product. e.g., 'Pure cotton shirt new stock full sleeves all sizes (M, L, XL) available colors red blue price 499 only'"
+                placeholder="Describe your product for the AI to parse..."
                 value={vendorDescription}
                 onChange={(e) => setVendorDescription(e.target.value)}
                 rows={6}
@@ -212,8 +276,7 @@ export default function VendorAiProductUploaderPage() {
               <Sparkles className="h-12 w-12 text-primary animate-pulse" />
               <h3 className="text-xl font-semibold">AI is at work...</h3>
               <p className="text-muted-foreground">
-                Analyzing your images and text to craft the perfect product
-                listing. This might take a moment.
+                Analyzing your data...
               </p>
             </div>
           )}
@@ -221,7 +284,6 @@ export default function VendorAiProductUploaderPage() {
              <div className="flex h-full flex-col items-center justify-center gap-4 text-center p-8">
                 <Sparkles className="h-12 w-12 text-muted-foreground/50" />
                 <h3 className="text-xl font-semibold text-muted-foreground">Generated Listing Will Appear Here</h3>
-                <p className="text-muted-foreground">Fill out the details on the left and let AI do the rest.</p>
             </div>
           )}
           {generatedListing && (
@@ -232,7 +294,7 @@ export default function VendorAiProductUploaderPage() {
                   2. Review & Share
                 </CardTitle>
                 <CardDescription>
-                  Your AI-generated listing is ready. Make any changes needed.
+                  Your AI-generated listing is ready.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -250,7 +312,7 @@ export default function VendorAiProductUploaderPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="generated-description">
-                    Product Description (Markdown enabled)
+                    Product Description
                   </Label>
                   <Textarea
                     id="generated-description"
@@ -262,24 +324,6 @@ export default function VendorAiProductUploaderPage() {
                     }
                     rows={8}
                   />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="generated-sizes">Sizes (comma-separated)</Label>
-                    <Input
-                      id="generated-sizes"
-                      value={generatedListing.sizes.join(', ')}
-                      onChange={(e) => setGeneratedListing(p => p ? { ...p, sizes: e.target.value.split(',').map(s => s.trim()) } : null)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="generated-colors">Colors (comma-separated)</Label>
-                    <Input
-                      id="generated-colors"
-                      value={generatedListing.colors.join(', ')}
-                      onChange={(e) => setGeneratedListing(p => p ? { ...p, colors: e.target.value.split(',').map(c => c.trim()) } : null)}
-                    />
-                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
@@ -338,7 +382,7 @@ export default function VendorAiProductUploaderPage() {
                             </Button>
                         </TooltipTrigger>
                         <TooltipContent>
-                            <p>This feature is available for the Super Admin only.</p>
+                            <p>Super Admin Only</p>
                         </TooltipContent>
                     </Tooltip>
                 </TooltipProvider>
@@ -358,3 +402,5 @@ export default function VendorAiProductUploaderPage() {
     </AppShell>
   );
 }
+
+const MAX_IMAGE_SIZE_PX = 800;
