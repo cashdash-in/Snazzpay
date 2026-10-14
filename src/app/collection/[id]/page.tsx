@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, ShoppingCart, Percent, MessageCircle, Send, Play, Sparkles, Camera, ImagePlus, RefreshCcw, Download, ShieldCheck, Share2 } from 'lucide-react';
+import { Loader2, ShoppingCart, Percent, MessageCircle, Send, Play, Sparkles, Camera, ImagePlus, RefreshCcw, Download, ShieldCheck, Share2, Store } from 'lucide-react';
 import Image from 'next/image';
 import type { SellerProduct } from '@/app/seller/ai-product-uploader/page';
 import { getCollection, getDocument, saveDocument } from '@/services/firestore';
@@ -288,18 +288,28 @@ function BrandedCollectionContent() {
     return (
         <div className="min-h-screen bg-gray-50 pb-20">
              <header className="bg-white border-b sticky top-0 z-50 px-4 py-6 md:px-8 text-center shadow-sm">
-                {magazine.logoDataUri && (
-                    <div className="flex justify-center mb-4">
-                        <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 border-white shadow-lg bg-white">
-                            <Image src={magazine.logoDataUri} alt="Brand Logo" fill className="object-contain p-1" unoptimized />
+                <div className="max-w-4xl mx-auto">
+                    {magazine.logoDataUri ? (
+                        <div className="flex justify-center mb-4">
+                            <div className="relative w-24 h-24 rounded-full overflow-hidden border-4 border-white shadow-2xl bg-white">
+                                <Image src={magazine.logoDataUri} alt="Brand Logo" fill className="object-contain p-1" unoptimized />
+                            </div>
                         </div>
+                    ) : (
+                        <div className="flex justify-center mb-4">
+                            <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
+                                <Store className="h-10 w-10" />
+                            </div>
+                        </div>
+                    )}
+                    <div>
+                        <h1 className="text-3xl md:text-5xl font-black italic tracking-tighter uppercase text-slate-900">{magazine.title}</h1>
+                        <p className="mt-2 text-xs md:text-sm text-primary uppercase tracking-widest font-black flex items-center justify-center gap-2">
+                           <span className="h-px w-8 bg-primary/20"></span>
+                           {magazine.vendorTitle || `Curated by ${magazine.creatorName}`}
+                           <span className="h-px w-8 bg-primary/20"></span>
+                        </p>
                     </div>
-                )}
-                <div>
-                    <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-gray-900">{magazine.title}</h1>
-                    <p className="mt-2 text-sm text-muted-foreground uppercase tracking-widest font-bold">
-                        {magazine.vendorTitle || `A curated collection by ${magazine.creatorName}`}
-                    </p>
                 </div>
             </header>
 

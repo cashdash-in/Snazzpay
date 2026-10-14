@@ -4,7 +4,7 @@ import { Suspense, useState, useEffect, useRef, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, ShieldCheck, ShoppingCart, User, Phone, Mail as MailIcon, Home, MapPin, CheckCircle, Percent, Sparkles, Camera, ImagePlus, RefreshCcw, Download, MessageSquare, Share2 } from 'lucide-react';
+import { Loader2, ShieldCheck, ShoppingCart, User, Phone, Mail as MailIcon, Home, MapPin, CheckCircle, Percent, Sparkles, Camera, ImagePlus, RefreshCcw, Download, MessageSquare, Share2, ArrowLeft, Store } from 'lucide-react';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
@@ -65,6 +65,7 @@ function CatalogueOrderPageContent() {
     const [product, setProduct] = useState<DisplayProduct | null>(null);
     const [isLoadingProduct, setIsLoadingProduct] = useState(true);
     const [mounted, setMounted] = useState(false);
+    const [sellerLogo, setSellerLogo] = useState<string | null>(null);
 
     // Try-On State
     const [isTryOnLoading, setIsTryOnLoading] = useState(false);
@@ -130,6 +131,19 @@ function CatalogueOrderPageContent() {
             }
 
             try {
+                if (urlSellerId) {
+                    // Try to find logo in seller_users or vendors
+                    const sellerData = await getDocument<any>('seller_users', urlSellerId);
+                    if (sellerData?.logoDataUri) {
+                        setSellerLogo(sellerData.logoDataUri);
+                    } else {
+                        const vendorData = await getDocument<any>('vendors', urlSellerId);
+                        if (vendorData?.logoDataUri) {
+                            setSellerLogo(vendorData.logoDataUri);
+                        }
+                    }
+                }
+
                 let fetchedProduct: any = await getDocument('seller_products', productId);
                 if (!fetchedProduct) fetchedProduct = await getDocument('product_drops', productId);
 
@@ -297,8 +311,31 @@ function CatalogueOrderPageContent() {
     if (!mounted || isLoadingProduct) return <div className="flex h-screen w-full items-center justify-center"><Loader2 className="animate-spin text-primary h-12 w-12" /></div>;
 
     return (
-        <div className="min-h-screen bg-slate-50 p-4 md:p-8">
-            <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="min-h-screen bg-slate-50">
+             <header className="bg-white border-b sticky top-0 z-40 px-4 py-3 md:px-8 shadow-sm flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    {sellerLogo ? (
+                        <div className="relative w-10 h-10 rounded-full overflow-hidden border bg-white shadow-sm">
+                            <Image src={sellerLogo} alt="Store Logo" fill className="object-contain p-1" unoptimized />
+                        </div>
+                    ) : (
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                            <Store className="h-6 w-6" />
+                        </div>
+                    )}
+                    <div>
+                        <h1 className="text-lg font-black italic tracking-tighter uppercase leading-none">{product?.sellerName || 'Snazzify Store'}</h1>
+                        <p className="text-[9px] font-bold text-primary uppercase tracking-widest mt-0.5 flex items-center gap-1">
+                           <ShieldCheck className="h-2 w-2" /> Verified Partner
+                        </p>
+                    </div>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => router.back()} className="text-[10px] font-black uppercase tracking-widest h-8 px-4 rounded-full border">
+                    <ArrowLeft className="mr-1 h-3 w-3" /> Back
+                </Button>
+            </header>
+
+            <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8 p-4 md:p-8">
                 <div className="space-y-6">
                     <Card className="rounded-[32px] overflow-hidden shadow-xl border-none bg-white relative">
                         {product?.isTryOnEnabled && !tryOnResult && (

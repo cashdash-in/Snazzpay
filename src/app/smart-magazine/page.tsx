@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState, useRef, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, ShoppingCart, Percent, MessageCircle, Send, Sparkles, Camera, ImagePlus, RefreshCcw, ShieldCheck, Share2, Download, Facebook, Instagram } from 'lucide-react';
+import { Loader2, ShoppingCart, Percent, MessageCircle, Send, Sparkles, Camera, ImagePlus, RefreshCcw, ShieldCheck, Share2, Download, Facebook, Instagram, Store } from 'lucide-react';
 import Image from 'next/image';
 import type { SellerProduct } from '../seller/ai-product-uploader/page';
 import { getCollection, getDocument, saveDocument } from '@/services/firestore';
@@ -248,14 +248,22 @@ function SmartMagazineContent() {
 
     return (
         <div className="min-h-screen bg-slate-50 pb-20">
-            <header className="bg-white border-b sticky top-0 z-50 px-4 py-4 md:px-8 shadow-sm">
-                {magazine?.logoDataUri && (
-                    <div className="relative w-20 h-20 mx-auto mb-4 rounded-full overflow-hidden border-2 border-white shadow-lg">
-                        <Image src={magazine.logoDataUri} fill alt="logo" className="object-contain p-1" unoptimized />
+            <header className="bg-white border-b sticky top-0 z-50 px-4 py-8 md:px-8 shadow-sm text-center">
+                {magazine?.logoDataUri ? (
+                    <div className="relative w-24 h-24 mx-auto mb-4 rounded-full overflow-hidden border-4 border-white shadow-2xl bg-white">
+                        <Image src={magazine.logoDataUri} fill alt="Store Logo" className="object-contain p-1" unoptimized />
+                    </div>
+                ) : (
+                    <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
+                        <Store className="h-8 w-8" />
                     </div>
                 )}
                 <h1 className="text-3xl md:text-5xl font-black italic uppercase tracking-tighter text-slate-900">{magazine?.title}</h1>
-                <p className="text-sm text-muted-foreground mt-2 font-bold uppercase tracking-widest">{magazine?.vendorTitle || `Curated by ${magazine?.creatorName}`}</p>
+                <p className="text-sm md:text-base text-primary mt-2 font-black uppercase tracking-widest flex items-center justify-center gap-3">
+                    <span className="h-px w-10 bg-primary/20"></span>
+                    {magazine?.vendorTitle || `Curated by ${magazine?.creatorName}`}
+                    <span className="h-px w-10 bg-primary/20"></span>
+                </p>
             </header>
 
             <main className="max-w-7xl mx-auto p-4 md:p-10 space-y-12">
@@ -516,5 +524,5 @@ function SmartMagazineContent() {
 }
 
 export default function SmartMagazinePage() {
-    return <Suspense fallback={<div className="flex h-screen w-full items-center justify-center"><Loader2 className="animate-spin" /></div>}><SmartMagazineContent /></Suspense>;
+    return <Suspense fallback={<div className="flex h-screen w-full items-center justify-center"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>}><SmartMagazineContent /></Suspense>;
 }
