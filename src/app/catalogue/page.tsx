@@ -363,7 +363,7 @@ function CatalogueOrderPageContent() {
                                                         <SelectValue />
                                                     </SelectTrigger>
                                                     <SelectContent>
-                                                        <SelectItem value="Western Wear">Western Fit (Skirt/Dress)</SelectItem>
+                                                        <SelectItem value="Western Wear">Western Fit (Mini/Tight Skirts)</SelectItem>
                                                         <SelectItem value="Western Dress">Modern Western Dress</SelectItem>
                                                         <SelectItem value="Kurti">Traditional Kurti</SelectItem>
                                                         <SelectItem value="Standard Saree">Standard Saree (Floor Length)</SelectItem>

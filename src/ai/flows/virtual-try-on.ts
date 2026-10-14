@@ -35,18 +35,20 @@ export async function virtualTryOn(input: VirtualTryOnInput) {
       if (isLugraStyle) {
           styleInstructions = `
             STYLING MODE: AUTHENTIC EAST INDIAN LUGRA (GAOTHAN VILLAGE PATTERN)
-            CRITICAL STYLE CONSTRAINT: Use ONLY authentic East Indian Catholic Gaothan accessories. DO NOT use South Indian or Temple jewelry.
+            CRITICAL STYLE CONSTRAINT: Use ONLY authentic East Indian Catholic Gaothan accessories. STRICTLY FORBIDDEN to use South Indian or Temple jewelry patterns.
             
             MANDATORY TRADITIONAL REQUIREMENTS:
             1. DRAPE: Apply the traditional "Gaothan" East Indian village style. The drape MUST be mid-calf or ankle-length, clearly showing the feet/ankles.
             2. WAIST: The drape is tucked at the waist. DO NOT add any waist belt or Kamar Pata.
             3. BLOUSE: Generate a matching blouse with TRADITIONAL ELBOW-LENGTH SLEEVES. The sleeves MUST end at the elbow and feature a gold zari border.
             4. ACCESSORIES: Automatically add ONLY these authentic gold jewelry items:
-               - "Long Pote": A long, traditional gold bead necklace.
+               - "Long Pote": A long, traditional East Indian gold and black bead necklace reaching the waist.
                - "Bangadi": A stack of thick gold bangles on BOTH wrists.
                - DO NOT add a "Laxmi Haar" or any long coin necklace.
                - DO NOT add a "Kamar Pata" or any waist belt.
-            5. HAIR: Style the person's hair into a neat bun adorned with a white flower garland (Gajra).
+            5. HAIR & FACE: 
+               - Style the person's hair into a neat bun adorned with a white flower garland (Gajra).
+               - CRITICAL: REMOVE any sindoor, bindi, or red powder from the person's forehead or hair parting. The forehead MUST be clean.
           `;
       } else if (isSareeStyle) {
           styleInstructions = `
@@ -73,10 +75,12 @@ export async function virtualTryOn(input: VirtualTryOnInput) {
       } else {
           // Western Wear mode (Standard Fit for shirts, or transformation for fabrics)
           styleInstructions = `
-            STYLING MODE: MODERN WESTERN WEAR (NON-TRADITIONAL)
+            STYLING MODE: MODERN WESTERN WEAR (TRANSFORMATION)
             1. TASK: COMPLETELY RE-DRESS the person using the material and pattern from the second photo ("${input.productTitle}").
-            2. FABRIC TRANSFORMATION: If the second photo is a fabric (like a Saree or Lugra), transform it into a modern WESTERN OUTFIT such as a LONG SKIRT and top or a western dress. DO NOT use traditional draping.
-            3. SHIRT/TOP FIT: If the product is already a shirt or t-shirt, ensure the entire garment is visible and fits the person's torso perfectly.
+            2. FABRIC TRANSFORMATION: If the second photo is a fabric (like a Saree or Lugra), transform it into a modern WESTERN OUTFIT. 
+               - SPECIFIC CUT: Generate a TIGHT-FITTING MINI SKIRT or TIGHT MIDI SKIRT and a matching TIGHT-FITTING MODERN TOP (like a crop top or sleeveless shell).
+               - DO NOT use traditional draping. The outfit must look like high-end boutique western wear.
+            3. SHIRT/TOP FIT: If the product is already a shirt or t-shirt, ensure the entire garment is visible and fits the person's torso perfectly with a standard professional fit.
             4. ANATOMICAL PHYSICS: Fabric folds, shadows, and creases must realistically match the person's pose and lighting.
             5. SLEEVES: ${input.sleeveLength ? `Force the garment to have ${input.sleeveLength}.` : 'Maintain appropriate sleeves for the style.'}
             6. ZERO CLOTHING BLEED: Ensure 100% removal of original clothes. No original collars or undershirts should be visible.
@@ -96,11 +100,11 @@ export async function virtualTryOn(input: VirtualTryOnInput) {
             ${styleInstructions}
 
             CRITICAL CONSTRAINTS:
-            - FACIAL INTEGRITY: Keep the person's face, features, and hair exactly as they are (unless a bun/Gajra is specified for Lugra).
+            - FACIAL INTEGRITY: Keep the person's face and features exactly as they are.
             - REALISM: The final output must look like a high-resolution professional photograph.
             - CLEANLINESS: The person's original clothes must be totally invisible.
             
-            Return ONLY the final high-resolution processed image.` 
+            Return ONLY the final processed image.` 
           },
         ],
         config: {

@@ -456,7 +456,7 @@ function BrandedCollectionContent() {
                                                                         <SelectValue />
                                                                     </SelectTrigger>
                                                                     <SelectContent>
-                                                                        <SelectItem value="Western Wear">Western Fit (Skirt/Dress)</SelectItem>
+                                                                        <SelectItem value="Western Wear">Western Fit (Mini/Tight Fit)</SelectItem>
                                                                         <SelectItem value="Western Dress">Western Dress</SelectItem>
                                                                         <SelectItem value="Kurti">Traditional Kurti</SelectItem>
                                                                         <SelectItem value="Standard Saree">Standard Saree</SelectItem>
