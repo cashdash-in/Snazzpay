@@ -196,6 +196,7 @@ function BrandedCollectionContent() {
             setTryOnResult(result.generatedImageDataUri);
             toast({ title: "Magic Mirror Ready!", description: `Look generated successfully.` });
         } catch (err: any) {
+            console.error("Try-On Error:", err);
             toast({ variant: 'destructive', title: "Try-On Failed", description: err.message });
             setTryOnProductId(null);
         } finally {

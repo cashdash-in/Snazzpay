@@ -104,6 +104,9 @@ function SecureCodFormContent() {
                 setRazorpayKeyId(keyId);
 
                 const currentOrderId = searchParams.get('order_id');
+                const backUrl = searchParams.get('return_url');
+                if (backUrl) setReturnUrl(backUrl);
+
                 if (currentOrderId) {
                     const lead = await getDocument<EditableOrder>('leads', currentOrderId);
                     if (lead) {
@@ -128,7 +131,6 @@ function SecureCodFormContent() {
                         if (lead.paymentStatus === 'Intent Verified') setIntentPaid(true);
                     }
                 } else {
-                    // Fallback to URL params if no order_id found in DB (backward compatibility)
                     setOrderDetails({
                         productName: searchParams.get('name') || 'Product',
                         amount: parseFloat(searchParams.get('amount') || '0'),
@@ -269,7 +271,8 @@ function SecureCodFormContent() {
                     </CardContent>
                      <CardFooter className="flex-col gap-2">
                         <Link href="/customer/login" className="w-full"><Button className="w-full">Go to Customer Portal</Button></Link>
-                         <a href={returnUrl} className="w-full"><Button className="w-full" variant="outline">Continue Shopping</Button></a>
+                         <Button className="w-full" variant="outline" onClick={() => window.location.href = returnUrl}>Go Back to Store</Button>
+                         <a href="https://www.snazzify.co.in" className="text-xs text-muted-foreground hover:underline">Continue shopping on snazzify.co.in</a>
                     </CardFooter>
                  </Card>
             </div>

@@ -13,7 +13,7 @@ import {
     Loader2, Share2, Copy, MessageSquare, BookOpen, 
     Percent, Factory, Edit, Wand2, PlusCircle, 
     ImagePlus, Image as LucideImage, Facebook, 
-    Instagram, Download, QrCode, Trash2, Globe, Sparkles 
+    Instagram, Download, QrCode, Trash2, Globe, Sparkles, SwitchCamera 
 } from 'lucide-react';
 import { getCollection, saveDocument, getDocument } from '@/services/firestore';
 import { getCookie } from 'cookies-next';
@@ -44,7 +44,6 @@ export default function ShareMagazinePage() {
     const { user } = useAuth();
     const { toast } = useToast();
     const [products, setProducts] = useState<Array<SellerProduct | ProductDrop>>([]);
-    const [magazines, setMagazines] = useState<Magazine[]>([]);
     const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [magazineLink, setMagazineLink] = useState('');
@@ -92,12 +91,13 @@ export default function ShareMagazinePage() {
                 }
                 
                 setProducts(productsCollection.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-                const allMagazines = await getCollection<Magazine>('smart_magazines');
-                setMagazines(allMagazines);
                 
                 // Try to load brand logo from settings
                 const settings = await getDocument<any>(currentRole === 'seller' ? 'seller_users' : 'vendors', user.uid);
-                if (settings?.logoDataUri) setLogoDataUri(settings.logoDataUri);
+                if (settings?.logoDataUri) {
+                    setLogoDataUri(settings.logoDataUri);
+                    setVendorTitle(settings.companyName || settings.name || '');
+                }
 
             } catch (error) {
                 toast({ variant: 'destructive', title: "Error loading products" });
@@ -216,11 +216,24 @@ export default function ShareMagazinePage() {
 
                         <div className="lg:col-span-1 space-y-6">
                             <Card className="rounded-[24px] shadow-lg border-primary/20 sticky top-24">
-                                <CardHeader><CardTitle className="text-lg font-black uppercase italic">Collection Settings</CardTitle></CardHeader>
+                                <CardHeader><CardTitle className="text-lg font-black uppercase italic">Collection Identity</CardTitle></CardHeader>
                                 <CardContent className="space-y-4">
                                     <div className="space-y-2">
-                                        <Label className="text-[10px] font-black uppercase text-slate-400">Title</Label>
-                                        <Input value={magazineTitle} onChange={e => setMagazineTitle(e.target.value)} className="font-bold h-11" />
+                                        <Label className="text-[10px] font-black uppercase text-slate-400">Magazine Title</Label>
+                                        <Input value={magazineTitle} onChange={e => setMagazineTitle(e.target.value)} className="font-bold h-11" placeholder="e.g. Summer Collection" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-[10px] font-black uppercase text-slate-400">Store / Vendor Name</Label>
+                                        <Input value={vendorTitle} onChange={e => setVendorTitle(e.target.value)} className="font-bold h-11" placeholder="e.g. My Boutique" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-[10px] font-black uppercase text-slate-400">Brand Logo</Label>
+                                        <div className="flex gap-4 items-center">
+                                            <div className="w-16 h-16 border-2 rounded-2xl bg-white overflow-hidden relative shrink-0 shadow-inner flex items-center justify-center">
+                                                {logoDataUri ? <Image src={logoDataUri} alt="logo" fill className="object-contain p-1" unoptimized /> : <LucideImage className="h-8 w-8 text-slate-100" />}
+                                            </div>
+                                            <Input type="file" className="text-xs rounded-xl" onChange={handleLogoUpload} />
+                                        </div>
                                     </div>
                                     <div className="space-y-2">
                                         <Label className="text-[10px] font-black uppercase text-slate-400">Custom URL Slug</Label>
@@ -341,6 +354,10 @@ export default function ShareMagazinePage() {
                     </div>
                 </TabsContent>
             </Tabs>
-        </AppShell>
+
+            <footer className="bg-slate-50 border-t p-4 flex justify-end shrink-0">
+                <DialogClose asChild><Button variant="ghost" className="rounded-xl px-8 font-bold uppercase text-[10px]">Close Ad Studio</Button></DialogClose>
+            </footer>
+        </DialogContent>
     );
 }

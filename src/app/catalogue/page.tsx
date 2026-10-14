@@ -122,6 +122,8 @@ function CatalogueOrderPageContent() {
 
         const productId = searchParams.get('id');
         const urlSellerId = searchParams.get('sellerId');
+        const backUrl = searchParams.get('return_url');
+        if (backUrl) setReturnUrl(backUrl);
         
         async function loadProduct() {
             if (!productId) {
@@ -303,11 +305,18 @@ function CatalogueOrderPageContent() {
                 sellerName: product.sellerName,
                 imageDataUris: product.imageDataUris,
             };
-            await saveDocument('orders', orderData, orderData.id);
+            
+            // Save lead first if not direct prepaid/cod
+            await saveDocument('leads', orderData, orderData.id);
             
             if (paymentMethod === 'Prepaid') {
-                 router.push(`/payment?amount=${totalPrice}&name=${encodeURIComponent(product.title)}&order_id=${orderData.id}&prepaid=true`);
+                 router.push(`/payment?amount=${totalPrice}&name=${encodeURIComponent(product.title)}&order_id=${orderData.id}&return_url=${encodeURIComponent(returnUrl)}&prepaid=true`);
                  return;
+            }
+
+            if (paymentMethod === 'Secure Charge on Delivery') {
+                router.push(`/secure-cod?order_id=${orderData.id}&return_url=${encodeURIComponent(returnUrl)}`);
+                return;
             }
 
             setIsOrderComplete(true);
@@ -547,7 +556,7 @@ function CatalogueOrderPageContent() {
                         <h2 className="text-4xl md:text-5xl font-black italic uppercase tracking-tighter">Order Received!</h2>
                         <p className="text-muted-foreground max-w-sm mx-auto font-medium">Thank you for shopping. Our team will contact you on WhatsApp to finalize fulfillment.</p>
                     </div>
-                    <Button onClick = {() => window.location.href = returnUrl} size="lg" className="rounded-2xl px-12 h-14 font-black uppercase italic tracking-widest">Back to Store</Button>
+                    <Button onClick={() => window.location.href = returnUrl} size="lg" className="rounded-2xl px-12 h-14 font-black uppercase italic tracking-widest">Back to Store</Button>
                 </div>
             )}
         </div>
