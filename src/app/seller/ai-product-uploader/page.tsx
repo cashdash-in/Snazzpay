@@ -61,18 +61,13 @@ export default function AiProductUploaderPage() {
   const [price, setPrice] = useState('');
   const [sizes, setSizes] = useState('');
   const [colors, setColors] = useState('');
-  const [allowedPaymentMethods, setAllowedPaymentMethods] = setAllowedPaymentMethods || useState<('Secure COD' | 'Cash on Delivery' | 'Prepaid')[]>(['Secure COD', 'Cash on Delivery', 'Prepaid']);
+  const [allowedPaymentMethods, setAllowedPaymentMethods] = useState<('Secure COD' | 'Cash on Delivery' | 'Prepaid')[]>(['Secure COD', 'Cash on Delivery', 'Prepaid']);
 
   const handlePaymentMethodChange = (method: 'Secure COD' | 'Cash on Delivery' | 'Prepaid', checked: boolean) => {
-    if (typeof setAllowedPaymentMethods === 'function') {
-        setAllowedPaymentMethods(prev => {
-            if (checked) {
-                return [...prev, method];
-            } else {
-                return prev.filter(m => m !== method);
-            }
-        });
-    }
+    setAllowedPaymentMethods(prev => {
+        if (checked) return [...prev, method];
+        else return prev.filter(m => m !== method);
+    });
   };
 
   const resizeImage = (file: File): Promise<string> => {
@@ -205,7 +200,7 @@ export default function AiProductUploaderPage() {
             colors: colors.split(',').map(c => c.trim()).filter(c => c),
             imageDataUris: [imageDataUri], 
             createdAt: new Date().toISOString(),
-            allowedPaymentMethods: Array.isArray(allowedPaymentMethods) ? allowedPaymentMethods : ['Secure COD', 'Cash on Delivery', 'Prepaid'],
+            allowedPaymentMethods: allowedPaymentMethods,
         };
 
         await saveDocument('seller_products', newProduct, newProduct.id);
@@ -224,9 +219,7 @@ export default function AiProductUploaderPage() {
         setPrice('');
         setSizes('');
         setColors('');
-        if (typeof setAllowedPaymentMethods === 'function') {
-            setAllowedPaymentMethods(['Secure COD', 'Cash on Delivery', 'Prepaid']);
-        }
+        setAllowedPaymentMethods(['Secure COD', 'Cash on Delivery', 'Prepaid']);
 
     } catch (error: any) {
         toast({
@@ -356,15 +349,15 @@ export default function AiProductUploaderPage() {
                 <Label>Allowed Payment Methods</Label>
                 <div className="flex flex-wrap gap-4 pt-2">
                     <div className="flex items-center space-x-2">
-                        <Checkbox id="secure-cod" onCheckedChange={(checked) => handlePaymentMethodChange('Secure COD', checked as boolean)} checked={Array.isArray(allowedPaymentMethods) && allowedPaymentMethods.includes('Secure COD')} />
+                        <Checkbox id="secure-cod" onCheckedChange={(checked) => handlePaymentMethodChange('Secure COD', checked as boolean)} checked={allowedPaymentMethods.includes('Secure COD')} />
                         <Label htmlFor="secure-cod">Secure COD</Label>
                     </div>
                     <div className="flex items-center space-x-2">
-                        <Checkbox id="cod" onCheckedChange={(checked) => handlePaymentMethodChange('Cash on Delivery', checked as boolean)} checked={Array.isArray(allowedPaymentMethods) && allowedPaymentMethods.includes('Cash on Delivery')} />
+                        <Checkbox id="cod" onCheckedChange={(checked) => handlePaymentMethodChange('Cash on Delivery', checked as boolean)} checked={allowedPaymentMethods.includes('Cash on Delivery')} />
                         <Label htmlFor="cod">Cash on Delivery</Label>
                     </div>
                     <div className="flex items-center space-x-2">
-                        <Checkbox id="prepaid" onCheckedChange={(checked) => handlePaymentMethodChange('Prepaid', checked as boolean)} checked={Array.isArray(allowedPaymentMethods) && allowedPaymentMethods.includes('Prepaid')} />
+                        <Checkbox id="prepaid" onCheckedChange={(checked) => handlePaymentMethodChange('Prepaid', checked as boolean)} checked={allowedPaymentMethods.includes('Prepaid')} />
                         <Label htmlFor="prepaid">Prepaid</Label>
                     </div>
                 </div>
@@ -385,4 +378,3 @@ export default function AiProductUploaderPage() {
     </AppShell>
   );
 }
-

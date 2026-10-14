@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, DragEvent, ClipboardEvent } from 'react';
+import { useState, DragEvent, ClipboardEvent } from 'react';
 import { AppShell } from '@/components/layout/app-shell';
 import {
   Card,
@@ -23,14 +23,13 @@ import {
   Rocket,
   Wand2,
   ImagePlus,
-  Factory,
   ShieldCheck,
+  X,
 } from 'lucide-react';
 import Image from 'next/image';
 import { createProductFromText } from '@/ai/flows/create-product-from-text';
 import { saveDocument } from '@/services/firestore';
 import { v4 as uuidv4 } from 'uuid';
-import type { ProductDrop } from '@/app/vendor/product-drops/page';
 import { Checkbox } from '@/components/ui/checkbox';
 
 const MAX_IMAGE_SIZE_PX = 800; // Max width/height for resizing
@@ -48,16 +47,13 @@ export default function AiProductUploaderPage() {
   const [isPushing, setIsPushing] = useState(false);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [resizedImageDataUris, setResizedImageDataUris] = useState<string[]>([]);
-  const [vendorDescription, setVendorDescription] = setVendorDescription || '';
+  const [description, setDescription] = useState('');
   const [cost, setCost] = useState('');
   const [margin, setMargin] = useState('100'); // Default 100% margin
   const [generatedListing, setGeneratedListing] = useState<GeneratedListingWithPayments | null>(null);
   const [vendorName, setVendorName] = useState('Snazzify AI');
   const [isEastIndianLugra, setIsEastIndianLugra] = useState(false);
   const [isTryOnEnabled, setIsTryOnEnabled] = useState(false);
-
-  // Initialize vendor description if undefined
-  const [description, setActualDescription] = useState('');
 
   const handlePaymentMethodChange = (method: 'Secure COD' | 'Cash on Delivery' | 'Prepaid', checked: boolean) => {
     setGeneratedListing(prev => {
@@ -160,7 +156,7 @@ export default function AiProductUploaderPage() {
     if (!generatedListing) return;
     setIsPushing(true);
     try {
-        const newProductDrop: ProductDrop = {
+        const newProductDrop: any = {
             id: uuidv4(),
             vendorId: 'admin_snazzify',
             vendorName: vendorName || 'Snazzify Official',
@@ -218,7 +214,7 @@ export default function AiProductUploaderPage() {
     setIsPasting(true);
     try {
       const result = await createProductFromText({ text: pastedText });
-      setActualDescription((prev) => prev + (prev ? '\n\n' : '') + result.description);
+      setDescription((prev) => prev + (prev ? '\n\n' : '') + result.description);
       toast({ title: 'AI Parsing Complete!' });
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'AI Parsing Failed' });
@@ -251,7 +247,7 @@ export default function AiProductUploaderPage() {
                 </div>
               )}
             </div>
-            <div className="space-y-2"><Label htmlFor="vendor-description">Description</Label><Textarea id="vendor-description" value={description} onChange={(e) => setActualDescription(e.target.value)} rows={6} /></div>
+            <div className="space-y-2"><Label htmlFor="vendor-description">Description</Label><Textarea id="vendor-description" value={description} onChange={(e) => setDescription(e.target.value)} rows={6} /></div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2"><Label htmlFor="cost">Your Cost</Label><Input id="cost" type="number" value={cost} onChange={(e) => setCost(e.target.value)} /></div>
               <div className="space-y-2"><Label htmlFor="margin">Margin (%)</Label><Input id="margin" type="number" value={margin} onChange={(e) => setMargin(e.target.value)} /></div>
@@ -304,5 +300,3 @@ export default function AiProductUploaderPage() {
     </AppShell>
   );
 }
-
-import { X } from 'lucide-react';
