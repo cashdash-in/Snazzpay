@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, HelpCircle, ShieldCheck, CheckCircle, User, Phone, Mail as MailIcon, Home, MapPin, Percent, CreditCard, ShoppingCart } from "lucide-react";
+import { Loader2, HelpCircle, ShieldCheck, CheckCircle, User, Phone, Home, CreditCard, ShoppingCart } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
 import type { EditableOrder } from '@/types/order';
@@ -17,9 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from "@/components/ui/label";
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
-import { Badge } from './ui/badge';
-import { RadioGroup, RadioGroupItem } from './ui/radio-group';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/select';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 type CustomerDetails = {
     name: string;
@@ -69,7 +67,6 @@ function SecureCodFormContent() {
     const [paymentMethod, setPaymentMethod] = useState<'Secure Charge on Delivery' | 'Cash on Delivery' | 'Prepaid'>('Secure Charge on Delivery');
     
     const [totalPrice, setTotalPrice] = useState(0);
-    const [originalPrice, setOriginalPrice] = useState(0);
     const [appliedDiscount, setAppliedDiscount] = useState<DiscountRule | null>(null);
 
     const [intentPaid, setIntentPaid] = useState(false);
@@ -136,7 +133,7 @@ function SecureCodFormContent() {
                     setOrderDetails({
                         productName: searchParams.get('name') || 'Product',
                         amount: parseFloat(searchParams.get('amount') || '0'),
-                        orderId: searchParams.get('order_id') || `LEGACY-${uuidv4().substring(0, 4)}`.toUpperCase(),
+                        orderId: searchParams.get('order_id') || `SNZ-${uuidv4().substring(0, 4)}`.toUpperCase(),
                         sellerId: searchParams.get('sellerId') || '',
                         sellerName: searchParams.get('sellerName') || '',
                         productImage: searchParams.get('image') || '',
@@ -158,8 +155,6 @@ function SecureCodFormContent() {
     useEffect(() => {
         async function calculatePrice() {
             const baseTotal = orderDetails.amount * quantity;
-            setOriginalPrice(baseTotal);
-    
             try {
                 const discounts = await getCollection<DiscountRule>('discounts');
                 const bestDiscount = discounts.find(d => 
@@ -186,7 +181,11 @@ function SecureCodFormContent() {
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
         const { name, email, contact, address, pincode } = customerDetails;
-        if (!name || !contact || !address || !pincode) return;
+        
+        if (!name || !contact || !address || !pincode) {
+            toast({ variant: 'destructive', title: "Missing Information", description: "Please fill out your delivery details first." });
+            return;
+        }
 
         setIsSubmitting(true);
 
@@ -198,10 +197,15 @@ function SecureCodFormContent() {
         };
         
         if (paymentMethod === 'Cash on Delivery') {
-            const newOrder: EditableOrder = { ...orderData, id: uuidv4(), paymentStatus: 'Pending', source: 'Shopify', isRead: false };
-            await saveDocument('orders', newOrder, newOrder.id);
-            setStep('complete');
-            setIsSubmitting(false);
+            try {
+                const newOrder: EditableOrder = { ...orderData, id: uuidv4(), paymentStatus: 'Pending', source: 'Manual', isRead: false };
+                await saveDocument('orders', newOrder, newOrder.id);
+                setStep('complete');
+            } catch (err) {
+                toast({ variant: 'destructive', title: "Order Failed" });
+            } finally {
+                setIsSubmitting(false);
+            }
             return;
         }
 
@@ -213,17 +217,19 @@ function SecureCodFormContent() {
                 });
                 const prepaidResult = await prepaidRes.json();
 
+                if (prepaidResult.error) throw new Error(prepaidResult.error);
+
                 const rzp = new (window as any).Razorpay({
-                    key: razorpayKeyId, amount: totalPrice * 100, currency: "INR", name: "Order Payment", description: orderDetails.productName, order_id: prepaidResult.order_id,
+                    key: razorpayKeyId, amount: totalPrice * 100, currency: "INR", name: "Prepaid Order", description: orderDetails.productName, order_id: prepaidResult.order_id,
                     handler: async (response: any) => {
-                        const finalOrder: EditableOrder = { ...orderData, id: prepaidResult.internal_order_id, paymentStatus: 'Paid', source: 'Shopify', isRead: false };
+                        const finalOrder: EditableOrder = { ...orderData, id: prepaidResult.internal_order_id, paymentStatus: 'Paid', source: 'Manual', isRead: false };
                         await saveDocument('orders', finalOrder, finalOrder.id);
                         const card = await getOrCreateShaktiCard(finalOrder);
                         if (card) setNewlyCreatedCard(card);
                         setStep('complete');
                     },
                     modal: { ondismiss: () => setIsSubmitting(false) },
-                    prefill: { name, email, contact }, theme: { color: "#663399" }
+                    prefill: { name, email, contact }, theme: { color: "#5a31f4" }
                 });
                 rzp.open();
             } catch (error: any) {
@@ -233,6 +239,7 @@ function SecureCodFormContent() {
             return;
         }
 
+        // Secure COD Logic
         try {
             if (!intentPaid) {
                 const intentRes = await fetch('/api/create-mandate-order', {
@@ -241,44 +248,47 @@ function SecureCodFormContent() {
                 });
                 const intentResult = await intentRes.json();
                 
-                await new Promise<void>((resolve, reject) => {
-                    const rzp = new (window as any).Razorpay({
-                        key: razorpayKeyId, order_id: intentResult.order_id, amount: 100, name: "Verify Order", description: "Confirming payment method.",
-                        handler: async () => {
-                            await saveDocument('leads', { ...orderData, id: intentResult.internal_order_id, paymentStatus: 'Intent Verified' }, intentResult.internal_order_id);
-                            setIntentPaid(true);
-                            resolve();
-                        },
-                        modal: { ondismiss: () => reject(new Error('Closed')) },
-                        prefill: { name, email, contact }, theme: { color: "#663399" }
-                    });
-                    rzp.open();
-                });
-            }
+                if (intentResult.error) throw new Error(intentResult.error);
 
-            const authRes = await fetch('/api/create-mandate-order', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ amount: totalPrice, productName: orderDetails.productName, isAuthorization: true, name, email, contact, address, pincode })
-            });
-            const authResult = await authRes.json();
-            
-            const rzp2 = new (window as any).Razorpay({
-                key: razorpayKeyId, order_id: authResult.order_id, amount: totalPrice * 100, name: "Authorize Payment", description: `Authorize ₹${totalPrice.toFixed(2)}`,
-                handler: async (response: any) => {
-                    const finalId = authResult.internal_order_id;
-                    await saveDocument('payment_info', { paymentId: response.razorpay_payment_id, orderId: finalId, status: 'authorized', authorizedAt: new Date().toISOString() }, finalId);
-                    const finalOrder: EditableOrder = { ...orderData, id: finalId, paymentStatus: 'Authorized', source: 'Shopify', isRead: false };
-                    await saveDocument('orders', finalOrder, finalId);
-                    const card = await getOrCreateShaktiCard(finalOrder);
-                    if (card) setNewlyCreatedCard(card);
-                    setStep('complete');
-                },
-                modal: { ondismiss: () => setIsSubmitting(false) },
-                prefill: { name, email, contact }, theme: { color: "#663399" }
-            });
-            rzp2.open();
+                const rzp = new (window as any).Razorpay({
+                    key: razorpayKeyId, order_id: intentResult.order_id, amount: 100, name: "Order Verification", description: "Intent Verification (₹1)",
+                    handler: async () => {
+                        await saveDocument('leads', { ...orderData, id: intentResult.internal_order_id, paymentStatus: 'Intent Verified' }, intentResult.internal_order_id);
+                        setIntentPaid(true);
+                        setIsSubmitting(false);
+                        toast({ title: "Verification Successful!", description: "Now complete the final authorization to secure your order." });
+                    },
+                    modal: { ondismiss: () => setIsSubmitting(false) },
+                    prefill: { name, email, contact }, theme: { color: "#5a31f4" }
+                });
+                rzp.open();
+            } else {
+                const authRes = await fetch('/api/create-mandate-order', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ amount: totalPrice, productName: orderDetails.productName, isAuthorization: true, name, email, contact, address, pincode })
+                });
+                const authResult = await authRes.json();
+                
+                if (authResult.error) throw new Error(authResult.error);
+
+                const rzp2 = new (window as any).Razorpay({
+                    key: razorpayKeyId, order_id: authResult.order_id, amount: totalPrice * 100, name: "Authorize Payment", description: `Authorizing ₹${totalPrice.toFixed(2)} in Trust Wallet`,
+                    handler: async (response: any) => {
+                        const finalId = authResult.internal_order_id;
+                        await saveDocument('payment_info', { paymentId: response.razorpay_payment_id, orderId: finalId, status: 'authorized', authorizedAt: new Date().toISOString() }, finalId);
+                        const finalOrder: EditableOrder = { ...orderData, id: finalId, paymentStatus: 'Authorized', source: 'Manual', isRead: false };
+                        await saveDocument('orders', finalOrder, finalId);
+                        const card = await getOrCreateShaktiCard(finalOrder);
+                        if (card) setNewlyCreatedCard(card);
+                        setStep('complete');
+                    },
+                    modal: { ondismiss: () => setIsSubmitting(false) },
+                    prefill: { name, email, contact }, theme: { color: "#5a31f4" }
+                });
+                rzp2.open();
+            }
         } catch (error: any) {
-            toast({ variant: 'destructive', title: 'Error', description: error.message });
+            toast({ variant: 'destructive', title: 'Secure COD Error', description: error.message });
             setIsSubmitting(false);
         }
     };
@@ -288,119 +298,125 @@ function SecureCodFormContent() {
     if (step === 'complete') {
         return (
             <div className="flex items-center justify-center min-h-screen bg-transparent p-4">
-                 <Card className="w-full max-w-md shadow-lg text-center">
+                 <Card className="w-full max-w-md shadow-lg text-center rounded-[32px] border-none p-8">
                     <CardHeader>
-                         <CheckCircle className="mx-auto h-12 w-12 text-green-500" />
-                        <CardTitle>Thank You!</CardTitle>
-                        <CardDescription>Your Order is Confirmed</CardDescription>
+                         <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <CheckCircle className="h-12 w-12" />
+                         </div>
+                        <CardTitle className="text-2xl font-black italic uppercase tracking-tighter">Order Confirmed!</CardTitle>
+                        <CardDescription>Thank you! Your purchase has been secured.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <p className="text-muted-foreground">The seller will process your order soon.</p>
+                        <p className="text-muted-foreground text-sm">The seller has been notified and will process your order soon.</p>
                         {newlyCreatedCard && (
-                            <div className="pt-4 border-t"><h4 className="font-semibold mb-2">Your Shakti Card is Ready!</h4><div className="flex justify-center"><ShaktiCard card={newlyCreatedCard} /></div></div>
+                            <div className="pt-6 border-t">
+                                <h4 className="font-bold uppercase text-[10px] text-slate-400 tracking-widest mb-4">Your Shakti Card is Ready!</h4>
+                                <div className="flex justify-center"><ShaktiCard card={newlyCreatedCard} /></div>
+                            </div>
                         )}
                     </CardContent>
-                     <CardFooter className="flex-col gap-2">
-                        <Link href="/customer/login" className="w-full"><Button className="w-full">Go to Customer Portal</Button></Link>
-                         <Button className="w-full" variant="outline" onClick={() => window.location.href = returnUrl}>Go Back to Store</Button>
-                         <a href="https://www.snazzify.co.in" className="text-xs text-muted-foreground hover:underline">Continue shopping on snazzify.co.in</a>
+                     <CardFooter className="flex-col gap-3 pt-8">
+                        <Link href="/customer/login" className="w-full"><Button className="w-full h-12 font-bold rounded-xl">Go to Customer Portal</Button></Link>
+                         <Button className="w-full h-12 font-bold rounded-xl" variant="outline" onClick={() => window.location.href = returnUrl}>Return to Store</Button>
                     </CardFooter>
                  </Card>
             </div>
         );
     }
 
-    const isAllowed = (method: string) => orderDetails.allowedPaymentMethods.includes(method);
+    const isAllowed = (method: string) => orderDetails.allowedPaymentMethods.length === 0 || orderDetails.allowedPaymentMethods.includes(method);
 
     return (
         <div className="flex items-center justify-center min-h-screen bg-transparent p-4">
-            <Card className="w-full max-w-lg shadow-lg">
+            <Card className="w-full max-w-lg shadow-2xl rounded-[32px] border-none overflow-hidden">
                 <form onSubmit={handleSubmit}>
-                    <CardHeader className="text-center">
+                    <CardHeader className="text-center bg-slate-50 p-8 border-b">
                         <ShieldCheck className="mx-auto h-12 w-12 text-primary" />
-                        <CardTitle>Secure Your Order</CardTitle>
-                        <CardDescription>Order {orderDetails.orderId}</CardDescription>
+                        <CardTitle className="text-2xl font-black italic uppercase tracking-tighter mt-2">Secure Checkout</CardTitle>
+                        <CardDescription className="font-mono text-xs uppercase tracking-widest">Order Ref: {orderDetails.orderId}</CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-6">
-                        <Card className="bg-muted/30">
-                            <CardContent className="p-4 space-y-3">
-                                {orderDetails.productImage && (
-                                    <div className="my-4 flex justify-center">
-                                        <Image src={orderDetails.productImage} alt={orderDetails.productName} width={150} height={150} className="rounded-lg object-contain bg-white" unoptimized />
-                                    </div>
-                                )}
-                                <div className="flex justify-between items-center text-sm">
-                                    <span className="text-muted-foreground">Product:</span>
-                                    <span className="font-medium text-right">{orderDetails.productName}</span>
-                                </div>
-                                 <div className="flex justify-between items-center text-sm font-bold text-lg pt-2 border-t">
-                                    <span className="text-muted-foreground">Total:</span>
-                                    <span>₹{totalPrice.toFixed(2)}</span>
-                                </div>
-                            </CardContent>
-                        </Card>
-                        
-                        <div className="space-y-3">
-                            <h3 className="font-semibold">Your Details</h3>
+                    <CardContent className="p-8 space-y-8">
+                        {/* Delivery Section */}
+                        <div className="space-y-4">
+                            <h3 className="text-sm font-black uppercase text-slate-400 tracking-widest">Delivery Details</h3>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="name">Full Name</Label>
-                                    <div className="relative"><User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="name" required value={customerDetails.name} onChange={e => setCustomerDetails({...customerDetails, name: e.target.value})} className="pl-9" /></div>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="contact">Contact Number</Label>
-                                    <div className="relative"><Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="contact" type="tel" required value={customerDetails.contact} onChange={e => setCustomerDetails({...customerDetails, contact: e.target.value})} className="pl-9" /></div>
-                                </div>
-                                <div className="space-y-2 sm:col-span-2">
-                                    <Label htmlFor="address">Full Delivery Address</Label>
-                                    <div className="relative"><Home className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="address" required value={customerDetails.address} onChange={e => setCustomerDetails({...customerDetails, address: e.target.value})} className="pl-9" /></div>
-                                </div>
+                                <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase ml-1">Full Name</Label><Input required value={customerDetails.name} onChange={e => setCustomerDetails({...customerDetails, name: e.target.value})} className="h-11 rounded-xl bg-slate-50 border-none font-medium" /></div>
+                                <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase ml-1">Mobile Number</Label><Input type="tel" required value={customerDetails.contact} onChange={e => setCustomerDetails({...customerDetails, contact: e.target.value})} className="h-11 rounded-xl bg-slate-50 border-none font-medium" /></div>
+                                <div className="space-y-1.5 sm:col-span-2"><Label className="text-[10px] font-bold uppercase ml-1">Shipping Address</Label><Input required value={customerDetails.address} onChange={e => setCustomerDetails({...customerDetails, address: e.target.value})} className="h-11 rounded-xl bg-slate-50 border-none font-medium" /></div>
+                                <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase ml-1">Pincode</Label><Input required value={customerDetails.pincode} onChange={e => setCustomerDetails({...customerDetails, pincode: e.target.value})} className="h-11 rounded-xl bg-slate-50 border-none font-medium" /></div>
                             </div>
                         </div>
 
-                        <div className="space-y-3">
-                            <Label className="font-semibold">Select Payment Method</Label>
-                            <RadioGroup value={paymentMethod} onValueChange={(value: any) => setPaymentMethod(value)} className="grid grid-cols-1 gap-4">
+                        {/* Payment Selection Section */}
+                        <div className="space-y-4">
+                            <h3 className="text-sm font-black uppercase text-slate-400 tracking-widest">Select Payment Method</h3>
+                            <RadioGroup value={paymentMethod} onValueChange={(value: any) => setPaymentMethod(value)} className="grid grid-cols-1 gap-3">
                                 {isAllowed('Secure COD') && (
-                                    <Label htmlFor="r-scod" className={cn("flex items-center gap-3 rounded-md border-2 p-4 cursor-pointer", paymentMethod === 'Secure Charge on Delivery' && 'border-primary bg-primary/5')}>
-                                        <RadioGroupItem value="Secure Charge on Delivery" id="r-scod" />
-                                        <div className="flex-1">
-                                            <p className="font-bold flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-primary" /> Secure COD</p>
-                                            <p className="text-[10px] text-muted-foreground">Funds held in Trust Wallet. Release only on dispatch.</p>
+                                    <Label htmlFor="r-scod" className={cn(
+                                        "flex items-center gap-4 rounded-2xl border-2 p-5 cursor-pointer transition-all duration-200", 
+                                        paymentMethod === 'Secure Charge on Delivery' ? 'border-primary bg-primary/5' : 'border-slate-100 hover:border-slate-200'
+                                    )}>
+                                        <RadioGroupItem value="Secure Charge on Delivery" id="r-scod" className="shrink-0" />
+                                        <div className="flex-1 space-y-0.5">
+                                            <p className="font-black italic uppercase text-sm flex items-center gap-2">
+                                                <ShieldCheck className="h-4 w-4 text-primary" /> Secure COD
+                                            </p>
+                                            <p className="text-[10px] text-muted-foreground font-medium">Funds held in Trust Wallet. Release only on dispatch.</p>
                                         </div>
                                     </Label>
                                 )}
+                                
                                 {isAllowed('Prepaid') && (
-                                    <Label htmlFor="r-pre" className={cn("flex items-center gap-3 rounded-md border-2 p-4 cursor-pointer", paymentMethod === 'Prepaid' && 'border-primary bg-primary/5')}>
-                                        <RadioGroupItem value="Prepaid" id="r-pre" />
-                                        <div className="flex-1">
-                                            <p className="font-bold flex items-center gap-2"><CreditCard className="h-4 w-4 text-primary" /> Online Payment</p>
-                                            <p className="text-[10px] text-muted-foreground">Pay full amount now for fastest processing.</p>
+                                    <Label htmlFor="r-pre" className={cn(
+                                        "flex items-center gap-4 rounded-2xl border-2 p-5 cursor-pointer transition-all duration-200", 
+                                        paymentMethod === 'Prepaid' ? 'border-primary bg-primary/5' : 'border-slate-100 hover:border-slate-200'
+                                    )}>
+                                        <RadioGroupItem value="Prepaid" id="r-pre" className="shrink-0" />
+                                        <div className="flex-1 space-y-0.5">
+                                            <p className="font-black italic uppercase text-sm flex items-center gap-2">
+                                                <CreditCard className="h-4 w-4 text-primary" /> Online Payment
+                                            </p>
+                                            <p className="text-[10px] text-muted-foreground font-medium">Pay full amount now for fastest processing.</p>
                                         </div>
                                     </Label>
                                 )}
+
                                 {isAllowed('Cash on Delivery') && (
-                                    <Label htmlFor="r-cod" className={cn("flex items-center gap-3 rounded-md border-2 p-4 cursor-pointer", paymentMethod === 'Cash on Delivery' && 'border-primary bg-primary/5')}>
-                                        <RadioGroupItem value="Cash on Delivery" id="r-cod" />
-                                        <div className="flex-1">
-                                            <p className="font-bold flex items-center gap-2"><ShoppingCart className="h-4 w-4 text-primary" /> Standard COD</p>
-                                            <p className="text-[10px] text-muted-foreground">Pay cash at your doorstep.</p>
+                                    <Label htmlFor="r-cod" className={cn(
+                                        "flex items-center gap-4 rounded-2xl border-2 p-5 cursor-pointer transition-all duration-200", 
+                                        paymentMethod === 'Cash on Delivery' ? 'border-primary bg-primary/5' : 'border-slate-100 hover:border-slate-200'
+                                    )}>
+                                        <RadioGroupItem value="Cash on Delivery" id="r-cod" className="shrink-0" />
+                                        <div className="flex-1 space-y-0.5">
+                                            <p className="font-black italic uppercase text-sm flex items-center gap-2">
+                                                <ShoppingCart className="h-4 w-4 text-primary" /> Standard COD
+                                            </p>
+                                            <p className="text-[10px] text-muted-foreground font-medium">Pay cash at your doorstep.</p>
                                         </div>
                                     </Label>
                                 )}
                             </RadioGroup>
                         </div>
                     </CardContent>
-                    <CardFooter className="flex-col gap-2">
-                        <Button type="submit" className="w-full" disabled={isSubmitting || loading}>
-                            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                            {paymentMethod === 'Secure Charge on Delivery' 
-                                ? (intentPaid ? `Authorize Final Payment: ₹${totalPrice.toFixed(2)}` : 'Proceed to Verify (₹1)') 
-                                : `Pay ₹${totalPrice.toFixed(2)} Now`}
+
+                    <CardFooter className="flex flex-col gap-6 p-8 pt-0">
+                        <Button type="submit" className="w-full h-16 text-lg font-black uppercase italic rounded-2xl shadow-xl shadow-primary/20 transition-transform active:scale-95" disabled={isSubmitting}>
+                            {isSubmitting ? (
+                                <Loader2 className="mr-2 h-6 w-6 animate-spin" />
+                            ) : (
+                                paymentMethod === 'Secure Charge on Delivery' 
+                                    ? (intentPaid ? `Authorize Final: ₹${totalPrice.toFixed(2)}` : 'Proceed to Verify (₹1)') 
+                                    : (paymentMethod === 'Cash on Delivery' ? 'Confirm Order' : `Pay ₹${totalPrice.toFixed(2)} Now`)
+                            )}
                         </Button>
-                        <div className="flex items-center justify-center space-x-4 text-sm mt-2">
-                            <Link href="/customer/login" passHref><span className="text-primary hover:underline cursor-pointer inline-flex items-center gap-1">Customer Login</span></Link>
-                            <Link href="/faq" passHref><span className="text-primary hover:underline cursor-pointer inline-flex items-center gap-1"><HelpCircle className="h-4 w-4" />How this works</span></Link>
+                        
+                        <div className="flex items-center justify-center gap-8 w-full">
+                            <Link href="/customer/login" className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline">
+                                Customer Login
+                            </Link>
+                            <Link href="/faq" className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline inline-flex items-center gap-1.5">
+                                <HelpCircle className="h-3.5 w-3.5" /> How this works
+                            </Link>
                         </div>
                     </CardFooter>
                 </form>
