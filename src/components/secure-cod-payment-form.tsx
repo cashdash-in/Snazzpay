@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, HelpCircle, ShieldCheck, CheckCircle, User, Phone, Mail as MailIcon, Home, MapPin, Percent } from "lucide-react";
+import { Loader2, HelpCircle, ShieldCheck, CheckCircle, User, Phone, Mail as MailIcon, Home, MapPin, Percent, CreditCard, ShoppingCart } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
 import type { EditableOrder } from '@/types/order';
@@ -51,6 +51,7 @@ function SecureCodFormContent() {
         productId: '',
         vendor: '',
         collection: '',
+        allowedPaymentMethods: [] as string[],
     });
     
     const [quantity, setQuantity] = useState(1);
@@ -65,7 +66,7 @@ function SecureCodFormContent() {
         name: '', email: '', contact: '', address: '', pincode: ''
     });
     const [newlyCreatedCard, setNewlyCreatedCard] = useState<ShaktiCardData | null>(null);
-    const [paymentMethod, setPaymentMethod] = useState<'Secure Charge on Delivery' | 'Cash on Delivery'>('Secure Charge on Delivery');
+    const [paymentMethod, setPaymentMethod] = useState<'Secure Charge on Delivery' | 'Cash on Delivery' | 'Prepaid'>('Secure Charge on Delivery');
     
     const [totalPrice, setTotalPrice] = useState(0);
     const [originalPrice, setOriginalPrice] = useState(0);
@@ -120,6 +121,7 @@ function SecureCodFormContent() {
                             productId: lead.productId || '',
                             vendor: lead.vendorName || '',
                             collection: lead.source || '',
+                            allowedPaymentMethods: (lead as any).allowedPaymentMethods || ['Secure COD', 'Cash on Delivery', 'Prepaid'],
                         });
                         setCustomerDetails({
                             name: lead.customerName,
@@ -141,6 +143,7 @@ function SecureCodFormContent() {
                         productId: searchParams.get('productId') || '',
                         vendor: searchParams.get('vendor') || '',
                         collection: searchParams.get('collection') || '',
+                        allowedPaymentMethods: ['Secure COD', 'Cash on Delivery', 'Prepaid'],
                     });
                 }
             } catch (error) {
@@ -199,6 +202,34 @@ function SecureCodFormContent() {
             await saveDocument('orders', newOrder, newOrder.id);
             setStep('complete');
             setIsSubmitting(false);
+            return;
+        }
+
+        if (paymentMethod === 'Prepaid') {
+            try {
+                const prepaidRes = await fetch('/api/create-mandate-order', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ amount: totalPrice, productName: orderDetails.productName, isAuthorization: false, name, email, contact, address, pincode })
+                });
+                const prepaidResult = await prepaidRes.json();
+
+                const rzp = new (window as any).Razorpay({
+                    key: razorpayKeyId, amount: totalPrice * 100, currency: "INR", name: "Order Payment", description: orderDetails.productName, order_id: prepaidResult.order_id,
+                    handler: async (response: any) => {
+                        const finalOrder: EditableOrder = { ...orderData, id: prepaidResult.internal_order_id, paymentStatus: 'Paid', source: 'Shopify', isRead: false };
+                        await saveDocument('orders', finalOrder, finalOrder.id);
+                        const card = await getOrCreateShaktiCard(finalOrder);
+                        if (card) setNewlyCreatedCard(card);
+                        setStep('complete');
+                    },
+                    modal: { ondismiss: () => setIsSubmitting(false) },
+                    prefill: { name, email, contact }, theme: { color: "#663399" }
+                });
+                rzp.open();
+            } catch (error: any) {
+                toast({ variant: 'destructive', title: 'Payment Error', description: error.message });
+                setIsSubmitting(false);
+            }
             return;
         }
 
@@ -279,6 +310,8 @@ function SecureCodFormContent() {
         );
     }
 
+    const isAllowed = (method: string) => orderDetails.allowedPaymentMethods.includes(method);
+
     return (
         <div className="flex items-center justify-center min-h-screen bg-transparent p-4">
             <Card className="w-full max-w-lg shadow-lg">
@@ -327,22 +360,43 @@ function SecureCodFormContent() {
 
                         <div className="space-y-3">
                             <Label className="font-semibold">Select Payment Method</Label>
-                            <RadioGroup value={paymentMethod} onValueChange={(value: any) => setPaymentMethod(value)} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <Label htmlFor="r-scod" className={cn("flex flex-col items-center justify-center rounded-md border-2 p-4 cursor-pointer", paymentMethod === 'Secure Charge on Delivery' && 'border-primary')}>
-                                    <RadioGroupItem value="Secure Charge on Delivery" id="r-scod" className="sr-only"/>
-                                    <span className="font-bold">Secure COD</span>
-                                </Label>
-                                <Label htmlFor="r-cod" className={cn("flex flex-col items-center justify-center rounded-md border-2 p-4 cursor-pointer", paymentMethod === 'Cash on Delivery' && 'border-primary')}>
-                                    <RadioGroupItem value="Cash on Delivery" id="r-cod" className="sr-only"/>
-                                    <span className="font-bold">Standard COD</span>
-                                </Label>
+                            <RadioGroup value={paymentMethod} onValueChange={(value: any) => setPaymentMethod(value)} className="grid grid-cols-1 gap-4">
+                                {isAllowed('Secure COD') && (
+                                    <Label htmlFor="r-scod" className={cn("flex items-center gap-3 rounded-md border-2 p-4 cursor-pointer", paymentMethod === 'Secure Charge on Delivery' && 'border-primary bg-primary/5')}>
+                                        <RadioGroupItem value="Secure Charge on Delivery" id="r-scod" />
+                                        <div className="flex-1">
+                                            <p className="font-bold flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-primary" /> Secure COD</p>
+                                            <p className="text-[10px] text-muted-foreground">Funds held in Trust Wallet. Release only on dispatch.</p>
+                                        </div>
+                                    </Label>
+                                )}
+                                {isAllowed('Prepaid') && (
+                                    <Label htmlFor="r-pre" className={cn("flex items-center gap-3 rounded-md border-2 p-4 cursor-pointer", paymentMethod === 'Prepaid' && 'border-primary bg-primary/5')}>
+                                        <RadioGroupItem value="Prepaid" id="r-pre" />
+                                        <div className="flex-1">
+                                            <p className="font-bold flex items-center gap-2"><CreditCard className="h-4 w-4 text-primary" /> Online Payment</p>
+                                            <p className="text-[10px] text-muted-foreground">Pay full amount now for fastest processing.</p>
+                                        </div>
+                                    </Label>
+                                )}
+                                {isAllowed('Cash on Delivery') && (
+                                    <Label htmlFor="r-cod" className={cn("flex items-center gap-3 rounded-md border-2 p-4 cursor-pointer", paymentMethod === 'Cash on Delivery' && 'border-primary bg-primary/5')}>
+                                        <RadioGroupItem value="Cash on Delivery" id="r-cod" />
+                                        <div className="flex-1">
+                                            <p className="font-bold flex items-center gap-2"><ShoppingCart className="h-4 w-4 text-primary" /> Standard COD</p>
+                                            <p className="text-[10px] text-muted-foreground">Pay cash at your doorstep.</p>
+                                        </div>
+                                    </Label>
+                                )}
                             </RadioGroup>
                         </div>
                     </CardContent>
                     <CardFooter className="flex-col gap-2">
                         <Button type="submit" className="w-full" disabled={isSubmitting || loading}>
                             {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                            {intentPaid ? `Authorize Final Payment: ₹${totalPrice.toFixed(2)}` : 'Proceed to Payment'}
+                            {paymentMethod === 'Secure Charge on Delivery' 
+                                ? (intentPaid ? `Authorize Final Payment: ₹${totalPrice.toFixed(2)}` : 'Proceed to Verify (₹1)') 
+                                : `Pay ₹${totalPrice.toFixed(2)} Now`}
                         </Button>
                         <div className="flex items-center justify-center space-x-4 text-sm mt-2">
                             <Link href="/customer/login" passHref><span className="text-primary hover:underline cursor-pointer inline-flex items-center gap-1">Customer Login</span></Link>

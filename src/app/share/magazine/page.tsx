@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/hooks/use-auth';
-import type { SellerProduct } from '@/app/seller/ai-product-uploader/page';
+import type { SellerProduct } from '@/types/product';
 import Image from 'next/image';
 import { 
     Loader2, Share2, Copy, MessageSquare, BookOpen, 
@@ -18,7 +18,7 @@ import {
 import { getCollection, saveDocument, getDocument } from '@/services/firestore';
 import { getCookie } from 'cookies-next';
 import { Label } from '@/components/ui/label';
-import type { ProductDrop } from '@/app/vendor/product-drops/page';
+import type { ProductDrop } from '@/types/product';
 import { Input } from '@/components/ui/input';
 import { v4 as uuidv4 } from 'uuid';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
@@ -155,14 +155,6 @@ export default function ShareMagazinePage() {
         const msg = `Check out our new ${magazineTitle} here: ${magazineLink}`;
         window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
     };
-
-    if (!mounted) {
-        return (
-            <AppShell title="Marketing & Creative Studio">
-                <div className="flex justify-center p-20"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>
-            </AppShell>
-        );
-    }
 
     return (
         <AppShell title="Marketing & Creative Studio">
@@ -354,10 +346,6 @@ export default function ShareMagazinePage() {
                     </div>
                 </TabsContent>
             </Tabs>
-
-            <footer className="bg-slate-50 border-t p-4 flex justify-end shrink-0">
-                <DialogClose asChild><Button variant="ghost" className="rounded-xl px-8 font-bold uppercase text-[10px]">Close Ad Studio</Button></DialogClose>
-            </footer>
-        </DialogContent>
+        </AppShell>
     );
 }
