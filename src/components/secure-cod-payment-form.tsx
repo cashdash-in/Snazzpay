@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, HelpCircle, ShieldCheck, CheckCircle, User, Phone, Home, CreditCard, ShoppingCart } from "lucide-react";
+import { Loader2, HelpCircle, ShieldCheck, CheckCircle, CreditCard, ShoppingCart } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
 import type { EditableOrder } from '@/types/order';
@@ -15,7 +15,6 @@ import { ShaktiCard, type ShaktiCardData } from '@/components/shakti-card';
 import { sanitizePhoneNumber } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Label } from "@/components/ui/label";
-import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
@@ -53,9 +52,6 @@ function SecureCodFormContent() {
     });
     
     const [quantity, setQuantity] = useState(1);
-    const [selectedSize, setSelectedSize] = useState('');
-    const [selectedColor, setSelectedColor] = useState('');
-
     const [razorpayKeyId, setRazorpayKeyId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -68,7 +64,6 @@ function SecureCodFormContent() {
     
     const [totalPrice, setTotalPrice] = useState(0);
     const [appliedDiscount, setAppliedDiscount] = useState<DiscountRule | null>(null);
-
     const [intentPaid, setIntentPaid] = useState(false);
     const [returnUrl, setReturnUrl] = useState('https://www.snazzify.co.in');
 
@@ -183,7 +178,7 @@ function SecureCodFormContent() {
         const { name, email, contact, address, pincode } = customerDetails;
         
         if (!name || !contact || !address || !pincode) {
-            toast({ variant: 'destructive', title: "Missing Information", description: "Please fill out your delivery details first." });
+            toast({ variant: 'destructive', title: "Missing Information", description: "Please fill out your delivery details." });
             return;
         }
 
@@ -193,7 +188,7 @@ function SecureCodFormContent() {
             orderId: orderDetails.orderId, customerName: name, customerEmail: email, contactNo: contact, customerAddress: address, pincode,
             productOrdered: orderDetails.productName, quantity, price: totalPrice.toString(), date: new Date().toISOString(),
             sellerId: orderDetails.sellerId, sellerName: orderDetails.sellerName, paymentMethod,
-            size: selectedSize, color: selectedColor, imageDataUris: orderDetails.productImage ? [orderDetails.productImage] : [],
+            imageDataUris: orderDetails.productImage ? [orderDetails.productImage] : [],
         };
         
         if (paymentMethod === 'Cash on Delivery') {
@@ -216,7 +211,6 @@ function SecureCodFormContent() {
                     body: JSON.stringify({ amount: totalPrice, productName: orderDetails.productName, isAuthorization: false, name, email, contact, address, pincode })
                 });
                 const prepaidResult = await prepaidRes.json();
-
                 if (prepaidResult.error) throw new Error(prepaidResult.error);
 
                 const rzp = new (window as any).Razorpay({
@@ -247,7 +241,6 @@ function SecureCodFormContent() {
                     body: JSON.stringify({ amount: 1, productName: `Verify ${orderDetails.productName}`, isAuthorization: false, name, email, contact, address, pincode })
                 });
                 const intentResult = await intentRes.json();
-                
                 if (intentResult.error) throw new Error(intentResult.error);
 
                 const rzp = new (window as any).Razorpay({
@@ -256,7 +249,7 @@ function SecureCodFormContent() {
                         await saveDocument('leads', { ...orderData, id: intentResult.internal_order_id, paymentStatus: 'Intent Verified' }, intentResult.internal_order_id);
                         setIntentPaid(true);
                         setIsSubmitting(false);
-                        toast({ title: "Verification Successful!", description: "Now complete the final authorization to secure your order." });
+                        toast({ title: "Verification Successful!", description: "Complete the final authorization to secure your order." });
                     },
                     modal: { ondismiss: () => setIsSubmitting(false) },
                     prefill: { name, email, contact }, theme: { color: "#5a31f4" }
@@ -268,7 +261,6 @@ function SecureCodFormContent() {
                     body: JSON.stringify({ amount: totalPrice, productName: orderDetails.productName, isAuthorization: true, name, email, contact, address, pincode })
                 });
                 const authResult = await authRes.json();
-                
                 if (authResult.error) throw new Error(authResult.error);
 
                 const rzp2 = new (window as any).Razorpay({
@@ -307,7 +299,7 @@ function SecureCodFormContent() {
                         <CardDescription>Thank you! Your purchase has been secured.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <p className="text-muted-foreground text-sm">The seller has been notified and will process your order soon.</p>
+                        <p className="text-muted-foreground text-sm">The seller will process your order soon.</p>
                         {newlyCreatedCard && (
                             <div className="pt-6 border-t">
                                 <h4 className="font-bold uppercase text-[10px] text-slate-400 tracking-widest mb-4">Your Shakti Card is Ready!</h4>
@@ -336,7 +328,6 @@ function SecureCodFormContent() {
                         <CardDescription className="font-mono text-xs uppercase tracking-widest">Order Ref: {orderDetails.orderId}</CardDescription>
                     </CardHeader>
                     <CardContent className="p-8 space-y-8">
-                        {/* Delivery Section */}
                         <div className="space-y-4">
                             <h3 className="text-sm font-black uppercase text-slate-400 tracking-widest">Delivery Details</h3>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -347,7 +338,6 @@ function SecureCodFormContent() {
                             </div>
                         </div>
 
-                        {/* Payment Selection Section */}
                         <div className="space-y-4">
                             <h3 className="text-sm font-black uppercase text-slate-400 tracking-widest">Select Payment Method</h3>
                             <RadioGroup value={paymentMethod} onValueChange={(value: any) => setPaymentMethod(value)} className="grid grid-cols-1 gap-3">
@@ -400,12 +390,12 @@ function SecureCodFormContent() {
                     </CardContent>
 
                     <CardFooter className="flex flex-col gap-6 p-8 pt-0">
-                        <Button type="submit" className="w-full h-16 text-lg font-black uppercase italic rounded-2xl shadow-xl shadow-primary/20 transition-transform active:scale-95" disabled={isSubmitting}>
+                        <Button type="submit" className="w-full h-16 text-lg font-black uppercase italic rounded-2xl shadow-xl shadow-primary/20" disabled={isSubmitting}>
                             {isSubmitting ? (
                                 <Loader2 className="mr-2 h-6 w-6 animate-spin" />
                             ) : (
                                 paymentMethod === 'Secure Charge on Delivery' 
-                                    ? (intentPaid ? `Authorize Final: ₹${totalPrice.toFixed(2)}` : 'Proceed to Verify (₹1)') 
+                                    ? (intentPaid ? `Authorize Payment: ₹${totalPrice.toFixed(2)}` : 'Proceed to Verify (₹1)') 
                                     : (paymentMethod === 'Cash on Delivery' ? 'Confirm Order' : `Pay ₹${totalPrice.toFixed(2)} Now`)
                             )}
                         </Button>
