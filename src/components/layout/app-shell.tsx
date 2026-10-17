@@ -73,6 +73,7 @@ import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { getCollection } from '@/services/firestore';
 import type { EditableOrder } from '@/types/order';
+import { SellerGenee } from '@/components/genee/seller-genee';
 
 type MenuItem = {
     href: string;
@@ -378,9 +379,10 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
             </DropdownMenu>
           </div>
         </header>
-        <main className="flex-1 p-4 md:p-6 lg:p-8">
+        <main className="flex-1 p-4 md:p-6 lg:p-8 relative">
           {children}
         </main>
+        <SellerGenee />
       </SidebarInset>
     </SidebarProvider>
   );
