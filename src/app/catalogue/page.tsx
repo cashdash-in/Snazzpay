@@ -87,26 +87,20 @@ function CatalogueOrderPageContent() {
     const [appliedDiscount, setAppliedDiscount] = useState<DiscountRule | null>(null);
     const [returnUrl, setReturnUrl] = useState('https://www.snazzify.co.in');
 
-    const garmentType = useMemo(() => {
-        if (!product) return 'Fabric';
+    const categoryInfo = useMemo(() => {
+        if (!product) return { type: 'Fabric', hint: 'selfie' };
         const title = product.title.toLowerCase();
-        if ((title.includes('shirt') || title.includes('t-shirt')) && !title.includes('dress')) return 'Shirt';
-        if (title.includes('dress') || title.includes('frock')) return 'Dress';
-        if (title.includes('kurti') || title.includes('kurta')) return 'Kurti';
-        return 'Fabric';
+        if (title.includes('watch')) return { type: 'Accessory', hint: 'wrist' };
+        if (title.includes('shoe') || title.includes('sandal') || title.includes('sneaker') || title.includes('footwear') || (title.includes('frock') === false && title.includes('heel'))) return { type: 'Footwear', hint: 'feet' };
+        if (title.includes('glass') || title.includes('shade') || title.includes('spectacle')) return { type: 'Eyewear', hint: 'face' };
+        if ((title.includes('shirt') || title.includes('t-shirt')) && !title.includes('dress')) return { type: 'Shirt', hint: 'selfie' };
+        if (title.includes('dress') || title.includes('frock')) return { type: 'Dress', hint: 'selfie' };
+        if (title.includes('kurti') || title.includes('kurta')) return { type: 'Kurti', hint: 'selfie' };
+        return { type: 'Fabric', hint: 'selfie' };
     }, [product]);
 
-    const isShirt = garmentType === 'Shirt';
-
-    const showSleeveOption = useMemo(() => {
-        if (isShirt) return true;
-        return ['Western Wear', 'Kurti', 'Western Dress', 'Standard Saree', 'East Indian Lugra'].includes(selectedDrapeStyle);
-    }, [selectedDrapeStyle, isShirt]);
-
-    const showStyleOption = useMemo(() => {
-        if (isShirt) return false;
-        return true;
-    }, [isShirt]);
+    const isShirt = categoryInfo.type === 'Shirt';
+    const isApparel = categoryInfo.type === 'Fabric' || categoryInfo.type === 'Shirt' || categoryInfo.type === 'Dress' || categoryInfo.type === 'Kurti';
 
     useEffect(() => {
         setMounted(true);
@@ -160,9 +154,9 @@ function CatalogueOrderPageContent() {
                     else if (displayProduct.allowedPaymentMethods?.includes('Cash on Delivery')) setPaymentMethod('Cash on Delivery');
 
                     if (displayProduct.isEastIndianLugra) setSelectedDrapeStyle('East Indian Lugra');
-                    else if (garmentType === 'Shirt') setSelectedDrapeStyle('Western Wear');
-                    else if (garmentType === 'Dress') setSelectedDrapeStyle('Western Dress');
-                    else if (garmentType === 'Kurti') setSelectedDrapeStyle('Kurti');
+                    else if (categoryInfo.type === 'Shirt') setSelectedDrapeStyle('Western Wear');
+                    else if (categoryInfo.type === 'Dress') setSelectedDrapeStyle('Western Dress');
+                    else if (categoryInfo.type === 'Kurti') setSelectedDrapeStyle('Kurti');
 
                     const discounts = await getCollection<DiscountRule>('discounts');
                     const best = discounts.find(d => d.id === `product_${productId}` || d.id === `vendor_${displayProduct.vendor}`) || null;
@@ -175,7 +169,7 @@ function CatalogueOrderPageContent() {
             }
         }
         loadProduct();
-    }, [searchParams, garmentType]);
+    }, [searchParams, categoryInfo.type]);
 
     useEffect(() => {
         if (product) {
@@ -233,7 +227,7 @@ function CatalogueOrderPageContent() {
                 personImageDataUri: personUri,
                 productImageDataUri: productUri,
                 productTitle: product.title,
-                garmentType: garmentType as any,
+                garmentType: categoryInfo.type as any,
                 drapeStyle: selectedDrapeStyle,
                 sleeveLength: selectedSleeves
             });
@@ -353,7 +347,7 @@ function CatalogueOrderPageContent() {
                             <div className="flex flex-col gap-6 relative z-10">
                                 <div className="space-y-1">
                                     <h3 className="text-xl font-black italic uppercase flex items-center gap-2"><Sparkles className="h-5 w-5 text-purple-400" /> Magic Mirror</h3>
-                                    <p className="text-xs text-slate-400">Experience a perfect virtual fit instantly.</p>
+                                    <p className="text-xs text-slate-400">Instantly see how it looks on your {categoryInfo.hint}.</p>
                                 </div>
                                 
                                 <div className="bg-white/5 border border-white/10 p-4 rounded-2xl space-y-4">
@@ -366,12 +360,12 @@ function CatalogueOrderPageContent() {
                                         />
                                         <Label htmlFor="privacy-consent" className="text-[10px] font-medium leading-relaxed text-slate-300">
                                             <span className="font-bold text-white uppercase block mb-1">Privacy Promise</span>
-                                            We do not save any pics to our server. Your selfie is processed instantly and removed immediately after this session.
+                                            We do not save any pics to our server. Your photo is processed instantly and removed immediately after this session.
                                         </Label>
                                     </div>
 
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-white/10">
-                                        {showStyleOption && (
+                                        {isApparel && !isShirt && (
                                             <div className="space-y-2">
                                                 <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Style Mode</Label>
                                                 <Select value={selectedDrapeStyle} onValueChange={(val: any) => setSelectedDrapeStyle(val)}>
@@ -398,7 +392,7 @@ function CatalogueOrderPageContent() {
                                             </div>
                                         )}
 
-                                        {showSleeveOption && (
+                                        {isApparel && (
                                             <div className="space-y-2">
                                                 <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Sleeves</Label>
                                                 <Select value={selectedSleeves} onValueChange={(val: any) => setSelectedSleeves(val)}>
@@ -438,7 +432,7 @@ function CatalogueOrderPageContent() {
                                                     disabled={!hasConsented || isTryOnLoading}
                                                     className="bg-primary hover:bg-primary/90 text-white rounded-xl h-12 font-bold shadow-lg disabled:opacity-50"
                                                 >
-                                                    <Camera className="mr-2 h-4 w-4" /> Take a Selfie
+                                                    <Camera className="mr-2 h-4 w-4" /> Take {categoryInfo.hint === 'selfie' ? 'Photo' : categoryInfo.hint.toUpperCase()}
                                                 </Button>
                                                 <Button 
                                                     onClick={() => galleryInputRef.current?.click()} 
@@ -472,10 +466,10 @@ function CatalogueOrderPageContent() {
                                 </div>
                             </div>
                             <div className="space-y-4">
-                                <div className="space-y-1"><Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Full Name</Label><Input required value={customerDetails.name} onChange={e => setCustomerDetails({...customerDetails, name: e.target.value})} className="h-12 rounded-xl bg-slate-50 border-none font-bold" /></div>
-                                <div className="space-y-1"><Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">WhatsApp Mobile</Label><Input required type="tel" value={customerDetails.contact} onChange={e => setCustomerDetails({...customerDetails, contact: e.target.value})} className="h-12 rounded-xl bg-slate-50 border-none font-bold" /></div>
-                                <div className="space-y-1"><Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Delivery Address</Label><Input required value={customerDetails.address} onChange={e => setCustomerDetails({...customerDetails, address: e.target.value})} className="h-12 rounded-xl bg-slate-50 border-none font-bold" /></div>
-                                <div className="space-y-1"><Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Pincode</Label><Input required value={customerDetails.pincode} onChange={e => setCustomerDetails({...customerDetails, pincode: e.target.value})} className="h-12 rounded-xl bg-slate-50 border-none font-bold" /></div>
+                                <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Full Name</Label><Input required value={customerDetails.name} onChange={e => setCustomerDetails({...customerDetails, name: e.target.value})} className="h-12 rounded-xl bg-slate-50 border-none font-bold" /></div>
+                                <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">WhatsApp Mobile</Label><Input required type="tel" value={customerDetails.contact} onChange={e => setCustomerDetails({...customerDetails, contact: e.target.value})} className="h-12 rounded-xl bg-slate-50 border-none font-bold" /></div>
+                                <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Delivery Address</Label><Input required value={customerDetails.address} onChange={e => setCustomerDetails({...customerDetails, address: e.target.value})} className="h-12 rounded-xl bg-slate-50 border-none font-bold" /></div>
+                                <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Pincode</Label><Input required value={customerDetails.pincode} onChange={e => setCustomerDetails({...customerDetails, pincode: e.target.value})} className="h-12 rounded-xl bg-slate-50 border-none font-bold" /></div>
                             </div>
                             <div className="space-y-3">
                                 <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Select Payment</Label>

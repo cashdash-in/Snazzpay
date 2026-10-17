@@ -2,7 +2,7 @@
 /**
  * @fileOverview AI flow for Virtual Try-On (Magic Mirror).
  * Uses Gemini 2.5 Flash Image to blend a product onto a customer's photo.
- * Optimized for contextual fitting: Saree/Lugra (Authentic Gaothan), Kurti, Western Dress, and Sleeve variations.
+ * Optimized for contextual fitting: Saree/Lugra (Authentic Gaothan), Kurti, Western Dress, Watches, and Shoes.
  */
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
@@ -15,7 +15,7 @@ const VirtualTryOnInputSchema = z.object({
     .string()
     .describe("Product photo as a data URI."),
   productTitle: z.string().describe('Name of the product.'),
-  garmentType: z.enum(['Shirt', 'Fabric', 'Kurti', 'Dress']).default('Fabric').describe('Classification of the source garment.'),
+  garmentType: z.enum(['Shirt', 'Fabric', 'Kurti', 'Dress', 'Accessory', 'Footwear']).default('Fabric').describe('Classification of the source garment.'),
   drapeStyle: z.enum(['Standard Saree', 'East Indian Lugra', 'Western Wear', 'Western Dress', 'Kurti']).optional().describe('The specific style requested by the user.'),
   sleeveLength: z.enum(['Half Sleeves', 'Full Sleeves', 'Sleeveless']).optional().describe('Preferred sleeve length for the garment.'),
 });
@@ -24,7 +24,12 @@ export type VirtualTryOnInput = z.infer<typeof VirtualTryOnInputSchema>;
 
 export async function virtualTryOn(input: VirtualTryOnInput) {
   try {
-      console.log(`[Magic Mirror] Processing try-on for: ${input.productTitle} | Type: ${input.garmentType} | Style: ${input.drapeStyle || 'Auto'}`);
+      console.log(`[Magic Mirror] Processing try-on for: ${input.productTitle} | Type: ${input.garmentType}`);
+      
+      const title = input.productTitle.toLowerCase();
+      const isWatch = title.includes('watch');
+      const isShoes = title.includes('shoe') || title.includes('sandal') || title.includes('sneaker') || title.includes('footwear') || title.includes('frock') === false && title.includes('heel');
+      const isEyewear = title.includes('glass') || title.includes('shade') || title.includes('spectacle');
       
       const isLugraStyle = input.drapeStyle === 'East Indian Lugra';
       const isSareeStyle = input.drapeStyle === 'Standard Saree';
@@ -34,7 +39,33 @@ export async function virtualTryOn(input: VirtualTryOnInput) {
 
       let styleInstructions = '';
 
-      if (isLugraStyle) {
+      if (isWatch) {
+          styleInstructions = `
+            MODE: ACCESSORY FITTING (WATCH)
+            TASK: Fit the watch from the second photo onto the user's wrist shown in the first photo.
+            CONSTRAINTS:
+            - PERSPECTIVE: Match the watch face angle to the wrist orientation.
+            - REALISM: Add subtle shadows where the strap meets the skin.
+            - INTEGRITY: Do not change the user's arm or hand features.
+          `;
+      } else if (isShoes) {
+          styleInstructions = `
+            MODE: FOOTWEAR FITTING
+            TASK: Re-dress the user's feet in the first photo with the shoes shown in the second photo.
+            CONSTRAINTS:
+            - ANATOMY: Ensure the shoes fit perfectly on the feet.
+            - LIGHTING: Match the lighting of the environment to the shoes.
+            - SCALE: Ensure realistic sizing relative to the legs/feet.
+          `;
+      } else if (isEyewear) {
+          styleInstructions = `
+            MODE: EYEWEAR FITTING
+            TASK: Place the glasses from the second photo onto the user's face in the first photo.
+            CONSTRAINTS:
+            - ALIGNMENT: Sit the bridge correctly on the nose and temples over the ears.
+            - REFLECTION: Add realistic lens reflections matching the photo's light source.
+          `;
+      } else if (isLugraStyle) {
           styleInstructions = `
             STYLING MODE: AUTHENTIC EAST INDIAN LUGRA (GAOTHAN VILLAGE PATTERN)
             CRITICAL STYLE CONSTRAINT: Match the specific drape and accessory style of a traditional East Indian lady (Gaothan aesthetic).
@@ -47,7 +78,6 @@ export async function virtualTryOn(input: VirtualTryOnInput) {
                - "East Indian Pote": A long traditional gold bead necklace with a distinct pendant reaching the NAVEL AREA exactly.
                - Layered Necklaces: Include a gold choker and a medium-length gold necklace.
                - "Bangadi": A stack of thick gold bangles on BOTH wrists.
-               - STRICTLY FORBIDDEN: Do not add any South Indian temple jewelry or modern heavy long necklaces.
             5. HAIR & FACE: 
                - Style the hair into a neat bun with a gajra (flower garland).
                - CRITICAL: REMOVE any sindoor, bindi, or red powder from the forehead or hair parting. The forehead MUST be clean.
@@ -102,14 +132,14 @@ export async function virtualTryOn(input: VirtualTryOnInput) {
           { 
             text: `ACT AS AN ELITE VIRTUAL STYLIST. 
             
-            TASK: COMPLETELY RE-DRESS the person in the first photo using the garment/material shown in the second photo ("${input.productTitle}"). 
+            TASK: COMPLETELY RE-DRESS or ACCESSORIZE the person in the first photo using the item shown in the second photo ("${input.productTitle}"). 
             
             ${styleInstructions}
 
             CRITICAL CONSTRAINTS:
             - FACIAL INTEGRITY: Keep the person's face and features exactly as they are.
             - REALISM: The final output must look like a high-resolution professional photograph.
-            - CLEANLINESS: The person's original clothes must be totally invisible.
+            - CLEANLINESS: The person's original item at that specific body part must be totally invisible.
             
             Return ONLY the final processed image.` 
           },

@@ -27,7 +27,6 @@ function MagicMirrorWidgetContent() {
         if (productId) {
             async function loadProduct() {
                 try {
-                    // Try to find product in either collection
                     let p = await getDocument('product_drops', productId!);
                     if (!p) p = await getDocument('seller_products', productId!);
                     setDbProduct(p);
@@ -41,7 +40,6 @@ function MagicMirrorWidgetContent() {
         }
     }, [productId]);
 
-    // Use DB data if available, fallback to URL params
     const productTitle = dbProduct?.title || searchParams.get('name') || 'Product';
     const productImage = dbProduct?.imageDataUris?.[0] || searchParams.get('img') || '';
     
@@ -54,15 +52,16 @@ function MagicMirrorWidgetContent() {
     const cameraInputRef = useRef<HTMLInputElement>(null);
     const galleryInputRef = useRef<HTMLInputElement>(null);
 
-    const garmentType = useMemo(() => {
+    const categoryInfo = useMemo(() => {
         const title = productTitle.toLowerCase();
-        if ((title.includes('shirt') || title.includes('t-shirt')) && !title.includes('dress')) return 'Shirt';
-        if (title.includes('dress') || title.includes('frock')) return 'Dress';
-        if (title.includes('kurti') || title.includes('kurta')) return 'Kurti';
-        return 'Fabric';
+        if (title.includes('watch')) return { type: 'Accessory', hint: 'wrist' };
+        if (title.includes('shoe') || title.includes('sandal') || title.includes('sneaker') || title.includes('footwear') || (title.includes('frock') === false && title.includes('heel'))) return { type: 'Footwear', hint: 'feet' };
+        if (title.includes('glass') || title.includes('shade') || title.includes('spectacle')) return { type: 'Eyewear', hint: 'face' };
+        if ((title.includes('shirt') || title.includes('t-shirt')) && !title.includes('dress')) return { type: 'Shirt', hint: 'selfie' };
+        return { type: 'Fabric', hint: 'selfie' };
     }, [productTitle]);
 
-    const isShirt = garmentType === 'Shirt';
+    const isApparel = categoryInfo.type === 'Fabric' || categoryInfo.type === 'Shirt' || categoryInfo.type === 'Dress';
 
     const resizeImageForAI = (fileOrUri: File | string, maxSize: number = MAX_TRYON_SIZE_PX): Promise<string> => {
         return new Promise((resolve, reject) => {
@@ -108,7 +107,7 @@ function MagicMirrorWidgetContent() {
                 personImageDataUri: personUri,
                 productImageDataUri: productUri,
                 productTitle: productTitle,
-                garmentType: garmentType as any,
+                garmentType: categoryInfo.type as any,
                 drapeStyle: selectedDrapeStyle,
                 sleeveLength: selectedSleeves
             });
@@ -158,7 +157,7 @@ function MagicMirrorWidgetContent() {
                         </div>
                         <div className="space-y-2">
                             <h2 className="text-2xl font-black italic uppercase tracking-tighter">Magic Mirror</h2>
-                            <p className="text-xs text-slate-400">Instantly see yourself in {productTitle}</p>
+                            <p className="text-xs text-slate-400">See how this {productTitle} looks on your {categoryInfo.hint}</p>
                         </div>
 
                         <div className="w-full bg-white/5 border border-white/10 p-6 rounded-[32px] space-y-6">
@@ -175,7 +174,7 @@ function MagicMirrorWidgetContent() {
                                 </Label>
                             </div>
 
-                            {!isShirt && (
+                            {isApparel && categoryInfo.type !== 'Shirt' && (
                                 <div className="space-y-2 text-left">
                                     <Label className="text-[9px] font-black uppercase text-slate-500 tracking-widest ml-1">Style Mode</Label>
                                     <Select value={selectedDrapeStyle} onValueChange={(val: any) => setSelectedDrapeStyle(val)}>
@@ -199,7 +198,7 @@ function MagicMirrorWidgetContent() {
                                     disabled={!hasConsented || isTryOnLoading}
                                     className="bg-primary hover:bg-primary/90 text-white rounded-2xl h-14 font-black uppercase italic text-xs shadow-xl disabled:opacity-50"
                                 >
-                                    <Camera className="mr-2 h-5 w-5" /> Take Selfie
+                                    <Camera className="mr-2 h-5 w-5" /> Take {categoryInfo.hint === 'selfie' ? 'Photo' : categoryInfo.hint.toUpperCase()}
                                 </Button>
                                 <Button 
                                     onClick={() => galleryInputRef.current?.click()} 
