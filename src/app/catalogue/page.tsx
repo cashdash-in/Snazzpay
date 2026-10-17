@@ -80,8 +80,6 @@ function CatalogueOrderPageContent() {
     });
     const [paymentMethod, setPaymentMethod] = useState<'Secure Charge on Delivery' | 'Cash on Delivery' | 'Prepaid'>('Secure Charge on Delivery');
     const [quantity, setQuantity] = useState(1);
-    const [selectedSize, setSelectedSize] = useState('');
-    const [selectedColor, setSelectedColor] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isOrderComplete, setIsOrderComplete] = useState(false);
     
@@ -89,29 +87,26 @@ function CatalogueOrderPageContent() {
     const [appliedDiscount, setAppliedDiscount] = useState<DiscountRule | null>(null);
     const [returnUrl, setReturnUrl] = useState('https://www.snazzify.co.in');
 
-    const isShirt = useMemo(() => {
-        if (!product) return false;
+    const garmentType = useMemo(() => {
+        if (!product) return 'Fabric';
         const title = product.title.toLowerCase();
-        return (title.includes('shirt') || title.includes('t-shirt')) && !title.includes('dress');
+        if ((title.includes('shirt') || title.includes('t-shirt')) && !title.includes('dress')) return 'Shirt';
+        if (title.includes('dress') || title.includes('frock')) return 'Dress';
+        if (title.includes('kurti') || title.includes('kurta')) return 'Kurti';
+        return 'Fabric';
     }, [product]);
 
-    const isEthnicWear = useMemo(() => {
-        if (!product) return false;
-        const ethnicKeywords = ['saree', 'sari', 'lugra', 'lehenga', 'suit', 'ethnic', 'dhoti', 'kurta', 'kurti'];
-        return ethnicKeywords.some(k => product.title.toLowerCase().includes(k)) || 
-               ethnicKeywords.some(k => product.category?.toLowerCase().includes(k)) ||
-               product.isEastIndianLugra;
-    }, [product]);
+    const isShirt = garmentType === 'Shirt';
 
     const showSleeveOption = useMemo(() => {
-        if (isShirt) return false;
+        if (isShirt) return true;
         return ['Western Wear', 'Kurti', 'Western Dress', 'Standard Saree', 'East Indian Lugra'].includes(selectedDrapeStyle);
     }, [selectedDrapeStyle, isShirt]);
 
     const showStyleOption = useMemo(() => {
         if (isShirt) return false;
-        return isEthnicWear || selectedDrapeStyle === 'Western Dress' || selectedDrapeStyle === 'Kurti';
-    }, [isShirt, isEthnicWear, selectedDrapeStyle]);
+        return true;
+    }, [isShirt]);
 
     useEffect(() => {
         setMounted(true);
@@ -160,27 +155,14 @@ function CatalogueOrderPageContent() {
                     };
                     setProduct(displayProduct);
                     
-                    // Set initial payment method based on allowed methods
-                    if (displayProduct.allowedPaymentMethods && displayProduct.allowedPaymentMethods.length > 0) {
-                        if (displayProduct.allowedPaymentMethods.includes('Secure COD')) setPaymentMethod('Secure Charge on Delivery');
-                        else if (displayProduct.allowedPaymentMethods.includes('Prepaid')) setPaymentMethod('Prepaid');
-                        else if (displayProduct.allowedPaymentMethods.includes('Cash on Delivery')) setPaymentMethod('Cash on Delivery');
-                    }
+                    if (displayProduct.allowedPaymentMethods?.includes('Secure COD')) setPaymentMethod('Secure Charge on Delivery');
+                    else if (displayProduct.allowedPaymentMethods?.includes('Prepaid')) setPaymentMethod('Prepaid');
+                    else if (displayProduct.allowedPaymentMethods?.includes('Cash on Delivery')) setPaymentMethod('Cash on Delivery');
 
-                    const titleLower = displayProduct.title.toLowerCase();
-                    if (displayProduct.isEastIndianLugra) {
-                        setSelectedDrapeStyle('East Indian Lugra');
-                    } else if ((titleLower.includes('shirt') || titleLower.includes('t-shirt')) && !titleLower.includes('dress')) {
-                         setSelectedDrapeStyle('Western Wear');
-                    } else if (['saree', 'sari'].some(k => titleLower.includes(k))) {
-                        setSelectedDrapeStyle('Standard Saree');
-                    } else if (['kurta', 'kurti'].some(k => titleLower.includes(k))) {
-                        setSelectedDrapeStyle('Kurti');
-                    } else if (['dress', 'frock'].some(k => titleLower.includes(k))) {
-                        setSelectedDrapeStyle('Western Dress');
-                    } else {
-                        setSelectedDrapeStyle('Western Wear');
-                    }
+                    if (displayProduct.isEastIndianLugra) setSelectedDrapeStyle('East Indian Lugra');
+                    else if (garmentType === 'Shirt') setSelectedDrapeStyle('Western Wear');
+                    else if (garmentType === 'Dress') setSelectedDrapeStyle('Western Dress');
+                    else if (garmentType === 'Kurti') setSelectedDrapeStyle('Kurti');
 
                     const discounts = await getCollection<DiscountRule>('discounts');
                     const best = discounts.find(d => d.id === `product_${productId}` || d.id === `vendor_${displayProduct.vendor}`) || null;
@@ -193,7 +175,7 @@ function CatalogueOrderPageContent() {
             }
         }
         loadProduct();
-    }, [searchParams]);
+    }, [searchParams, garmentType]);
 
     useEffect(() => {
         if (product) {
@@ -214,24 +196,18 @@ function CatalogueOrderPageContent() {
             img.onload = () => {
                 const canvas = document.createElement('canvas');
                 let { width, height } = img;
-                if (width > height) {
-                    if (width > maxSize) { height *= maxSize / width; width = maxSize; }
-                } else {
-                    if (height > maxSize) { width *= maxSize / height; height = maxSize; }
-                }
-                canvas.width = width;
-                canvas.height = height;
+                if (width > height) { if (width > maxSize) { height *= maxSize / width; width = maxSize; } }
+                else { if (height > maxSize) { width *= maxSize / height; height = maxSize; } }
+                canvas.width = width; canvas.height = height;
                 const ctx = canvas.getContext('2d');
                 ctx?.drawImage(img, 0, 0, width, height);
                 resolve(canvas.toDataURL('image/jpeg', 0.5));
             };
             img.onerror = reject;
-            if (typeof fileOrUri === 'string') {
-                img.src = fileOrUri;
-            } else {
+            if (typeof fileOrUri === 'string') img.src = fileOrUri;
+            else {
                 const reader = new FileReader();
                 reader.onload = (e) => img.src = e.target?.result as string;
-                reader.onerror = reject;
                 reader.readAsDataURL(fileOrUri);
             }
         });
@@ -239,7 +215,7 @@ function CatalogueOrderPageContent() {
 
     const handleTryOnUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!hasConsented) {
-            toast({ variant: 'destructive', title: "Consent Required", description: "Please accept the privacy terms first." });
+            toast({ variant: 'destructive', title: "Consent Required" });
             return;
         }
         const file = e.target.files?.[0];
@@ -257,14 +233,14 @@ function CatalogueOrderPageContent() {
                 personImageDataUri: personUri,
                 productImageDataUri: productUri,
                 productTitle: product.title,
+                garmentType: garmentType as any,
                 drapeStyle: selectedDrapeStyle,
-                sleeveLength: isShirt ? undefined : selectedSleeves
+                sleeveLength: selectedSleeves
             });
             
             setTryOnResult(result.generatedImageDataUri);
-            toast({ title: "Magic Mirror Ready!", description: `Look generated successfully.` });
+            toast({ title: "Magic Mirror Ready!" });
         } catch (err: any) {
-            console.error("Try-On Error:", err);
             toast({ variant: 'destructive', title: "Try-On Failed", description: err.message });
         } finally {
             setIsTryOnLoading(false);
@@ -275,8 +251,7 @@ function CatalogueOrderPageContent() {
     const handleShareWhatsApp = () => {
         if (!tryOnResult) return;
         const message = `Check out my new virtual look with this ${product?.title} from Snazzify! ${window.location.href}`;
-        const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
-        window.open(url, '_blank');
+        window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -287,26 +262,9 @@ function CatalogueOrderPageContent() {
         try {
             const orderId = '#SMRT-' + Math.floor(1000 + Math.random() * 9000);
             const orderData: EditableOrder = {
-                id: uuidv4(),
-                orderId,
-                productId: product.productId,
-                customerName: customerDetails.name,
-                contactNo: customerDetails.contact,
-                customerAddress: customerDetails.address,
-                pincode: customerDetails.pincode,
-                productOrdered: product.title,
-                quantity,
-                price: totalPrice.toString(),
-                date: new Date().toISOString(),
-                paymentStatus: paymentMethod === 'Cash on Delivery' ? 'Pending' : (paymentMethod === 'Prepaid' ? 'Pending Payment' : 'Lead'),
-                paymentMethod,
-                source: 'Catalogue',
-                sellerId: product.sellerId,
-                sellerName: product.sellerName,
-                imageDataUris: product.imageDataUris,
+                id: uuidv4(), orderId, productId: product.productId, customerName: customerDetails.name, contactNo: customerDetails.contact, customerAddress: customerDetails.address, pincode: customerDetails.pincode, productOrdered: product.title, quantity, price: totalPrice.toString(), date: new Date().toISOString(), paymentStatus: paymentMethod === 'Cash on Delivery' ? 'Pending' : (paymentMethod === 'Prepaid' ? 'Pending Payment' : 'Lead'), paymentMethod, source: 'Catalogue', sellerId: product.sellerId, sellerName: product.sellerName, imageDataUris: product.imageDataUris,
             };
             
-            // Save lead first if not direct prepaid/cod
             await saveDocument('leads', orderData, orderData.id);
             
             if (paymentMethod === 'Prepaid') {
@@ -517,6 +475,7 @@ function CatalogueOrderPageContent() {
                                 <div className="space-y-1"><Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Full Name</Label><Input required value={customerDetails.name} onChange={e => setCustomerDetails({...customerDetails, name: e.target.value})} className="h-12 rounded-xl bg-slate-50 border-none font-bold" /></div>
                                 <div className="space-y-1"><Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">WhatsApp Mobile</Label><Input required type="tel" value={customerDetails.contact} onChange={e => setCustomerDetails({...customerDetails, contact: e.target.value})} className="h-12 rounded-xl bg-slate-50 border-none font-bold" /></div>
                                 <div className="space-y-1"><Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Delivery Address</Label><Input required value={customerDetails.address} onChange={e => setCustomerDetails({...customerDetails, address: e.target.value})} className="h-12 rounded-xl bg-slate-50 border-none font-bold" /></div>
+                                <div className="space-y-1"><Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Pincode</Label><Input required value={customerDetails.pincode} onChange={e => setCustomerDetails({...customerDetails, pincode: e.target.value})} className="h-12 rounded-xl bg-slate-50 border-none font-bold" /></div>
                             </div>
                             <div className="space-y-3">
                                 <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Select Payment</Label>

@@ -4,11 +4,11 @@ import { Suspense, useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, ShoppingCart, Percent, MessageCircle, Send, Play, Sparkles, Camera, ImagePlus, RefreshCcw, Download, ShieldCheck, Share2, Store } from 'lucide-react';
+import { Loader2, ShoppingCart, MessageCircle, Sparkles, Camera, ImagePlus, RefreshCcw, Download, Store, Share2 } from 'lucide-react';
 import Image from 'next/image';
-import type { SellerProduct } from '@/app/seller/ai-product-uploader/page';
+import type { SellerProduct } from '@/types/product';
 import { getCollection, getDocument, saveDocument } from '@/services/firestore';
-import type { ProductDrop } from '@/app/vendor/product-drops/page';
+import type { ProductDrop } from '@/types/product';
 import { Badge } from '@/components/ui/badge';
 import {
   Carousel,
@@ -17,7 +17,7 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -25,7 +25,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { v4 as uuidv4 } from 'uuid';
 import { useToast } from '@/hooks/use-toast';
 import { virtualTryOn } from '@/ai/flows/virtual-try-on';
-import { cn, sanitizePhoneNumber } from '@/lib/utils';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 
 type DisplayProduct = (SellerProduct | ProductDrop) & { isTryOnEnabled?: boolean; isEastIndianLugra?: boolean };
@@ -72,45 +71,19 @@ function BrandedCollectionContent() {
 
     useEffect(() => {
         const discountParam = searchParams.get('discount');
-        if (discountParam) {
-            setDiscount(parseFloat(discountParam));
-        }
-
-        fetch('/api/track', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ event: 'magazineSessionStart' }),
-            keepalive: true,
-        });
+        if (discountParam) setDiscount(parseFloat(discountParam));
 
         async function fetchProducts() {
             const slug = params.id as string;
-
-            if (!slug) {
-                setIsLoading(false);
-                return;
-            }
+            if (!slug) { setIsLoading(false); return; }
 
             try {
-                fetch('/api/track', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ event: 'magazineVisit' }),
-                    keepalive: true,
-                });
-
                 const fetchedMagazine = await getDocument<Magazine>('smart_magazines', slug);
-                if (!fetchedMagazine) {
-                    setIsLoading(false);
-                    return;
-                }
+                if (!fetchedMagazine) { setIsLoading(false); return; }
                 setMagazine(fetchedMagazine);
                 
                 const productIds = fetchedMagazine.productIds;
-                if (productIds.length === 0) {
-                    setIsLoading(false);
-                    return;
-                }
+                if (productIds.length === 0) { setIsLoading(false); return; }
                 
                 const [sellerProducts, productDrops] = await Promise.all([
                     getCollection<SellerProduct>('seller_products'),
@@ -124,17 +97,13 @@ function BrandedCollectionContent() {
                 const fetched = productIds.map(id => productMap.get(id)).filter(p => !!p) as DisplayProduct[];
                 setProducts(fetched);
             } catch (error) {
-                console.error("Failed to fetch products for magazine:", error);
+                console.error("Failed to fetch products:", error);
             } finally {
                 setIsLoading(false);
             }
         }
         fetchProducts();
     }, [params.id, searchParams]);
-
-    const showSleeveOption = useMemo(() => {
-        return ['Western Wear', 'Kurti', 'Western Dress', 'Standard Saree', 'East Indian Lugra'].includes(selectedDrapeStyle);
-    }, [selectedDrapeStyle]);
 
     const resizeImageForAI = (fileOrUri: File | string, maxSize: number = MAX_TRYON_SIZE_PX): Promise<string> => {
         return new Promise((resolve, reject) => {
@@ -144,40 +113,35 @@ function BrandedCollectionContent() {
             img.onload = () => {
                 const canvas = document.createElement('canvas');
                 let { width, height } = img;
-                if (width > height) {
-                    if (width > maxSize) { height *= maxSize / width; width = maxSize; }
-                } else {
-                    if (height > maxSize) { width *= maxSize / height; height = maxSize; }
-                }
-                canvas.width = width;
-                canvas.height = height;
+                if (width > height) { if (width > maxSize) { height *= maxSize / width; width = maxSize; } }
+                else { if (height > maxSize) { width *= maxSize / height; height = maxSize; } }
+                canvas.width = width; canvas.height = height;
                 const ctx = canvas.getContext('2d');
                 ctx?.drawImage(img, 0, 0, width, height);
                 resolve(canvas.toDataURL('image/jpeg', 0.5));
             };
             img.onerror = reject;
-            if (typeof fileOrUri === 'string') {
-                img.src = fileOrUri;
-            } else {
+            if (typeof fileOrUri === 'string') img.src = fileOrUri;
+            else {
                 const reader = new FileReader();
                 reader.onload = (e) => img.src = e.target?.result as string;
-                reader.onerror = reject;
                 reader.readAsDataURL(fileOrUri);
             }
         });
     };
 
     const handleTryOnUpload = async (e: React.ChangeEvent<HTMLInputElement>, product: DisplayProduct) => {
-        if (!hasConsented) {
-            toast({ variant: 'destructive', title: "Consent Required", description: "Please accept the privacy terms first." });
-            return;
-        }
+        if (!hasConsented) { toast({ variant: 'destructive', title: "Consent Required" }); return; }
         const file = e.target.files?.[0];
         if (!file) return;
 
         setIsTryOnLoading(true);
         setTryOnResult(null);
         setTryOnProductId(product.id);
+
+        const garmentClassification = (product.title.toLowerCase().includes('shirt') || product.title.toLowerCase().includes('t-shirt')) && !product.title.toLowerCase().includes('dress') ? 'Shirt' : 
+                                      (product.title.toLowerCase().includes('dress') || product.title.toLowerCase().includes('frock')) ? 'Dress' : 
+                                      (product.title.toLowerCase().includes('kurti') || product.title.toLowerCase().includes('kurta')) ? 'Kurti' : 'Fabric';
         
         try {
             const [personUri, productUri] = await Promise.all([
@@ -189,14 +153,14 @@ function BrandedCollectionContent() {
                 personImageDataUri: personUri,
                 productImageDataUri: productUri,
                 productTitle: product.title,
+                garmentType: garmentClassification as any,
                 drapeStyle: selectedDrapeStyle,
                 sleeveLength: selectedSleeves
             });
             
             setTryOnResult(result.generatedImageDataUri);
-            toast({ title: "Magic Mirror Ready!", description: `Look generated successfully.` });
+            toast({ title: "Magic Mirror Ready!" });
         } catch (err: any) {
-            console.error("Try-On Error:", err);
             toast({ variant: 'destructive', title: "Try-On Failed", description: err.message });
             setTryOnProductId(null);
         } finally {
@@ -204,93 +168,52 @@ function BrandedCollectionContent() {
             if (e.target) e.target.value = '';
         }
     };
-    
-    const handleShareWhatsAppTryOn = (imgUrl: string, title: string) => {
-        const message = `Check out my new virtual look with this ${title} from Snazzify! ${window.location.href}`;
-        const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
-        window.open(url, '_blank');
-    };
 
     const handleOrderClick = (product: DisplayProduct) => {
         const catalogueParams = new URLSearchParams();
         catalogueParams.set('id', product.id);
         catalogueParams.set('return_url', window.location.href);
-
-        if (magazine?.creatorId && magazine.creatorName) {
-            catalogueParams.set('sellerId', magazine.creatorId);
-            catalogueParams.set('sellerName', magazine.creatorName);
-        }
-
-        if (discount > 0) {
-            catalogueParams.set('discount', discount.toString());
-        }
-    
+        if (magazine?.creatorId) catalogueParams.set('sellerId', magazine.creatorId);
+        if (magazine?.creatorName) catalogueParams.set('sellerName', magazine.creatorName);
+        if (discount > 0) catalogueParams.set('discount', discount.toString());
         router.push(`/catalogue?${catalogueParams.toString()}`);
     };
 
     const handleSendEnquiry = async () => {
-        if (!enquiryProduct || !enquiryForm.name || !enquiryForm.phone) {
-            toast({ variant: 'destructive', title: "Details Required", description: "Please provide your name and phone number." });
-            return;
-        }
-
+        if (!enquiryProduct || !enquiryForm.name || !enquiryForm.phone) { toast({ variant: 'destructive', title: "Details Required" }); return; }
         setIsEnquiring(true);
-        const leadId = uuidv4();
-        const price = ((enquiryProduct as SellerProduct).price || (enquiryProduct as ProductDrop).costPrice);
-        const finalPrice = discount > 0 ? price - (price * (discount / 100)) : price;
-
         try {
-            const leadData = {
+            const leadId = uuidv4();
+            await saveDocument('leads', {
                 id: leadId,
-                orderId: `ENQ-${uuidv4().substring(0, 6).toUpperCase()}`,
                 customerName: enquiryForm.name,
                 contactNo: enquiryForm.phone,
                 productOrdered: enquiryProduct.title,
                 productId: enquiryProduct.id,
-                price: finalPrice.toString(),
+                price: ((enquiryProduct as any).price || (enquiryProduct as any).costPrice).toString(),
                 paymentStatus: 'Enquiry',
                 date: new Date().toISOString(),
                 sellerId: magazine?.creatorId || 'admin',
                 sellerName: magazine?.creatorName || 'Admin',
                 source: 'SmartMagazine',
-                message: enquiryForm.message,
-                isRead: false,
                 imageDataUris: enquiryProduct.imageDataUris,
-            };
-
-            await saveDocument('leads', leadData, leadId);
-            toast({ title: "Enquiry Sent!", description: "We have received your interest. Our team will contact you shortly." });
+            }, leadId);
+            toast({ title: "Enquiry Sent!" });
             setEnquiryProduct(null);
-            setEnquiryForm({ name: '', phone: '', message: '' });
         } catch (error) {
-            toast({ variant: 'destructive', title: "Failed to send enquiry" });
+            toast({ variant: 'destructive', title: "Failed" });
         } finally {
             setIsEnquiring(false);
         }
     };
 
-    if (isLoading) {
-        return <div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
-    }
-
-    if (!magazine || products.length === 0) {
-        return (
-             <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
-                <Card className="w-full max-w-2xl shadow-lg text-center">
-                    <CardHeader>
-                        <CardTitle>Collection Not Found</CardTitle>
-                        <CardDescription>The requested collection is empty or the link is invalid.</CardDescription>
-                    </CardHeader>
-                </Card>
-            </div>
-        )
-    }
+    if (isLoading) return <div className="flex h-screen w-full items-center justify-center"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>;
 
     return (
         <div className="min-h-screen bg-gray-50 pb-20">
              <header className="bg-white border-b sticky top-0 z-50 px-4 py-6 md:px-8 text-center shadow-sm">
                 <div className="max-w-4xl mx-auto">
-                    {magazine.logoDataUri ? (
+                    {magazine?.logoDataUri ? (
                         <div className="flex justify-center mb-4">
                             <div className="relative w-24 h-24 rounded-full overflow-hidden border-4 border-white shadow-2xl bg-white">
                                 <Image src={magazine.logoDataUri} alt="Brand Logo" fill className="object-contain p-1" unoptimized />
@@ -304,10 +227,10 @@ function BrandedCollectionContent() {
                         </div>
                     )}
                     <div>
-                        <h1 className="text-3xl md:text-5xl font-black italic tracking-tighter uppercase text-slate-900">{magazine.title}</h1>
+                        <h1 className="text-3xl md:text-5xl font-black italic uppercase tracking-tighter text-slate-900">{magazine?.title}</h1>
                         <p className="mt-2 text-xs md:text-sm text-primary uppercase tracking-widest font-black flex items-center justify-center gap-2">
                            <span className="h-px w-8 bg-primary/20"></span>
-                           {magazine.vendorTitle || `Curated by ${magazine.creatorName}`}
+                           {magazine?.vendorTitle || `Curated by ${magazine?.creatorName}`}
                            <span className="h-px w-8 bg-primary/20"></span>
                         </p>
                     </div>
@@ -317,12 +240,11 @@ function BrandedCollectionContent() {
             <main className="max-w-7xl mx-auto p-4 md:p-10 space-y-10">
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                     {products.map(product => {
-                         const price = ((product as SellerProduct).price || (product as ProductDrop).costPrice);
+                         const price = ((product as any).price || (product as any).costPrice);
                          const discountedPrice = discount > 0 ? price - (price * (discount / 100)) : price;
                          const isProductTryOn = tryOnProductId === product.id;
-                         const canTryOn = magazine.isTryOnEnabled || product.isTryOnEnabled;
-                         
-                         const isShirt = product.title.toLowerCase().includes('shirt') && !product.title.toLowerCase().includes('dress');
+                         const canTryOn = magazine?.isTryOnEnabled || product.isTryOnEnabled;
+                         const isShirt = (product.title.toLowerCase().includes('shirt') || product.title.toLowerCase().includes('t-shirt')) && !product.title.toLowerCase().includes('dress');
 
                         return (
                         <Card key={product.id} className="shadow-md hover:shadow-xl transition-shadow overflow-hidden flex flex-col group rounded-[24px] bg-white border-none">
@@ -356,7 +278,7 @@ function BrandedCollectionContent() {
                                     </div>
                                 )}
 
-                                {canTryOn && !isProductTryOn && !tryOnResult && (
+                                {canTryOn && !isProductTryOn && (
                                     <div className="absolute top-4 left-4 z-10">
                                         <Badge className="bg-primary/90 text-white font-black italic text-[9px] px-3 py-1 rounded-full shadow-lg flex items-center gap-1 animate-pulse">
                                             <Sparkles className="h-2 w-2" /> TRY ME
@@ -364,26 +286,9 @@ function BrandedCollectionContent() {
                                     </div>
                                 )}
 
-                                {discount > 0 && (
-                                    <Badge className="absolute top-4 right-4 z-10 bg-destructive text-white font-black italic">
-                                        -{discount}% OFF
-                                    </Badge>
-                                )}
-
                                 {isProductTryOn && tryOnResult && (
                                     <div className="absolute top-2 left-2 flex gap-1 z-30">
-                                        <Button onClick={() => handleShareWhatsAppTryOn(tryOnResult!, product.title)} size="icon" className="h-8 w-8 rounded-full bg-green-600 shadow-lg border-none text-white hover:bg-green-700">
-                                            <Share2 className="h-4 w-4" />
-                                        </Button>
-                                        <Button onClick={() => {
-                                            const link = document.createElement('a');
-                                            link.href = tryOnResult!;
-                                            link.download = `my_look_${product.id}.jpg`;
-                                            link.click();
-                                        }} size="icon" className="h-8 w-8 rounded-full bg-white shadow-lg border-none text-slate-900 hover:bg-slate-100">
-                                            <Download className="h-4 w-4" />
-                                        </Button>
-                                        <Button onClick={() => { setTryOnResult(null); setTryOnProductId(null); }} size="icon" variant="destructive" className="h-8 w-8 rounded-full shadow-lg">
+                                        <Button onClick={() => setTryOnResult(null)} size="icon" variant="destructive" className="h-8 w-8 rounded-full shadow-lg">
                                             <RefreshCcw className="h-4 w-4" />
                                         </Button>
                                     </div>
@@ -391,11 +296,8 @@ function BrandedCollectionContent() {
                             </div>
                              <CardContent className="p-4 flex-grow flex flex-col">
                                 <h3 className="text-base font-bold mb-1 line-clamp-1 flex-grow uppercase italic">{product.title}</h3>
-                                <p className="text-xs text-muted-foreground line-clamp-2 italic mb-3">"{product.description}"</p>
                                 <div className="mt-auto border-t pt-2 flex justify-between items-center">
-                                     <p className="text-lg font-black text-primary">
-                                        ₹{discountedPrice.toFixed(2)}
-                                    </p>
+                                     <p className="text-lg font-black text-primary">₹{discountedPrice.toFixed(2)}</p>
                                     <Badge variant="secondary" className="text-[9px] uppercase font-bold">{product.category}</Badge>
                                 </div>
                             </CardContent>
@@ -410,20 +312,15 @@ function BrandedCollectionContent() {
                                         <DialogContent className="rounded-[32px] p-8 border-none">
                                             <DialogHeader><DialogTitle className="text-2xl font-black italic uppercase">Product Enquiry</DialogTitle></DialogHeader>
                                             <div className="space-y-4 py-4">
-                                                <div className="space-y-1"><Label className="text-[10px] uppercase font-black">Your Name</Label><Input value={enquiryForm.name} onChange={e => setEnquiryForm({...enquiryForm, name: e.target.value})} className="h-12 rounded-xl" /></div>
-                                                <div className="space-y-1"><Label className="text-[10px] uppercase font-black">WhatsApp Number</Label><Input value={enquiryForm.phone} onChange={e => setEnquiryForm({...enquiryForm, phone: e.target.value})} className="h-12 rounded-xl" /></div>
-                                                <div className="space-y-1"><Label className="text-[10px] uppercase font-black">Message</Label><Textarea value={enquiryForm.message} onChange={e => setEnquiryForm({...enquiryForm, message: e.target.value})} className="rounded-xl" /></div>
+                                                <div className="space-y-1"><Label className="text-[10px] font-black uppercase">Your Name</Label><Input value={enquiryForm.name} onChange={e => setEnquiryForm({...enquiryForm, name: e.target.value})} className="h-12 rounded-xl" /></div>
+                                                <div className="space-y-1"><Label className="text-[10px] font-black uppercase">WhatsApp Number</Label><Input value={enquiryForm.phone} onChange={e => setEnquiryForm({...enquiryForm, phone: e.target.value})} className="h-12 rounded-xl" /></div>
                                             </div>
                                             <DialogFooter><Button onClick={handleSendEnquiry} className="w-full h-14 rounded-2xl font-black uppercase italic" disabled={isEnquiring}>{isEnquiring ? <Loader2 className="animate-spin"/> : "Send Request"}</Button></DialogFooter>
                                         </DialogContent>
                                     )}
                                 </Dialog>
 
-                                <Button 
-                                    variant="ghost" 
-                                    className="h-12 rounded-none font-black text-[10px] uppercase text-primary hover:bg-slate-100"
-                                    onClick={() => handleOrderClick(product)}
-                                >
+                                <Button variant="ghost" className="h-12 rounded-none font-black text-[10px] uppercase text-primary hover:bg-slate-100" onClick={() => handleOrderClick(product)}>
                                     <ShoppingCart className="mr-1 h-3 w-3" /> Order
                                 </Button>
 
@@ -440,20 +337,14 @@ function BrandedCollectionContent() {
                                                     <DialogTitle className="text-2xl font-black italic uppercase flex items-center gap-2">
                                                         <Sparkles className="h-6 w-6 text-primary" /> Magic Mirror
                                                     </DialogTitle>
-                                                    <DialogDescription>Experience a virtual fit for {product.title}</DialogDescription>
                                                 </DialogHeader>
                                                 <div className="py-6 space-y-6">
                                                     <div className="bg-slate-50 p-4 rounded-2xl border-2 border-dashed border-slate-200">
                                                         <div className="flex items-start gap-3">
-                                                            <Checkbox 
-                                                                id={`consent-${product.id}`} 
-                                                                checked={hasConsented} 
-                                                                onCheckedChange={(val) => setHasConsented(val as boolean)}
-                                                                className="mt-1"
-                                                            />
+                                                            <Checkbox id={`consent-${product.id}`} checked={hasConsented} onCheckedChange={(val) => setHasConsented(val as boolean)} className="mt-1" />
                                                             <Label htmlFor={`consent-${product.id}`} className="text-[10px] leading-relaxed text-muted-foreground">
                                                                 <span className="font-bold text-slate-900 uppercase block mb-1">Privacy Promise</span>
-                                                                We do not store your photos on our server. Your selfie is processed instantly and deleted immediately after the session.
+                                                                We do not store your photos. They are deleted instantly after use.
                                                             </Label>
                                                         </div>
                                                     </div>
@@ -469,54 +360,33 @@ function BrandedCollectionContent() {
                                                                     <SelectContent>
                                                                         <SelectItem value="Western Wear">Western Fit (Mini/Tight Fit)</SelectItem>
                                                                         <SelectItem value="Western Dress">Western Dress</SelectItem>
-                                                                        <SelectItem value="Kurti">Traditional Kurti</SelectItem>
+                                                                        <SelectItem value="Kurti">Kurti</SelectItem>
                                                                         <SelectItem value="Standard Saree">Standard Saree</SelectItem>
                                                                         <SelectItem value="East Indian Lugra">East Indian Lugra</SelectItem>
                                                                     </SelectContent>
                                                                 </Select>
                                                             </div>
                                                         )}
-                                                        
-                                                        {isShirt && (
-                                                            <div className="space-y-2">
-                                                                <Label className="text-[10px] font-black uppercase text-slate-400">Fit Mode</Label>
-                                                                <div className="h-10 px-3 bg-slate-50 text-slate-900 rounded-xl text-xs font-bold flex items-center">
-                                                                    Standard Fitting
-                                                                </div>
-                                                            </div>
-                                                        )}
-
-                                                        {showSleeveOption && (
-                                                            <div className="space-y-2">
-                                                                <Label className="text-[10px] font-black uppercase text-slate-400">Sleeves</Label>
-                                                                <Select value={selectedSleeves} onValueChange={(val: any) => setSelectedSleeves(val)}>
-                                                                    <SelectTrigger className="h-10 rounded-xl bg-slate-50 border-none font-bold text-xs">
-                                                                        <SelectValue />
-                                                                    </SelectTrigger>
-                                                                    <SelectContent>
-                                                                        <SelectItem value="Half Sleeves">Half Sleeves</SelectItem>
-                                                                        <SelectItem value="Full Sleeves">Full Sleeves</SelectItem>
-                                                                        <SelectItem value="Sleeveless">Sleeveless</SelectItem>
-                                                                    </SelectContent>
-                                                                </Select>
-                                                            </div>
-                                                        )}
+                                                        <div className="space-y-2">
+                                                            <Label className="text-[10px] font-black uppercase text-slate-400">Sleeves</Label>
+                                                            <Select value={selectedSleeves} onValueChange={(val: any) => setSelectedSleeves(val)}>
+                                                                <SelectTrigger className="h-10 rounded-xl bg-slate-50 border-none font-bold text-xs">
+                                                                    <SelectValue />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="Half Sleeves">Half Sleeves</SelectItem>
+                                                                    <SelectItem value="Full Sleeves">Full Sleeves</SelectItem>
+                                                                    <SelectItem value="Sleeveless">Sleeveless</SelectItem>
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
                                                     </div>
 
                                                     <div className="grid grid-cols-2 gap-4">
-                                                        <Button 
-                                                            disabled={!hasConsented || isTryOnLoading}
-                                                            onClick={() => { setTryOnProductId(product.id); cameraInputRef.current?.click(); }}
-                                                            className="h-14 rounded-2xl font-black uppercase italic shadow-lg"
-                                                        >
+                                                        <Button disabled={!hasConsented || isTryOnLoading} onClick={() => { setTryOnProductId(product.id); cameraInputRef.current?.click(); }} className="h-14 rounded-2xl font-black uppercase italic shadow-lg">
                                                             <Camera className="mr-2 h-5 w-5" /> Take Selfie
                                                         </Button>
-                                                        <Button 
-                                                            disabled={!hasConsented || isTryOnLoading}
-                                                            variant="secondary" 
-                                                            onClick={() => { setTryOnProductId(product.id); galleryInputRef.current?.click(); }}
-                                                            className="h-14 rounded-2xl font-black uppercase italic"
-                                                        >
+                                                        <Button disabled={!hasConsented || isTryOnLoading} variant="secondary" onClick={() => { setTryOnProductId(product.id); galleryInputRef.current?.click(); }} className="h-14 rounded-2xl font-black uppercase italic">
                                                             <ImagePlus className="mr-2 h-5 w-5" /> Gallery
                                                         </Button>
                                                     </div>
@@ -531,14 +401,13 @@ function BrandedCollectionContent() {
                 </div>
             </main>
 
-            {/* Global Hidden Inputs for Try-On */}
             <input ref={cameraInputRef} type="file" accept="image/*" capture="user" className="hidden" onChange={(e) => {
-                const product = products.find(p => p.id === tryOnProductId);
-                if (product) handleTryOnUpload(e, product);
+                const p = products.find(p => p.id === tryOnProductId);
+                if (p) handleTryOnUpload(e, p);
             }} />
             <input ref={galleryInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
-                const product = products.find(p => p.id === tryOnProductId);
-                if (product) handleTryOnUpload(e, product);
+                const p = products.find(p => p.id === tryOnProductId);
+                if (p) handleTryOnUpload(e, p);
             }} />
         </div>
     );

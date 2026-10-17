@@ -11,9 +11,9 @@ import type { SellerProduct } from '@/types/product';
 import Image from 'next/image';
 import { 
     Loader2, Share2, Copy, MessageSquare, BookOpen, 
-    Percent, Factory, Edit, Wand2, PlusCircle, 
-    ImagePlus, Image as LucideImage, Facebook, 
-    Instagram, Download, QrCode, Trash2, Globe, Sparkles, SwitchCamera 
+    Edit, Wand2, PlusCircle, 
+    ImagePlus, Image as LucideImage, 
+    Instagram, Download, 
 } from 'lucide-react';
 import { getCollection, saveDocument, getDocument } from '@/services/firestore';
 import { getCookie } from 'cookies-next';
@@ -92,7 +92,6 @@ export default function ShareMagazinePage() {
                 
                 setProducts(productsCollection.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
                 
-                // Try to load brand logo from settings
                 const settings = await getDocument<any>(currentRole === 'seller' ? 'seller_users' : 'vendors', user.uid);
                 if (settings?.logoDataUri) {
                     setLogoDataUri(settings.logoDataUri);
@@ -336,12 +335,6 @@ export default function ShareMagazinePage() {
                                     </div>
                                 );
                             })}
-                            {selectedProductIds.length === 0 && (
-                                <div className="col-span-full py-32 text-center border-4 border-dashed rounded-[40px] opacity-20 bg-slate-50">
-                                    <Sparkles className="h-20 w-20 mx-auto mb-4 text-slate-400" />
-                                    <h3 className="text-2xl font-black uppercase italic tracking-tighter">Select products to generate visual creatives</h3>
-                                </div>
-                            )}
                         </div>
                     </div>
                 </TabsContent>
