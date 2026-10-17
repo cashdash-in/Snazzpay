@@ -65,6 +65,7 @@ import {
   ClipboardList,
   Image as LucideImage,
   UsersRound,
+  LayoutTemplate,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { getCookie } from 'cookies-next';
@@ -96,6 +97,7 @@ const adminCoreMenuItems: MenuItem[] = [
 const adminGrowthMenuItems: MenuItem[] = [
     { href: '/admin/staff', label: 'Staff Management', icon: UsersRound },
     { href: '/admin/site-builder', label: 'AI Site Builder', icon: MonitorCheck },
+    { href: '/admin/widget-builder', label: 'Widget Embeds', icon: LayoutTemplate },
     { href: '/ai-product-uploader', label: 'AI Product Uploader', icon: Wand2 },
     { href: '/admin/whatsapp-uploader', label: 'WhatsApp Uploader', icon: MessageSquare },
     { href: '/admin/image-bulk-uploader', label: 'Image Bulk Uploader', icon: LucideImage },

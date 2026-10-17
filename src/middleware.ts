@@ -18,7 +18,7 @@ export function middleware(request: NextRequest) {
     '/auth/login',
     '/auth/signup',
     '/auth/forgot-password', 
-    '/staff/login', // ALLOW STAFF LOGIN
+    '/staff/login',
     '/seller',
     '/seller/login',
     '/vendor/login',
@@ -35,6 +35,7 @@ export function middleware(request: NextRequest) {
     '/collaborator/signup',
     '/catalogue',
     '/smart-magazine',
+    '/magic-mirror/widget', // ALLOW PUBLIC ACCESS TO WIDGET
   ];
 
   const publicPrefixes = ['/guest-fulfillment', '/terms', '/wholesale-request', '/collection', '/site'];
