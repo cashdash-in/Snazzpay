@@ -43,6 +43,7 @@ function MagicMirrorWidgetContent() {
 
     const productTitle = dbProduct?.title || searchParams.get('name') || 'Product';
     const productImage = dbProduct?.imageDataUris?.[0] || searchParams.get('img') || '';
+    const productCategory = dbProduct?.category || '';
     
     const [isTryOnLoading, setIsTryOnLoading] = useState(false);
     const [tryOnResult, setTryOnResult] = useState<string | null>(null);
@@ -55,14 +56,24 @@ function MagicMirrorWidgetContent() {
 
     const categoryInfo = useMemo(() => {
         const title = productTitle.toLowerCase();
-        if (title.includes('watch')) return { type: 'Accessory', hint: 'wrist' };
-        if (title.includes('shoe') || title.includes('sandal') || title.includes('sneaker') || title.includes('footwear') || (title.includes('frock') === false && title.includes('heel'))) return { type: 'Footwear', hint: 'feet' };
-        if (title.includes('glass') || title.includes('shade') || title.includes('spectacle')) return { type: 'Eyewear', hint: 'face' };
-        if ((title.includes('shirt') || title.includes('t-shirt')) && !title.includes('dress')) return { type: 'Shirt', hint: 'selfie' };
-        if (title.includes('dress') || title.includes('frock')) return { type: 'Dress', hint: 'selfie' };
-        if (title.includes('kurti') || title.includes('kurta')) return { type: 'Kurti', hint: 'selfie' };
+        const cat = productCategory.toLowerCase();
+
+        const isWatch = title.includes('watch') || cat.includes('watch');
+        const isFootwear = title.includes('shoe') || cat.includes('shoe') || title.includes('sandal') || cat.includes('sandal') || title.includes('sneaker') || cat.includes('sneaker') || title.includes('footwear') || cat.includes('footwear') || (title.includes('frock') === false && title.includes('heel')) || cat.includes('footwear');
+        const isEyewear = title.includes('glass') || cat.includes('glass') || title.includes('shade') || cat.includes('shade') || title.includes('spectacle') || cat.includes('spectacle');
+        const isShirt = (title.includes('shirt') || title.includes('t-shirt') || cat.includes('shirt')) && !title.includes('dress');
+        const isDress = title.includes('dress') || title.includes('frock') || cat.includes('dress') || cat.includes('frock');
+        const isKurti = title.includes('kurti') || title.includes('kurta') || cat.includes('kurti') || cat.includes('kurta');
+
+        if (isWatch) return { type: 'Accessory', hint: 'wrist' };
+        if (isFootwear) return { type: 'Footwear', hint: 'feet' };
+        if (isEyewear) return { type: 'Eyewear', hint: 'face' };
+        if (isShirt) return { type: 'Shirt', hint: 'selfie' };
+        if (isDress) return { type: 'Dress', hint: 'selfie' };
+        if (isKurti) return { type: 'Kurti', hint: 'selfie' };
+
         return { type: 'Fabric', hint: 'selfie' };
-    }, [productTitle]);
+    }, [productTitle, productCategory]);
 
     const isApparel = categoryInfo.type === 'Fabric' || categoryInfo.type === 'Shirt' || categoryInfo.type === 'Dress' || categoryInfo.type === 'Kurti';
 

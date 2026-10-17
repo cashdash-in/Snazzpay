@@ -109,12 +109,22 @@ function BrandedCollectionContent() {
     // Helper to determine category and hint text
     const getProductContext = (p: DisplayProduct) => {
         const title = p.title.toLowerCase();
-        if (title.includes('watch')) return { type: 'Accessory', hint: 'wrist', label: 'WRIST' };
-        if (title.includes('shoe') || title.includes('sandal') || title.includes('sneaker') || title.includes('footwear') || (title.includes('frock') === false && title.includes('heel'))) return { type: 'Footwear', hint: 'feet', label: 'FEET' };
-        if (title.includes('glass') || title.includes('shade') || title.includes('spectacle')) return { type: 'Eyewear', hint: 'face', label: 'FACE' };
-        if ((title.includes('shirt') || title.includes('t-shirt')) && !title.includes('dress')) return { type: 'Shirt', hint: 'selfie', label: 'SELFIE' };
-        if (title.includes('dress') || title.includes('frock')) return { type: 'Dress', hint: 'selfie', label: 'SELFIE' };
-        if (title.includes('kurti') || title.includes('kurta')) return { type: 'Kurti', hint: 'selfie', label: 'SELFIE' };
+        const cat = (p.category || '').toLowerCase();
+        
+        const isWatch = title.includes('watch') || cat.includes('watch');
+        const isFootwear = title.includes('shoe') || cat.includes('shoe') || title.includes('sandal') || cat.includes('sandal') || title.includes('sneaker') || cat.includes('sneaker') || title.includes('footwear') || cat.includes('footwear') || (title.includes('frock') === false && title.includes('heel')) || cat.includes('footwear');
+        const isEyewear = title.includes('glass') || cat.includes('glass') || title.includes('shade') || cat.includes('shade') || title.includes('spectacle') || cat.includes('spectacle');
+        const isShirt = (title.includes('shirt') || title.includes('t-shirt') || cat.includes('shirt')) && !title.includes('dress');
+        const isDress = title.includes('dress') || title.includes('frock') || cat.includes('dress') || cat.includes('frock');
+        const isKurti = title.includes('kurti') || title.includes('kurta') || cat.includes('kurti') || cat.includes('kurta');
+
+        if (isWatch) return { type: 'Accessory', hint: 'wrist', label: 'WRIST' };
+        if (isFootwear) return { type: 'Footwear', hint: 'feet', label: 'FEET' };
+        if (isEyewear) return { type: 'Eyewear', hint: 'face', label: 'FACE' };
+        if (isShirt) return { type: 'Shirt', hint: 'selfie', label: 'SELFIE' };
+        if (isDress) return { type: 'Dress', hint: 'selfie', label: 'SELFIE' };
+        if (isKurti) return { type: 'Kurti', hint: 'selfie', label: 'SELFIE' };
+        
         return { type: 'Fabric', hint: 'selfie', label: 'SELFIE' };
     };
 
@@ -253,9 +263,9 @@ function BrandedCollectionContent() {
                     {products.map(product => {
                          const price = ((product as any).price || (product as any).costPrice);
                          const discountedPrice = discount > 0 ? price - (price * (discount / 100)) : price;
+                         const ctx = getProductContext(product);
                          const isProductTryOn = tryOnProductId === product.id;
                          const canTryOn = magazine?.isTryOnEnabled || product.isTryOnEnabled;
-                         const ctx = getProductContext(product);
                          const isApparel = ctx.type === 'Fabric' || ctx.type === 'Kurti' || ctx.type === 'Dress' || ctx.type === 'Shirt';
 
                         return (
@@ -300,7 +310,11 @@ function BrandedCollectionContent() {
 
                                 {isProductTryOn && tryOnResult && (
                                     <div className="absolute top-2 left-2 flex gap-1 z-30">
-                                        <Button onClick={() => handleShareWhatsAppTryOn(tryOnResult!, product.title)} size="icon" className="h-8 w-8 rounded-full bg-green-600 border-none text-white shadow-lg">
+                                        <Button onClick={() => {
+                                            const message = `Check out my new virtual look with this ${product.title} from Snazzify! ${window.location.href}`;
+                                            const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
+                                            window.open(url, '_blank');
+                                        }} size="icon" className="h-8 w-8 rounded-full bg-green-600 border-none text-white shadow-lg">
                                             <Share2 className="h-4 w-4" />
                                         </Button>
                                         <Button onClick={() => {
@@ -437,13 +451,6 @@ function BrandedCollectionContent() {
         </div>
     );
 }
-
-function handleShareWhatsAppTryOn(imgUrl: string, title: string) {
-    const message = `Check out my new virtual look with this ${title} from Snazzify! ${window.location.href}`;
-    const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
-    window.open(url, '_blank');
-}
-
 
 export default function BrandedCollectionPage() {
     return (

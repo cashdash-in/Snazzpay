@@ -121,12 +121,22 @@ function SmartMagazineContent() {
     // Helper to determine category and hint text
     const getProductContext = (p: DisplayProduct) => {
         const title = p.title.toLowerCase();
-        if (title.includes('watch')) return { type: 'Accessory', hint: 'wrist', label: 'WRIST' };
-        if (title.includes('shoe') || title.includes('sandal') || title.includes('sneaker') || title.includes('footwear') || (title.includes('frock') === false && title.includes('heel'))) return { type: 'Footwear', hint: 'feet', label: 'FEET' };
-        if (title.includes('glass') || title.includes('shade') || title.includes('spectacle')) return { type: 'Eyewear', hint: 'face', label: 'FACE' };
-        if ((title.includes('shirt') || title.includes('t-shirt')) && !title.includes('dress')) return { type: 'Shirt', hint: 'selfie', label: 'SELFIE' };
-        if (title.includes('dress') || title.includes('frock')) return { type: 'Dress', hint: 'selfie', label: 'SELFIE' };
-        if (title.includes('kurti') || title.includes('kurta')) return { type: 'Kurti', hint: 'selfie', label: 'SELFIE' };
+        const cat = (p.category || '').toLowerCase();
+        
+        const isWatch = title.includes('watch') || cat.includes('watch');
+        const isFootwear = title.includes('shoe') || cat.includes('shoe') || title.includes('sandal') || cat.includes('sandal') || title.includes('sneaker') || cat.includes('sneaker') || title.includes('footwear') || cat.includes('footwear') || (title.includes('frock') === false && title.includes('heel')) || cat.includes('footwear');
+        const isEyewear = title.includes('glass') || cat.includes('glass') || title.includes('shade') || cat.includes('shade') || title.includes('spectacle') || cat.includes('spectacle');
+        const isShirt = (title.includes('shirt') || title.includes('t-shirt') || cat.includes('shirt')) && !title.includes('dress');
+        const isDress = title.includes('dress') || title.includes('frock') || cat.includes('dress') || cat.includes('frock');
+        const isKurti = title.includes('kurti') || title.includes('kurta') || cat.includes('kurti') || cat.includes('kurta');
+
+        if (isWatch) return { type: 'Accessory', hint: 'wrist', label: 'WRIST' };
+        if (isFootwear) return { type: 'Footwear', hint: 'feet', label: 'FEET' };
+        if (isEyewear) return { type: 'Eyewear', hint: 'face', label: 'FACE' };
+        if (isShirt) return { type: 'Shirt', hint: 'selfie', label: 'SELFIE' };
+        if (isDress) return { type: 'Dress', hint: 'selfie', label: 'SELFIE' };
+        if (isKurti) return { type: 'Kurti', hint: 'selfie', label: 'SELFIE' };
+        
         return { type: 'Fabric', hint: 'selfie', label: 'SELFIE' };
     };
 
@@ -373,7 +383,7 @@ function SmartMagazineContent() {
                                                     <Download className="mr-2 h-5 w-5" /> Save
                                                 </Button>
                                             </div>
-                                            <Button onClick={() => handleShareWhatsAppTryOn(tryOnResult!, mainProduct.title)} className="w-full h-14 bg-green-600 hover:bg-green-700 text-white font-black uppercase italic rounded-2xl shadow-xl">
+                                            <Button onClick={handleShareWhatsAppTryOn(tryOnResult!, mainProduct.title)} className="w-full h-14 bg-green-600 hover:bg-green-700 text-white font-black uppercase italic rounded-2xl shadow-xl">
                                                 <Share2 className="mr-2 h-6 w-6" /> Share Look
                                             </Button>
                                         </div>
@@ -411,9 +421,9 @@ function SmartMagazineContent() {
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
                         {products.map(product => {
                             const price = (product as any).price || (product as any).costPrice;
+                            const ctx = getProductContext(product);
                             const isProductTryOn = tryOnProductId === product.id;
                             const canTryOn = magazine?.isTryOnEnabled || product.isTryOnEnabled;
-                            const ctx = getProductContext(product);
                             const isApparel = ctx.type === 'Fabric' || ctx.type === 'Kurti' || ctx.type === 'Dress' || ctx.type === 'Shirt';
 
                             return (
@@ -488,7 +498,7 @@ function SmartMagazineContent() {
                                                             <div className="space-y-4 py-4">
                                                                 <div className="space-y-1"><Label className="text-[10px] uppercase font-black">Your Name</Label><Input value={enquiryForm.name} onChange={e => setEnquiryForm({...enquiryForm, name: e.target.value})} className="h-12 rounded-xl" /></div>
                                                                 <div className="space-y-1"><Label className="text-[10px] uppercase font-black">WhatsApp Number</Label><Input value={enquiryForm.phone} onChange={e => setEnquiryForm({...enquiryForm, phone: e.target.value})} className="h-12 rounded-xl" /></div>
-                                                                <div className="space-y-1"><Label className="text-[10px] uppercase font-black">Message</Label><Textarea value={enquiryForm.message} onChange={e => setEnquiryForm({...enquiryForm, message: e.target.value})} className="rounded-xl" /></div>
+                                                                <div className="space-y-1"><Label className="text-[10px] uppercase font-black">Message</Label><Textarea value={enquiryForm.message} onChange={e => enquiryProduct && setEnquiryForm({...enquiryForm, message: e.target.value})} className="rounded-xl" /></div>
                                                             </div>
                                                             <DialogFooter><Button onClick={handleSendEnquiry} className="w-full h-14 rounded-2xl font-black uppercase italic" disabled={isEnquiring}>{isEnquiring ? <Loader2 className="animate-spin"/> : "Send Request"}</Button></DialogFooter>
                                                         </DialogContent>
@@ -507,7 +517,7 @@ function SmartMagazineContent() {
                                             disabled={!canTryOn || !hasConsented || isTryOnLoading}
                                             onClick={() => { setTryOnProductId(product.id); cameraInputRef.current?.click(); }}
                                         >
-                                            <Sparkles className="h-3 w-3 text-primary" /> {canTryOn ? 'MAGIC MIRROR' : 'TRY-ON OFF'}
+                                            <Sparkles className="h-3 w-3 text-primary" /> {canTryOn ? `TAKE ${ctx.label}` : 'TRY-ON OFF'}
                                         </Button>
                                         <Button 
                                             variant="ghost" 
@@ -540,3 +550,4 @@ function SmartMagazineContent() {
 export default function SmartMagazinePage() {
     return <Suspense fallback={<div className="flex h-screen w-full items-center justify-center"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>}><SmartMagazineContent /></Suspense>;
 }
+
