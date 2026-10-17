@@ -105,6 +105,18 @@ function BrandedCollectionContent() {
         fetchProducts();
     }, [params.id, searchParams]);
 
+    // Helper to determine category and hint text
+    const getProductContext = (p: DisplayProduct) => {
+        const title = p.title.toLowerCase();
+        if (title.includes('watch')) return { type: 'Accessory', hint: 'wrist', label: 'WRIST' };
+        if (title.includes('shoe') || title.includes('sandal') || title.includes('sneaker') || title.includes('footwear') || (title.includes('frock') === false && title.includes('heel'))) return { type: 'Footwear', hint: 'feet', label: 'FEET' };
+        if (title.includes('glass') || title.includes('shade') || title.includes('spectacle')) return { type: 'Eyewear', hint: 'face', label: 'FACE' };
+        if ((title.includes('shirt') || title.includes('t-shirt')) && !title.includes('dress')) return { type: 'Shirt', hint: 'selfie', label: 'SELFIE' };
+        if (title.includes('dress') || title.includes('frock')) return { type: 'Dress', hint: 'selfie', label: 'SELFIE' };
+        if (title.includes('kurti') || title.includes('kurta')) return { type: 'Kurti', hint: 'selfie', label: 'SELFIE' };
+        return { type: 'Fabric', hint: 'selfie', label: 'SELFIE' };
+    };
+
     const resizeImageForAI = (fileOrUri: File | string, maxSize: number = MAX_TRYON_SIZE_PX): Promise<string> => {
         return new Promise((resolve, reject) => {
             if (typeof window === 'undefined') return reject('Window undefined');
@@ -138,11 +150,9 @@ function BrandedCollectionContent() {
         setIsTryOnLoading(true);
         setTryOnResult(null);
         setTryOnProductId(product.id);
-
-        const garmentClassification = (product.title.toLowerCase().includes('shirt') || product.title.toLowerCase().includes('t-shirt')) && !product.title.toLowerCase().includes('dress') ? 'Shirt' : 
-                                      (product.title.toLowerCase().includes('dress') || product.title.toLowerCase().includes('frock')) ? 'Dress' : 
-                                      (product.title.toLowerCase().includes('kurti') || product.title.toLowerCase().includes('kurta')) ? 'Kurti' : 'Fabric';
         
+        const ctx = getProductContext(product);
+
         try {
             const [personUri, productUri] = await Promise.all([
                 resizeImageForAI(file),
@@ -153,7 +163,7 @@ function BrandedCollectionContent() {
                 personImageDataUri: personUri,
                 productImageDataUri: productUri,
                 productTitle: product.title,
-                garmentType: garmentClassification as any,
+                garmentType: ctx.type as any,
                 drapeStyle: selectedDrapeStyle,
                 sleeveLength: selectedSleeves
             });
@@ -244,7 +254,8 @@ function BrandedCollectionContent() {
                          const discountedPrice = discount > 0 ? price - (price * (discount / 100)) : price;
                          const isProductTryOn = tryOnProductId === product.id;
                          const canTryOn = magazine?.isTryOnEnabled || product.isTryOnEnabled;
-                         const isShirt = (product.title.toLowerCase().includes('shirt') || product.title.toLowerCase().includes('t-shirt')) && !product.title.toLowerCase().includes('dress');
+                         const ctx = getProductContext(product);
+                         const isApparel = ctx.type === 'Fabric' || ctx.type === 'Kurti' || ctx.type === 'Dress' || ctx.type === 'Shirt';
 
                         return (
                         <Card key={product.id} className="shadow-md hover:shadow-xl transition-shadow overflow-hidden flex flex-col group rounded-[24px] bg-white border-none">
@@ -360,8 +371,8 @@ function BrandedCollectionContent() {
                                                         </div>
                                                     </div>
 
-                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                                        {!isShirt && (
+                                                    {isApparel && ctx.type !== 'Shirt' && (
+                                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                             <div className="space-y-2">
                                                                 <Label className="text-[10px] font-black uppercase text-slate-400">Select Style</Label>
                                                                 <Select value={selectedDrapeStyle} onValueChange={(val: any) => setSelectedDrapeStyle(val)}>
@@ -377,25 +388,25 @@ function BrandedCollectionContent() {
                                                                     </SelectContent>
                                                                 </Select>
                                                             </div>
-                                                        )}
-                                                        <div className="space-y-2">
-                                                            <Label className="text-[10px] font-black uppercase text-slate-400">Sleeves</Label>
-                                                            <Select value={selectedSleeves} onValueChange={(val: any) => setSelectedSleeves(val)}>
-                                                                <SelectTrigger className="h-10 rounded-xl bg-slate-50 border-none font-bold text-xs">
-                                                                    <SelectValue />
-                                                                </SelectTrigger>
-                                                                <SelectContent>
-                                                                    <SelectItem value="Half Sleeves">Half Sleeves</SelectItem>
-                                                                    <SelectItem value="Full Sleeves">Full Sleeves</SelectItem>
-                                                                    <SelectItem value="Sleeveless">Sleeveless</SelectItem>
-                                                                </SelectContent>
-                                                            </Select>
+                                                            <div className="space-y-2">
+                                                                <Label className="text-[10px] font-black uppercase text-slate-400">Sleeves</Label>
+                                                                <Select value={selectedSleeves} onValueChange={(val: any) => setSelectedSleeves(val)}>
+                                                                    <SelectTrigger className="h-10 rounded-xl bg-slate-50 border-none font-bold text-xs">
+                                                                        <SelectValue />
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
+                                                                        <SelectItem value="Half Sleeves">Half Sleeves</SelectItem>
+                                                                        <SelectItem value="Full Sleeves">Full Sleeves</SelectItem>
+                                                                        <SelectItem value="Sleeveless">Sleeveless</SelectItem>
+                                                                    </SelectContent>
+                                                                </Select>
+                                                            </div>
                                                         </div>
-                                                    </div>
+                                                    )}
 
                                                     <div className="grid grid-cols-2 gap-4">
                                                         <Button disabled={!hasConsented || isTryOnLoading} onClick={() => { setTryOnProductId(product.id); cameraInputRef.current?.click(); }} className="h-14 rounded-2xl font-black uppercase italic shadow-lg">
-                                                            <Camera className="mr-2 h-5 w-5" /> Take Selfie
+                                                            <Camera className="mr-2 h-5 w-5" /> Take {ctx.label}
                                                         </Button>
                                                         <Button disabled={!hasConsented || isTryOnLoading} variant="secondary" onClick={() => { setTryOnProductId(product.id); galleryInputRef.current?.click(); }} className="h-14 rounded-2xl font-black uppercase italic">
                                                             <ImagePlus className="mr-2 h-5 w-5" /> Gallery

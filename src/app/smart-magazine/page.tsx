@@ -117,9 +117,17 @@ function SmartMagazineContent() {
         fetchProducts();
     }, [searchParams]);
 
-    const showSleeveOption = useMemo(() => {
-        return ['Western Wear', 'Kurti', 'Western Dress', 'Standard Saree', 'East Indian Lugra'].includes(selectedDrapeStyle);
-    }, [selectedDrapeStyle]);
+    // Helper to determine category and hint text
+    const getProductContext = (p: DisplayProduct) => {
+        const title = p.title.toLowerCase();
+        if (title.includes('watch')) return { type: 'Accessory', hint: 'wrist', label: 'WRIST' };
+        if (title.includes('shoe') || title.includes('sandal') || title.includes('sneaker') || title.includes('footwear') || (title.includes('frock') === false && title.includes('heel'))) return { type: 'Footwear', hint: 'feet', label: 'FEET' };
+        if (title.includes('glass') || title.includes('shade') || title.includes('spectacle')) return { type: 'Eyewear', hint: 'face', label: 'FACE' };
+        if ((title.includes('shirt') || title.includes('t-shirt')) && !title.includes('dress')) return { type: 'Shirt', hint: 'selfie', label: 'SELFIE' };
+        if (title.includes('dress') || title.includes('frock')) return { type: 'Dress', hint: 'selfie', label: 'SELFIE' };
+        if (title.includes('kurti') || title.includes('kurta')) return { type: 'Kurti', hint: 'selfie', label: 'SELFIE' };
+        return { type: 'Fabric', hint: 'selfie', label: 'SELFIE' };
+    };
 
     const resizeImageForAI = (fileOrUri: File | string, maxSize: number = MAX_TRYON_SIZE_PX): Promise<string> => {
         return new Promise((resolve, reject) => {
@@ -164,6 +172,8 @@ function SmartMagazineContent() {
         setTryOnResult(null);
         setTryOnProductId(product.id);
         
+        const ctx = getProductContext(product);
+
         try {
             const [personUri, productUri] = await Promise.all([
                 resizeImageForAI(file),
@@ -174,6 +184,7 @@ function SmartMagazineContent() {
                 personImageDataUri: personUri,
                 productImageDataUri: productUri,
                 productTitle: product.title,
+                garmentType: ctx.type as any,
                 drapeStyle: selectedDrapeStyle,
                 sleeveLength: selectedSleeves
             });
@@ -245,6 +256,8 @@ function SmartMagazineContent() {
     if (isLoading) return <div className="flex h-screen w-full items-center justify-center"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
 
     const mainProduct = products[0];
+    const mainCtx = mainProduct ? getProductContext(mainProduct) : null;
+    const isMainApparel = mainCtx && (mainCtx.type === 'Fabric' || mainCtx.type === 'Kurti' || mainCtx.type === 'Dress' || mainCtx.type === 'Shirt');
 
     return (
         <div className="min-h-screen bg-slate-50 pb-20">
@@ -280,7 +293,7 @@ function SmartMagazineContent() {
                                 <div className="absolute inset-0 bg-black/60 backdrop-blur-md flex flex-col items-center justify-center text-center p-8 gap-4">
                                     <Sparkles className="h-16 w-16 text-primary animate-bounce" />
                                     <h3 className="text-2xl font-black italic uppercase tracking-tighter">AI Fitting Room...</h3>
-                                    <p className="text-xs text-slate-400 animate-pulse">Personalizing your outfit with precision.</p>
+                                    <p className="text-xs text-slate-400 animate-pulse">Personalizing your {mainCtx?.hint} fit with precision.</p>
                                 </div>
                             )}
                             <div className="absolute top-4 left-4">
@@ -291,7 +304,7 @@ function SmartMagazineContent() {
                             <div className="space-y-4">
                                 <Badge className="bg-primary text-white font-black italic">FEATURED PRODUCT</Badge>
                                 <h2 className="text-4xl md:text-6xl font-black italic uppercase tracking-tighter leading-none">{mainProduct.title}</h2>
-                                <p className="text-slate-400 text-lg italic">"Experience a perfect virtual fit instantly."</p>
+                                <p className="text-slate-400 text-lg italic">"Experience a perfect virtual fit for your {mainCtx?.hint} instantly."</p>
                             </div>
                             
                             <div className="bg-white/5 border border-white/10 p-6 rounded-3xl space-y-6">
@@ -310,36 +323,38 @@ function SmartMagazineContent() {
                                 </div>
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-white/10">
-                                    <div className="space-y-2">
-                                        <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Select Style</Label>
-                                        <Select value={selectedDrapeStyle} onValueChange={(val: any) => setSelectedDrapeStyle(val)}>
-                                            <SelectTrigger className="h-10 bg-white/10 border-white/20 text-white rounded-xl text-xs font-bold">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="Western Wear">Western Fit (Mini/Tight Fit)</SelectItem>
-                                                <SelectItem value="Western Dress">Modern Western Dress</SelectItem>
-                                                <SelectItem value="Kurti">Traditional Kurti</SelectItem>
-                                                <SelectItem value="Standard Saree">Standard Saree</SelectItem>
-                                                <SelectItem value="East Indian Lugra">East Indian Lugra</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
+                                    {isMainApparel && (
+                                        <>
+                                            <div className="space-y-2">
+                                                <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Select Style</Label>
+                                                <Select value={selectedDrapeStyle} onValueChange={(val: any) => setSelectedDrapeStyle(val)}>
+                                                    <SelectTrigger className="h-10 bg-white/10 border-white/20 text-white rounded-xl text-xs font-bold">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="Western Wear">Western Fit (Mini/Tight Fit)</SelectItem>
+                                                        <SelectItem value="Western Dress">Modern Western Dress</SelectItem>
+                                                        <SelectItem value="Kurti">Traditional Kurti</SelectItem>
+                                                        <SelectItem value="Standard Saree">Standard Saree</SelectItem>
+                                                        <SelectItem value="East Indian Lugra">East Indian Lugra</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
 
-                                    {showSleeveOption && (
-                                        <div className="space-y-2">
-                                            <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Sleeves</Label>
-                                            <Select value={selectedSleeves} onValueChange={(val: any) => setSelectedSleeves(val)}>
-                                                <SelectTrigger className="h-10 bg-white/10 border-white/20 text-white rounded-xl text-xs font-bold">
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="Half Sleeves">Half Sleeves</SelectItem>
-                                                    <SelectItem value="Full Sleeves">Full Sleeves</SelectItem>
-                                                    <SelectItem value="Sleeveless">Sleeveless</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
+                                            <div className="space-y-2">
+                                                <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Sleeves</Label>
+                                                <Select value={selectedSleeves} onValueChange={(val: any) => setSelectedSleeves(val)}>
+                                                    <SelectTrigger className="h-10 bg-white/10 border-white/20 text-white rounded-xl text-xs font-bold">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="Half Sleeves">Half Sleeves</SelectItem>
+                                                        <SelectItem value="Full Sleeves">Full Sleeves</SelectItem>
+                                                        <SelectItem value="Sleeveless">Sleeveless</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        </>
                                     )}
                                 </div>
 
@@ -370,7 +385,7 @@ function SmartMagazineContent() {
                                                 disabled={!hasConsented || isTryOnLoading}
                                                 className="h-14 rounded-2xl font-black uppercase italic bg-primary hover:bg-primary/90 text-white shadow-xl"
                                             >
-                                                <Camera className="mr-2 h-5 w-5" /> Take Selfie
+                                                <Camera className="mr-2 h-5 w-5" /> Take {mainCtx?.label}
                                             </Button>
                                             <Button 
                                                 onClick={() => { setTryOnProductId(mainProduct.id); galleryInputRef.current?.click(); }}
@@ -399,8 +414,8 @@ function SmartMagazineContent() {
                             const price = (product as any).price || (product as any).costPrice;
                             const isProductTryOn = tryOnProductId === product.id;
                             const canTryOn = magazine?.isTryOnEnabled || product.isTryOnEnabled;
-                            
-                            const isShirt = (product.title.toLowerCase().includes('shirt') || product.title.toLowerCase().includes('t-shirt')) && !product.title.toLowerCase().includes('dress');
+                            const ctx = getProductContext(product);
+                            const isApparel = ctx.type === 'Fabric' || ctx.type === 'Kurti' || ctx.type === 'Dress' || ctx.type === 'Shirt';
 
                             return (
                                 <Card key={product.id} className="group rounded-[32px] border-none shadow-lg hover:shadow-2xl transition-all duration-500 overflow-hidden bg-white flex flex-col">
