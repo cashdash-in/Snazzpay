@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, ShoppingCart, MessageCircle, Sparkles, Camera, ImagePlus, RefreshCcw, Download, Store, Share2 } from 'lucide-react';
+import { Loader2, ShoppingCart, MessageCircle, Sparkles, Camera, ImagePlus, RefreshCcw, Download, Store, Share2, ArrowLeft, ShieldCheck } from 'lucide-react';
 import Image from 'next/image';
 import type { SellerProduct } from '@/types/product';
 import { getCollection, getDocument, saveDocument } from '@/services/firestore';
@@ -288,6 +288,17 @@ function BrandedCollectionContent() {
 
                                 {isProductTryOn && tryOnResult && (
                                     <div className="absolute top-2 left-2 flex gap-1 z-30">
+                                        <Button onClick={() => handleShareWhatsAppTryOn(tryOnResult!, product.title)} size="icon" className="h-8 w-8 rounded-full bg-green-600 border-none text-white shadow-lg">
+                                            <Share2 className="h-4 w-4" />
+                                        </Button>
+                                        <Button onClick={() => {
+                                            const link = document.createElement('a');
+                                            link.href = tryOnResult!;
+                                            link.download = `my_look_${product.id}.jpg`;
+                                            link.click();
+                                        }} size="icon" className="h-8 w-8 rounded-full bg-white text-slate-900 border-none shadow-lg">
+                                            <Download className="h-4 w-4" />
+                                        </Button>
                                         <Button onClick={() => setTryOnResult(null)} size="icon" variant="destructive" className="h-8 w-8 rounded-full shadow-lg">
                                             <RefreshCcw className="h-4 w-4" />
                                         </Button>
@@ -412,6 +423,13 @@ function BrandedCollectionContent() {
         </div>
     );
 }
+
+function handleShareWhatsAppTryOn(imgUrl: string, title: string) {
+    const message = `Check out my new virtual look with this ${title} from Snazzify! ${window.location.href}`;
+    const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
+}
+
 
 export default function BrandedCollectionPage() {
     return (

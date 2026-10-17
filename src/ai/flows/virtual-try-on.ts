@@ -44,7 +44,7 @@ export async function virtualTryOn(input: VirtualTryOnInput) {
             2. WAIST: The drape is tucked neatly at the waist with prominent gathered pleats. STRICTLY FORBIDDEN: Do not add any waist belt or Kamar Pata.
             3. BLOUSE: Generate a matching blouse (matching the fabric in the second photo) with traditional sleeves ending at the elbow with zari borders.
             4. ACCESSORIES: Automatically add ONLY these authentic gold jewelry items:
-               - "East Indian Pote": A long traditional gold bead necklace with a distinct pendant reaching the navel area.
+               - "East Indian Pote": A long traditional gold bead necklace with a distinct pendant reaching the NAVEL AREA exactly.
                - Layered Necklaces: Include a gold choker and a medium-length gold necklace.
                - "Bangadi": A stack of thick gold bangles on BOTH wrists.
                - STRICTLY FORBIDDEN: Do not add any South Indian temple jewelry or modern heavy long necklaces.

@@ -246,7 +246,8 @@ function SecureCodFormContent() {
                 const rzp = new (window as any).Razorpay({
                     key: razorpayKeyId, order_id: intentResult.order_id, amount: 100, name: "Order Verification", description: "Intent Verification (₹1)",
                     handler: async () => {
-                        await saveDocument('leads', { ...orderData, id: intentResult.internal_order_id, paymentStatus: 'Intent Verified' }, intentResult.internal_order_id);
+                        const leadId = searchParams.get('order_id') || intentResult.internal_order_id;
+                        await saveDocument('leads', { ...orderData, id: leadId, paymentStatus: 'Intent Verified' }, leadId);
                         setIntentPaid(true);
                         setIsSubmitting(false);
                         toast({ title: "Verification Successful!", description: "Complete the final authorization to secure your order." });
@@ -270,6 +271,10 @@ function SecureCodFormContent() {
                         await saveDocument('payment_info', { paymentId: response.razorpay_payment_id, orderId: finalId, status: 'authorized', authorizedAt: new Date().toISOString() }, finalId);
                         const finalOrder: EditableOrder = { ...orderData, id: finalId, paymentStatus: 'Authorized', source: 'Manual', isRead: false };
                         await saveDocument('orders', finalOrder, finalId);
+                        
+                        const leadToDelete = searchParams.get('order_id');
+                        if (leadToDelete) await deleteDocument('leads', leadToDelete);
+                        
                         const card = await getOrCreateShaktiCard(finalOrder);
                         if (card) setNewlyCreatedCard(card);
                         setStep('complete');
