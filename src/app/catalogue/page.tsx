@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Suspense, useState, useEffect, useRef, useMemo } from 'react';
@@ -364,35 +365,35 @@ function CatalogueOrderPageContent() {
                                         </Label>
                                     </div>
 
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-white/10">
-                                        {isApparel && !isShirt && (
-                                            <div className="space-y-2">
-                                                <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Style Mode</Label>
-                                                <Select value={selectedDrapeStyle} onValueChange={(val: any) => setSelectedDrapeStyle(val)}>
-                                                    <SelectTrigger className="h-10 bg-white/10 border-white/20 text-white rounded-xl text-xs font-bold">
-                                                        <SelectValue />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="Western Wear">Western Fit (Mini/Tight Fit)</SelectItem>
-                                                        <SelectItem value="Western Dress">Modern Western Dress</SelectItem>
-                                                        <SelectItem value="Kurti">Traditional Kurti</SelectItem>
-                                                        <SelectItem value="Standard Saree">Standard Saree (Floor Length)</SelectItem>
-                                                        <SelectItem value="East Indian Lugra">East Indian Lugra (Authentic)</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                        )}
-                                        
-                                        {isShirt && (
-                                            <div className="space-y-2">
-                                                <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Fit Mode</Label>
-                                                <div className="h-10 px-3 bg-white/10 border border-white/20 text-white rounded-xl text-xs font-bold flex items-center">
-                                                    Standard Fitting
+                                    {isApparel && (
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-white/10">
+                                            {!isShirt && (
+                                                <div className="space-y-2">
+                                                    <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Style Mode</Label>
+                                                    <Select value={selectedDrapeStyle} onValueChange={(val: any) => setSelectedDrapeStyle(val)}>
+                                                        <SelectTrigger className="h-10 bg-white/10 border-white/20 text-white rounded-xl text-xs font-bold">
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="Western Wear">Western Fit (Mini/Tight Fit)</SelectItem>
+                                                            <SelectItem value="Western Dress">Modern Western Dress</SelectItem>
+                                                            <SelectItem value="Kurti">Traditional Kurti</SelectItem>
+                                                            <SelectItem value="Standard Saree">Standard Saree (Floor Length)</SelectItem>
+                                                            <SelectItem value="East Indian Lugra">East Indian Lugra (Authentic)</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
                                                 </div>
-                                            </div>
-                                        )}
+                                            )}
+                                            
+                                            {isShirt && (
+                                                <div className="space-y-2">
+                                                    <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Fit Mode</Label>
+                                                    <div className="h-10 px-3 bg-white/10 border border-white/20 text-white rounded-xl text-xs font-bold flex items-center">
+                                                        Standard Fitting
+                                                    </div>
+                                                </div>
+                                            )}
 
-                                        {isApparel && (
                                             <div className="space-y-2">
                                                 <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Sleeves</Label>
                                                 <Select value={selectedSleeves} onValueChange={(val: any) => setSelectedSleeves(val)}>
@@ -406,8 +407,8 @@ function CatalogueOrderPageContent() {
                                                     </SelectContent>
                                                 </Select>
                                             </div>
-                                        )}
-                                    </div>
+                                        </div>
+                                    )}
 
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         {tryOnResult ? (

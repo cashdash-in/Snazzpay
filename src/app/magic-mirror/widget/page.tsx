@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Suspense, useState, useRef, useMemo, useEffect } from 'react';
@@ -58,10 +59,12 @@ function MagicMirrorWidgetContent() {
         if (title.includes('shoe') || title.includes('sandal') || title.includes('sneaker') || title.includes('footwear') || (title.includes('frock') === false && title.includes('heel'))) return { type: 'Footwear', hint: 'feet' };
         if (title.includes('glass') || title.includes('shade') || title.includes('spectacle')) return { type: 'Eyewear', hint: 'face' };
         if ((title.includes('shirt') || title.includes('t-shirt')) && !title.includes('dress')) return { type: 'Shirt', hint: 'selfie' };
+        if (title.includes('dress') || title.includes('frock')) return { type: 'Dress', hint: 'selfie' };
+        if (title.includes('kurti') || title.includes('kurta')) return { type: 'Kurti', hint: 'selfie' };
         return { type: 'Fabric', hint: 'selfie' };
     }, [productTitle]);
 
-    const isApparel = categoryInfo.type === 'Fabric' || categoryInfo.type === 'Shirt' || categoryInfo.type === 'Dress';
+    const isApparel = categoryInfo.type === 'Fabric' || categoryInfo.type === 'Shirt' || categoryInfo.type === 'Dress' || categoryInfo.type === 'Kurti';
 
     const resizeImageForAI = (fileOrUri: File | string, maxSize: number = MAX_TRYON_SIZE_PX): Promise<string> => {
         return new Promise((resolve, reject) => {
@@ -174,21 +177,38 @@ function MagicMirrorWidgetContent() {
                                 </Label>
                             </div>
 
-                            {isApparel && categoryInfo.type !== 'Shirt' && (
-                                <div className="space-y-2 text-left">
-                                    <Label className="text-[9px] font-black uppercase text-slate-500 tracking-widest ml-1">Style Mode</Label>
-                                    <Select value={selectedDrapeStyle} onValueChange={(val: any) => setSelectedDrapeStyle(val)}>
-                                        <SelectTrigger className="h-10 bg-white/10 border-white/20 text-white rounded-xl text-xs font-bold">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="Western Wear">Western Fit (Mini/Tight Fit)</SelectItem>
-                                            <SelectItem value="Western Dress">Modern Western Dress</SelectItem>
-                                            <SelectItem value="Kurti">Traditional Kurti</SelectItem>
-                                            <SelectItem value="Standard Saree">Standard Saree</SelectItem>
-                                            <SelectItem value="East Indian Lugra">East Indian Lugra</SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                            {isApparel && (
+                                <div className="space-y-4">
+                                    {categoryInfo.type !== 'Shirt' && (
+                                        <div className="space-y-2 text-left">
+                                            <Label className="text-[9px] font-black uppercase text-slate-500 tracking-widest ml-1">Style Mode</Label>
+                                            <Select value={selectedDrapeStyle} onValueChange={(val: any) => setSelectedDrapeStyle(val)}>
+                                                <SelectTrigger className="h-10 bg-white/10 border-white/20 text-white rounded-xl text-xs font-bold">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="Western Wear">Western Fit (Mini/Tight Fit)</SelectItem>
+                                                    <SelectItem value="Western Dress">Modern Western Dress</SelectItem>
+                                                    <SelectItem value="Kurti">Traditional Kurti</SelectItem>
+                                                    <SelectItem value="Standard Saree">Standard Saree</SelectItem>
+                                                    <SelectItem value="East Indian Lugra">East Indian Lugra</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    )}
+                                    <div className="space-y-2 text-left">
+                                        <Label className="text-[9px] font-black uppercase text-slate-500 tracking-widest ml-1">Sleeves</Label>
+                                        <Select value={selectedSleeves} onValueChange={(val: any) => setSelectedSleeves(val)}>
+                                            <SelectTrigger className="h-10 bg-white/10 border-white/20 text-white rounded-xl text-xs font-bold">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="Half Sleeves">Half Sleeves</SelectItem>
+                                                <SelectItem value="Full Sleeves">Full Sleeves</SelectItem>
+                                                <SelectItem value="Sleeveless">Sleeveless</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
                                 </div>
                             )}
 

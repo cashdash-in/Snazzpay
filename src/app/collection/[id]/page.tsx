@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Suspense, useEffect, useState, useRef, useMemo } from 'react';
@@ -371,23 +372,25 @@ function BrandedCollectionContent() {
                                                         </div>
                                                     </div>
 
-                                                    {isApparel && ctx.type !== 'Shirt' && (
+                                                    {isApparel && (
                                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                                            <div className="space-y-2">
-                                                                <Label className="text-[10px] font-black uppercase text-slate-400">Select Style</Label>
-                                                                <Select value={selectedDrapeStyle} onValueChange={(val: any) => setSelectedDrapeStyle(val)}>
-                                                                    <SelectTrigger className="h-10 rounded-xl bg-slate-50 border-none font-bold text-xs">
-                                                                        <SelectValue />
-                                                                    </SelectTrigger>
-                                                                    <SelectContent>
-                                                                        <SelectItem value="Western Wear">Western Fit (Mini/Tight Fit)</SelectItem>
-                                                                        <SelectItem value="Western Dress">Western Dress</SelectItem>
-                                                                        <SelectItem value="Kurti">Kurti</SelectItem>
-                                                                        <SelectItem value="Standard Saree">Standard Saree</SelectItem>
-                                                                        <SelectItem value="East Indian Lugra">East Indian Lugra</SelectItem>
-                                                                    </SelectContent>
-                                                                </Select>
-                                                            </div>
+                                                            {ctx.type !== 'Shirt' && (
+                                                                <div className="space-y-2">
+                                                                    <Label className="text-[10px] font-black uppercase text-slate-400">Select Style</Label>
+                                                                    <Select value={selectedDrapeStyle} onValueChange={(val: any) => setSelectedDrapeStyle(val)}>
+                                                                        <SelectTrigger className="h-10 rounded-xl bg-slate-50 border-none font-bold text-xs">
+                                                                            <SelectValue />
+                                                                        </SelectTrigger>
+                                                                        <SelectContent>
+                                                                            <SelectItem value="Western Wear">Western Fit (Mini/Tight Fit)</SelectItem>
+                                                                            <SelectItem value="Western Dress">Western Dress</SelectItem>
+                                                                            <SelectItem value="Kurti">Kurti</SelectItem>
+                                                                            <SelectItem value="Standard Saree">Standard Saree</SelectItem>
+                                                                            <SelectItem value="East Indian Lugra">East Indian Lugra</SelectItem>
+                                                                        </SelectContent>
+                                                                    </Select>
+                                                                </div>
+                                                            )}
                                                             <div className="space-y-2">
                                                                 <Label className="text-[10px] font-black uppercase text-slate-400">Sleeves</Label>
                                                                 <Select value={selectedSleeves} onValueChange={(val: any) => setSelectedSleeves(val)}>
