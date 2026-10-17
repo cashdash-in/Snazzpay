@@ -43,7 +43,7 @@ function MagicMirrorWidgetContent() {
 
     const productTitle = dbProduct?.title || searchParams.get('name') || 'Product';
     const productImage = dbProduct?.imageDataUris?.[0] || searchParams.get('img') || '';
-    const productCategory = dbProduct?.category || '';
+    const productCategory = (dbProduct?.category || '').toLowerCase();
     
     const [isTryOnLoading, setIsTryOnLoading] = useState(false);
     const [tryOnResult, setTryOnResult] = useState<string | null>(null);
@@ -56,26 +56,32 @@ function MagicMirrorWidgetContent() {
 
     const categoryInfo = useMemo(() => {
         const title = productTitle.toLowerCase();
-        const cat = productCategory.toLowerCase();
+        const cat = productCategory;
 
+        // Priority Detection: Accessories & Footwear
         const isWatch = title.includes('watch') || cat.includes('watch');
-        const isFootwear = title.includes('shoe') || cat.includes('shoe') || title.includes('sandal') || cat.includes('sandal') || title.includes('sneaker') || cat.includes('sneaker') || title.includes('footwear') || cat.includes('footwear') || (title.includes('frock') === false && title.includes('heel')) || cat.includes('footwear');
-        const isEyewear = title.includes('glass') || cat.includes('glass') || title.includes('shade') || cat.includes('shade') || title.includes('spectacle') || cat.includes('spectacle');
-        const isShirt = (title.includes('shirt') || title.includes('t-shirt') || cat.includes('shirt')) && !title.includes('dress');
+        const isFootwear = title.includes('shoe') || title.includes('sneaker') || title.includes('sandal') || title.includes('heel') || title.includes('bondi') || title.includes('clifton') || title.includes('hoka') || cat.includes('footwear') || cat.includes('shoe') || cat.includes('sneaker');
+        const isEyewear = title.includes('glass') || title.includes('shade') || title.includes('spectacle') || cat.includes('eyewear') || cat.includes('glass');
+        
+        // Apparel Detection
+        const isShirt = (title.includes('shirt') || title.includes('t-shirt') || cat.includes('shirt') || cat.includes('top')) && !title.includes('dress');
         const isDress = title.includes('dress') || title.includes('frock') || cat.includes('dress') || cat.includes('frock');
         const isKurti = title.includes('kurti') || title.includes('kurta') || cat.includes('kurti') || cat.includes('kurta');
+        const isSaree = title.includes('saree') || title.includes('lugra') || cat.includes('saree') || cat.includes('fabric');
 
-        if (isWatch) return { type: 'Accessory', hint: 'wrist' };
-        if (isFootwear) return { type: 'Footwear', hint: 'feet' };
-        if (isEyewear) return { type: 'Eyewear', hint: 'face' };
-        if (isShirt) return { type: 'Shirt', hint: 'selfie' };
-        if (isDress) return { type: 'Dress', hint: 'selfie' };
-        if (isKurti) return { type: 'Kurti', hint: 'selfie' };
+        if (isWatch) return { type: 'Accessory', hint: 'wrist', isApparel: false };
+        if (isFootwear) return { type: 'Footwear', hint: 'feet', isApparel: false };
+        if (isEyewear) return { type: 'Eyewear', hint: 'face', isApparel: false };
+        
+        if (isShirt) return { type: 'Shirt', hint: 'selfie', isApparel: true };
+        if (isDress) return { type: 'Dress', hint: 'selfie', isApparel: true };
+        if (isKurti) return { type: 'Kurti', hint: 'selfie', isApparel: true };
+        if (isSaree) return { type: 'Fabric', hint: 'selfie', isApparel: true };
 
-        return { type: 'Fabric', hint: 'selfie' };
+        return { type: 'General', hint: 'selfie', isApparel: false };
     }, [productTitle, productCategory]);
 
-    const isApparel = categoryInfo.type === 'Fabric' || categoryInfo.type === 'Shirt' || categoryInfo.type === 'Dress' || categoryInfo.type === 'Kurti';
+    const isApparel = categoryInfo.isApparel;
 
     const resizeImageForAI = (fileOrUri: File | string, maxSize: number = MAX_TRYON_SIZE_PX): Promise<string> => {
         return new Promise((resolve, reject) => {

@@ -89,29 +89,34 @@ function CatalogueOrderPageContent() {
     const [returnUrl, setReturnUrl] = useState('https://www.snazzify.co.in');
 
     const ctx = useMemo(() => {
-        if (!product) return { type: 'Fabric', hint: 'selfie', label: 'SELFIE' };
+        if (!product) return { type: 'General', hint: 'selfie', label: 'SELFIE', isApparel: false };
         const title = product.title.toLowerCase();
         const cat = (product.category || '').toLowerCase();
         
+        // Priority Detection: Accessories & Footwear
         const isWatch = title.includes('watch') || cat.includes('watch');
-        const isFootwear = title.includes('shoe') || cat.includes('shoe') || title.includes('sandal') || cat.includes('sandal') || title.includes('sneaker') || cat.includes('sneaker') || title.includes('footwear') || cat.includes('footwear') || (title.includes('frock') === false && title.includes('heel')) || cat.includes('footwear');
-        const isEyewear = title.includes('glass') || cat.includes('glass') || title.includes('shade') || cat.includes('shade') || title.includes('spectacle') || cat.includes('spectacle');
-        const isShirt = (title.includes('shirt') || title.includes('t-shirt') || cat.includes('shirt')) && !title.includes('dress');
+        const isFootwear = title.includes('shoe') || title.includes('sneaker') || title.includes('sandal') || title.includes('heel') || title.includes('bondi') || title.includes('clifton') || title.includes('hoka') || cat.includes('footwear') || cat.includes('shoe') || cat.includes('sneaker');
+        const isEyewear = title.includes('glass') || title.includes('shade') || title.includes('spectacle') || cat.includes('eyewear') || cat.includes('glass');
+        
+        // Apparel Detection
+        const isShirt = (title.includes('shirt') || title.includes('t-shirt') || cat.includes('shirt') || cat.includes('top')) && !title.includes('dress');
         const isDress = title.includes('dress') || title.includes('frock') || cat.includes('dress') || cat.includes('frock');
         const isKurti = title.includes('kurti') || title.includes('kurta') || cat.includes('kurti') || cat.includes('kurta');
+        const isSaree = title.includes('saree') || title.includes('lugra') || cat.includes('saree') || cat.includes('fabric');
 
-        if (isWatch) return { type: 'Accessory', hint: 'wrist', label: 'WRIST' };
-        if (isFootwear) return { type: 'Footwear', hint: 'feet', label: 'FEET' };
-        if (isEyewear) return { type: 'Eyewear', hint: 'face', label: 'FACE' };
-        if (isShirt) return { type: 'Shirt', hint: 'selfie', label: 'SELFIE' };
-        if (isDress) return { type: 'Dress', hint: 'selfie', label: 'SELFIE' };
-        if (isKurti) return { type: 'Kurti', hint: 'selfie', label: 'SELFIE' };
+        if (isWatch) return { type: 'Accessory', hint: 'wrist', label: 'WRIST', isApparel: false };
+        if (isFootwear) return { type: 'Footwear', hint: 'feet', label: 'FEET', isApparel: false };
+        if (isEyewear) return { type: 'Eyewear', hint: 'face', label: 'FACE', isApparel: false };
         
-        return { type: 'Fabric', hint: 'selfie', label: 'SELFIE' };
+        if (isShirt) return { type: 'Shirt', hint: 'selfie', label: 'SELFIE', isApparel: true };
+        if (isDress) return { type: 'Dress', hint: 'selfie', label: 'SELFIE', isApparel: true };
+        if (isKurti) return { type: 'Kurti', hint: 'selfie', label: 'SELFIE', isApparel: true };
+        if (isSaree) return { type: 'Fabric', hint: 'selfie', label: 'SELFIE', isApparel: true };
+        
+        return { type: 'General', hint: 'selfie', label: 'SELFIE', isApparel: false };
     }, [product]);
 
-    const isShirt = ctx.type === 'Shirt';
-    const isApparel = ctx.type === 'Fabric' || ctx.type === 'Shirt' || ctx.type === 'Dress' || ctx.type === 'Kurti';
+    const isApparel = ctx.isApparel;
 
     useEffect(() => {
         setMounted(true);
@@ -377,7 +382,7 @@ function CatalogueOrderPageContent() {
 
                                     {isApparel && (
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-white/10">
-                                            {!isShirt && (
+                                            {ctx.type !== 'Shirt' && (
                                                 <div className="space-y-2">
                                                     <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Style Mode</Label>
                                                     <Select value={selectedDrapeStyle} onValueChange={(val: any) => setSelectedDrapeStyle(val)}>
@@ -395,7 +400,7 @@ function CatalogueOrderPageContent() {
                                                 </div>
                                             )}
                                             
-                                            {isShirt && (
+                                            {ctx.type === 'Shirt' && (
                                                 <div className="space-y-2">
                                                     <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Fit Mode</Label>
                                                     <div className="h-10 px-3 bg-white/10 border border-white/20 text-white rounded-xl text-xs font-bold flex items-center">

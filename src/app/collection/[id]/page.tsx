@@ -111,21 +111,28 @@ function BrandedCollectionContent() {
         const title = p.title.toLowerCase();
         const cat = (p.category || '').toLowerCase();
         
+        // Priority Detection: Accessories & Footwear
         const isWatch = title.includes('watch') || cat.includes('watch');
-        const isFootwear = title.includes('shoe') || cat.includes('shoe') || title.includes('sandal') || cat.includes('sandal') || title.includes('sneaker') || cat.includes('sneaker') || title.includes('footwear') || cat.includes('footwear') || (title.includes('frock') === false && title.includes('heel')) || cat.includes('footwear');
-        const isEyewear = title.includes('glass') || cat.includes('glass') || title.includes('shade') || cat.includes('shade') || title.includes('spectacle') || cat.includes('spectacle');
-        const isShirt = (title.includes('shirt') || title.includes('t-shirt') || cat.includes('shirt')) && !title.includes('dress');
+        const isFootwear = title.includes('shoe') || title.includes('sneaker') || title.includes('sandal') || title.includes('heel') || title.includes('bondi') || title.includes('clifton') || title.includes('hoka') || cat.includes('footwear') || cat.includes('shoe') || cat.includes('sneaker');
+        const isEyewear = title.includes('glass') || title.includes('shade') || title.includes('spectacle') || cat.includes('eyewear') || cat.includes('glass');
+        
+        // Apparel Detection
+        const isShirt = (title.includes('shirt') || title.includes('t-shirt') || cat.includes('shirt') || cat.includes('top')) && !title.includes('dress');
         const isDress = title.includes('dress') || title.includes('frock') || cat.includes('dress') || cat.includes('frock');
         const isKurti = title.includes('kurti') || title.includes('kurta') || cat.includes('kurti') || cat.includes('kurta');
+        const isSaree = title.includes('saree') || title.includes('lugra') || cat.includes('saree') || cat.includes('fabric');
 
-        if (isWatch) return { type: 'Accessory', hint: 'wrist', label: 'WRIST' };
-        if (isFootwear) return { type: 'Footwear', hint: 'feet', label: 'FEET' };
-        if (isEyewear) return { type: 'Eyewear', hint: 'face', label: 'FACE' };
-        if (isShirt) return { type: 'Shirt', hint: 'selfie', label: 'SELFIE' };
-        if (isDress) return { type: 'Dress', hint: 'selfie', label: 'SELFIE' };
-        if (isKurti) return { type: 'Kurti', hint: 'selfie', label: 'SELFIE' };
+        if (isWatch) return { type: 'Accessory', hint: 'wrist', label: 'WRIST', isApparel: false };
+        if (isFootwear) return { type: 'Footwear', hint: 'feet', label: 'FEET', isApparel: false };
+        if (isEyewear) return { type: 'Eyewear', hint: 'face', label: 'FACE', isApparel: false };
         
-        return { type: 'Fabric', hint: 'selfie', label: 'SELFIE' };
+        if (isShirt) return { type: 'Shirt', hint: 'selfie', label: 'SELFIE', isApparel: true };
+        if (isDress) return { type: 'Dress', hint: 'selfie', label: 'SELFIE', isApparel: true };
+        if (isKurti) return { type: 'Kurti', hint: 'selfie', label: 'SELFIE', isApparel: true };
+        if (isSaree) return { type: 'Fabric', hint: 'selfie', label: 'SELFIE', isApparel: true };
+        
+        // Final fallback: General product, no clothing options
+        return { type: 'General', hint: 'selfie', label: 'SELFIE', isApparel: false };
     };
 
     const resizeImageForAI = (fileOrUri: File | string, maxSize: number = MAX_TRYON_SIZE_PX): Promise<string> => {
@@ -266,7 +273,7 @@ function BrandedCollectionContent() {
                          const ctx = getProductContext(product);
                          const isProductTryOn = tryOnProductId === product.id;
                          const canTryOn = magazine?.isTryOnEnabled || product.isTryOnEnabled;
-                         const isApparel = ctx.type === 'Fabric' || ctx.type === 'Kurti' || ctx.type === 'Dress' || ctx.type === 'Shirt';
+                         const isApparel = ctx.isApparel;
 
                         return (
                         <Card key={product.id} className="shadow-md hover:shadow-xl transition-shadow overflow-hidden flex flex-col group rounded-[24px] bg-white border-none">

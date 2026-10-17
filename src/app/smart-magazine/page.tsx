@@ -123,21 +123,28 @@ function SmartMagazineContent() {
         const title = p.title.toLowerCase();
         const cat = (p.category || '').toLowerCase();
         
+        // Priority Detection: Accessories & Footwear
         const isWatch = title.includes('watch') || cat.includes('watch');
-        const isFootwear = title.includes('shoe') || cat.includes('shoe') || title.includes('sandal') || cat.includes('sandal') || title.includes('sneaker') || cat.includes('sneaker') || title.includes('footwear') || cat.includes('footwear') || (title.includes('frock') === false && title.includes('heel')) || cat.includes('footwear');
-        const isEyewear = title.includes('glass') || cat.includes('glass') || title.includes('shade') || cat.includes('shade') || title.includes('spectacle') || cat.includes('spectacle');
-        const isShirt = (title.includes('shirt') || title.includes('t-shirt') || cat.includes('shirt')) && !title.includes('dress');
+        const isFootwear = title.includes('shoe') || title.includes('sneaker') || title.includes('sandal') || title.includes('heel') || title.includes('bondi') || title.includes('clifton') || title.includes('hoka') || cat.includes('footwear') || cat.includes('shoe') || cat.includes('sneaker');
+        const isEyewear = title.includes('glass') || title.includes('shade') || title.includes('spectacle') || cat.includes('eyewear') || cat.includes('glass');
+        
+        // Apparel Detection
+        const isShirt = (title.includes('shirt') || title.includes('t-shirt') || cat.includes('shirt') || cat.includes('top')) && !title.includes('dress');
         const isDress = title.includes('dress') || title.includes('frock') || cat.includes('dress') || cat.includes('frock');
         const isKurti = title.includes('kurti') || title.includes('kurta') || cat.includes('kurti') || cat.includes('kurta');
+        const isSaree = title.includes('saree') || title.includes('lugra') || cat.includes('saree') || cat.includes('fabric');
 
-        if (isWatch) return { type: 'Accessory', hint: 'wrist', label: 'WRIST' };
-        if (isFootwear) return { type: 'Footwear', hint: 'feet', label: 'FEET' };
-        if (isEyewear) return { type: 'Eyewear', hint: 'face', label: 'FACE' };
-        if (isShirt) return { type: 'Shirt', hint: 'selfie', label: 'SELFIE' };
-        if (isDress) return { type: 'Dress', hint: 'selfie', label: 'SELFIE' };
-        if (isKurti) return { type: 'Kurti', hint: 'selfie', label: 'SELFIE' };
+        if (isWatch) return { type: 'Accessory', hint: 'wrist', label: 'WRIST', isApparel: false };
+        if (isFootwear) return { type: 'Footwear', hint: 'feet', label: 'FEET', isApparel: false };
+        if (isEyewear) return { type: 'Eyewear', hint: 'face', label: 'FACE', isApparel: false };
         
-        return { type: 'Fabric', hint: 'selfie', label: 'SELFIE' };
+        if (isShirt) return { type: 'Shirt', hint: 'selfie', label: 'SELFIE', isApparel: true };
+        if (isDress) return { type: 'Dress', hint: 'selfie', label: 'SELFIE', isApparel: true };
+        if (isKurti) return { type: 'Kurti', hint: 'selfie', label: 'SELFIE', isApparel: true };
+        if (isSaree) return { type: 'Fabric', hint: 'selfie', label: 'SELFIE', isApparel: true };
+        
+        // Final fallback: General product, no clothing options
+        return { type: 'General', hint: 'selfie', label: 'SELFIE', isApparel: false };
     };
 
     const resizeImageForAI = (fileOrUri: File | string, maxSize: number = MAX_TRYON_SIZE_PX): Promise<string> => {
@@ -268,7 +275,7 @@ function SmartMagazineContent() {
 
     const mainProduct = products[0];
     const mainCtx = mainProduct ? getProductContext(mainProduct) : null;
-    const isMainApparel = mainCtx && (mainCtx.type === 'Fabric' || mainCtx.type === 'Kurti' || mainCtx.type === 'Dress' || mainCtx.type === 'Shirt');
+    const isMainApparel = mainCtx?.isApparel;
 
     return (
         <div className="min-h-screen bg-slate-50 pb-20">
@@ -383,7 +390,7 @@ function SmartMagazineContent() {
                                                     <Download className="mr-2 h-5 w-5" /> Save
                                                 </Button>
                                             </div>
-                                            <Button onClick={handleShareWhatsAppTryOn(tryOnResult!, mainProduct.title)} className="w-full h-14 bg-green-600 hover:bg-green-700 text-white font-black uppercase italic rounded-2xl shadow-xl">
+                                            <Button onClick={() => handleShareWhatsAppTryOn(tryOnResult!, mainProduct.title)} className="w-full h-14 bg-green-600 hover:bg-green-700 text-white font-black uppercase italic rounded-2xl shadow-xl">
                                                 <Share2 className="mr-2 h-6 w-6" /> Share Look
                                             </Button>
                                         </div>
@@ -424,7 +431,7 @@ function SmartMagazineContent() {
                             const ctx = getProductContext(product);
                             const isProductTryOn = tryOnProductId === product.id;
                             const canTryOn = magazine?.isTryOnEnabled || product.isTryOnEnabled;
-                            const isApparel = ctx.type === 'Fabric' || ctx.type === 'Kurti' || ctx.type === 'Dress' || ctx.type === 'Shirt';
+                            const isApparel = ctx.isApparel;
 
                             return (
                                 <Card key={product.id} className="group rounded-[32px] border-none shadow-lg hover:shadow-2xl transition-all duration-500 overflow-hidden bg-white flex flex-col">
@@ -471,7 +478,7 @@ function SmartMagazineContent() {
                                                     link.download = `my_look_${product.id}.jpg`;
                                                     link.click();
                                                 }} size="icon" className="h-8 w-8 rounded-full bg-white shadow-lg border-none text-slate-900">
-                                                    <Download className="h-4 w-4" />
+                                                    <Download className="mr-2 h-4 w-4" />
                                                 </Button>
                                                 <Button onClick={() => { setTryOnResult(null); setTryOnProductId(null); }} size="icon" variant="destructive" className="h-8 w-8 rounded-full shadow-lg">
                                                     <RefreshCcw className="h-4 w-4" />
@@ -550,4 +557,3 @@ function SmartMagazineContent() {
 export default function SmartMagazinePage() {
     return <Suspense fallback={<div className="flex h-screen w-full items-center justify-center"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>}><SmartMagazineContent /></Suspense>;
 }
-
