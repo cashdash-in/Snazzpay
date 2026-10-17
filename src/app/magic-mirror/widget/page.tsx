@@ -11,6 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { virtualTryOn } from '@/ai/flows/virtual-try-on';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { getDocument } from '@/services/firestore';
 
 const MAX_TRYON_SIZE_PX = 448;
 
@@ -18,9 +19,31 @@ function MagicMirrorWidgetContent() {
     const searchParams = useSearchParams();
     const { toast } = useToast();
     
-    // Config from URL
-    const productTitle = searchParams.get('name') || 'Product';
-    const productImage = searchParams.get('img') || '';
+    const productId = searchParams.get('id');
+    const [dbProduct, setDbProduct] = useState<any>(null);
+    const [isProductLoading, setIsProductLoading] = useState(!!productId);
+
+    useEffect(() => {
+        if (productId) {
+            async function loadProduct() {
+                try {
+                    // Try to find product in either collection
+                    let p = await getDocument('product_drops', productId!);
+                    if (!p) p = await getDocument('seller_products', productId!);
+                    setDbProduct(p);
+                } catch (e) {
+                    console.error("Error loading product for widget:", e);
+                } finally {
+                    setIsProductLoading(false);
+                }
+            }
+            loadProduct();
+        }
+    }, [productId]);
+
+    // Use DB data if available, fallback to URL params
+    const productTitle = dbProduct?.title || searchParams.get('name') || 'Product';
+    const productImage = dbProduct?.imageDataUris?.[0] || searchParams.get('img') || '';
     
     const [isTryOnLoading, setIsTryOnLoading] = useState(false);
     const [tryOnResult, setTryOnResult] = useState<string | null>(null);
@@ -98,6 +121,15 @@ function MagicMirrorWidgetContent() {
             if (e.target) e.target.value = '';
         }
     };
+
+    if (isProductLoading) {
+        return (
+            <div className="flex h-screen w-full flex-col items-center justify-center bg-slate-950 text-white">
+                <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                <p className="mt-4 text-xs font-bold uppercase tracking-widest text-slate-400">Loading Magic Mirror...</p>
+            </div>
+        );
+    }
 
     return (
         <div className="flex flex-col h-screen bg-slate-950 text-white overflow-hidden font-sans">

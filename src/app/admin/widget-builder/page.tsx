@@ -36,8 +36,8 @@ export default function WidgetBuilderPage() {
 
     const getWidgetUrl = (product: ProductDrop) => {
         const params = new URLSearchParams();
-        params.set('name', product.title);
-        params.set('img', product.imageDataUris[0]);
+        // Use product ID instead of full image data to avoid 414 Request-URI Too Long error
+        params.set('id', product.id);
         return `${origin}/magic-mirror/widget?${params.toString()}`;
     };
 
