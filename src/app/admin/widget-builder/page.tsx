@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Copy, Code, Sparkles, ExternalLink, ImagePlus, Loader2 } from 'lucide-react';
+import { Copy, Code, Sparkles, ExternalLink, ImagePlus, Loader2, Share2 } from 'lucide-react';
 import { getCollection } from '@/services/firestore';
 import type { ProductDrop } from '@/types/product';
 import Image from 'next/image';
