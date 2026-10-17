@@ -65,6 +65,7 @@ import {
   ClipboardList,
   Image as LucideImage,
   UsersRound,
+  LayoutTemplate,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { getCookie } from 'cookies-next';
@@ -72,6 +73,7 @@ import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { getCollection } from '@/services/firestore';
 import type { EditableOrder } from '@/types/order';
+import { SellerGenee } from '@/components/genee/seller-genee';
 
 type MenuItem = {
     href: string;
@@ -96,6 +98,7 @@ const adminCoreMenuItems: MenuItem[] = [
 const adminGrowthMenuItems: MenuItem[] = [
     { href: '/admin/staff', label: 'Staff Management', icon: UsersRound },
     { href: '/admin/site-builder', label: 'AI Site Builder', icon: MonitorCheck },
+    { href: '/admin/widget-builder', label: 'Widget Builder', icon: LayoutTemplate },
     { href: '/ai-product-uploader', label: 'AI Product Uploader', icon: Wand2 },
     { href: '/admin/whatsapp-uploader', label: 'WhatsApp Uploader', icon: MessageSquare },
     { href: '/admin/image-bulk-uploader', label: 'Image Bulk Uploader', icon: LucideImage },
@@ -378,6 +381,7 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
         </header>
         <main className="flex-1 p-4 md:p-6 lg:p-8">
           {children}
+          <SellerGenee />
         </main>
       </SidebarInset>
     </SidebarProvider>
