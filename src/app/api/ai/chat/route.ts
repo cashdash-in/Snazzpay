@@ -19,20 +19,21 @@ const searchSnazzifyGlobal = ai.defineTool(
     try {
         const allProducts = await fetchLiveSnazzifyProducts();
         if (!allProducts || allProducts.length === 0) return [];
-        const searchLower = input.searchTerm.toLowerCase();
         
-        // Even more comprehensive Matching Logic:
+        const searchLower = input.searchTerm.toLowerCase().trim();
+        if (searchLower.length < 2) return [];
+
         const searchWords = searchLower.split(' ').filter(w => w.length > 1);
         
+        // High-Precision Matching Logic
         return allProducts.filter(p => {
             const title = p.title.toLowerCase();
             const cat = (p.category || '').toLowerCase();
-            // Fuzzy match: check if ANY of the search words appear in title or category
-            const wordMatch = searchWords.some(word => title.includes(word) || cat.includes(word));
+            const wordMatch = searchWords.length > 0 && searchWords.some(word => title.includes(word) || cat.includes(word));
             const fullMatch = title.includes(searchLower) || cat.includes(searchLower);
             
             return wordMatch || fullMatch;
-        }).slice(0, 20); // Return up to 20 results for maximum coverage
+        }).slice(0, 8); // Slice to 8 to keep payload size within safety limits for LLM context
     } catch (e) {
         console.error("Global Tool Error:", e);
         return [];
@@ -44,8 +45,11 @@ export async function POST(request: Request) {
   try {
     const input = await request.json();
     
-    // Lean context to prevent payload errors
-    const localCatalog = (input.catalog || []).slice(0, 15).map((p: any) => ({
+    if (!input.query) {
+        return NextResponse.json({ answer: "How can I help you find the perfect product today? ✨" });
+    }
+
+    const localCatalog = (input.catalog || []).slice(0, 10).map((p: any) => ({
         id: p.id,
         title: p.title,
         price: p.price,
@@ -54,15 +58,14 @@ export async function POST(request: Request) {
 
     const systemPrompt = `You are the "Star Girl" AI Discovery Engine for ${input.storeName}. 
     
-    SEARCH STRATEGY (MANDATORY):
+    SEARCH STRATEGY:
     1. LOCAL FIRST: Check this local list: ${JSON.stringify(localCatalog)}.
-    2. GLOBAL SEARCH (CRITICAL): If the customer asks for ANY product, category, or style NOT clearly found in the LOCAL list, you MUST use the 'searchSnazzifyGlobal' tool immediately. 
-    3. SHOW EVERYTHING: We want to show the customer ALL available options from www.snazzify.co.in. Do not be lazy. If matches exist in the global vault, you MUST show them.
-    4. BE COMPREHENSIVE: We want to show the customer ALL available options from www.snazzify.co.in if the local store doesn't have it.
-    5. UP-SELL: Always suggest a "5% Bundle Discount" for matching accessories or complementary items.
+    2. GLOBAL SEARCH (CRITICAL): If the customer asks for ANY product NOT in the LOCAL list, use 'searchSnazzifyGlobal' immediately.
+    3. BE COMPREHENSIVE: Show matching options from www.snazzify.co.in if the local store doesn't have it.
+    4. UP-SELL: Suggest a "5% Bundle Discount" for matching accessories.
     
-    STYLE: Use emojis ✨, ⭐. Be concise but helpful. Ensure your tone is helpful and focused on making a sale.
-    OUTPUT: Valid JSON only. Ensure answer text is fully visible and not cut off.`;
+    STYLE: Use emojis ✨, ⭐. Be concise. 
+    OUTPUT: Valid JSON matching the schema.`;
 
     try {
         const response = await ai.generate({

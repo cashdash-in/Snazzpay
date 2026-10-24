@@ -5,7 +5,7 @@ import { Suspense, useEffect, useState, useRef, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, ShoppingCart, Percent, MessageCircle, Send, Sparkles, Camera, ImagePlus, RefreshCcw, ShieldCheck, Share2, Download, Facebook, Instagram, Store, Star } from 'lucide-react';
+import { Loader2, ShoppingCart, MessageCircle, Sparkles, Camera, ImagePlus, RefreshCcw, ShieldCheck, Share2, Download, Store, Star } from 'lucide-react';
 import Image from 'next/image';
 import type { SellerProduct } from '../seller/ai-product-uploader/page';
 import { getCollection, getDocument, saveDocument } from '@/services/firestore';
@@ -71,6 +71,10 @@ function SmartMagazineContent() {
     const [enquiryProduct, setEnquiryProduct] = useState<DisplayProduct | null>(null);
     const [enquiryForm, setEnquiryForm] = useState({ name: '', phone: '', message: '' });
     const [isEnquiring, setIsEnquiring] = useState(false);
+
+    // Global AI Terminal State
+    const [isGeneeOpen, setIsGeneeOpen] = useState(false);
+    const [activeGeneeProduct, setActiveGeneeProduct] = useState<any>(null);
 
     useEffect(() => {
         setMounted(true);
@@ -168,7 +172,6 @@ function SmartMagazineContent() {
         setTryOnResult(null);
         setTryOnProductId(product.id);
 
-        // Track Try-On Attempt
         fetch('/api/track', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -202,7 +205,6 @@ function SmartMagazineContent() {
                 toast({ variant: 'destructive', title: "Try-On Failed", description: result.error });
             } else if (result.generatedImageDataUri) {
                 setTryOnResult(result.generatedImageDataUri);
-                // Track Try-On Success
                 fetch('/api/track', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -313,7 +315,12 @@ function SmartMagazineContent() {
                                     )}
 
                                     <div className="absolute top-4 right-4 z-20">
-                                        <ProductGenee product={{...product, price}} allProducts={products} storeName={magazine?.vendorTitle || magazine?.creatorName || 'Snazzify Store'} />
+                                        <Badge 
+                                            className="bg-white/95 text-primary font-black italic text-[10px] px-3 py-1 rounded-full shadow-lg flex items-center gap-1.5 cursor-pointer hover:scale-110 active:scale-95 transition-all animate-genee-flash"
+                                            onClick={() => { setActiveGeneeProduct(product); setIsGeneeOpen(true); }}
+                                        >
+                                            <Star className="h-2.5 w-2.5 fill-primary" /> ASK ME
+                                        </Badge>
                                     </div>
                                 </div>
                                 <CardContent className="p-6 flex-1 flex flex-col justify-between">
@@ -323,19 +330,7 @@ function SmartMagazineContent() {
                                     </div>
                                     <div className="pt-4 border-t mt-4 flex justify-between items-center">
                                         <span className="text-xl font-black text-primary">₹{price}</span>
-                                        <Dialog open={enquiryProduct?.id === product.id} onOpenChange={(open) => !open && setEnquiryProduct(null)}>
-                                            <DialogTrigger asChild>
-                                                <Button variant="ghost" size="sm" className="font-bold text-[10px] uppercase" onClick={() => setEnquiryProduct(product)}>Enquire</Button>
-                                            </DialogTrigger>
-                                            <DialogContent className="rounded-[32px] p-8 border-none">
-                                                <DialogHeader><DialogTitle className="text-2xl font-black italic uppercase">Product Enquiry</DialogTitle></DialogHeader>
-                                                <div className="space-y-4 py-4">
-                                                    <div className="space-y-1"><Label className="text-[10px] uppercase font-black">Your Name</Label><Input value={enquiryForm.name} onChange={e => setEnquiryForm({...enquiryForm, name: e.target.value})} className="h-12 rounded-xl" /></div>
-                                                    <div className="space-y-1"><Label className="text-[10px] uppercase font-black">WhatsApp Number</Label><Input value={enquiryForm.phone} onChange={e => setEnquiryForm({...enquiryForm, phone: e.target.value})} className="h-12 rounded-xl" /></div>
-                                                </div>
-                                                <DialogFooter><Button onClick={handleSendEnquiry} className="w-full h-14 rounded-2xl font-black uppercase italic" disabled={isEnquiring}>{isEnquiring ? <Loader2 className="animate-spin"/> : "Send Request"}</Button></DialogFooter>
-                                            </DialogContent>
-                                        </Dialog>
+                                        <Button variant="ghost" size="sm" className="font-bold text-[10px] uppercase" onClick={() => setEnquiryProduct(product)}>Enquire</Button>
                                     </div>
                                 </CardContent>
                                 <CardFooter className="p-0 border-t bg-slate-50 grid grid-cols-2">
@@ -351,6 +346,33 @@ function SmartMagazineContent() {
                     })}
                 </div>
             </main>
+
+            {/* Global Enquiry Dialog */}
+            <Dialog open={!!enquiryProduct} onOpenChange={(open) => !open && setEnquiryProduct(null)}>
+                <DialogContent className="rounded-[32px] p-8 border-none">
+                    <DialogHeader><DialogTitle className="text-2xl font-black italic uppercase">Product Enquiry</DialogTitle></DialogHeader>
+                    {enquiryProduct && (
+                        <div className="space-y-4 py-4">
+                            <div className="flex gap-4 p-3 bg-muted/50 rounded-xl">
+                                <div className="relative w-12 h-12 rounded-lg overflow-hidden shrink-0"><Image src={enquiryProduct.imageDataUris[0]} fill alt="p" className="object-cover" /></div>
+                                <div><p className="font-bold text-xs uppercase">{enquiryProduct.title}</p><p className="text-[10px] text-primary font-bold">₹{enquiryProduct.price || (enquiryProduct as any).costPrice}</p></div>
+                            </div>
+                            <div className="space-y-1"><Label className="text-[10px] font-black uppercase">Your Name</Label><Input value={enquiryForm.name} onChange={e => setEnquiryForm({...enquiryForm, name: e.target.value})} className="h-12 rounded-xl" /></div>
+                            <div className="space-y-1"><Label className="text-[10px] font-black uppercase">WhatsApp Number</Label><Input value={enquiryForm.phone} onChange={e => setEnquiryForm({...enquiryForm, phone: e.target.value})} className="h-12 rounded-xl" /></div>
+                        </div>
+                    )}
+                    <DialogFooter><Button onClick={handleSendEnquiry} className="w-full h-14 rounded-2xl font-black uppercase italic" disabled={isEnquiring}>{isEnquiring ? <Loader2 className="animate-spin"/> : "Send Request"}</Button></DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Global AI Genee Terminal */}
+            <ProductGenee 
+                isOpen={isGeneeOpen}
+                onOpenChange={setIsGeneeOpen}
+                product={activeGeneeProduct}
+                allProducts={products}
+                storeName={magazine?.vendorTitle || magazine?.creatorName || 'Snazzify Store'}
+            />
 
             <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex gap-4">
                 <Button onClick={handleWhatsAppBusinessChat} className="rounded-full h-16 px-10 bg-green-600 hover:bg-green-700 shadow-[0_20px_50px_rgba(22,163,74,0.3)] font-black uppercase italic tracking-tighter text-white border-4 border-white transition-transform hover:scale-105 active:scale-95">

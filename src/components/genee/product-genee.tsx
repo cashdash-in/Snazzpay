@@ -35,7 +35,7 @@ interface CartItem {
 }
 
 interface ProductGeneeProps {
-  product: {
+  product?: {
     id: string;
     title: string;
     description: string;
@@ -45,12 +45,13 @@ interface ProductGeneeProps {
   };
   allProducts: any[];
   storeName: string;
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
-export function ProductGenee({ product, allProducts, storeName }: ProductGeneeProps) {
+export function ProductGenee({ product, allProducts, storeName, isOpen, onOpenChange }: ProductGeneeProps) {
   const router = useRouter();
   const { toast } = useToast();
-  const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -74,7 +75,6 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
 
   useEffect(() => {
       if (isOpen) {
-          // Track Genee Open
           fetch('/api/track', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -104,14 +104,11 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
         }
         return [...prev, { product: prod, quantity: 1 }];
     });
-    
-    // Track Add to Cart from Genee
     fetch('/api/track', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ event: 'geneeCartAdd' })
     });
-    
     toast({ title: "Added to Cart!", description: `${prod.title} is ready.` });
   };
 
@@ -127,7 +124,6 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
     setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
     setIsLoading(true);
 
-    // Track user search interaction
     fetch('/api/track', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -139,10 +135,10 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            siteId: product.id,
+            siteId: product?.id || 'global',
             storeName: storeName,
             query: userMsg,
-            catalog: (allProducts || []).slice(0, 15).map(p => ({
+            catalog: (allProducts || []).slice(0, 10).map(p => ({
                 id: p.id,
                 title: p.title,
                 price: p.price || p.costPrice,
@@ -179,29 +175,23 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <Badge className="bg-white/95 text-primary font-black italic text-[11px] px-4 py-2 rounded-full shadow-2xl flex items-center gap-2 animate-genee-flash cursor-pointer border-2 border-primary/30 transition-transform hover:scale-110 active:scale-95">
-            <Star className="h-3 w-3 fill-primary" /> ASK ME
-        </Badge>
-      </DialogTrigger>
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[95vw] w-full md:max-w-7xl h-[90vh] p-0 border-none overflow-hidden rounded-[32px] bg-[#f8f9fa] shadow-2xl">
         <div className="flex flex-col h-full w-full">
           {/* Top Status Bar */}
           <div className="bg-slate-100/80 px-6 py-2 border-b flex items-center justify-between shrink-0">
              <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
-                <span className="text-[10px] font-medium text-slate-500 uppercase tracking-widest">Comparing prices across the catalog...</span>
+                <span className="text-[10px] font-medium text-slate-500 uppercase tracking-widest">Global Discovery Engine Online...</span>
              </div>
              <div className="flex items-center gap-4">
-                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-slate-400 hover:text-slate-900"><Moon className="h-4 w-4"/></Button>
-                <div className="relative group">
+                <div className="relative">
                     <Button variant="ghost" size="icon" onClick={() => setActiveTab('cart')} className="h-8 w-8 rounded-full text-slate-400 hover:text-slate-900 relative">
                         <ShoppingCart className="h-4 w-4" />
                         {cart.length > 0 && <Badge className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center bg-blue-500 text-[8px] border-none">{cart.length}</Badge>}
                     </Button>
                 </div>
-                <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)} className="h-8 w-8 rounded-full text-slate-400 hover:text-slate-900"><X className="h-5 w-5"/></Button>
+                <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} className="h-8 w-8 rounded-full text-slate-400 hover:text-slate-900"><X className="h-5 w-5"/></Button>
              </div>
           </div>
 
@@ -211,12 +201,12 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
                 <div className="p-6 border-b flex flex-col sm:flex-row items-center justify-between gap-4 shrink-0">
                     <div className="flex items-center gap-2">
                         <Plus className="h-4 w-4 text-blue-500" />
-                        <h2 className="text-sm font-black uppercase tracking-tight text-slate-800">Recommendations <span className="ml-1 text-[10px] text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full">{filteredProducts.length}</span></h2>
+                        <h2 className="text-sm font-black uppercase tracking-tight text-slate-800">Shop Discovery</h2>
                     </div>
                     <div className="relative w-full sm:w-80">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                         <Input 
-                            placeholder="Search products" 
+                            placeholder="Search recommendations" 
                             value={searchQuery}
                             onChange={e => setSearchQuery(e.target.value)}
                             className="pl-9 h-10 bg-slate-50 border-none rounded-full text-xs font-medium"
@@ -265,7 +255,10 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
                                     {cart.map(item => (
                                         <div key={item.product.id} className="bg-white border rounded-2xl p-4 flex gap-4 items-center">
                                             <div className="relative h-16 w-16 rounded-xl overflow-hidden shrink-0"><Image src={item.product.imageDataUris[0]} fill alt="p" className="object-cover" /></div>
-                                            <div className="flex-1"><p className="font-bold text-xs uppercase">{item.product.title}</p><p className="font-black text-sm text-blue-600">₹{(item.product.price || item.product.costPrice) * item.quantity}</p></div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="font-bold text-xs uppercase truncate">{item.product.title}</p>
+                                                <p className="font-black text-sm text-blue-600">₹{(item.product.price || item.product.costPrice) * item.quantity}</p>
+                                            </div>
                                             <Button variant="ghost" size="icon" className="text-red-500" onClick={() => removeFromCart(item.product.id)}><Trash2 className="h-4 w-4"/></Button>
                                         </div>
                                     ))}
@@ -287,7 +280,7 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
                 <div className="p-6 shrink-0 bg-white border-t">
                     <Button variant="ghost" className="h-14 px-8 rounded-2xl bg-blue-500 text-white font-black uppercase italic tracking-tight shadow-xl shadow-blue-200 group">
                         <ShoppingBag className="mr-3 h-6 w-6 fill-current" />
-                        BLUEPOINTS
+                        SNZ POINTS
                     </Button>
                 </div>
             </div>
@@ -298,8 +291,8 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-blue-50 rounded-lg"><Sparkles className="h-5 w-5 text-blue-500" /></div>
                         <div>
-                            <h3 className="text-sm font-black uppercase text-slate-800">Shopping Assistant</h3>
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Always Online</p>
+                            <h3 className="text-sm font-black uppercase text-slate-800">Star Girl Assistant</h3>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">AI Agent Online</p>
                         </div>
                     </div>
                 </div>
@@ -308,7 +301,7 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
                     {messages.map((m, i) => (
                         <div key={i} className={cn("flex flex-col gap-2", m.role === 'user' ? "items-end" : "items-start")}>
                             <div className={cn(
-                                "max-w-[90%] p-4 rounded-[24px] text-[13px] leading-relaxed shadow-sm",
+                                "max-w-[95%] p-4 rounded-[24px] text-[13px] leading-relaxed shadow-sm break-words overflow-wrap-anywhere",
                                 m.role === 'assistant' ? "bg-white text-slate-800 rounded-tl-none border" : "bg-blue-500 text-white rounded-tr-none font-medium"
                             )}>
                                 {m.content}
@@ -346,7 +339,7 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
                             <Send className="h-4 w-4" />
                         </Button>
                     </div>
-                    <p className="text-[9px] text-center font-bold text-slate-400 uppercase tracking-widest">Powered by <span className="text-blue-500">Snazzify AI</span></p>
+                    <p className="text-[9px] text-center font-bold text-slate-400 uppercase tracking-widest">Powered by <span className="text-blue-500 font-black">Snazzify AI</span></p>
                 </div>
             </div>
           </div>
