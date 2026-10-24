@@ -1,10 +1,11 @@
+
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Sparkles, X, Send, Bot, User, Loader2, TrendingUp } from 'lucide-react';
+import { Sparkles, X, Send, User, Loader2, TrendingUp, GripHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { askSellerGenee } from '@/ai/flows/seller-genee-flow';
 import Image from 'next/image';
@@ -25,6 +26,14 @@ export function SellerGenee() {
     { role: 'assistant', content: "Hello! I am your ASK.ME Genee. I'm here to help you conquer marketplaces like Amazon and Myntra while keeping your profits high. What shall we build today?" }
   ]);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Draggable State
+  const [position, setPosition] = useState({ x: 32, y: 32 }); // Default: bottom-8, right-8
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStart = useRef({ x: 0, y: 0 });
+  const initialPos = useRef({ x: 0, y: 0 });
+  const moveDistance = useRef(0);
+  
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -32,6 +41,41 @@ export function SellerGenee() {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, isLoading]);
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (isOpen) return; // Disable dragging when chat is open
+    setIsDragging(true);
+    dragStart.current = { x: e.clientX, y: e.clientY };
+    initialPos.current = { ...position };
+    moveDistance.current = 0;
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!isDragging) return;
+    const dx = e.clientX - dragStart.current.x;
+    const dy = e.clientY - dragStart.current.y;
+    moveDistance.current += Math.abs(dx) + Math.abs(dy);
+    
+    setPosition({
+      x: initialPos.current.x - dx,
+      y: initialPos.current.y - dy
+    });
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    setIsDragging(false);
+    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+  };
+
+  const handleTriggerClick = (e: React.MouseEvent) => {
+    // If moved more than 5px, treat as drag, not click
+    if (moveDistance.current > 5) {
+      e.preventDefault();
+      return;
+    }
+    setIsOpen(true);
+  };
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
@@ -66,32 +110,48 @@ export function SellerGenee() {
   };
 
   return (
-    <div className="fixed bottom-8 right-8 z-[100]">
+    <div 
+      className="fixed z-[100] transition-shadow duration-200"
+      style={{ 
+        bottom: `${position.y}px`, 
+        right: `${position.x}px`,
+        touchAction: 'none'
+      }}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+    >
       {!isOpen ? (
-        <div className="relative group animate-bounce-slow">
+        <div className={cn(
+          "relative group transition-transform",
+          isDragging ? "scale-110 cursor-grabbing" : "cursor-grab animate-bounce-slow"
+        )}>
             {/* Pulsing Hologram Auras */}
             <div className="absolute -inset-12 bg-purple-500/30 rounded-full blur-3xl animate-pulse group-hover:bg-purple-500/50 transition-all duration-1000"></div>
             <div className="absolute -inset-6 bg-indigo-500/20 rounded-full blur-2xl animate-pulse delay-700"></div>
             
             <Button 
-                className="h-24 w-24 rounded-full shadow-[0_0_50px_rgba(139,92,246,0.5)] hover:scale-110 transition-all duration-700 bg-slate-950 border-4 border-primary p-0 overflow-hidden relative group-hover:shadow-[0_0_80px_rgba(139,92,246,0.8)]"
-                onClick={() => setIsOpen(true)}
+                className="h-24 w-24 rounded-full shadow-[0_0_50px_rgba(139,92,246,0.5)] bg-slate-950 border-4 border-primary p-0 overflow-hidden relative group-hover:shadow-[0_0_80px_rgba(139,92,246,0.8)]"
+                onClick={handleTriggerClick}
             >
                 <Image 
                     src={placeholders.geneeHologram.src} 
                     alt={placeholders.geneeHologram.alt} 
                     fill 
-                    className="object-cover opacity-80 mix-blend-screen brightness-125"
+                    className="object-cover opacity-80 mix-blend-screen brightness-125 pointer-events-none"
                     data-ai-hint={placeholders.geneeHologram.keywords}
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-primary/60 to-transparent"></div>
-                <Sparkles className="absolute top-3 right-3 h-5 w-5 text-white animate-spin-slow" />
+                <div className="absolute inset-0 bg-gradient-to-t from-primary/60 to-transparent pointer-events-none"></div>
+                <Sparkles className="absolute top-3 right-3 h-5 w-5 text-white animate-spin-slow pointer-events-none" />
+                <GripHorizontal className="absolute bottom-2 left-1/2 -translate-x-1/2 h-3 w-3 text-white/30 opacity-0 group-hover:opacity-100 transition-opacity" />
             </Button>
 
             {/* Floating Label */}
-            <div className="absolute -top-14 right-0 bg-white shadow-2xl rounded-2xl px-5 py-2.5 text-[11px] font-black uppercase italic tracking-tighter whitespace-nowrap animate-bounce border-2 border-primary">
-                Summon Genee for Profits! ✨
-            </div>
+            {!isDragging && (
+                <div className="absolute -top-14 right-0 bg-white shadow-2xl rounded-2xl px-5 py-2.5 text-[11px] font-black uppercase italic tracking-tighter whitespace-nowrap animate-bounce border-2 border-primary pointer-events-none select-none">
+                    Summon Genee for Profits! ✨
+                </div>
+            )}
         </div>
       ) : (
         <Card className="w-[380px] sm:w-[450px] h-[600px] flex flex-col shadow-[0_35px_60px_-15px_rgba(0,0,0,0.3)] border-none animate-in zoom-in-95 slide-in-from-bottom-10 duration-500 rounded-[32px] overflow-hidden bg-white">

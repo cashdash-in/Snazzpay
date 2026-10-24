@@ -1,13 +1,14 @@
+
 {
   "geneeHologram": {
     "src": "https://picsum.photos/seed/genee-holo/300/300",
     "alt": "Genee Hologram",
-    "keywords": "genie hologram"
+    "keywords": "genie character hologram"
   },
   "geneeAvatar": {
-    "src": "https://picsum.photos/seed/genee-holo/200/200",
+    "src": "https://picsum.photos/seed/genee-avatar/200/200",
     "alt": "Genee Avatar",
-    "keywords": "genie avatar"
+    "keywords": "genie face mascot"
   },
   "heroPlaceholder": {
     "src": "https://picsum.photos/seed/1/1200/500",
