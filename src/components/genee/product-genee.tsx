@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useRef, useEffect, useMemo } from 'react';
@@ -11,14 +12,12 @@ import {
     ShoppingBag, Trash2, ArrowRight, Zap
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { askSiteAssistant } from '@/ai/flows/site-chatbot-flow';
 import Image from 'next/image';
 import placeholders from '@/app/lib/placeholder-images.json';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 
 interface Message {
@@ -113,21 +112,24 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
     setActiveTab('chat');
 
     try {
-      const response = await askSiteAssistant({
-        siteId: product.id,
-        storeName: storeName,
-        persona: `You are the ASK.ME Star Girl. Focus on selling items and matching bundles. Use emojis ✨.`,
-        query: userMsg,
-        catalog: (allProducts || []).slice(0, 8).map(p => ({
-            id: p.id,
-            title: p.title,
-            description: p.description.substring(0, 40),
-            price: p.price || p.costPrice,
-            category: p.category || '',
-            image: (p.imageDataUris || [])[0]
-        })),
-        history: messages.slice(-2).map(m => ({ role: m.role, content: m.content }))
+      const res = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            siteId: product.id,
+            storeName: storeName,
+            query: userMsg,
+            catalog: (allProducts || []).slice(0, 5).map(p => ({
+                id: p.id,
+                title: p.title,
+                price: p.price || p.costPrice,
+                category: p.category || ''
+            }))
+        })
       });
+      
+      const response = await res.json();
+      if (response.error) throw new Error(response.error);
 
       const recs = response.recommendedProductIds 
         ? allProducts.filter(p => response.recommendedProductIds?.includes(p.id))
@@ -142,7 +144,7 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
         searchSuggestions: response.searchSuggestions
       }]);
     } catch (error) {
-      console.error("Genee Component Error:", error);
+      console.error("Genee API Error:", error);
       setMessages(prev => [...prev, { role: 'assistant', content: "My star-circuits are stabilizing! ✨ What else can I help you find in our catalog?" }]);
     } finally {
       setIsLoading(false);
@@ -174,10 +176,10 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
                   <Image src={placeholders.geneeAvatar.src} alt="Star Girl" fill className="object-cover mix-blend-screen brightness-150" unoptimized />
                 </div>
                 <div>
-                  <CardTitle className="text-xl font-black italic tracking-tighter uppercase flex items-center gap-2">
+                  <CardTitle className="text-xl font-black italic tracking-tighter uppercase flex items-center gap-2 leading-none">
                     Star Girl <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" />
                   </CardTitle>
-                  <p className="text-[10px] text-primary font-bold uppercase tracking-widest flex items-center gap-1">
+                  <p className="text-[10px] text-primary font-bold uppercase tracking-widest flex items-center gap-1 mt-1">
                       <ShieldCheck className="h-2.5 w-2.5" /> Discovery & Checkout
                   </p>
                 </div>
@@ -219,9 +221,9 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
                                 {m.role === 'assistant' ? <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" /> : <User className="h-4 w-4" />}
                             </div>
                             <div className={cn(
-                                "p-3.5 rounded-[24px] text-[13px] shadow-sm leading-relaxed whitespace-pre-wrap break-words overflow-hidden", 
+                                "p-3.5 rounded-[24px] text-[12px] shadow-sm leading-relaxed whitespace-pre-wrap break-words overflow-hidden", 
                                 m.role === 'assistant' ? "bg-white border-2 border-slate-100 text-slate-800 rounded-tl-none" : "bg-primary text-white rounded-tr-none font-medium shadow-md shadow-primary/20"
-                            )}>
+                            )} style={{ wordBreak: 'break-word', maxWidth: 'calc(100% - 48px)' }}>
                                 {m.content}
                             </div>
                         </div>
@@ -290,7 +292,7 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
                         <Loader2 className="h-6 w-6 text-white animate-spin" />
                         </div>
                         <div className="p-5 bg-white border-2 border-slate-100 rounded-[32px] rounded-tl-none flex items-center gap-3 shadow-sm">
-                        <p className="text-[13px] italic text-muted-foreground animate-pulse">Star Girl is scouring the vault... ✨</p>
+                        <p className="text-[12px] italic text-muted-foreground animate-pulse">Star Girl is scouring the vault... ✨</p>
                         </div>
                     </div>
                     )}

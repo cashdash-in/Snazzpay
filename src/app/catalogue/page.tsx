@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Suspense, useState, useEffect, useRef, useMemo } from 'react';
@@ -23,7 +24,6 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
-import { virtualTryOn } from '@/ai/flows/virtual-try-on';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import type { PaymentMethod } from '@/types/product';
 
@@ -95,12 +95,10 @@ function CatalogueOrderPageContent() {
         const title = product.title.toLowerCase();
         const cat = (product.category || '').toLowerCase();
         
-        // Priority Detection: Accessories & Footwear
         const isWatch = title.includes('watch') || cat.includes('watch');
         const isFootwear = title.includes('shoe') || title.includes('sneaker') || title.includes('sandal') || title.includes('heel') || title.includes('bondi') || title.includes('clifton') || title.includes('hoka') || cat.includes('footwear') || cat.includes('shoe') || cat.includes('sneaker');
         const isEyewear = title.includes('glass') || title.includes('shade') || title.includes('spectacle') || cat.includes('eyewear') || cat.includes('glass');
         
-        // Apparel Detection
         const isShirt = (title.includes('shirt') || title.includes('t-shirt') || cat.includes('shirt') || cat.includes('top')) && !title.includes('dress');
         const isDress = title.includes('dress') || title.includes('frock') || cat.includes('dress') || cat.includes('frock');
         const isKurti = title.includes('kurti') || title.includes('kurta') || cat.includes('kurti') || cat.includes('kurta');
@@ -109,7 +107,6 @@ function CatalogueOrderPageContent() {
         if (isWatch) return { type: 'Accessory', hint: 'wrist', label: 'WRIST', isApparel: false };
         if (isFootwear) return { type: 'Footwear', hint: 'feet', label: 'FEET', isApparel: false };
         if (isEyewear) return { type: 'Eyewear', hint: 'face', label: 'FACE', isApparel: false };
-        
         if (isShirt) return { type: 'Shirt', hint: 'selfie', label: 'SELFIE', isApparel: true };
         if (isDress) return { type: 'Dress', hint: 'selfie', label: 'SELFIE', isApparel: true };
         if (isKurti) return { type: 'Kurti', hint: 'selfie', label: 'SELFIE', isApparel: true };
@@ -117,8 +114,6 @@ function CatalogueOrderPageContent() {
         
         return { type: 'General', hint: 'selfie', label: 'SELFIE', isApparel: false };
     }, [product]);
-
-    const isApparel = ctx.isApparel;
 
     useEffect(() => {
         setMounted(true);
@@ -241,14 +236,20 @@ function CatalogueOrderPageContent() {
                 resizeImageForAI(product.imageDataUris[0])
             ]);
             
-            const result = await virtualTryOn({
-                personImageDataUri: personUri,
-                productImageDataUri: productUri,
-                productTitle: product.title,
-                garmentType: ctx.type as any,
-                drapeStyle: selectedDrapeStyle,
-                sleeveLength: selectedSleeves
+            const res = await fetch('/api/ai/virtual-try-on', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    personImageDataUri: personUri,
+                    productImageDataUri: productUri,
+                    productTitle: product.title,
+                    garmentType: ctx.type,
+                    drapeStyle: selectedDrapeStyle,
+                    sleeveLength: selectedSleeves
+                })
             });
+            
+            const result = await res.json();
             
             if (result.error) {
                 toast({ variant: 'destructive', title: "Try-On Failed", description: result.error });
@@ -260,7 +261,8 @@ function CatalogueOrderPageContent() {
             toast({ variant: 'destructive', title: "Try-On Failed", description: err.message });
         } finally {
             setIsTryOnLoading(false);
-            if (e.target) e.target.value = '';
+            if (cameraInputRef.current) cameraInputRef.current.value = '';
+            if (galleryInputRef.current) galleryInputRef.current.value = '';
         }
     };
 
@@ -386,7 +388,7 @@ function CatalogueOrderPageContent() {
                                         </Label>
                                     </div>
 
-                                    {isApparel && (
+                                    {ctx.isApparel && (
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-white/10">
                                             {ctx.type !== 'Shirt' && (
                                                 <div className="space-y-2">
