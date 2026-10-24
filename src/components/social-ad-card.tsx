@@ -43,6 +43,27 @@ export function SocialAdCard({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    // Polyfill for roundRect if it doesn't exist
+    if (!ctx.roundRect) {
+      ctx.roundRect = function(x: number, y: number, width: number, height: number, radius: number | number[]) {
+        if (typeof radius === 'number') {
+          radius = [radius, radius, radius, radius];
+        }
+        this.beginPath();
+        this.moveTo(x + radius[0], y);
+        this.lineTo(x + width - radius[1], y);
+        this.quadraticCurveTo(x + width, y, x + width, y + radius[1]);
+        this.lineTo(x + width, y + height - radius[2]);
+        this.quadraticCurveTo(x + width, y + height, x + width - radius[2], y + height);
+        this.lineTo(x + radius[3], y + height);
+        this.quadraticCurveTo(x, y + height, x, y + height - radius[3]);
+        this.lineTo(x, y + radius[0]);
+        this.quadraticCurveTo(x, y, x + radius[0], y);
+        this.closePath();
+        return this;
+      };
+    }
+
     const drawAd = async () => {
       ctx.clearRect(0, 0, width, height);
 

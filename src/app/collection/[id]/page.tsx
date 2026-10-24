@@ -58,6 +58,7 @@ function BrandedCollectionContent() {
     const [magazine, setMagazine] = useState<Magazine | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [discount, setDiscount] = useState<number>(0);
+    const [mounted, setMounted] = useState(false);
     
     const [isTryOnLoading, setIsTryOnLoading] = useState(false);
     const [tryOnResult, setTryOnResult] = useState<string | null>(null);
@@ -73,6 +74,7 @@ function BrandedCollectionContent() {
     const [isEnquiring, setIsEnquiring] = useState(false);
 
     useEffect(() => {
+        setMounted(true);
         const discountParam = searchParams.get('discount');
         if (discountParam) setDiscount(parseFloat(discountParam));
 
@@ -213,7 +215,7 @@ function BrandedCollectionContent() {
     const handleOrderClick = (product: DisplayProduct) => {
         const catalogueParams = new URLSearchParams();
         catalogueParams.set('id', product.id);
-        catalogueParams.set('return_url', window.location.href);
+        catalogueParams.set('return_url', typeof window !== 'undefined' ? window.location.href : '');
         if (magazine?.creatorId) {
             catalogueParams.set('sellerId', magazine.creatorId);
             catalogueParams.set('sellerName', magazine.creatorName);
@@ -242,7 +244,7 @@ function BrandedCollectionContent() {
         }
     };
 
-    if (isLoading) return <div className="flex h-screen w-full items-center justify-center"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>;
+    if (!mounted || isLoading) return <div className="flex h-screen w-full items-center justify-center"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>;
 
     return (
         <div className="min-h-screen bg-gray-50 pb-20">
@@ -277,7 +279,6 @@ function BrandedCollectionContent() {
                     {products.map(product => {
                          const price = ((product as any).price || (product as any).costPrice);
                          const discountedPrice = discount > 0 ? price - (price * (discount / 100)) : price;
-                         const ctx = getProductContext(product);
                          const isProductTryOn = tryOnProductId === product.id;
                          const canTryOn = magazine?.isTryOnEnabled || product.isTryOnEnabled;
 
@@ -333,22 +334,20 @@ function BrandedCollectionContent() {
                                 </div>
                             </CardContent>
                             <CardFooter className="p-0 border-t bg-slate-50 grid grid-cols-2">
-                                <Dialog onOpenChange={(open) => !open && setEnquiryProduct(null)}>
+                                <Dialog open={enquiryProduct?.id === product.id} onOpenChange={(open) => !open && setEnquiryProduct(null)}>
                                     <DialogTrigger asChild>
                                         <Button variant="ghost" className="h-12 rounded-none border-r text-[10px] font-bold uppercase" onClick={() => setEnquiryProduct(product)}>
                                             <MessageCircle className="mr-1 h-3 w-3" /> Enquire
                                         </Button>
                                     </DialogTrigger>
-                                    {enquiryProduct?.id === product.id && (
-                                        <DialogContent className="rounded-[32px] p-8 border-none">
-                                            <DialogHeader><DialogTitle className="text-2xl font-black italic uppercase">Product Enquiry</DialogTitle></DialogHeader>
-                                            <div className="space-y-4 py-4">
-                                                <div className="space-y-1"><Label className="text-[10px] font-black uppercase">Your Name</Label><Input value={enquiryForm.name} onChange={e => setEnquiryForm({...enquiryForm, name: e.target.value})} className="h-12 rounded-xl" /></div>
-                                                <div className="space-y-1"><Label className="text-[10px] font-black uppercase">WhatsApp Number</Label><Input value={enquiryForm.phone} onChange={e => setEnquiryForm({...enquiryForm, phone: e.target.value})} className="h-12 rounded-xl" /></div>
-                                            </div>
-                                            <DialogFooter><Button onClick={handleSendEnquiry} className="w-full h-14 rounded-2xl font-black uppercase italic" disabled={isEnquiring}>{isEnquiring ? <Loader2 className="animate-spin"/> : "Send Request"}</Button></DialogFooter>
-                                        </DialogContent>
-                                    )}
+                                    <DialogContent className="rounded-[32px] p-8 border-none">
+                                        <DialogHeader><DialogTitle className="text-2xl font-black italic uppercase">Product Enquiry</DialogTitle></DialogHeader>
+                                        <div className="space-y-4 py-4">
+                                            <div className="space-y-1"><Label className="text-[10px] font-black uppercase">Your Name</Label><Input value={enquiryForm.name} onChange={e => setEnquiryForm({...enquiryForm, name: e.target.value})} className="h-12 rounded-xl" /></div>
+                                            <div className="space-y-1"><Label className="text-[10px] font-black uppercase">WhatsApp Number</Label><Input value={enquiryForm.phone} onChange={e => setEnquiryForm({...enquiryForm, phone: e.target.value})} className="h-12 rounded-xl" /></div>
+                                        </div>
+                                        <DialogFooter><Button onClick={handleSendEnquiry} className="w-full h-14 rounded-2xl font-black uppercase italic" disabled={isEnquiring}>{isEnquiring ? <Loader2 className="animate-spin"/> : "Send Request"}</Button></DialogFooter>
+                                    </DialogContent>
                                 </Dialog>
                                 <Button variant="ghost" className="h-12 rounded-none font-black text-[10px] uppercase text-primary hover:bg-slate-100" onClick={() => handleOrderClick(product)}>
                                     <ShoppingCart className="mr-1 h-3 w-3" /> Order
@@ -361,7 +360,7 @@ function BrandedCollectionContent() {
 
             <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex gap-4">
                 <Button onClick={handleWhatsAppBusinessChat} className="rounded-full h-16 px-10 bg-green-600 hover:bg-green-700 shadow-2xl font-black uppercase italic tracking-tighter text-white border-4 border-white transition-transform hover:scale-105 active:scale-95">
-                    <MessageCircle className="mr-2 h-6 w-6" /> Chat with Seller
+                    <MessageSquare className="mr-2 h-6 w-6" /> Chat with Seller
                 </Button>
             </div>
 

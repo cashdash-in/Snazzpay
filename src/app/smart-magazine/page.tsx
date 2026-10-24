@@ -57,6 +57,7 @@ function SmartMagazineContent() {
     const [magazine, setMagazine] = useState<Magazine | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [discount, setDiscount] = useState<number>(0);
+    const [mounted, setMounted] = useState(false);
     
     const [isTryOnLoading, setIsTryOnLoading] = useState(false);
     const [tryOnResult, setTryOnResult] = useState<string | null>(null);
@@ -72,6 +73,7 @@ function SmartMagazineContent() {
     const [isEnquiring, setIsEnquiring] = useState(false);
 
     useEffect(() => {
+        setMounted(true);
         const discountParam = searchParams.get('discount');
         if (discountParam) setDiscount(parseFloat(discountParam));
 
@@ -214,7 +216,7 @@ function SmartMagazineContent() {
     const handleOrderClick = (product: DisplayProduct) => {
         const catalogueParams = new URLSearchParams();
         catalogueParams.set('id', product.id);
-        catalogueParams.set('return_url', window.location.href);
+        catalogueParams.set('return_url', typeof window !== 'undefined' ? window.location.href : '');
         if (magazine?.creatorId) {
             catalogueParams.set('sellerId', magazine.creatorId);
             catalogueParams.set('sellerName', magazine.creatorName);
@@ -243,7 +245,7 @@ function SmartMagazineContent() {
         }
     };
 
-    if (isLoading) return <div className="flex h-screen w-full items-center justify-center"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
+    if (!mounted || isLoading) return <div className="flex h-screen w-full items-center justify-center"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
 
     return (
         <div className="min-h-screen bg-slate-50 pb-20">
@@ -308,20 +310,18 @@ function SmartMagazineContent() {
                                     </div>
                                     <div className="pt-4 border-t mt-4 flex justify-between items-center">
                                         <span className="text-xl font-black text-primary">₹{price}</span>
-                                        <Dialog onOpenChange={(open) => !open && setEnquiryProduct(null)}>
+                                        <Dialog open={enquiryProduct?.id === product.id} onOpenChange={(open) => !open && setEnquiryProduct(null)}>
                                             <DialogTrigger asChild>
                                                 <Button variant="ghost" size="sm" className="font-bold text-[10px] uppercase" onClick={() => setEnquiryProduct(product)}>Enquire</Button>
                                             </DialogTrigger>
-                                            {enquiryProduct?.id === product.id && (
-                                                <DialogContent className="rounded-[32px] p-8 border-none">
-                                                    <DialogHeader><DialogTitle className="text-2xl font-black italic uppercase">Product Enquiry</DialogTitle></DialogHeader>
-                                                    <div className="space-y-4 py-4">
-                                                        <div className="space-y-1"><Label className="text-[10px] uppercase font-black">Your Name</Label><Input value={enquiryForm.name} onChange={e => setEnquiryForm({...enquiryForm, name: e.target.value})} className="h-12 rounded-xl" /></div>
-                                                        <div className="space-y-1"><Label className="text-[10px] uppercase font-black">WhatsApp Number</Label><Input value={enquiryForm.phone} onChange={e => setEnquiryForm({...enquiryForm, phone: e.target.value})} className="h-12 rounded-xl" /></div>
-                                                    </div>
-                                                    <DialogFooter><Button onClick={handleSendEnquiry} className="w-full h-14 rounded-2xl font-black uppercase italic" disabled={isEnquiring}>{isEnquiring ? <Loader2 className="animate-spin"/> : "Send Request"}</Button></DialogFooter>
-                                                </DialogContent>
-                                            )}
+                                            <DialogContent className="rounded-[32px] p-8 border-none">
+                                                <DialogHeader><DialogTitle className="text-2xl font-black italic uppercase">Product Enquiry</DialogTitle></DialogHeader>
+                                                <div className="space-y-4 py-4">
+                                                    <div className="space-y-1"><Label className="text-[10px] uppercase font-black">Your Name</Label><Input value={enquiryForm.name} onChange={e => setEnquiryForm({...enquiryForm, name: e.target.value})} className="h-12 rounded-xl" /></div>
+                                                    <div className="space-y-1"><Label className="text-[10px] uppercase font-black">WhatsApp Number</Label><Input value={enquiryForm.phone} onChange={e => setEnquiryForm({...enquiryForm, phone: e.target.value})} className="h-12 rounded-xl" /></div>
+                                                </div>
+                                                <DialogFooter><Button onClick={handleSendEnquiry} className="w-full h-14 rounded-2xl font-black uppercase italic" disabled={isEnquiring}>{isEnquiring ? <Loader2 className="animate-spin"/> : "Send Request"}</Button></DialogFooter>
+                                            </DialogContent>
                                         </Dialog>
                                     </div>
                                 </CardContent>
