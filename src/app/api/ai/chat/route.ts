@@ -34,7 +34,7 @@ const searchSnazzifyGlobal = ai.defineTool(
                    cat.includes(searchLower) ||
                    searchLower.includes(cat) ||
                    searchLower.includes(title);
-        }).slice(0, 8); // Return more results for variety
+        }).slice(0, 12); // Return even more results for variety
     } catch (e) {
         console.error("Global Tool Error:", e);
         return [];

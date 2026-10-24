@@ -36,19 +36,24 @@ export async function POST(request: Request) {
         styleInstructions = `STYLING MODE: ${input.drapeStyle || 'Western'}. Silhouette: ${input.garmentType || 'Clothing'}. Sleeves: ${input.sleeveLength || 'Standard'}. ${patternInstruction}`;
     }
 
-    const finalPrompt = `ACT AS AN ELITE VIRTUAL FASHION STYLIST. 
+    const finalPrompt = `MANDATORY TASK: PERFORM A TOTAL CLOTHING SUBSTITUTION.
     
-    TASK: You are performing a professional FASHION OVERLAY.
     1. Identify the person in the FIRST photo. 
     2. Identify the SPECIFIC product in the SECOND photo ("${input.productTitle}").
-    3. COMPLETELY REMOVE the existing clothing from the person in the FIRST photo. The yellow shirt, beige skirt, or any other original outfit MUST BE GONE.
-    4. PERFECTLY OVERLAY and SUBSTITUTE the product from the SECOND photo onto the person's body.
-    5. Match the lighting, shadows, and angle of the person's pose.
-    6. CRITICAL: Keep the person's head, face, skin tone, and distinct physical features EXACTLY as they are.
+    
+    RE-DRESSING INSTRUCTIONS:
+    - COMPLETELY ERASE AND REMOVE all clothing (shirts, skirts, pants, dresses, etc.) currently visible on the person in the first photo.
+    - If the person is wearing a YELLOW SHIRT or BEIGE SKIRT, these MUST BE COMPLETELY GONE and 100% invisible.
+    - SUBSTITUTE AND REPLACE the removed clothing with the product shown in the SECOND photo.
+    - The person MUST now be wearing ONLY the item from the SECOND photo.
+    - Map the lighting, shadows, and angle of the person's original pose to the new product.
+    
+    IDENTITY PRESERVATION:
+    - CRITICAL: Keep the person's head, face, hair, eyes, and skin tone 100% EXACTLY as they appear in the FIRST photo. Do NOT change their identity.
     
     ${styleInstructions}
     
-    Return ONLY the final generated image.`;
+    Return ONLY the final generated image result.`;
 
     try {
         const { media } = await ai.generate({

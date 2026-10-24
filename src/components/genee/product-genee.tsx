@@ -6,10 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { 
-    Sparkles, X, Send, User, Loader2, Star, 
+    Star, X, Send, User, Loader2, 
     ShoppingCart, ShieldCheck, Tag, Percent, 
-    Globe, ExternalLink, Search, TrendingUp, 
-    ShoppingBag, Trash2, ArrowRight, Zap
+    Globe, Search, TrendingUp, 
+    ShoppingBag, Trash2, Zap
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
@@ -84,7 +84,7 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
   }, [cart]);
 
   const topSellers = useMemo(() => {
-    return (allProducts || []).slice(0, 6);
+    return (allProducts || []).slice(0, 8);
   }, [allProducts]);
 
   const addToCart = (prod: any) => {
@@ -140,7 +140,7 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
         content: response.answer || "I found some great options! What else can I help you find? ✨",
         recommendations: recs,
         externalRecommendations: response.externalRecommendations,
-        bundleOffer: response.bundleDiscountOffer,
+        bundleOffer: response.bundleOffer,
         searchSuggestions: response.searchSuggestions
       }]);
     } catch (error) {
@@ -163,9 +163,11 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Badge className="bg-white/90 text-primary font-black italic text-[9px] px-3 py-1 rounded-full shadow-lg flex items-center gap-1 animate-pulse cursor-pointer border-2 border-primary/20 transition-transform hover:scale-105 active:scale-95">
-            <Star className="h-2 w-2 fill-primary" /> ASK ME
-        </Badge>
+        <div className="flex flex-col items-center gap-1 group">
+            <Badge className="bg-white/95 text-primary font-black italic text-[11px] px-4 py-2 rounded-full shadow-2xl flex items-center gap-2 animate-genee-flash cursor-pointer border-2 border-primary/30 transition-transform hover:scale-110 active:scale-95">
+                <Star className="h-3 w-3 fill-primary" /> ASK ME GENEE
+            </Badge>
+        </div>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[550px] p-0 border-none overflow-hidden rounded-[40px] bg-white shadow-2xl">
         <Card className="border-none shadow-none flex flex-col h-[85vh] max-h-[750px] w-full overflow-hidden">
