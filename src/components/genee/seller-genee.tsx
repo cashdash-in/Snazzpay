@@ -8,6 +8,7 @@ import { Sparkles, X, Send, Bot, User, Loader2, TrendingUp } from 'lucide-react'
 import { cn } from '@/lib/utils';
 import { askSellerGenee } from '@/ai/flows/seller-genee-flow';
 import Image from 'next/image';
+import placeholders from '@/app/lib/placeholder-images.json';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -77,11 +78,11 @@ export function SellerGenee() {
                 onClick={() => setIsOpen(true)}
             >
                 <Image 
-                    src="https://picsum.photos/seed/genee-holo/300/300" 
-                    alt="Genee Hologram" 
+                    src={placeholders.geneeHologram.src} 
+                    alt={placeholders.geneeHologram.alt} 
                     fill 
                     className="object-cover opacity-80 mix-blend-screen brightness-125"
-                    data-ai-hint="genie hologram character"
+                    data-ai-hint={placeholders.geneeHologram.keywords}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-primary/60 to-transparent"></div>
                 <Sparkles className="absolute top-3 right-3 h-5 w-5 text-white animate-spin-slow" />
@@ -99,11 +100,11 @@ export function SellerGenee() {
               <div className="flex items-center gap-3">
                 <div className="relative h-14 w-14 rounded-2xl overflow-hidden border-2 border-primary shadow-[0_0_20px_rgba(139,92,246,0.6)] bg-black">
                      <Image 
-                        src="https://picsum.photos/seed/genee-holo/200/200" 
-                        alt="Genee" 
+                        src={placeholders.geneeAvatar.src} 
+                        alt={placeholders.geneeAvatar.alt} 
                         fill 
                         className="object-cover mix-blend-screen brightness-150"
-                        data-ai-hint="genie avatar"
+                        data-ai-hint={placeholders.geneeAvatar.keywords}
                     />
                 </div>
                 <div>

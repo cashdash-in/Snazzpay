@@ -1,0 +1,27 @@
+{
+  "geneeHologram": {
+    "src": "https://picsum.photos/seed/genee-holo/300/300",
+    "alt": "Genee Hologram",
+    "keywords": "genie hologram"
+  },
+  "geneeAvatar": {
+    "src": "https://picsum.photos/seed/genee-holo/200/200",
+    "alt": "Genee Avatar",
+    "keywords": "genie avatar"
+  },
+  "heroPlaceholder": {
+    "src": "https://picsum.photos/seed/1/1200/500",
+    "alt": "Dashboard preview",
+    "keywords": "app dashboard"
+  },
+  "userAvatarPlaceholder": {
+    "src": "https://picsum.photos/seed/avatar/100/100",
+    "alt": "User avatar",
+    "keywords": "user avatar"
+  },
+  "magazinePlaceholder": {
+    "src": "https://picsum.photos/seed/mag/400/300",
+    "alt": "Magazine Preview",
+    "keywords": "magazine"
+  }
+}
