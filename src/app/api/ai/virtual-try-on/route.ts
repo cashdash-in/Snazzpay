@@ -38,13 +38,13 @@ export async function POST(request: Request) {
 
     const finalPrompt = `ACT AS AN ELITE VIRTUAL FASHION STYLIST. 
     
-    TASK: COMPLETELY REPLACE the clothing or accessories worn by the person in the FIRST photo with the SPECIFIC product shown in the SECOND photo ("${input.productTitle}").
-    
-    REPLACEMENT RULES:
-    1. The person's original outfit MUST BE REMOVED and substituted with the new item.
-    2. Map the design, pattern, and colors from the SECOND photo onto the person's body in the FIRST photo.
-    3. Match the lighting, shadows, and angle of the person's pose.
-    4. CRITICAL: Keep the person's head, face, skin tone, and distinct physical features EXACTLY as they are.
+    TASK: You are performing a professional FASHION OVERLAY.
+    1. Identify the person in the FIRST photo. 
+    2. Identify the SPECIFIC product in the SECOND photo ("${input.productTitle}").
+    3. COMPLETELY REMOVE the existing clothing from the person in the FIRST photo. The yellow shirt, beige skirt, or any other original outfit MUST BE GONE.
+    4. PERFECTLY OVERLAY and SUBSTITUTE the product from the SECOND photo onto the person's body.
+    5. Match the lighting, shadows, and angle of the person's pose.
+    6. CRITICAL: Keep the person's head, face, skin tone, and distinct physical features EXACTLY as they are.
     
     ${styleInstructions}
     
