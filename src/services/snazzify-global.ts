@@ -16,10 +16,12 @@ export type GlobalProduct = {
 
 /**
  * Fetches the latest products from the live Snazzify Shopify store.
+ * Increased limit to 250 to ensure the Genee has access to "All" products.
  */
 export async function fetchLiveSnazzifyProducts(): Promise<GlobalProduct[]> {
   try {
-    const response = await fetch('https://www.snazzify.co.in/products.json', {
+    // Increased limit to 250 to fetch more products
+    const response = await fetch('https://www.snazzify.co.in/products.json?limit=250', {
       next: { revalidate: 3600 } // Cache for 1 hour
     });
 

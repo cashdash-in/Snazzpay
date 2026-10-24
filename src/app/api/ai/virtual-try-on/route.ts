@@ -18,17 +18,22 @@ export async function POST(request: Request) {
     const isShoes = title.includes('shoe') || title.includes('sandal') || title.includes('sneaker') || title.includes('footwear');
     const isEyewear = title.includes('glass') || title.includes('shade') || title.includes('spectacle');
     
+    // Pattern & Fabric preservation instructions for skirts and minis
+    const patternInstruction = `CRITICAL: The fabric pattern, color details, and texture of the item in the SECOND photo must be preserved EXACTLY and mapped onto the new garment silhouette in the generated image.`;
+
     let styleInstructions = '';
     if (isWatch) {
-        styleInstructions = 'MODE: ACCESSORY FITTING (WATCH). Fit the watch from the second photo onto the user\'s wrist shown in the first photo. Match angle and shadows.';
+        styleInstructions = `MODE: ACCESSORY FITTING (WATCH). Fit the watch from the second photo onto the user's wrist shown in the first photo. Match angle and shadows.`;
     } else if (isShoes) {
-        styleInstructions = 'MODE: FOOTWEAR FITTING. Re-dress the user\'s feet in the first photo with the shoes from the second photo.';
+        styleInstructions = `MODE: FOOTWEAR FITTING. Re-dress the user's feet in the first photo with the shoes from the second photo.`;
     } else if (input.drapeStyle === 'East Indian Lugra') {
-        styleInstructions = 'MODE: AUTHENTIC EAST INDIAN LUGRA. Drape the fabric from the second photo over the left shoulder. Add traditional East Indian jewelry.';
+        styleInstructions = `MODE: AUTHENTIC EAST INDIAN LUGRA. Drape the fabric from the second photo over the left shoulder. Add traditional East Indian jewelry. ${patternInstruction}`;
     } else if (input.drapeStyle === 'Standard Saree') {
-        styleInstructions = 'MODE: STANDARD NIVI SAREE. Floor-length drape with matching blouse from the provided fabric.';
+        styleInstructions = `MODE: STANDARD NIVI SAREE. Floor-length drape with matching blouse from the provided fabric. ${patternInstruction}`;
+    } else if (input.drapeStyle === 'Western Wear' || title.includes('skirt') || title.includes('mini')) {
+        styleInstructions = `MODE: WESTERN FIT (MINI/SKIRT/TIGHT FIT). Re-dress the person with a high-end fashion mini-skirt or short dress silhouette. ${patternInstruction}`;
     } else {
-        styleInstructions = `STYLING MODE: ${input.drapeStyle || 'Western'}. Silhouette: ${input.garmentType || 'Clothing'}. Sleeves: ${input.sleeveLength || 'Standard'}.`;
+        styleInstructions = `STYLING MODE: ${input.drapeStyle || 'Western'}. Silhouette: ${input.garmentType || 'Clothing'}. Sleeves: ${input.sleeveLength || 'Standard'}. ${patternInstruction}`;
     }
 
     try {

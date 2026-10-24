@@ -113,21 +113,23 @@ function SmartMagazineContent() {
         const cat = (p.category || '').toLowerCase();
         
         const isWatch = title.includes('watch') || cat.includes('watch');
-        const isFootwear = title.includes('shoe') || title.includes('sneaker') || title.includes('sandal') || title.includes('heel') || title.includes('bondi') || title.includes('clifton') || title.includes('hoka') || cat.includes('footwear') || cat.includes('shoe') || cat.includes('sneaker');
+        const isShoes = title.includes('shoe') || title.includes('sneaker') || title.includes('sandal') || title.includes('heel') || title.includes('bondi') || title.includes('clifton') || title.includes('hoka') || cat.includes('footwear') || cat.includes('shoe') || cat.includes('sneaker');
         const isEyewear = title.includes('glass') || title.includes('shade') || title.includes('spectacle') || cat.includes('eyewear') || cat.includes('glass');
         
         const isShirt = (title.includes('shirt') || title.includes('t-shirt') || cat.includes('shirt') || cat.includes('top')) && !title.includes('dress');
         const isDress = title.includes('dress') || title.includes('frock') || cat.includes('dress') || cat.includes('frock');
         const isKurti = title.includes('kurti') || title.includes('kurta') || cat.includes('kurti') || cat.includes('kurta');
         const isSaree = title.includes('saree') || title.includes('lugra') || cat.includes('saree') || cat.includes('fabric');
+        const isSkirt = title.includes('skirt') || title.includes('mini') || cat.includes('skirt') || cat.includes('mini');
 
         if (isWatch) return { type: 'Accessory', hint: 'wrist', label: 'WRIST', isApparel: false };
-        if (isFootwear) return { type: 'Footwear', hint: 'feet', label: 'FEET', isApparel: false };
+        if (isShoes) return { type: 'Footwear', hint: 'feet', label: 'FEET', isApparel: false };
         if (isEyewear) return { type: 'Eyewear', hint: 'face', label: 'FACE', isApparel: false };
         if (isShirt) return { type: 'Shirt', hint: 'selfie', label: 'SELFIE', isApparel: true };
         if (isDress) return { type: 'Dress', hint: 'selfie', label: 'SELFIE', isApparel: true };
         if (isKurti) return { type: 'Kurti', hint: 'selfie', label: 'SELFIE', isApparel: true };
         if (isSaree) return { type: 'Fabric', hint: 'selfie', label: 'SELFIE', isApparel: true };
+        if (isSkirt) return { type: 'Western Wear', hint: 'selfie', label: 'SELFIE', isApparel: true };
         
         return { type: 'General', hint: 'selfie', label: 'SELFIE', isApparel: false };
     };

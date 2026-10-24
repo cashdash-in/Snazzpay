@@ -103,6 +103,7 @@ function CatalogueOrderPageContent() {
         const isDress = title.includes('dress') || title.includes('frock') || cat.includes('dress') || cat.includes('frock');
         const isKurti = title.includes('kurti') || title.includes('kurta') || cat.includes('kurti') || cat.includes('kurta');
         const isSaree = title.includes('saree') || title.includes('lugra') || cat.includes('saree') || cat.includes('fabric');
+        const isSkirt = title.includes('skirt') || title.includes('mini') || cat.includes('skirt') || cat.includes('mini');
 
         if (isWatch) return { type: 'Accessory', hint: 'wrist', label: 'WRIST', isApparel: false };
         if (isFootwear) return { type: 'Footwear', hint: 'feet', label: 'FEET', isApparel: false };
@@ -111,6 +112,7 @@ function CatalogueOrderPageContent() {
         if (isDress) return { type: 'Dress', hint: 'selfie', label: 'SELFIE', isApparel: true };
         if (isKurti) return { type: 'Kurti', hint: 'selfie', label: 'SELFIE', isApparel: true };
         if (isSaree) return { type: 'Fabric', hint: 'selfie', label: 'SELFIE', isApparel: true };
+        if (isSkirt) return { type: 'Western Wear', hint: 'selfie', label: 'SELFIE', isApparel: true };
         
         return { type: 'General', hint: 'selfie', label: 'SELFIE', isApparel: false };
     }, [product]);
@@ -166,10 +168,12 @@ function CatalogueOrderPageContent() {
                     else if (displayProduct.allowedPaymentMethods?.includes('Prepaid')) setPaymentMethod('Prepaid');
                     else if (displayProduct.allowedPaymentMethods?.includes('Cash on Delivery')) setPaymentMethod('Cash on Delivery');
 
+                    // Default Style Selection
                     if (displayProduct.isEastIndianLugra) setSelectedDrapeStyle('East Indian Lugra');
                     else if (ctx.type === 'Shirt') setSelectedDrapeStyle('Western Wear');
                     else if (ctx.type === 'Dress') setSelectedDrapeStyle('Western Dress');
                     else if (ctx.type === 'Kurti') setSelectedDrapeStyle('Kurti');
+                    else if (ctx.type === 'Western Wear' || displayProduct.title.toLowerCase().includes('skirt') || displayProduct.title.toLowerCase().includes('mini')) setSelectedDrapeStyle('Western Wear');
 
                     const discounts = await getCollection<DiscountRule>('discounts');
                     const best = discounts.find(d => d.id === `product_${productId}` || d.id === `vendor_${displayProduct.vendor}`) || null;

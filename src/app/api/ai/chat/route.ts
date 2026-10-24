@@ -20,10 +20,14 @@ const searchSnazzifyGlobal = ai.defineTool(
         const allProducts = await fetchLiveSnazzifyProducts();
         if (!allProducts || allProducts.length === 0) return [];
         const searchLower = input.searchTerm.toLowerCase();
+        
+        // Comprehensive matching logic for "All" products
         return allProducts.filter(p => 
             p.title.toLowerCase().includes(searchLower) ||
-            p.category.toLowerCase().includes(searchLower)
-        ).slice(0, 4);
+            p.category.toLowerCase().includes(searchLower) ||
+            searchLower.includes(p.category.toLowerCase()) ||
+            searchLower.includes(p.title.toLowerCase())
+        ).slice(0, 6); // Return up to 6 matches for variety
     } catch (e) {
         console.error("Global Tool Error:", e);
         return [];
@@ -45,13 +49,14 @@ export async function POST(request: Request) {
 
     const systemPrompt = `You are the "Star Girl" AI Discovery Engine for ${input.storeName}. 
     
-    SEARCH STRATEGY:
-    1. LOCAL FIRST: Check this list: ${JSON.stringify(localCatalog)}.
-    2. GLOBAL SECOND: Use 'searchSnazzifyGlobal' ONLY if no local matches exist.
-    3. UP-SELL: Suggest a "5% Bundle Discount" for matching accessories.
+    SEARCH STRATEGY (MANDATORY):
+    1. LOCAL FIRST: Check this local list: ${JSON.stringify(localCatalog)}.
+    2. GLOBAL SEARCH (CRITICAL): If the customer asks for a product or category NOT found in the LOCAL list, you MUST use the 'searchSnazzifyGlobal' tool immediately. 
+    3. BE COMPREHENSIVE: We want to show the customer ALL available options from www.snazzify.co.in if the local store doesn't have it.
+    4. UP-SELL: Suggest a "5% Bundle Discount" for matching accessories.
     
-    STYLE: Use emojis ✨, ⭐. Be concise. 
-    OUTPUT: Valid JSON only.`;
+    STYLE: Use emojis ✨, ⭐. Be concise but helpful. 
+    OUTPUT: Valid JSON only. Ensure answer text is fully visible and not cut off.`;
 
     try {
         const response = await ai.generate({
@@ -70,7 +75,6 @@ export async function POST(request: Request) {
             }
         });
 
-        // Use safe extraction of output
         const aiOutput = response.output;
         
         if (!aiOutput) {
@@ -84,7 +88,7 @@ export async function POST(request: Request) {
     } catch (aiError: any) {
         console.error("Internal ai.generate error:", aiError);
         return NextResponse.json({
-            answer: "I'm looking into our vault right now! ✨ Could you tell me more about what you're looking for?",
+            answer: "I'm looking into our global vault right now! ✨ Could you tell me more about what you're looking for?",
             searchSuggestions: ["Latest Collection", "Discounted Items"]
         });
     }
