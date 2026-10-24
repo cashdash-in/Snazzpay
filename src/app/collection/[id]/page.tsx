@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Suspense, useEffect, useState, useRef, useMemo } from 'react';
@@ -27,8 +28,8 @@ import { useToast } from '@/hooks/use-toast';
 import { virtualTryOn } from '@/ai/flows/virtual-try-on';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { ProductGenee } from '@/components/genee/product-genee';
+import { sanitizePhoneNumber } from '@/lib/utils';
 
-// Allow AI tasks to take up to 2 minutes
 export const maxDuration = 120;
 
 type DisplayProduct = (SellerProduct | ProductDrop) & { isTryOnEnabled?: boolean; isEastIndianLugra?: boolean };
@@ -44,6 +45,7 @@ type Magazine = {
     discount?: number;
     logoDataUri?: string;
     isTryOnEnabled?: boolean;
+    contactNo?: string;
 };
 
 const MAX_TRYON_SIZE_PX = 448;
@@ -58,7 +60,6 @@ function BrandedCollectionContent() {
     const [isLoading, setIsLoading] = useState(true);
     const [discount, setDiscount] = useState<number>(0);
     
-    // Try-On State
     const [isTryOnLoading, setIsTryOnLoading] = useState(false);
     const [tryOnResult, setTryOnResult] = useState<string | null>(null);
     const [tryOnProductId, setTryOnProductId] = useState<string | null>(null);
@@ -68,7 +69,6 @@ function BrandedCollectionContent() {
     const cameraInputRef = useRef<HTMLInputElement>(null);
     const galleryInputRef = useRef<HTMLInputElement>(null);
 
-    // Enquiry State
     const [enquiryProduct, setEnquiryProduct] = useState<DisplayProduct | null>(null);
     const [enquiryForm, setEnquiryForm] = useState({ name: '', phone: '', message: '' });
     const [isEnquiring, setIsEnquiring] = useState(false);
@@ -109,17 +109,14 @@ function BrandedCollectionContent() {
         fetchProducts();
     }, [params.id, searchParams]);
 
-    // Helper to determine category and hint text
     const getProductContext = (p: DisplayProduct) => {
         const title = p.title.toLowerCase();
         const cat = (p.category || '').toLowerCase();
         
-        // Priority Detection: Accessories & Footwear
         const isWatch = title.includes('watch') || cat.includes('watch');
         const isFootwear = title.includes('shoe') || title.includes('sneaker') || title.includes('sandal') || title.includes('heel') || title.includes('bondi') || title.includes('clifton') || title.includes('hoka') || cat.includes('footwear') || cat.includes('shoe') || cat.includes('sneaker');
         const isEyewear = title.includes('glass') || title.includes('shade') || title.includes('spectacle') || cat.includes('eyewear') || cat.includes('glass');
         
-        // Apparel Detection
         const isShirt = (title.includes('shirt') || title.includes('t-shirt') || cat.includes('shirt') || cat.includes('top')) && !title.includes('dress');
         const isDress = title.includes('dress') || title.includes('frock') || cat.includes('dress') || cat.includes('frock');
         const isKurti = title.includes('kurti') || title.includes('kurta') || cat.includes('kurti') || cat.includes('kurta');
@@ -128,7 +125,6 @@ function BrandedCollectionContent() {
         if (isWatch) return { type: 'Accessory', hint: 'wrist', label: 'WRIST', isApparel: false };
         if (isFootwear) return { type: 'Footwear', hint: 'feet', label: 'FEET', isApparel: false };
         if (isEyewear) return { type: 'Eyewear', hint: 'face', label: 'FACE', isApparel: false };
-        
         if (isShirt) return { type: 'Shirt', hint: 'selfie', label: 'SELFIE', isApparel: true };
         if (isDress) return { type: 'Dress', hint: 'selfie', label: 'SELFIE', isApparel: true };
         if (isKurti) return { type: 'Kurti', hint: 'selfie', label: 'SELFIE', isApparel: true };
@@ -137,29 +133,11 @@ function BrandedCollectionContent() {
         return { type: 'General', hint: 'selfie', label: 'SELFIE', isApparel: false };
     };
 
-    const resizeImageForAI = (fileOrUri: File | string, maxSize: number = MAX_TRYON_SIZE_PX): Promise<string> => {
-        return new Promise((resolve, reject) => {
-            if (typeof window === 'undefined') return reject('Window undefined');
-            const img = new (window as any).Image();
-            img.crossOrigin = "anonymous";
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                let { width, height } = img;
-                if (width > height) { if (width > maxSize) { height *= maxSize / width; width = maxSize; } }
-                else { if (height > maxSize) { width *= maxSize / height; height = maxSize; } }
-                canvas.width = width; canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                ctx?.drawImage(img, 0, 0, width, height);
-                resolve(canvas.toDataURL('image/jpeg', 0.5));
-            };
-            img.onerror = reject;
-            if (typeof fileOrUri === 'string') img.src = fileOrUri;
-            else {
-                const reader = new FileReader();
-                reader.onload = (e) => img.src = e.target?.result as string;
-                reader.readAsDataURL(fileOrUri);
-            }
-        });
+    const handleWhatsAppBusinessChat = () => {
+        if (!magazine) return;
+        const msg = `Hi! I'm visiting your Branded Collection: *${magazine.title}* and I'm interested in buying. \n\nI want to:\n1️⃣ Browse Collection\n2️⃣ Check Availability\n3️⃣ Get Recommendation\n4️⃣ Talk to Human Agent\n\n*Reference:* ${window.location.href}`;
+        const phone = sanitizePhoneNumber(magazine.contactNo || '919920320790');
+        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
     };
 
     const handleTryOnUpload = async (e: React.ChangeEvent<HTMLInputElement>, product: DisplayProduct) => {
@@ -199,12 +177,38 @@ function BrandedCollectionContent() {
         }
     };
 
+    const resizeImageForAI = (fileOrUri: File | string, maxSize: number = MAX_TRYON_SIZE_PX): Promise<string> => {
+        return new Promise((resolve, reject) => {
+            const img = new (window as any).Image();
+            img.crossOrigin = "anonymous";
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let { width, height } = img;
+                if (width > height) { if (width > maxSize) { height *= maxSize / width; width = maxSize; } }
+                else { if (height > maxSize) { width *= maxSize / height; height = maxSize; } }
+                canvas.width = width; canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', 0.5));
+            };
+            img.onerror = reject;
+            if (typeof fileOrUri === 'string') img.src = fileOrUri;
+            else {
+                const reader = new FileReader();
+                reader.onload = (e) => img.src = e.target?.result as string;
+                reader.readAsDataURL(fileOrUri);
+            }
+        });
+    };
+
     const handleOrderClick = (product: DisplayProduct) => {
         const catalogueParams = new URLSearchParams();
         catalogueParams.set('id', product.id);
         catalogueParams.set('return_url', window.location.href);
-        if (magazine?.creatorId) catalogueParams.set('sellerId', magazine.creatorId);
-        if (magazine?.creatorName) catalogueParams.set('sellerName', magazine.creatorName);
+        if (magazine?.creatorId) {
+            catalogueParams.set('sellerId', magazine.creatorId);
+            catalogueParams.set('sellerName', magazine.creatorName);
+        }
         if (discount > 0) catalogueParams.set('discount', discount.toString());
         router.push(`/catalogue?${catalogueParams.toString()}`);
     };
@@ -215,18 +219,10 @@ function BrandedCollectionContent() {
         try {
             const leadId = uuidv4();
             await saveDocument('leads', {
-                id: leadId,
-                customerName: enquiryForm.name,
-                contactNo: enquiryForm.phone,
-                productOrdered: enquiryProduct.title,
-                productId: enquiryProduct.id,
-                price: ((enquiryProduct as any).price || (enquiryProduct as any).costPrice).toString(),
-                paymentStatus: 'Enquiry',
-                date: new Date().toISOString(),
-                sellerId: magazine?.creatorId || 'admin',
-                sellerName: magazine?.creatorName || 'Admin',
-                source: 'SmartMagazine',
-                imageDataUris: enquiryProduct.imageDataUris,
+                id: leadId, customerName: enquiryForm.name, contactNo: enquiryForm.phone, productOrdered: enquiryProduct.title, productId: enquiryProduct.id,
+                price: ((enquiryProduct as any).price || (enquiryProduct as any).costPrice).toString(), paymentStatus: 'Enquiry',
+                date: new Date().toISOString(), sellerId: magazine?.creatorId || 'admin', sellerName: magazine?.creatorName || 'Admin',
+                source: 'SmartMagazine', isRead: false, imageDataUris: enquiryProduct.imageDataUris,
             }, leadId);
             toast({ title: "Enquiry Sent!" });
             setEnquiryProduct(null);
@@ -269,13 +265,12 @@ function BrandedCollectionContent() {
 
             <main className="max-w-7xl mx-auto p-4 md:p-10 space-y-10">
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                    {(products || []).map(product => {
+                    {products.map(product => {
                          const price = ((product as any).price || (product as any).costPrice);
                          const discountedPrice = discount > 0 ? price - (price * (discount / 100)) : price;
                          const ctx = getProductContext(product);
                          const isProductTryOn = tryOnProductId === product.id;
                          const canTryOn = magazine?.isTryOnEnabled || product.isTryOnEnabled;
-                         const isApparel = ctx.isApparel;
 
                         return (
                         <Card key={product.id} className="shadow-md hover:shadow-xl transition-shadow overflow-hidden flex flex-col group rounded-[24px] bg-white border-none">
@@ -318,35 +313,8 @@ function BrandedCollectionContent() {
                                 )}
 
                                 <div className="absolute top-4 right-4 z-20">
-                                    <ProductGenee 
-                                        product={{...product, price}} 
-                                        allProducts={products}
-                                        storeName={magazine?.vendorTitle || magazine?.creatorName || 'Snazzify Store'} 
-                                    />
+                                    <ProductGenee product={{...product, price}} allProducts={products} storeName={magazine?.vendorTitle || magazine?.creatorName || 'Snazzify Store'} />
                                 </div>
-
-                                {isProductTryOn && tryOnResult && (
-                                    <div className="absolute top-2 left-2 flex gap-1 z-30">
-                                        <Button onClick={() => {
-                                            const message = `Check out my new virtual look with this ${product.title} from Snazzify! ${window.location.href}`;
-                                            const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
-                                            window.open(url, '_blank');
-                                        }} size="icon" className="h-8 w-8 rounded-full bg-green-600 border-none text-white shadow-lg">
-                                            <Share2 className="h-4 w-4" />
-                                        </Button>
-                                        <Button onClick={() => {
-                                            const link = document.createElement('a');
-                                            link.href = tryOnResult!;
-                                            link.download = `my_look_${product.id}.jpg`;
-                                            link.click();
-                                        }} size="icon" className="h-8 w-8 rounded-full bg-white text-slate-900 border-none shadow-lg">
-                                            <Download className="h-4 w-4" />
-                                        </Button>
-                                        <Button onClick={() => setTryOnResult(null)} size="icon" variant="destructive" className="h-8 w-8 rounded-full shadow-lg">
-                                            <RefreshCcw className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                )}
                             </div>
                              <CardContent className="p-4 flex-grow flex flex-col">
                                 <h3 className="text-base font-bold mb-1 line-clamp-1 flex-grow uppercase italic">{product.title}</h3>
@@ -373,98 +341,23 @@ function BrandedCollectionContent() {
                                         </DialogContent>
                                     )}
                                 </Dialog>
-
                                 <Button variant="ghost" className="h-12 rounded-none font-black text-[10px] uppercase text-primary hover:bg-slate-100" onClick={() => handleOrderClick(product)}>
                                     <ShoppingCart className="mr-1 h-3 w-3" /> Order
                                 </Button>
-
-                                {canTryOn && (
-                                    <div className="col-span-2 border-t">
-                                        <Dialog>
-                                            <DialogTrigger asChild>
-                                                <Button variant="ghost" className="w-full h-10 rounded-none bg-primary/5 hover:bg-primary/10 text-primary font-black italic text-[10px]">
-                                                    <Sparkles className="mr-1.5 h-3 w-3" /> MAGIC MIRROR FITTING ROOM
-                                                </Button>
-                                            </DialogTrigger>
-                                            <DialogContent className="max-w-md rounded-[32px] p-8 border-none">
-                                                <DialogHeader>
-                                                    <DialogTitle className="text-2xl font-black italic uppercase flex items-center gap-2">
-                                                        <Sparkles className="h-6 w-6 text-primary" /> Magic Mirror
-                                                    </DialogTitle>
-                                                </DialogHeader>
-                                                <div className="py-6 space-y-6">
-                                                    <div className="bg-slate-50 p-4 rounded-2xl border-2 border-dashed border-slate-200">
-                                                        <div className="flex items-start gap-3">
-                                                            <Checkbox id={`consent-${product.id}`} checked={hasConsented} onCheckedChange={(val) => setHasConsented(val as boolean)} className="mt-1" />
-                                                            <Label htmlFor={`consent-${product.id}`} className="text-[10px] leading-relaxed text-muted-foreground">
-                                                                <span className="font-bold text-slate-900 uppercase block mb-1">Privacy Promise</span>
-                                                                We do not store your photos. They are deleted instantly after use.
-                                                            </Label>
-                                                        </div>
-                                                    </div>
-
-                                                    {isApparel && (
-                                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                                            {ctx.type !== 'Shirt' && (
-                                                                <div className="space-y-2">
-                                                                    <Label className="text-[10px] font-black uppercase text-slate-400">Select Style</Label>
-                                                                    <Select value={selectedDrapeStyle} onValueChange={(val: any) => setSelectedDrapeStyle(val)}>
-                                                                        <SelectTrigger className="h-10 rounded-xl bg-slate-50 border-none font-bold text-xs">
-                                                                            <SelectValue />
-                                                                        </SelectTrigger>
-                                                                        <SelectContent>
-                                                                            <SelectItem value="Western Wear">Western Fit (Mini/Tight Fit)</SelectItem>
-                                                                            <SelectItem value="Western Dress">Western Dress</SelectItem>
-                                                                            <SelectItem value="Kurti">Kurti</SelectItem>
-                                                                            <SelectItem value="Standard Saree">Standard Saree</SelectItem>
-                                                                            <SelectItem value="East Indian Lugra">East Indian Lugra</SelectItem>
-                                                                        </SelectContent>
-                                                                    </Select>
-                                                                </div>
-                                                            )}
-                                                            <div className="space-y-2">
-                                                                <Label className="text-[10px] font-black uppercase text-slate-400">Sleeves</Label>
-                                                                <Select value={selectedSleeves} onValueChange={(val: any) => setSelectedSleeves(val)}>
-                                                                    <SelectTrigger className="h-10 rounded-xl bg-slate-50 border-none font-bold text-xs">
-                                                                        <SelectValue />
-                                                                    </SelectTrigger>
-                                                                    <SelectContent>
-                                                                        <SelectItem value="Half Sleeves">Half Sleeves</SelectItem>
-                                                                        <SelectItem value="Full Sleeves">Full Sleeves</SelectItem>
-                                                                        <SelectItem value="Sleeveless">Sleeveless</SelectItem>
-                                                                    </SelectContent>
-                                                                </Select>
-                                                            </div>
-                                                        </div>
-                                                    )}
-
-                                                    <div className="grid grid-cols-2 gap-4">
-                                                        <Button disabled={!hasConsented || isTryOnLoading} onClick={() => { setTryOnProductId(product.id); cameraInputRef.current?.click(); }} className="h-14 rounded-2xl font-black uppercase italic shadow-lg">
-                                                            <Camera className="mr-2 h-5 w-5" /> Take {ctx.label}
-                                                        </Button>
-                                                        <Button disabled={!hasConsented || isTryOnLoading} variant="secondary" onClick={() => { setTryOnProductId(product.id); galleryInputRef.current?.click(); }} className="h-14 rounded-2xl font-black uppercase italic">
-                                                            <ImagePlus className="mr-2 h-5 w-5" /> Gallery
-                                                        </Button>
-                                                    </div>
-                                                </div>
-                                            </DialogContent>
-                                        </Dialog>
-                                    </div>
-                                )}
                             </CardFooter>
                         </Card>
                     )})}
                 </div>
             </main>
 
-            <input ref={cameraInputRef} type="file" accept="image/*" capture="user" className="hidden" onChange={(e) => {
-                const p = products.find(p => p.id === tryOnProductId);
-                if (p) handleTryOnUpload(e, p);
-            }} />
-            <input ref={galleryInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
-                const p = products.find(p => p.id === tryOnProductId);
-                if (p) handleTryOnUpload(e, p);
-            }} />
+            <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex gap-4">
+                <Button onClick={handleWhatsAppBusinessChat} className="rounded-full h-16 px-10 bg-green-600 hover:bg-green-700 shadow-2xl font-black uppercase italic tracking-tighter text-white border-4 border-white transition-transform hover:scale-105 active:scale-95">
+                    <MessageCircle className="mr-2 h-6 w-6" /> Chat with Seller
+                </Button>
+            </div>
+
+            <input ref={cameraInputRef} type="file" accept="image/*" capture="user" className="hidden" onChange={(e) => { const p = products.find(p => p.id === tryOnProductId); if (p) handleTryOnUpload(e, p); }} />
+            <input ref={galleryInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const p = products.find(p => p.id === tryOnProductId); if (p) handleTryOnUpload(e, p); }} />
         </div>
     );
 }

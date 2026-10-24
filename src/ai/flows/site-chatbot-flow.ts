@@ -1,8 +1,8 @@
 
 'use server';
 /**
- * @fileOverview AI Flow to power the chatbot for generated e-commerce sites.
- * Upgraded to support real-time global inventory integration from www.snazzify.co.in.
+ * @fileOverview AI Flow to power the discovery engine for e-commerce sites.
+ * Upgraded to act as a high-performance retail search engine.
  */
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
@@ -36,7 +36,8 @@ const SiteChatbotOutputSchema = z.object({
     imageUrl: z.string(),
     url: z.string()
   })).optional().describe('Live recommendations fetched from www.snazzify.co.in'),
-  bundleDiscountOffer: z.string().optional().describe('A message about a discount if they bundle items')
+  bundleDiscountOffer: z.string().optional().describe('A message about a discount if they bundle items'),
+  searchSuggestions: z.array(z.string()).optional().describe('3-4 quick search follow-up terms for the user to click')
 });
 
 /**
@@ -59,11 +60,12 @@ const searchSnazzifyGlobal = ai.defineTool(
   },
   async (input) => {
     const allProducts = await fetchLiveSnazzifyProducts();
-    // Simple filter logic for the tool
+    // Intelligent search logic
+    const searchLower = input.searchTerm.toLowerCase();
     return allProducts.filter(p => 
-        p.title.toLowerCase().includes(input.searchTerm.toLowerCase()) ||
-        p.category.toLowerCase().includes(input.searchTerm.toLowerCase())
-    ).slice(0, 3);
+        p.title.toLowerCase().includes(searchLower) ||
+        p.category.toLowerCase().includes(searchLower)
+    ).slice(0, 4);
   }
 );
 
@@ -74,26 +76,27 @@ const siteChatbotFlow = ai.defineFlow(
     outputSchema: SiteChatbotOutputSchema,
   },
   async (input) => {
-    const systemPrompt = `You are a virtual sales assistant for "${input.storeName}".
-    Your persona: "${input.persona}".
+    const systemPrompt = `You are the "Discovery Engine" for "${input.storeName}". 
+    Your mission is to find the PERFECT products for the user and maximize conversion.
 
-    CATALOG CONTEXT (This is your current local collection):
+    SEARCH STRATEGY:
+    1. LOCAL FIRST: Search the LOCAL CATALOG (provided context below) for matches.
+    2. GLOBAL SECOND: If no perfect matches exist locally, use 'searchSnazzifyGlobal' to fetch live results from our main inventory.
+    3. UP-SELL: For every main item, suggest a matching accessory (e.g., matching shoes for a dress) and mention a "5% Bundle Discount".
+    4. TRUST: Promote "Secure COD" (payment held in trust, released on dispatch) and "Shakti Card" rewards.
+
+    CATALOG CONTEXT:
     {{#if catalog}}
     {{json catalog}}
     {{else}}
-    No specific catalog provided.
+    No local products provided.
     {{/if}}
-    
-    GUIDELINES:
-    1. Help the user find products from the LOCAL CATALOG first. If matches exist, return their IDs in 'recommendedProductIds'.
-    
-    2. LIVE INTEGRATION: If the requested item or category is NOT in the LOCAL CATALOG, you MUST use the 'searchSnazzifyGlobal' tool to fetch live products from www.snazzify.co.in. 
-       - Fetch these items and show them to the user.
-       - Map the tool's output to the 'externalRecommendations' field.
-    
-    3. BUNDLING: Suggest a matching accessory for any main item (e.g., Necklace for a Saree) and offer a "5% Bundle Discount" on the total.
 
-    4. TRUST: Promote "Secure COD" as the safest way to shop. Keep responses cheerful and star-themed! ✨`;
+    INTERACTION STYLE:
+    - Be energetic, Star-Girl themed, and extremely helpful.
+    - Use emojis ✨, ⭐, 🚀.
+    - Provide 3-4 "searchSuggestions" related to the query.
+    - Always aim to get the user to click "Buy Now".`;
 
     const { output } = await ai.generate({
         model: 'googleai/gemini-2.5-flash',
