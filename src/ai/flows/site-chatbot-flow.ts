@@ -118,6 +118,7 @@ const siteChatbotFlow = ai.defineFlow(
         return output;
     } catch (error: any) {
         console.error("Site Chatbot Flow Error:", error);
+        // Fallback response instead of throwing to prevent component crash
         return {
             answer: "My star-circuits are flickering slightly! I'm still here to help. What can I find for you? ✨",
             searchSuggestions: ["New Arrivals", "Secure COD Info"]
