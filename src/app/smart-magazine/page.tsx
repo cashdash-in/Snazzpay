@@ -1,7 +1,6 @@
-
 'use client';
 
-import { Suspense, useEffect, useState, useRef, useMemo } from 'react';
+import { Suspense, useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -29,7 +28,7 @@ import { cn, sanitizePhoneNumber } from '@/lib/utils';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { ProductGenee } from '@/components/genee/product-genee';
 
-export const maxDuration = 120;
+export const maxDuration = 180;
 
 type DisplayProduct = (SellerProduct | ProductDrop) & { isEastIndianLugra?: boolean; isTryOnEnabled?: boolean };
 
@@ -113,7 +112,8 @@ function SmartMagazineContent() {
         fetchProducts();
     }, [searchParams]);
 
-    const getProductContext = (p: DisplayProduct) => {
+    const getProductContext = useCallback((p: DisplayProduct) => {
+        if (!p) return { type: 'General', hint: 'selfie', label: 'SELFIE', isApparel: false };
         const title = p.title.toLowerCase();
         const cat = (p.category || '').toLowerCase();
         
@@ -137,10 +137,19 @@ function SmartMagazineContent() {
         if (isSkirt) return { type: 'Western Wear', hint: 'selfie', label: 'SELFIE', isApparel: true };
         
         return { type: 'General', hint: 'selfie', label: 'SELFIE', isApparel: false };
-    };
+    }, []);
+
+    const activeTryOnProduct = useMemo(() => {
+        return products.find(p => p.id === tryOnProductId) || null;
+    }, [products, tryOnProductId]);
+
+    const activeTryOnContext = useMemo(() => {
+        return getProductContext(activeTryOnProduct as DisplayProduct);
+    }, [activeTryOnProduct, getProductContext]);
 
     const resizeImageForAI = (fileOrUri: File | string, maxSize: number = MAX_TRYON_SIZE_PX): Promise<string> => {
         return new Promise((resolve, reject) => {
+            if (typeof window === 'undefined') return reject('Window undefined');
             const img = new (window as any).Image();
             img.crossOrigin = "anonymous";
             img.onload = () => {
@@ -277,7 +286,7 @@ function SmartMagazineContent() {
                 <h1 className="text-3xl md:text-5xl font-black italic uppercase tracking-tighter text-slate-900">{magazine?.title}</h1>
                 <p className="text-sm md:text-base text-primary mt-2 font-black uppercase tracking-widest flex items-center justify-center gap-3">
                     <span className="h-px w-10 bg-primary/20"></span>
-                    {magazine?.vendorTitle || `Curated by ${magazine?.creatorName}`}
+                    {magazine?.vendorTitle || (magazine?.creatorName ? `Curated by ${magazine.creatorName}` : '')}
                     <span className="h-px w-10 bg-primary/20"></span>
                 </p>
             </header>
@@ -286,7 +295,7 @@ function SmartMagazineContent() {
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
                     {products.map(product => {
                         const price = (product as any).price || (product as any).costPrice;
-                        const ctx = getProductContext(product);
+                        const productCtx = getProductContext(product);
                         const isProductTryOn = tryOnProductId === product.id;
                         const canTryOn = magazine?.isTryOnEnabled || product.isTryOnEnabled;
 
@@ -335,7 +344,7 @@ function SmartMagazineContent() {
                                 </CardContent>
                                 <CardFooter className="p-0 border-t bg-slate-50 grid grid-cols-2">
                                     <Button variant="ghost" className="h-12 rounded-none border-r font-black uppercase italic text-[10px] flex items-center gap-1" disabled={!canTryOn || isTryOnLoading} onClick={() => { setTryOnProductId(product.id); cameraInputRef.current?.click(); }}>
-                                        <Sparkles className="h-3 w-3 text-primary" /> {canTryOn ? `TAKE ${ctx.label}` : 'OFF'}
+                                        <Sparkles className="h-3 w-3 text-primary" /> {canTryOn ? `TAKE ${productCtx.label}` : 'OFF'}
                                     </Button>
                                     <Button variant="ghost" className="h-12 rounded-none font-black uppercase italic text-[10px] text-primary" onClick={() => handleOrderClick(product)}>
                                         <ShoppingCart className="h-3 w-3" /> Order
@@ -345,6 +354,106 @@ function SmartMagazineContent() {
                         );
                     })}
                 </div>
+
+                {/* Shared Try-On Control Panel */}
+                {activeTryOnProduct && (
+                    <Card className="rounded-[24px] bg-slate-900 text-white p-6 shadow-2xl overflow-hidden relative border-none">
+                        <div className="absolute top-0 right-0 p-4 opacity-10"><Sparkles className="h-20 w-20" /></div>
+                        <div className="flex flex-col gap-6 relative z-10">
+                            <div className="space-y-1">
+                                <h3 className="text-xl font-black italic uppercase flex items-center gap-2"><Sparkles className="h-5 w-5 text-purple-400" /> Magic Mirror</h3>
+                                <p className="text-xs text-slate-400">Fitting: <span className="font-bold text-white">{activeTryOnProduct.title}</span> on your {activeTryOnContext.hint}.</p>
+                            </div>
+                            
+                            <div className="bg-white/5 border border-white/10 p-4 rounded-2xl space-y-4">
+                                <div className="flex items-start gap-3">
+                                    <Checkbox 
+                                        id="privacy-consent-mag" 
+                                        checked={hasConsented} 
+                                        onCheckedChange={(val) => setHasConsented(val as boolean)}
+                                        className="mt-1 border-white/50"
+                                    />
+                                    <Label htmlFor="privacy-consent-mag" className="text-[10px] font-medium leading-relaxed text-slate-300">
+                                        <span className="font-bold text-white uppercase block mb-1">Privacy Promise</span>
+                                        We do not save pics. Your photo is processed instantly and removed.
+                                    </Label>
+                                </div>
+
+                                {activeTryOnContext.isApparel && (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-white/10">
+                                        {activeTryOnContext.type !== 'Shirt' && (
+                                            <div className="space-y-2">
+                                                <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Style Mode</Label>
+                                                <Select value={selectedDrapeStyle} onValueChange={(val: any) => setSelectedDrapeStyle(val)}>
+                                                    <SelectTrigger className="h-10 bg-white/10 border-white/20 text-white rounded-xl text-xs font-bold">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="Western Wear">Western Fit (Mini/Tight Fit)</SelectItem>
+                                                        <SelectItem value="Western Dress">Modern Western Dress</SelectItem>
+                                                        <SelectItem value="Kurti">Traditional Kurti</SelectItem>
+                                                        <SelectItem value="Standard Saree">Standard Saree</SelectItem>
+                                                        <SelectItem value="East Indian Lugra">East Indian Lugra</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        )}
+                                        
+                                        <div className="space-y-2">
+                                            <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Sleeves</Label>
+                                            <Select value={selectedSleeves} onValueChange={(val: any) => setSelectedSleeves(val)}>
+                                                <SelectTrigger className="h-10 bg-white/10 border-white/20 text-white rounded-xl text-xs font-bold">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="Half Sleeves">Half Sleeves</SelectItem>
+                                                    <SelectItem value="Full Sleeves">Full Sleeves</SelectItem>
+                                                    <SelectItem value="Sleeveless">Sleeveless</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    {tryOnResult ? (
+                                        <div className="col-span-full space-y-3">
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <Button onClick={() => setTryOnResult(null)} variant="outline" className="w-full border-white/20 text-white hover:bg-white/10 rounded-xl h-12 font-bold"><RefreshCcw className="mr-2 h-4 w-4" /> Try Again</Button>
+                                                <Button onClick={() => {
+                                                    const link = document.createElement('a');
+                                                    link.href = tryOnResult!;
+                                                    link.download = `my_look_${activeTryOnProduct.id}.jpg`;
+                                                    link.click();
+                                                }} className="bg-white text-slate-900 hover:bg-slate-100 rounded-xl h-12 font-bold"><Download className="mr-2 h-4 w-4" /> Save Look</Button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <Button 
+                                                onClick={() => cameraInputRef.current?.click()} 
+                                                disabled={!hasConsented || isTryOnLoading}
+                                                className="bg-primary hover:bg-primary/90 text-white rounded-xl h-12 font-bold shadow-lg disabled:opacity-50"
+                                            >
+                                                <Camera className="mr-2 h-4 w-4" /> Take {activeTryOnContext.label}
+                                            </Button>
+                                            <Button 
+                                                onClick={() => galleryInputRef.current?.click()} 
+                                                disabled={!hasConsented || isTryOnLoading}
+                                                variant="secondary" 
+                                                className="bg-white/10 hover:bg-white/20 text-white border-white/10 rounded-xl h-12 font-bold disabled:opacity-50"
+                                            >
+                                                <ImagePlus className="mr-2 h-4 w-4" /> From Gallery
+                                            </Button>
+                                        </>
+                                    )}
+                                    <input ref={cameraInputRef} type="file" accept="image/*" capture="user" className="hidden" onChange={(e) => activeTryOnProduct && handleTryOnUpload(e, activeTryOnProduct)} />
+                                    <input ref={galleryInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => activeTryOnProduct && handleTryOnUpload(e, activeTryOnProduct)} />
+                                </div>
+                            </div>
+                        </div>
+                    </Card>
+                )}
             </main>
 
             {/* Global Enquiry Dialog */}
@@ -355,7 +464,7 @@ function SmartMagazineContent() {
                         <div className="space-y-4 py-4">
                             <div className="flex gap-4 p-3 bg-muted/50 rounded-xl">
                                 <div className="relative w-12 h-12 rounded-lg overflow-hidden shrink-0"><Image src={enquiryProduct.imageDataUris[0]} fill alt="p" className="object-cover" /></div>
-                                <div><p className="font-bold text-xs uppercase">{enquiryProduct.title}</p><p className="text-[10px] text-primary font-bold">₹{enquiryProduct.price || (enquiryProduct as any).costPrice}</p></div>
+                                <div><p className="font-bold text-xs uppercase">{enquiryProduct.title}</p><p className="text-[10px] text-primary font-bold">₹{((enquiryProduct as any).price || (enquiryProduct as any).costPrice)}</p></div>
                             </div>
                             <div className="space-y-1"><Label className="text-[10px] font-black uppercase">Your Name</Label><Input value={enquiryForm.name} onChange={e => setEnquiryForm({...enquiryForm, name: e.target.value})} className="h-12 rounded-xl" /></div>
                             <div className="space-y-1"><Label className="text-[10px] font-black uppercase">WhatsApp Number</Label><Input value={enquiryForm.phone} onChange={e => setEnquiryForm({...enquiryForm, phone: e.target.value})} className="h-12 rounded-xl" /></div>
@@ -379,9 +488,6 @@ function SmartMagazineContent() {
                     <MessageCircle className="mr-2 h-6 w-6" /> Chat with Seller
                 </Button>
             </div>
-
-            <input ref={cameraInputRef} type="file" accept="image/*" capture="user" className="hidden" onChange={(e) => { const p = products.find(p => p.id === tryOnProductId); if (p) handleTryOnUpload(e, p); }} />
-            <input ref={galleryInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const p = products.find(p => p.id === tryOnProductId); if (p) handleTryOnUpload(e, p); }} />
         </div>
     );
 }
