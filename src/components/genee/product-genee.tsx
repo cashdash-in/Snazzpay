@@ -59,9 +59,16 @@ export function ProductGenee({ product, allProducts, storeName, isOpen, onOpenCh
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // GUARANTEED SCROLL TO BOTTOM LOGIC
   useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        const scrollContainer = scrollRef.current.querySelector('[data-radix-scroll-area-viewport]');
+        if (scrollContainer) {
+            scrollContainer.scrollTo({
+                top: scrollContainer.scrollHeight,
+                behavior: 'smooth'
+            });
+        }
     }
   }, [messages, isLoading]);
 
@@ -94,11 +101,23 @@ export function ProductGenee({ product, allProducts, storeName, isOpen, onOpenCh
     toast({ title: "Added to Cart!", description: `${prod.title} is ready.` });
   };
 
+  const removeFromCart = (productId: string) => {
+    setCart(prev => prev.filter(item => item.product.id !== productId));
+  };
+
   const handleSend = async (forcedQuery?: string) => {
     const userMsg = forcedQuery || input.trim();
     if (!userMsg || isLoading) return;
 
     if (!forcedQuery) setInput('');
+    
+    // Track Genee Search
+    fetch('/api/track', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event: 'geneeSearch' })
+    });
+
     setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
     setIsLoading(true);
 
@@ -141,24 +160,23 @@ export function ProductGenee({ product, allProducts, storeName, isOpen, onOpenCh
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] w-full md:max-w-7xl h-[90vh] p-0 border-none overflow-hidden rounded-[32px] bg-slate-50 shadow-2xl">
-        <div className="flex flex-col h-full w-full">
+      <DialogContent className="max-w-[95vw] w-full md:max-w-7xl h-[90vh] p-0 border-none overflow-hidden rounded-[32px] bg-slate-50 shadow-2xl flex flex-col">
           {/* Header */}
-          <div className="bg-white px-6 py-3 border-b flex items-center justify-between shrink-0">
-             <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
-                <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Live Discovery Engine...</span>
+          <div className="bg-white px-6 py-4 border-b flex items-center justify-between shrink-0">
+             <div className="flex items-center gap-3">
+                <div className="w-3 h-3 rounded-full bg-blue-500 animate-pulse"></div>
+                <span className="text-xs font-black uppercase text-slate-400 tracking-widest">Retail Discovery Terminal</span>
              </div>
              <div className="flex items-center gap-4">
                 <Button 
                     variant="ghost" 
                     size="icon" 
                     onClick={() => setActiveView(activeView === 'cart' ? 'grid' : 'cart')} 
-                    className="relative h-10 w-10 rounded-full hover:bg-slate-100"
+                    className="relative h-12 w-12 rounded-full hover:bg-slate-100 transition-all active:scale-95"
                 >
-                    <ShoppingCart className="h-5 w-5 text-slate-600" />
+                    <ShoppingCart className="h-6 w-6 text-slate-700" />
                     {cart.length > 0 && (
-                        <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center bg-blue-500 text-[10px] animate-pulse">
+                        <Badge className="absolute -top-1 -right-1 h-6 w-6 p-0 flex items-center justify-center bg-blue-500 text-[11px] font-black animate-pulse border-2 border-white">
                             {cart.length}
                         </Badge>
                     )}
@@ -169,142 +187,159 @@ export function ProductGenee({ product, allProducts, storeName, isOpen, onOpenCh
 
           <div className="flex-1 flex overflow-hidden">
             {/* Left Pane: Discovery Grid */}
-            <div className="flex-1 flex flex-col bg-white border-r">
-                <div className="p-6 border-b flex items-center justify-between gap-4 shrink-0">
-                    <h2 className="text-sm font-black uppercase tracking-tight text-slate-800">
-                        {activeView === 'grid' ? 'Recommendations' : 'Shopping Bag'}
+            <div className="flex-1 flex flex-col bg-white border-r min-w-0">
+                <div className="p-6 border-b flex flex-col sm:flex-row items-center justify-between gap-4 shrink-0 bg-slate-50/50">
+                    <h2 className="text-sm font-black uppercase tracking-tight text-slate-800 italic">
+                        {activeView === 'grid' ? '⚡ Dynamic Recommendations' : '🛒 My Shopping Bag'}
                     </h2>
                     {activeView === 'grid' && (
-                        <div className="relative w-72">
+                        <div className="relative w-full sm:w-72">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                             <Input 
                                 placeholder="Search catalog..." 
                                 value={searchQuery}
                                 onChange={e => setSearchQuery(e.target.value)}
-                                className="pl-9 h-10 bg-slate-50 border-none rounded-full text-xs font-bold"
+                                className="pl-9 h-11 bg-white border-2 border-slate-100 rounded-full text-xs font-bold focus-visible:ring-blue-100"
                             />
                         </div>
                     )}
                 </div>
 
-                <ScrollArea className="flex-1 p-6">
-                    {activeView === 'grid' ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 pb-20">
-                            {filteredProducts.map((p) => (
-                                <Card key={p.id} className="rounded-[24px] overflow-hidden border-2 border-transparent hover:border-blue-100 transition-all shadow-sm bg-white group">
-                                    <div className="relative aspect-[4/5] bg-slate-50">
-                                        <Image src={(p.imageDataUris || [])[0] || (p.imageUrl)} alt={p.title} fill className="object-cover transition-transform group-hover:scale-105" unoptimized />
+                <ScrollArea className="flex-1">
+                    <div className="p-6">
+                        {activeView === 'grid' ? (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 pb-20">
+                                {filteredProducts.map((p) => (
+                                    <Card key={p.id} className="rounded-[28px] overflow-hidden border-2 border-transparent hover:border-blue-100 transition-all shadow-sm hover:shadow-xl bg-white group flex flex-col">
+                                        <div className="relative aspect-[4/5] bg-slate-50 overflow-hidden">
+                                            <Image src={(p.imageDataUris || [])[0] || (p.imageUrl)} alt={p.title} fill className="object-cover transition-transform duration-500 group-hover:scale-105" unoptimized />
+                                        </div>
+                                        <CardContent className="p-4 space-y-1 flex-1">
+                                            <h3 className="text-[11px] font-black uppercase text-slate-800 line-clamp-2 italic leading-tight">{p.title}</h3>
+                                            <p className="text-base font-black text-blue-600">₹{p.price || p.costPrice}</p>
+                                        </CardContent>
+                                        <CardFooter className="p-3 pt-0 gap-2">
+                                            <Button onClick={() => addToCart(p)} className="flex-1 h-11 rounded-2xl bg-blue-500 hover:bg-blue-600 shadow-lg shadow-blue-100 font-bold uppercase text-[10px]">
+                                                <ShoppingCart className="h-4 w-4 mr-2" /> Quick Add
+                                            </Button>
+                                            <Button variant="outline" size="icon" onClick={() => addToCart(p)} className="h-11 w-11 rounded-2xl border-slate-200 hover:bg-slate-50">
+                                                <Plus className="h-5 w-5" />
+                                            </Button>
+                                        </CardFooter>
+                                    </Card>
+                                ))}
+                                {filteredProducts.length === 0 && (
+                                    <div className="col-span-full py-32 text-center space-y-4 opacity-30">
+                                        <Search className="h-16 w-16 mx-auto" />
+                                        <p className="font-black uppercase italic">No matching products found</p>
                                     </div>
-                                    <CardContent className="p-4 space-y-1">
-                                        <h3 className="text-[11px] font-black uppercase text-slate-800 line-clamp-1 truncate">{p.title}</h3>
-                                        <p className="text-sm font-black text-blue-600">₹{p.price || p.costPrice}</p>
-                                    </CardContent>
-                                    <CardFooter className="p-2 pt-0 gap-2">
-                                        <Button onClick={() => addToCart(p)} className="flex-1 h-10 rounded-xl bg-blue-500 hover:bg-blue-600 shadow-md shadow-blue-100">
-                                            <ShoppingCart className="h-4 w-4 mr-2" /> Add
-                                        </Button>
-                                        <Button variant="outline" size="icon" onClick={() => addToCart(p)} className="h-10 w-10 rounded-xl border-slate-200">
-                                            <Plus className="h-4 w-4" />
-                                        </Button>
-                                    </CardFooter>
-                                </Card>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="max-w-xl mx-auto space-y-6 py-8">
-                             {cart.length === 0 ? (
-                                 <div className="text-center py-20 opacity-20"><ShoppingBag className="h-20 w-20 mx-auto" /><p className="mt-4 font-bold">Bag is empty</p></div>
-                             ) : (
-                                <>
-                                    {cart.map(item => (
-                                        <div key={item.product.id} className="bg-white border-2 border-slate-100 rounded-3xl p-5 flex gap-4 items-center">
-                                            <div className="relative h-20 w-20 rounded-2xl overflow-hidden shrink-0 border"><Image src={item.product.imageDataUris?.[0] || item.product.imageUrl} fill alt="p" className="object-cover" unoptimized /></div>
-                                            <div className="flex-1 min-w-0">
-                                                <p className="font-black text-xs uppercase truncate text-slate-800">{item.product.title}</p>
-                                                <p className="text-xs font-bold text-slate-400">Quantity: {item.quantity}</p>
-                                                <p className="font-black text-lg text-blue-600 mt-1">₹{(item.product.price || item.product.costPrice) * item.quantity}</p>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="max-w-2xl mx-auto space-y-6 py-8">
+                                 {cart.length === 0 ? (
+                                     <div className="text-center py-20 opacity-20"><ShoppingBag className="h-24 w-24 mx-auto" /><p className="mt-4 font-black uppercase italic">Your bag is empty</p></div>
+                                 ) : (
+                                    <>
+                                        <div className="space-y-4">
+                                            {cart.map(item => (
+                                                <div key={item.product.id} className="bg-white border-2 border-slate-100 rounded-[32px] p-5 flex gap-5 items-center shadow-sm hover:border-blue-100 transition-colors">
+                                                    <div className="relative h-24 w-24 rounded-2xl overflow-hidden shrink-0 border-2 border-slate-50"><Image src={item.product.imageDataUris?.[0] || item.product.imageUrl} fill alt="p" className="object-cover" unoptimized /></div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="font-black text-sm uppercase truncate text-slate-800 italic">{item.product.title}</p>
+                                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Quantity: {item.quantity}</p>
+                                                        <p className="font-black text-xl text-blue-600 mt-2">₹{(item.product.price || item.product.costPrice) * item.quantity}</p>
+                                                    </div>
+                                                    <Button variant="ghost" size="icon" className="text-red-300 hover:text-red-500 hover:bg-red-50 rounded-full h-12 w-12" onClick={() => removeFromCart(item.product.id)}><Trash2 className="h-6 w-6"/></Button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div className="pt-8 border-t-4 border-dotted border-slate-200 mt-12">
+                                            <div className="flex justify-between items-center mb-8 bg-slate-50 p-6 rounded-[32px]">
+                                                <span className="font-black text-slate-400 uppercase text-xs tracking-widest">Final Amount</span>
+                                                <span className="text-5xl font-black italic text-slate-900 tracking-tighter">₹{cartTotal.toFixed(2)}</span>
                                             </div>
-                                            <Button variant="ghost" size="icon" className="text-red-400 hover:text-red-600 rounded-full" onClick={() => removeFromCart(item.product.id)}><Trash2 className="h-5 w-5"/></Button>
-                                        </div>
-                                    ))}
-                                    <div className="pt-8 border-t-2 border-dashed border-slate-200 mt-10">
-                                        <div className="flex justify-between items-center mb-8">
-                                            <span className="font-black text-slate-400 uppercase text-xs tracking-widest">Estimated Total</span>
-                                            <span className="text-4xl font-black italic text-slate-900">₹{cartTotal.toFixed(2)}</span>
-                                        </div>
-                                        <Button onClick={handleCheckout} className="w-full h-20 rounded-3xl bg-blue-500 hover:bg-blue-600 text-2xl font-black uppercase italic shadow-2xl shadow-blue-200">
-                                            Confirm Secure COD <ArrowRight className="ml-2 h-8 w-8"/>
-                                        </Button>
-                                        <p className="text-center text-[10px] font-bold text-slate-400 uppercase mt-6 flex items-center justify-center gap-2">
-                                            <ShieldCheck className="h-4 w-4" /> Powered by SnazzPay Trust Wallet
-                                        </p>
-                                    </div>
-                                </>
-                             )}
-                        </div>
-                    )}
+                                            <Button onClick={handleCheckout} className="w-full h-24 rounded-[36px] bg-blue-500 hover:bg-blue-600 text-3xl font-black uppercase italic shadow-2xl shadow-blue-200 transform hover:scale-[1.02] transition-all">
+                                                Go to Checkout <ArrowRight className="ml-3 h-10 w-10"/>
+                                            </Button>
+                                            <p className="text-center text-[11px] font-black text-slate-400 uppercase mt-8 flex items-center justify-center gap-3">
+                                                <ShieldCheck className="h-5 w-5 text-blue-500" /> Secured by SnazzPay Trust Wallet
+                                            </p>
+                                        </>
+                                 )}
+                            </div>
+                        )}
+                    </div>
                 </ScrollArea>
             </div>
 
             {/* Right Pane: AI Chat Assistant */}
-            <div className="w-full md:w-[380px] lg:w-[450px] flex flex-col bg-[#f0f2f5] border-l">
+            <div className="w-full md:w-[400px] lg:w-[480px] flex flex-col bg-[#f8fafc] border-l shrink-0">
                 <div className="p-6 border-b flex items-center justify-between bg-white shrink-0">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-blue-50 rounded-lg"><Sparkles className="h-5 w-5 text-blue-500" /></div>
+                    <div className="flex items-center gap-4">
+                        <div className="p-2.5 bg-blue-50 rounded-2xl shadow-sm border border-blue-100"><Sparkles className="h-6 w-6 text-blue-500" /></div>
                         <div>
-                            <h3 className="text-sm font-black uppercase text-slate-800">Star Girl Assistant</h3>
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Online & Ready ✨</p>
+                            <h3 className="text-sm font-black uppercase text-slate-800 italic tracking-tight">Star Girl Assistant</h3>
+                            <p className="text-[10px] text-blue-500 font-black uppercase tracking-widest flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-ping"></span>
+                                Live Intelligence ✨
+                            </p>
                         </div>
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-6 space-y-6" ref={scrollRef}>
-                    {messages.map((m, i) => (
-                        <div key={i} className={cn("flex flex-col gap-2", m.role === 'user' ? "items-end" : "items-start")}>
-                            <div className={cn(
-                                "max-w-[95%] p-4 rounded-[24px] text-[13px] leading-relaxed shadow-sm break-words overflow-wrap-anywhere",
-                                m.role === 'assistant' ? "bg-white text-slate-800 rounded-tl-none border" : "bg-blue-500 text-white rounded-tr-none font-medium"
-                            )}>
-                                {m.content}
-                            </div>
-                            {m.searchSuggestions && (
-                                <div className="flex flex-wrap gap-2 pt-1">
-                                    {m.searchSuggestions.map(s => (
-                                        <button key={s} onClick={() => handleSend(s)} className="text-[10px] font-black text-blue-500 border-2 border-blue-100 bg-white px-4 py-1.5 rounded-full hover:bg-blue-50 transition-colors uppercase italic tracking-tighter">
-                                            {s}
-                                        </button>
-                                    ))}
+                {/* SCROLLER AREA */}
+                <ScrollArea className="flex-1" ref={scrollRef}>
+                    <div className="p-6 space-y-6">
+                        {messages.map((m, i) => (
+                            <div key={i} className={cn("flex flex-col gap-3", m.role === 'user' ? "items-end" : "items-start")}>
+                                <div className={cn(
+                                    "max-w-[90%] p-5 rounded-[32px] text-[13px] leading-relaxed shadow-sm break-words overflow-wrap-anywhere border-2",
+                                    m.role === 'assistant' ? "bg-white text-slate-800 rounded-tl-none border-slate-100" : "bg-blue-500 text-white rounded-tr-none font-bold border-blue-400 shadow-blue-100"
+                                )}>
+                                    {m.content}
                                 </div>
-                            )}
-                        </div>
-                    ))}
-                    {isLoading && (
-                        <div className="flex flex-col gap-2 items-start animate-pulse">
-                            <div className="bg-white p-4 rounded-[24px] rounded-tl-none border shadow-sm">
-                                <Loader2 className="h-5 w-5 text-blue-500 animate-spin" />
+                                {m.searchSuggestions && (
+                                    <div className="flex flex-wrap gap-2 pt-1">
+                                        {m.searchSuggestions.map(s => (
+                                            <button key={s} onClick={() => handleSend(s)} className="text-[10px] font-black text-blue-600 border-2 border-blue-100 bg-white px-4 py-2 rounded-full hover:bg-blue-50 hover:border-blue-200 transition-all uppercase italic tracking-tighter active:scale-95 shadow-sm">
+                                                {s}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
-                        </div>
-                    )}
-                </div>
+                        ))}
+                        {isLoading && (
+                            <div className="flex flex-col gap-3 items-start">
+                                <div className="bg-white p-5 rounded-[32px] rounded-tl-none border-2 border-slate-100 shadow-sm flex items-center gap-3">
+                                    <Loader2 className="h-5 w-5 text-blue-500 animate-spin" />
+                                    <p className="text-[11px] font-bold text-slate-400 uppercase italic tracking-widest animate-pulse">Thinking...</p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </ScrollArea>
 
-                <div className="p-6 bg-white border-t space-y-4 shrink-0">
-                    <div className="flex gap-2 bg-slate-100 p-2 rounded-2xl border-2 border-transparent focus-within:border-blue-100 transition-all">
+                <div className="p-6 bg-white border-t space-y-4 shrink-0 shadow-[0_-10px_25px_rgba(0,0,0,0.02)]">
+                    <div className="flex gap-2 bg-slate-50 p-2.5 rounded-[30px] border-2 border-slate-100 focus-within:border-blue-200 focus-within:bg-white transition-all shadow-inner">
                         <Input 
-                            placeholder="Type a message..." 
+                            placeholder="Ask me anything... ✨" 
                             value={input}
                             onChange={e => setInput(e.target.value)}
                             onKeyDown={e => e.key === 'Enter' && handleSend()}
-                            className="bg-transparent border-none focus-visible:ring-0 text-sm font-bold"
+                            className="bg-transparent border-none focus-visible:ring-0 text-sm font-bold placeholder:text-slate-300 h-12"
                         />
-                        <Button size="icon" onClick={() => handleSend()} disabled={isLoading || !input.trim()} className="h-11 w-11 rounded-xl bg-blue-500 hover:bg-blue-600 shadow-lg shrink-0">
+                        <Button size="icon" onClick={() => handleSend()} disabled={isLoading || !input.trim()} className="h-12 w-12 rounded-full bg-blue-500 hover:bg-blue-600 shadow-xl shadow-blue-100 shrink-0 transform active:scale-90 transition-transform">
                             <Send className="h-5 w-5" />
                         </Button>
                     </div>
-                    <p className="text-[9px] text-center font-bold text-slate-400 uppercase tracking-widest">Powered by <span className="text-blue-500 font-black italic">Snazzify AI</span></p>
+                    <div className="flex items-center justify-center gap-2 opacity-30">
+                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Powered by Snazzify Star Intelligence</p>
+                    </div>
                 </div>
             </div>
           </div>
-        </div>
       </DialogContent>
     </Dialog>
   );
