@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview AI flow for Virtual Try-On (Magic Mirror).
@@ -10,7 +9,6 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { googleAI } from '@genkit-ai/google-genai';
 
 const VirtualTryOnInputSchema = z.object({
   personImageDataUri: z
@@ -42,112 +40,61 @@ const virtualTryOnFlow = ai.defineFlow(
   },
   async (input) => {
     try {
-      console.log(`[Magic Mirror] Processing try-on flow for: ${input.productTitle}`);
+      console.log(`[Magic Mirror] Processing try-on for: ${input.productTitle}`);
       
       const title = input.productTitle.toLowerCase();
       const isWatch = title.includes('watch');
-      const isShoes = title.includes('shoe') || title.includes('sandal') || title.includes('sneaker') || title.includes('footwear') || title.includes('bondi') || title.includes('clifton') || title.includes('hoka');
+      const isShoes = title.includes('shoe') || title.includes('sandal') || title.includes('sneaker') || title.includes('footwear');
       const isEyewear = title.includes('glass') || title.includes('shade') || title.includes('spectacle');
       
-      const isLugraStyle = input.drapeStyle === 'East Indian Lugra';
-      const isSareeStyle = input.drapeStyle === 'Standard Saree';
-      const isKurtiStyle = input.drapeStyle === 'Kurti' || input.garmentType === 'Kurti';
-      const isDressStyle = input.drapeStyle === 'Western Dress' || input.garmentType === 'Dress';
-      const isShirt = input.garmentType === 'Shirt';
-
       let styleInstructions = '';
 
       if (isWatch) {
-          styleInstructions = `
-            MODE: ACCESSORY FITTING (WATCH)
-            TASK: Fit the watch from the second photo onto the user's wrist shown in the first photo.
-            CONSTRAINTS: Match watch face angle to wrist orientation. Add subtle shadows.
-          `;
+          styleInstructions = 'MODE: ACCESSORY FITTING (WATCH). Fit the watch from the second photo onto the user\'s wrist shown in the first photo. Match angle and shadows.';
       } else if (isShoes) {
-          styleInstructions = `
-            MODE: FOOTWEAR FITTING
-            TASK: Re-dress the user's feet in the first photo with the shoes shown in the second photo.
-            CONSTRAINTS: Ensure the shoes fit perfectly on the feet. Match lighting.
-          `;
+          styleInstructions = 'MODE: FOOTWEAR FITTING. Re-dress the user\'s feet in the first photo with the shoes from the second photo.';
       } else if (isEyewear) {
-          styleInstructions = `
-            MODE: EYEWEAR FITTING
-            TASK: Place the glasses from the second photo onto the user's face in the first photo.
-          `;
-      } else if (isLugraStyle) {
-          styleInstructions = `
-            STYLING MODE: AUTHENTIC EAST INDIAN LUGRA (GAOTHAN VILLAGE PATTERN)
-            DRAPE: Traditional "Lugra" drape over the left shoulder. Ankle-length.
-            BLOUSE: Matching fabric from second photo with zari borders.
-            ACCESSORIES: Add "East Indian Pote" necklace reaching navel, gold choker, and "Bangadi" bangles.
-            HAIR: Style into neat bun with gajra. Clean forehead.
-          `;
-      } else if (isSareeStyle) {
-          styleInstructions = `
-            STYLING MODE: STANDARD NIVI SAREE
-            DRAPE: Floor-length Nivi drape. Matching blouse. Simple gold jewelry.
-          `;
-      } else if (isKurtiStyle) {
-          styleInstructions = `
-            STYLING MODE: TRADITIONAL KURTI FIT
-            SILHOUETTE: Authentic long tunic. Remove original top completely.
-          `;
-      } else if (isDressStyle) {
-          styleInstructions = `
-            STYLING MODE: WESTERN DRESS FIT
-            SILHOUETTE: Follow the cut of the dress (bodycon/flared/maxi).
-          `;
-      } else if (isShirt) {
-          styleInstructions = `
-            STYLING MODE: SHIRT FITTING
-            SILHOUETTE: Torso fitting. No transformation into dress.
-          `;
+          styleInstructions = 'MODE: EYEWEAR FITTING. Place the glasses from the second photo onto the user\'s face in the first photo.';
+      } else if (input.drapeStyle === 'East Indian Lugra') {
+          styleInstructions = 'MODE: AUTHENTIC EAST INDIAN LUGRA. Drape the fabric from the second photo over the left shoulder. Add traditional East Indian jewelry.';
+      } else if (input.drapeStyle === 'Standard Saree') {
+          styleInstructions = 'MODE: STANDARD NIVI SAREE. Floor-length drape with matching blouse from the provided fabric.';
       } else {
-          styleInstructions = `
-            STYLING MODE: MODERN WESTERN TRANSFORMATION
-            TASK: Transform material into tight-fitting mini skirt and crop top.
-          `;
+          styleInstructions = `STYLING MODE: ${input.drapeStyle || 'Western'}. Silhouette: ${input.garmentType}. Sleeves: ${input.sleeveLength || 'Standard'}.`;
       }
 
       const { media } = await ai.generate({
-        model: googleAI.model('gemini-2.5-flash-image'),
+        model: 'googleai/gemini-2.5-flash-image',
         prompt: [
           { media: { url: input.personImageDataUri, contentType: 'image/jpeg' } },
           { media: { url: input.productImageDataUri, contentType: 'image/jpeg' } },
           { 
-            text: `ACT AS AN ELITE VIRTUAL STYLIST. 
-            TASK: COMPLETELY RE-DRESS or ACCESSORIZE the person in the first photo using the item shown in the second photo ("${input.productTitle}"). 
-            ${styleInstructions}
-            CRITICAL CONSTRAINTS: Keep person's face/features exactly. Look high-res and professional.
-            Return ONLY the final processed image.` 
+            text: `ACT AS AN ELITE VIRTUAL STYLIST. TASK: RE-DRESS or ACCESSORIZE the person in the first photo using the item shown in the second photo ("${input.productTitle}"). ${styleInstructions} CRITICAL: Keep person's face/features exactly. Return ONLY the final image.` 
           },
         ],
         config: {
           responseModalities: ['TEXT', 'IMAGE'],
           safetySettings: [
-            { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
-            { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
-            { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
-            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
+            { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
+            { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
+            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
           ]
         },
       });
 
       if (!media?.url) {
-          return { error: 'AI processed the request but did not return a valid result.' };
+          return { error: 'AI processed the request but did not return an image. The product may have triggered a safety filter.' };
       }
 
       return { generatedImageDataUri: media.url };
     } catch (err: any) {
       console.error("[Magic Mirror Flow] Service Error:", err);
-      return { error: `AI Service Error: ${err.message || 'The model is temporarily busy.'}` };
+      return { error: `AI Service Error: ${err.message || 'The model is temporarily busy. Please try again in a few moments.'}` };
     }
   }
 );
 
-/**
- * Server Action wrapper for the virtual try-on flow.
- */
 export async function virtualTryOn(input: VirtualTryOnInput): Promise<VirtualTryOnOutput> {
   return virtualTryOnFlow(input);
 }

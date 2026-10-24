@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Suspense, useState, useEffect, useRef, useMemo } from 'react';
@@ -28,8 +27,8 @@ import { virtualTryOn } from '@/ai/flows/virtual-try-on';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import type { PaymentMethod } from '@/types/product';
 
-// Allow AI tasks to take up to 2 minutes
-export const maxDuration = 120;
+// Extended timeout for AI operations
+export const maxDuration = 180;
 
 type DisplayProduct = any & { 
     price: number; 

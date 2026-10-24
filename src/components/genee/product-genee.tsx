@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useRef, useEffect, useMemo } from 'react';
@@ -117,18 +116,17 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
       const response = await askSiteAssistant({
         siteId: product.id,
         storeName: storeName,
-        persona: `You are the ASK.ME Star Girl, an expert high-tech sales search engine. 
-        Focus on selling items and finding matches. Use emojis like ✨, ⭐, 🚀.`,
+        persona: `You are the ASK.ME Star Girl. Focus on selling items and matching bundles. Use emojis ✨.`,
         query: userMsg,
-        catalog: (allProducts || []).slice(0, 15).map(p => ({
+        catalog: (allProducts || []).slice(0, 8).map(p => ({
             id: p.id,
             title: p.title,
-            description: p.description.substring(0, 60),
+            description: p.description.substring(0, 40),
             price: p.price || p.costPrice,
             category: p.category || '',
             image: (p.imageDataUris || [])[0]
         })),
-        history: messages.slice(-4).map(m => ({ role: m.role, content: m.content }))
+        history: messages.slice(-2).map(m => ({ role: m.role, content: m.content }))
       });
 
       const recs = response.recommendedProductIds 
@@ -145,7 +143,7 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
       }]);
     } catch (error) {
       console.error("Genee Component Error:", error);
-      setMessages(prev => [...prev, { role: 'assistant', content: "My star-circuits are flickering slightly! I'm still here to help. What can I find for you? ✨" }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: "My star-circuits are stabilizing! ✨ What else can I help you find in our catalog?" }]);
     } finally {
       setIsLoading(false);
     }
@@ -168,7 +166,7 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
         </Badge>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[550px] p-0 border-none overflow-hidden rounded-[40px] bg-white shadow-2xl">
-        <Card className="border-none shadow-none flex flex-col h-[85vh] max-h-[750px] w-full">
+        <Card className="border-none shadow-none flex flex-col h-[85vh] max-h-[750px] w-full overflow-hidden">
           <CardHeader className="bg-slate-950 text-white p-6 relative shrink-0">
             <div className="flex justify-between items-center relative z-10">
               <div className="flex items-center gap-4">
@@ -215,14 +213,14 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
                      </div>
 
                     {messages.map((m, i) => (
-                    <div key={i} className={cn("space-y-4 w-full flex flex-col", m.role === 'user' ? "items-end" : "items-start")}>
-                        <div className={cn("flex gap-3 w-full max-w-[95%]", m.role === 'user' ? "flex-row-reverse" : "flex-row")}>
+                    <div key={i} className={cn("space-y-4 w-full flex flex-col overflow-hidden", m.role === 'user' ? "items-end" : "items-start")}>
+                        <div className={cn("flex gap-3 w-full max-w-[95%] items-end", m.role === 'user' ? "flex-row-reverse" : "flex-row")}>
                             <div className={cn("w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border-2", m.role === 'assistant' ? "bg-slate-950 border-primary animate-genee-flash" : "bg-primary text-white border-primary")}>
                                 {m.role === 'assistant' ? <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" /> : <User className="h-4 w-4" />}
                             </div>
                             <div className={cn(
-                                "p-3.5 rounded-[24px] text-[13px] shadow-sm leading-relaxed whitespace-pre-wrap break-words overflow-hidden max-w-full", 
-                                m.role === 'assistant' ? "bg-white border-2 border-slate-100 text-slate-800 rounded-tl-none mr-4" : "bg-primary text-white rounded-tr-none font-medium shadow-md shadow-primary/20 ml-4"
+                                "p-3.5 rounded-[24px] text-[13px] shadow-sm leading-relaxed whitespace-pre-wrap break-words overflow-hidden", 
+                                m.role === 'assistant' ? "bg-white border-2 border-slate-100 text-slate-800 rounded-tl-none" : "bg-primary text-white rounded-tr-none font-medium shadow-md shadow-primary/20"
                             )}>
                                 {m.content}
                             </div>
@@ -287,7 +285,7 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
                     </div>
                     ))}
                     {isLoading && (
-                    <div className="flex gap-4 mr-auto max-w-[85%] pl-6">
+                    <div className="flex gap-4 mr-auto max-w-[85%] pl-6 items-end">
                         <div className="w-10 h-10 rounded-2xl bg-slate-950 border-2 border-primary flex items-center justify-center shrink-0 shadow-lg animate-genee-flash">
                         <Loader2 className="h-6 w-6 text-white animate-spin" />
                         </div>

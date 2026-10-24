@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview AI Flow to power the discovery engine for e-commerce sites.
@@ -40,9 +39,6 @@ const SiteChatbotOutputSchema = z.object({
   searchSuggestions: z.array(z.string()).optional().describe('3-4 quick search follow-up terms for the user to click')
 });
 
-/**
- * Tool for the AI to "enter" and search the live snazzify.co.in catalog.
- */
 const searchSnazzifyGlobal = ai.defineTool(
   {
     name: 'searchSnazzifyGlobal',
@@ -82,23 +78,16 @@ const siteChatbotFlow = ai.defineFlow(
     outputSchema: SiteChatbotOutputSchema,
   },
   async (input) => {
-    // We construct the prompt carefully to avoid overwhelming the model
     const systemPrompt = `You are the "Discovery Engine" for "${input.storeName}". 
-    Your mission is to find the PERFECT products for the user.
-
     SEARCH STRATEGY:
-    1. LOCAL FIRST: Search the LOCAL CATALOG (context below) for matches.
+    1. LOCAL FIRST: Search the LOCAL CATALOG context for matches.
     2. GLOBAL SECOND: Use 'searchSnazzifyGlobal' ONLY if no local matches exist.
     3. UP-SELL: Mention a "5% Bundle Discount" for matching accessories.
-    4. TRUST: Promote "Secure COD" and "Shakti Card".
-
+    
     LOCAL CATALOG:
-    ${input.catalog ? JSON.stringify(input.catalog) : 'No local products.'}
+    ${JSON.stringify((input.catalog || []).slice(0, 10))}
 
-    STYLE:
-    - Use emojis ✨, ⭐, 🚀.
-    - Be brief and helpful.
-    - Provide searchSuggestions for quick clicking.`;
+    STYLE: Use emojis ✨, ⭐, 🚀. Be brief. Provide searchSuggestions.`;
 
     try {
         const { output } = await ai.generate({
@@ -109,28 +98,19 @@ const siteChatbotFlow = ai.defineFlow(
             output: { schema: SiteChatbotOutputSchema }
         });
 
-        if (!output) {
-             return {
-                answer: "I found some great options for you! ✨",
-                recommendedProductIds: (input.catalog || []).slice(0, 2).map(p => p.id),
-                searchSuggestions: ["Tell me more", "How do I buy?"]
-            };
-        }
-
+        if (!output) throw new Error("No output from model");
         return output;
     } catch (error: any) {
         console.error("Site Chatbot Flow Error:", error);
         return {
-            answer: "I'm here to help! Let me look into that for you. What else can I find? ✨",
-            searchSuggestions: ["New Arrivals", "Best Sellers"]
+            answer: "I'm here to help! I found some great options for you. ✨",
+            recommendedProductIds: (input.catalog || []).slice(0, 2).map(p => p.id),
+            searchSuggestions: ["Best Sellers", "New Arrivals"]
         };
     }
   }
 );
 
-/**
- * Asks the site's AI assistant a question.
- */
 export async function askSiteAssistant(input: z.infer<typeof SiteChatbotInputSchema>) {
     return siteChatbotFlow(input);
 }
