@@ -122,32 +122,36 @@ export function SellerGenee() {
     >
       {!isOpen ? (
         <div className={cn(
-          "relative group transition-transform",
+          "relative group transition-transform flex flex-col items-center",
           isDragging ? "scale-110 cursor-grabbing" : "cursor-grab animate-bounce-slow"
         )}>
-            <div className="absolute -inset-16 bg-purple-500/40 rounded-full blur-3xl animate-genee-flash"></div>
-            
-            <Button 
-                className="h-28 w-28 rounded-full shadow-[0_0_60px_rgba(139,92,246,0.6)] bg-slate-950 border-4 border-primary p-0 overflow-hidden relative group-hover:shadow-[0_0_90px_rgba(139,92,246,0.9)]"
-                onClick={handleTriggerClick}
-            >
-                <Image 
-                    src={placeholders.geneeHologram.src} 
-                    alt="Star Girl" 
-                    fill 
-                    className="object-cover mix-blend-screen brightness-150 pointer-events-none animate-pulse"
-                    unoptimized
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-primary/60 to-transparent pointer-events-none"></div>
-                <Star className="absolute top-4 right-4 h-6 w-6 text-yellow-400 fill-yellow-400 animate-spin-slow pointer-events-none" />
-                <GripHorizontal className="absolute bottom-2 left-1/2 -translate-x-1/2 h-4 w-4 text-white/40 opacity-0 group-hover:opacity-100 transition-opacity" />
-            </Button>
-
+            {/* Flashing Label */}
             {!isDragging && (
-                <div className="absolute -top-16 right-0 bg-white shadow-2xl rounded-2xl px-6 py-3 text-[12px] font-black uppercase italic tracking-tighter whitespace-nowrap animate-bounce border-2 border-primary pointer-events-none select-none flex items-center gap-2">
-                   <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" /> Start Selling! ✨
+                <div className="mb-4 bg-white shadow-2xl rounded-full px-6 py-2.5 border-4 border-primary animate-genee-flash pointer-events-none select-none flex items-center gap-2">
+                   <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" />
+                   <span className="text-[14px] font-black uppercase italic tracking-tighter text-primary">ASK ME GENEE</span>
                 </div>
             )}
+
+            <div className="relative">
+                <div className="absolute -inset-16 bg-purple-500/40 rounded-full blur-3xl animate-genee-flash"></div>
+                
+                <Button 
+                    className="h-28 w-28 rounded-full shadow-[0_0_60px_rgba(139,92,246,0.6)] bg-slate-950 border-4 border-primary p-0 overflow-hidden relative group-hover:shadow-[0_0_90px_rgba(139,92,246,0.9)]"
+                    onClick={handleTriggerClick}
+                >
+                    <Image 
+                        src={placeholders.geneeHologram.src} 
+                        alt="Star Girl" 
+                        fill 
+                        className="object-cover mix-blend-screen brightness-150 pointer-events-none animate-pulse"
+                        unoptimized
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-primary/60 to-transparent pointer-events-none"></div>
+                    <Star className="absolute top-4 right-4 h-6 w-6 text-yellow-400 fill-yellow-400 animate-spin-slow pointer-events-none" />
+                    <GripHorizontal className="absolute bottom-2 left-1/2 -translate-x-1/2 h-4 w-4 text-white/40 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </Button>
+            </div>
         </div>
       ) : (
         <Card className="w-[400px] sm:w-[480px] h-[650px] flex flex-col shadow-[0_35px_60px_-15px_rgba(0,0,0,0.3)] border-none animate-in zoom-in-95 slide-in-from-bottom-10 duration-500 rounded-[40px] overflow-hidden bg-white">

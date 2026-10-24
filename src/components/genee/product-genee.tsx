@@ -114,24 +114,31 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button 
-            variant="ghost" 
-            size="icon" 
-            className="h-12 w-12 rounded-full relative group hover:bg-primary/10"
-            title="Ask Star Girl about this product"
-        >
-            <div className="absolute inset-0 bg-primary/30 rounded-full blur-xl animate-genee-flash"></div>
-            <div className="relative h-full w-full flex items-center justify-center">
-                <Image 
-                    src={placeholders.geneeHologram.src} 
-                    alt="Star Girl" 
-                    fill 
-                    className="object-cover p-1 mix-blend-screen brightness-125 z-10 animate-pulse"
-                    unoptimized
-                />
-                <Star className="absolute top-0 right-0 h-4 w-4 text-yellow-400 fill-yellow-400 animate-spin-slow z-20" />
+        <div className="relative group cursor-pointer flex flex-col items-center">
+            {/* Bold Flashing Label */}
+            <div className="absolute -top-10 left-1/2 -translate-x-1/2 whitespace-nowrap bg-white border-2 border-primary rounded-full px-3 py-1 shadow-lg animate-genee-flash z-30">
+                <span className="text-[10px] font-black uppercase italic tracking-tighter text-primary">ASK ME GENEE</span>
             </div>
-        </Button>
+
+            <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-12 w-12 rounded-full relative hover:bg-primary/10"
+                title="Ask Star Girl about this product"
+            >
+                <div className="absolute inset-0 bg-primary/30 rounded-full blur-xl animate-genee-flash"></div>
+                <div className="relative h-full w-full flex items-center justify-center">
+                    <Image 
+                        src={placeholders.geneeHologram.src} 
+                        alt="Star Girl" 
+                        fill 
+                        className="object-cover p-1 mix-blend-screen brightness-125 z-10 animate-pulse"
+                        unoptimized
+                    />
+                    <Star className="absolute top-0 right-0 h-4 w-4 text-yellow-400 fill-yellow-400 animate-spin-slow z-20" />
+                </div>
+            </Button>
+        </div>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[480px] p-0 border-none overflow-hidden rounded-[40px] bg-white shadow-2xl">
         <Card className="border-none shadow-none flex flex-col h-[700px]">
