@@ -1,9 +1,12 @@
 'use server';
 /**
  * @fileOverview AI flow for Virtual Try-On (Magic Mirror).
- * Uses Gemini 2.5 Flash Image to blend a product onto a customer's photo.
- * Optimized for contextual fitting: Saree/Lugra (Authentic Gaothan), Kurti, Western Dress, Watches, and Shoes.
+ *
+ * - virtualTryOn - A function that handles the try-on process.
+ * - VirtualTryOnInput - The input type for the virtualTryOn function.
+ * - VirtualTryOnOutput - The return type for the virtualTryOn function.
  */
+
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 
@@ -22,13 +25,25 @@ const VirtualTryOnInputSchema = z.object({
 
 export type VirtualTryOnInput = z.infer<typeof VirtualTryOnInputSchema>;
 
-export async function virtualTryOn(input: VirtualTryOnInput) {
-  try {
-      console.log(`[Magic Mirror] Processing try-on for: ${input.productTitle} | Type: ${input.garmentType}`);
+export const VirtualTryOnOutputSchema = z.object({
+  generatedImageDataUri: z.string().describe('The processed image with the product tried on.'),
+});
+
+export type VirtualTryOnOutput = z.infer<typeof VirtualTryOnOutputSchema>;
+
+const virtualTryOnFlow = ai.defineFlow(
+  {
+    name: 'virtualTryOnFlow',
+    inputSchema: VirtualTryOnInputSchema,
+    outputSchema: VirtualTryOnOutputSchema,
+  },
+  async (input) => {
+    try {
+      console.log(`[Magic Mirror] Processing try-on flow for: ${input.productTitle}`);
       
       const title = input.productTitle.toLowerCase();
       const isWatch = title.includes('watch');
-      const isShoes = title.includes('shoe') || title.includes('sandal') || title.includes('sneaker') || title.includes('footwear') || title.includes('frock') === false && title.includes('heel');
+      const isShoes = title.includes('shoe') || title.includes('sandal') || title.includes('sneaker') || title.includes('footwear') || title.includes('bondi') || title.includes('clifton') || title.includes('hoka');
       const isEyewear = title.includes('glass') || title.includes('shade') || title.includes('spectacle');
       
       const isLugraStyle = input.drapeStyle === 'East Indian Lugra';
@@ -43,84 +58,51 @@ export async function virtualTryOn(input: VirtualTryOnInput) {
           styleInstructions = `
             MODE: ACCESSORY FITTING (WATCH)
             TASK: Fit the watch from the second photo onto the user's wrist shown in the first photo.
-            CONSTRAINTS:
-            - PERSPECTIVE: Match the watch face angle to the wrist orientation.
-            - REALISM: Add subtle shadows where the strap meets the skin.
-            - INTEGRITY: Do not change the user's arm or hand features.
+            CONSTRAINTS: Match watch face angle to wrist orientation. Add subtle shadows.
           `;
       } else if (isShoes) {
           styleInstructions = `
             MODE: FOOTWEAR FITTING
             TASK: Re-dress the user's feet in the first photo with the shoes shown in the second photo.
-            CONSTRAINTS:
-            - ANATOMY: Ensure the shoes fit perfectly on the feet.
-            - LIGHTING: Match the lighting of the environment to the shoes.
-            - SCALE: Ensure realistic sizing relative to the legs/feet.
+            CONSTRAINTS: Ensure the shoes fit perfectly on the feet. Match lighting.
           `;
       } else if (isEyewear) {
           styleInstructions = `
             MODE: EYEWEAR FITTING
             TASK: Place the glasses from the second photo onto the user's face in the first photo.
-            CONSTRAINTS:
-            - ALIGNMENT: Sit the bridge correctly on the nose and temples over the ears.
-            - REFLECTION: Add realistic lens reflections matching the photo's light source.
           `;
       } else if (isLugraStyle) {
           styleInstructions = `
             STYLING MODE: AUTHENTIC EAST INDIAN LUGRA (GAOTHAN VILLAGE PATTERN)
-            CRITICAL STYLE CONSTRAINT: Match the specific drape and accessory style of a traditional East Indian lady (Gaothan aesthetic).
-            
-            MANDATORY TRADITIONAL REQUIREMENTS:
-            1. DRAPE: Apply the traditional "Lugra" drape. The pallu should be draped elegantly over the left shoulder. The drape should be ankle-length (showing the ankles).
-            2. WAIST: The drape is tucked neatly at the waist with prominent gathered pleats. STRICTLY FORBIDDEN: Do not add any waist belt or Kamar Pata.
-            3. BLOUSE: Generate a matching blouse (matching the fabric in the second photo) with traditional sleeves ending at the elbow with zari borders.
-            4. ACCESSORIES: Automatically add ONLY these authentic gold jewelry items:
-               - "East Indian Pote": A long traditional gold bead necklace with a distinct pendant reaching the NAVEL AREA exactly.
-               - Layered Necklaces: Include a gold choker and a medium-length gold necklace.
-               - "Bangadi": A stack of thick gold bangles on BOTH wrists.
-            5. HAIR & FACE: 
-               - Style the hair into a neat bun with a gajra (flower garland).
-               - CRITICAL: REMOVE any sindoor, bindi, or red powder from the forehead or hair parting. The forehead MUST be clean.
+            DRAPE: Traditional "Lugra" drape over the left shoulder. Ankle-length.
+            BLOUSE: Matching fabric from second photo with zari borders.
+            ACCESSORIES: Add "East Indian Pote" necklace reaching navel, gold choker, and "Bangadi" bangles.
+            HAIR: Style into neat bun with gajra. Clean forehead.
           `;
       } else if (isSareeStyle) {
           styleInstructions = `
             STYLING MODE: STANDARD NIVI SAREE
-            1. DRAPE: Apply a crisp, professional floor-length Nivi drape.
-            2. BLOUSE: Generate a perfectly matching blouse. ${input.sleeveLength ? `Ensure sleeves are ${input.sleeveLength}.` : 'Standard short sleeves.'}
-            3. ACCESSORIES: Add simple, elegant gold jewelry suitable for a standard saree.
+            DRAPE: Floor-length Nivi drape. Matching blouse. Simple gold jewelry.
           `;
       } else if (isKurtiStyle) {
           styleInstructions = `
             STYLING MODE: TRADITIONAL KURTI FIT
-            1. TASK: Fit the Kurti from the second photo onto the person. 
-            2. SILHOUETTE: Maintain the Kurti's authentic long tunic silhouette.
-            3. SLEEVES: ${input.sleeveLength ? `Modify the garment to have ${input.sleeveLength}.` : 'Maintain original garment sleeves.'}
-            4. ZERO CLOTHING BLEED: Ensure 100% removal of original tops.
+            SILHOUETTE: Authentic long tunic. Remove original top completely.
           `;
       } else if (isDressStyle) {
           styleInstructions = `
             STYLING MODE: WESTERN DRESS FIT
-            1. TASK: Re-dress the person in the one-piece dress shown in the product photo.
-            2. SILHOUETTE: Follow the flow and cut of the dress perfectly (e.g., bodycon, flared, or maxi).
-            3. SLEEVES: ${input.sleeveLength ? `Modify the garment to have ${input.sleeveLength}.` : 'Maintain original garment sleeves.'}
+            SILHOUETTE: Follow the cut of the dress (bodycon/flared/maxi).
           `;
       } else if (isShirt) {
           styleInstructions = `
-            STYLING MODE: SHIRT/T-SHIRT STANDARD FITTING
-            1. TASK: COMPLETELY RE-DRESS the person using the shirt/t-shirt from the second photo.
-            2. SILHOUETTE: Ensure the entire garment is visible and fits the torso perfectly. It must look like a high-end commercial fashion photograph.
-            3. NO TRANSFORMATION: Do NOT turn this shirt into a dress or skirt. Maintain its original form as a top.
-            4. SLEEVES: ${input.sleeveLength ? `Force the garment to have ${input.sleeveLength}.` : 'Maintain original sleeves.'}
+            STYLING MODE: SHIRT FITTING
+            SILHOUETTE: Torso fitting. No transformation into dress.
           `;
       } else {
-          // Western Wear mode for Fabrics (Saree/Lugra material)
           styleInstructions = `
             STYLING MODE: MODERN WESTERN TRANSFORMATION
-            1. TASK: TRANSFORM the fabric/material from the second photo ("${input.productTitle}") into a modern WESTERN OUTFIT. 
-            2. SPECIFIC CUT: Generate a TIGHT-FITTING MINI SKIRT or BODYCON MIDI SKIRT and a matching TIGHT-FITTING MODERN CROP TOP.
-            3. SILHOUETTE: Ensure a trendy, boutique western look. Do NOT drape it like a saree.
-            4. SLEEVES: ${input.sleeveLength ? `Force the top to have ${input.sleeveLength}.` : 'Generate matching stylish sleeves.'}
-            5. ZERO CLOTHING BLEED: Ensure 100% removal of original clothes.
+            TASK: Transform material into tight-fitting mini skirt and crop top.
           `;
       }
 
@@ -131,16 +113,9 @@ export async function virtualTryOn(input: VirtualTryOnInput) {
           { media: { url: input.productImageDataUri } },
           { 
             text: `ACT AS AN ELITE VIRTUAL STYLIST. 
-            
             TASK: COMPLETELY RE-DRESS or ACCESSORIZE the person in the first photo using the item shown in the second photo ("${input.productTitle}"). 
-            
             ${styleInstructions}
-
-            CRITICAL CONSTRAINTS:
-            - FACIAL INTEGRITY: Keep the person's face and features exactly as they are.
-            - REALISM: The final output must look like a high-resolution professional photograph.
-            - CLEANLINESS: The person's original item at that specific body part must be totally invisible.
-            
+            CRITICAL CONSTRAINTS: Keep person's face/features exactly. Look high-res and professional.
             Return ONLY the final processed image.` 
           },
         ],
@@ -154,8 +129,16 @@ export async function virtualTryOn(input: VirtualTryOnInput) {
       }
 
       return { generatedImageDataUri: media.url };
-  } catch (err: any) {
-      console.error("[Magic Mirror] Service Error:", err);
+    } catch (err: any) {
+      console.error("[Magic Mirror Flow] Service Error:", err);
       throw new Error(`Try-on service error: ${err.message || 'The AI service is temporarily busy.'}`);
+    }
   }
+);
+
+/**
+ * Server Action wrapper for the virtual try-on flow.
+ */
+export async function virtualTryOn(input: VirtualTryOnInput): Promise<VirtualTryOnOutput> {
+  return virtualTryOnFlow(input);
 }

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Suspense, useState, useEffect, useRef, useMemo } from 'react';
@@ -27,6 +26,9 @@ import {
 import { virtualTryOn } from '@/ai/flows/virtual-try-on';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import type { PaymentMethod } from '@/types/product';
+
+// Allow AI tasks to take up to 2 minutes
+export const maxDuration = 120;
 
 type DisplayProduct = any & { 
     price: number; 
@@ -523,7 +525,7 @@ function CatalogueOrderPageContent() {
                     <div className="w-24 h-24 bg-green-100 text-green-600 rounded-full flex items-center justify-center shadow-inner"><CheckCircle className="h-14 w-14" /></div>
                     <div className="space-y-2">
                         <h2 className="text-4xl md:text-5xl font-black italic uppercase tracking-tighter">Order Received!</h2>
-                        <p className="text-muted-foreground max-w-sm mx-auto font-medium">Thank you for shopping. Our team will contact you on WhatsApp to finalize fulfillment.</p>
+                        <p className="text-muted-foreground max-sm mx-auto font-medium">Thank you for shopping. Our team will contact you on WhatsApp to finalize fulfillment.</p>
                     </div>
                     <Button onClick={() => window.location.href = returnUrl} size="lg" className="rounded-2xl px-12 h-14 font-black uppercase italic tracking-widest">Back to Store</Button>
                 </div>

@@ -28,6 +28,9 @@ import { virtualTryOn } from '@/ai/flows/virtual-try-on';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { ProductGenee } from '@/components/genee/product-genee';
 
+// Allow AI tasks to take up to 2 minutes
+export const maxDuration = 120;
+
 type DisplayProduct = (SellerProduct | ProductDrop) & { isTryOnEnabled?: boolean; isEastIndianLugra?: boolean };
 
 type Magazine = {
