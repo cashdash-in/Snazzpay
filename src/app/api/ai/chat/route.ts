@@ -21,20 +21,18 @@ const searchSnazzifyGlobal = ai.defineTool(
         if (!allProducts || allProducts.length === 0) return [];
         const searchLower = input.searchTerm.toLowerCase();
         
-        // Comprehensive Matching Logic:
-        // We look for keyword matches anywhere in the title, category or description
-        const searchWords = searchLower.split(' ').filter(w => w.length > 2);
+        // Even more comprehensive Matching Logic:
+        const searchWords = searchLower.split(' ').filter(w => w.length > 1);
         
         return allProducts.filter(p => {
             const title = p.title.toLowerCase();
-            const cat = p.category.toLowerCase();
-            // Fuzzy/Liberal match: check if ANY of the search words appear
-            return searchWords.some(word => title.includes(word) || cat.includes(word)) ||
-                   title.includes(searchLower) ||
-                   cat.includes(searchLower) ||
-                   searchLower.includes(cat) ||
-                   searchLower.includes(title);
-        }).slice(0, 12); // Return even more results for variety
+            const cat = (p.category || '').toLowerCase();
+            // Fuzzy match: check if ANY of the search words appear in title or category
+            const wordMatch = searchWords.some(word => title.includes(word) || cat.includes(word));
+            const fullMatch = title.includes(searchLower) || cat.includes(searchLower);
+            
+            return wordMatch || fullMatch;
+        }).slice(0, 20); // Return up to 20 results for maximum coverage
     } catch (e) {
         console.error("Global Tool Error:", e);
         return [];
@@ -59,11 +57,11 @@ export async function POST(request: Request) {
     SEARCH STRATEGY (MANDATORY):
     1. LOCAL FIRST: Check this local list: ${JSON.stringify(localCatalog)}.
     2. GLOBAL SEARCH (CRITICAL): If the customer asks for ANY product, category, or style NOT clearly found in the LOCAL list, you MUST use the 'searchSnazzifyGlobal' tool immediately. 
-    3. SHOW EVERYTHING: We want to show the customer ALL available options from www.snazzify.co.in. Do not be lazy. If you find matches, show them.
+    3. SHOW EVERYTHING: We want to show the customer ALL available options from www.snazzify.co.in. Do not be lazy. If matches exist in the global vault, you MUST show them.
     4. BE COMPREHENSIVE: We want to show the customer ALL available options from www.snazzify.co.in if the local store doesn't have it.
-    5. UP-SELL: Suggest a "5% Bundle Discount" for matching accessories.
+    5. UP-SELL: Always suggest a "5% Bundle Discount" for matching accessories or complementary items.
     
-    STYLE: Use emojis ✨, ⭐. Be concise but helpful. 
+    STYLE: Use emojis ✨, ⭐. Be concise but helpful. Ensure your tone is helpful and focused on making a sale.
     OUTPUT: Valid JSON only. Ensure answer text is fully visible and not cut off.`;
 
     try {

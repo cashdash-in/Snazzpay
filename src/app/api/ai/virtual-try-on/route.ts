@@ -36,24 +36,25 @@ export async function POST(request: Request) {
         styleInstructions = `STYLING MODE: ${input.drapeStyle || 'Western'}. Silhouette: ${input.garmentType || 'Clothing'}. Sleeves: ${input.sleeveLength || 'Standard'}. ${patternInstruction}`;
     }
 
-    const finalPrompt = `MANDATORY TASK: PERFORM A TOTAL CLOTHING SUBSTITUTION.
+    const finalPrompt = `ACT AS AN ELITE FASHION RETOUCHER AND VIRTUAL STYLIST. 
     
-    1. Identify the person in the FIRST photo. 
-    2. Identify the SPECIFIC product in the SECOND photo ("${input.productTitle}").
+    YOUR MISSION: PERFORM A SURGICAL CLOTHING REPLACEMENT.
     
-    RE-DRESSING INSTRUCTIONS:
-    - COMPLETELY ERASE AND REMOVE all clothing (shirts, skirts, pants, dresses, etc.) currently visible on the person in the first photo.
-    - If the person is wearing a YELLOW SHIRT or BEIGE SKIRT, these MUST BE COMPLETELY GONE and 100% invisible.
-    - SUBSTITUTE AND REPLACE the removed clothing with the product shown in the SECOND photo.
-    - The person MUST now be wearing ONLY the item from the SECOND photo.
-    - Map the lighting, shadows, and angle of the person's original pose to the new product.
+    FIRST PHOTO: Contains the TARGET PERSON.
+    SECOND PHOTO: Contains the TARGET CLOTHING ITEM ("${input.productTitle}").
     
-    IDENTITY PRESERVATION:
-    - CRITICAL: Keep the person's head, face, hair, eyes, and skin tone 100% EXACTLY as they appear in the FIRST photo. Do NOT change their identity.
+    MANDATORY EXECUTION STEPS:
+    1. EXTRACT the exact fabric, pattern, color, and texture from the item in the SECOND PHOTO.
+    2. COMPLETELY REMOVE (DELETE/ERASE) every piece of clothing currently on the person in the FIRST PHOTO. 
+       - IF THEY ARE WEARING A YELLOW SHIRT, DELETE IT COMPLETELY.
+       - IF THEY ARE WEARING A BEIGE SKIRT, DELETE IT COMPLETELY.
+       - NO TRACE of the original clothes (no collars, no hemlines, no shadows of old clothes) should remain.
+    3. RE-CLOTHE the person using ONLY the fabric and design from the SECOND PHOTO.
+    4. ${styleInstructions}
+    5. Ensure the new clothes fit the person's body shape and pose naturally, conforming to their silhouette.
+    6. CRITICAL: DO NOT ALTER the person's face, hair, eyes, or identity. THEY MUST REMAIN 100% THE SAME PERSON. ONLY change their clothes.
     
-    ${styleInstructions}
-    
-    Return ONLY the final generated image result.`;
+    OUTPUT: RETURN ONLY THE FINAL GENERATED IMAGE.`;
 
     try {
         const { media } = await ai.generate({
