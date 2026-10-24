@@ -5,7 +5,6 @@
  */
 import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
-// import firebase from '@genkit-ai/firebase'; // REMOVED to fix build errors
 
 // IMPORTANT: Production Environment Configuration
 // For AI features to work in deployed environments (e.g., Vercel, Firebase),
@@ -15,15 +14,9 @@ import { googleAI } from '@genkit-ai/google-genai';
 
 export const ai = genkit({
   plugins: [
-    googleAI(),
-    // firebase, // REMOVED to fix build errors
+    googleAI({
+        // Ensure compatibility with both naming conventions
+        apiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY
+    }),
   ],
-  // Do not enable flow state in localStorage for server-side code.
-  // enableAppFlowState: true,
-  // OpenTelemetry is not configured in this environment.
-  // openTelemetry: {
-  //   instrumentation: {
-  //     // ...
-  //   },
-  // },
 });

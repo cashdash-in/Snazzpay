@@ -166,8 +166,12 @@ function BrandedCollectionContent() {
                 sleeveLength: selectedSleeves
             });
             
-            setTryOnResult(result.generatedImageDataUri);
-            toast({ title: "Magic Mirror Ready!" });
+            if (result.error) {
+                toast({ variant: 'destructive', title: "Try-On Failed", description: result.error });
+            } else if (result.generatedImageDataUri) {
+                setTryOnResult(result.generatedImageDataUri);
+                toast({ title: "Magic Mirror Ready!" });
+            }
         } catch (err: any) {
             toast({ variant: 'destructive', title: "Try-On Failed", description: err.message });
             setTryOnProductId(null);
@@ -364,7 +368,7 @@ function BrandedCollectionContent() {
 
 export default function BrandedCollectionPage() {
     return (
-        <Suspense fallback={<div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
+        <Suspense fallback={<div className="flex h-screen w-full items-center justify-center"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>}>
             <BrandedCollectionContent />
         </Suspense>
     );

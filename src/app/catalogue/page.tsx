@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Suspense, useState, useEffect, useRef, useMemo } from 'react';
@@ -250,8 +251,12 @@ function CatalogueOrderPageContent() {
                 sleeveLength: selectedSleeves
             });
             
-            setTryOnResult(result.generatedImageDataUri);
-            toast({ title: "Magic Mirror Ready!" });
+            if (result.error) {
+                toast({ variant: 'destructive', title: "Try-On Failed", description: result.error });
+            } else if (result.generatedImageDataUri) {
+                setTryOnResult(result.generatedImageDataUri);
+                toast({ title: "Magic Mirror Ready!" });
+            }
         } catch (err: any) {
             toast({ variant: 'destructive', title: "Try-On Failed", description: err.message });
         } finally {

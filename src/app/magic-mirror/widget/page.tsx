@@ -14,6 +14,8 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { getDocument } from '@/services/firestore';
 
+export const maxDuration = 120;
+
 const MAX_TRYON_SIZE_PX = 448;
 
 function MagicMirrorWidgetContent() {
@@ -132,7 +134,11 @@ function MagicMirrorWidgetContent() {
                 sleeveLength: selectedSleeves
             });
             
-            setTryOnResult(result.generatedImageDataUri);
+            if (result.error) {
+                toast({ variant: 'destructive', title: "Try-On Failed", description: result.error });
+            } else if (result.generatedImageDataUri) {
+                setTryOnResult(result.generatedImageDataUri);
+            }
         } catch (err: any) {
             toast({ variant: 'destructive', title: "Try-On Failed", description: err.message });
         } finally {

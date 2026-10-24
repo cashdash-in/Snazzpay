@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview AI flow for Virtual Try-On (Magic Mirror).
@@ -9,6 +10,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
+import { googleAI } from '@genkit-ai/google-genai';
 
 const VirtualTryOnInputSchema = z.object({
   personImageDataUri: z
@@ -26,7 +28,8 @@ const VirtualTryOnInputSchema = z.object({
 export type VirtualTryOnInput = z.infer<typeof VirtualTryOnInputSchema>;
 
 export const VirtualTryOnOutputSchema = z.object({
-  generatedImageDataUri: z.string().describe('The processed image with the product tried on.'),
+  generatedImageDataUri: z.string().optional().describe('The processed image with the product tried on.'),
+  error: z.string().optional().describe('Error message if the process failed.'),
 });
 
 export type VirtualTryOnOutput = z.infer<typeof VirtualTryOnOutputSchema>;
@@ -107,10 +110,10 @@ const virtualTryOnFlow = ai.defineFlow(
       }
 
       const { media } = await ai.generate({
-        model: 'googleai/gemini-2.5-flash-image',
+        model: googleAI.model('gemini-2.5-flash-image'),
         prompt: [
-          { media: { url: input.personImageDataUri } },
-          { media: { url: input.productImageDataUri } },
+          { media: { url: input.personImageDataUri, contentType: 'image/jpeg' } },
+          { media: { url: input.productImageDataUri, contentType: 'image/jpeg' } },
           { 
             text: `ACT AS AN ELITE VIRTUAL STYLIST. 
             TASK: COMPLETELY RE-DRESS or ACCESSORIZE the person in the first photo using the item shown in the second photo ("${input.productTitle}"). 
@@ -121,17 +124,23 @@ const virtualTryOnFlow = ai.defineFlow(
         ],
         config: {
           responseModalities: ['TEXT', 'IMAGE'],
+          safetySettings: [
+            { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+          ]
         },
       });
 
       if (!media?.url) {
-          throw new Error('AI processed the request but did not return the image.');
+          return { error: 'AI processed the request but did not return a valid result.' };
       }
 
       return { generatedImageDataUri: media.url };
     } catch (err: any) {
       console.error("[Magic Mirror Flow] Service Error:", err);
-      throw new Error(`Try-on service error: ${err.message || 'The AI service is temporarily busy.'}`);
+      return { error: `AI Service Error: ${err.message || 'The model is temporarily busy.'}` };
     }
   }
 );
