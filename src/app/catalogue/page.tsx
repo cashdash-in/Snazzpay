@@ -168,7 +168,6 @@ function CatalogueOrderPageContent() {
                     else if (displayProduct.allowedPaymentMethods?.includes('Prepaid')) setPaymentMethod('Prepaid');
                     else if (displayProduct.allowedPaymentMethods?.includes('Cash on Delivery')) setPaymentMethod('Cash on Delivery');
 
-                    // Default Style Selection
                     if (displayProduct.isEastIndianLugra) setSelectedDrapeStyle('East Indian Lugra');
                     else if (ctx.type === 'Shirt') setSelectedDrapeStyle('Western Wear');
                     else if (ctx.type === 'Dress') setSelectedDrapeStyle('Western Dress');
@@ -234,6 +233,14 @@ function CatalogueOrderPageContent() {
 
         setIsTryOnLoading(true);
         setTryOnResult(null);
+
+        // Track Attempt
+        fetch('/api/track', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ event: 'tryOnAttempt' })
+        });
+
         try {
             const [personUri, productUri] = await Promise.all([
                 resizeImageForAI(file),
@@ -259,6 +266,12 @@ function CatalogueOrderPageContent() {
                 toast({ variant: 'destructive', title: "Try-On Failed", description: result.error });
             } else if (result.generatedImageDataUri) {
                 setTryOnResult(result.generatedImageDataUri);
+                // Track Success
+                fetch('/api/track', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ event: 'tryOnSuccess' })
+                });
                 toast({ title: "Magic Mirror Ready!" });
             }
         } catch (err: any) {
@@ -412,15 +425,6 @@ function CatalogueOrderPageContent() {
                                                 </div>
                                             )}
                                             
-                                            {ctx.type === 'Shirt' && (
-                                                <div className="space-y-2">
-                                                    <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Fit Mode</Label>
-                                                    <div className="h-10 px-3 bg-white/10 border border-white/20 text-white rounded-xl text-xs font-bold flex items-center">
-                                                        Standard Fitting
-                                                    </div>
-                                                </div>
-                                            )}
-
                                             <div className="space-y-2">
                                                 <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Sleeves</Label>
                                                 <Select value={selectedSleeves} onValueChange={(val: any) => setSelectedSleeves(val)}>

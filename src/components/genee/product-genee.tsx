@@ -14,7 +14,6 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
-import placeholders from '@/app/lib/placeholder-images.json';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
@@ -73,6 +72,16 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
     }
   }, [messages, isLoading]);
 
+  useEffect(() => {
+      if (isOpen) {
+          fetch('/api/track', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ event: 'geneeOpen' })
+          });
+      }
+  }, [isOpen]);
+
   const cartTotal = useMemo(() => {
     return cart.reduce((sum, item) => sum + (item.product.price || item.product.costPrice || 0) * item.quantity, 0);
   }, [cart]);
@@ -94,6 +103,13 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
         }
         return [...prev, { product: prod, quantity: 1 }];
     });
+    
+    fetch('/api/track', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event: 'geneeCartAdd' })
+    });
+    
     toast({ title: "Added to Cart!", description: `${prod.title} is ready.` });
   };
 
@@ -108,6 +124,13 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
     if (!forcedQuery) setInput('');
     setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
     setIsLoading(true);
+
+    // Track user interaction
+    fetch('/api/track', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event: 'geneeSearch' })
+    });
 
     try {
       const res = await fetch('/api/ai/chat', {
@@ -162,7 +185,6 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
       </DialogTrigger>
       <DialogContent className="max-w-[95vw] w-full md:max-w-7xl h-[90vh] p-0 border-none overflow-hidden rounded-[32px] bg-[#f8f9fa] shadow-2xl">
         <div className="flex flex-col h-full w-full">
-          {/* Top Status Bar */}
           <div className="bg-slate-100/80 px-6 py-2 border-b flex items-center justify-between shrink-0">
              <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
@@ -181,7 +203,6 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
           </div>
 
           <div className="flex-1 flex overflow-hidden">
-            {/* Left Side: Product Recommendations Grid */}
             <div className="flex-1 flex flex-col bg-white border-r">
                 <div className="p-6 border-b flex flex-col sm:flex-row items-center justify-between gap-4 shrink-0">
                     <div className="flex items-center gap-2">
@@ -214,8 +235,6 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
                                         <h3 className="text-[11px] font-black uppercase text-slate-800 line-clamp-1 truncate leading-none">{p.title}</h3>
                                         <div className="flex items-center gap-2 pt-1">
                                             <span className="text-sm font-black text-slate-900">₹{p.price || p.costPrice}</span>
-                                            {p.originalPrice && <span className="text-[10px] text-slate-400 line-through">₹{p.originalPrice}</span>}
-                                            <span className="text-[9px] font-bold text-red-500">70% off</span>
                                         </div>
                                     </CardContent>
                                     <CardFooter className="p-2 pt-0 flex gap-2">
@@ -261,7 +280,6 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
                     )}
                 </ScrollArea>
                 
-                {/* Bottom Left Badge */}
                 <div className="p-6 shrink-0 bg-white border-t">
                     <Button variant="ghost" className="h-14 px-8 rounded-2xl bg-blue-500 text-white font-black uppercase italic tracking-tight shadow-xl shadow-blue-200 group">
                         <ShoppingBag className="mr-3 h-6 w-6 fill-current" />
@@ -270,7 +288,6 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
                 </div>
             </div>
 
-            {/* Right Side: Chat Assistant Pane */}
             <div className="w-full md:w-[380px] lg:w-[450px] flex flex-col bg-[#f0f2f5] border-l">
                 <div className="p-6 border-b flex items-center justify-between bg-white shrink-0">
                     <div className="flex items-center gap-3">
@@ -280,7 +297,6 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
                             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Always Online</p>
                         </div>
                     </div>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400"><Edit className="h-4 w-4"/></Button>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-6 space-y-6" ref={scrollRef}>
@@ -313,13 +329,6 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
                 </div>
 
                 <div className="p-6 bg-white border-t space-y-4 shrink-0">
-                    <div className="flex flex-wrap gap-2">
-                        {QUICK_SEARCH_CHIPS.map(chip => (
-                            <Button key={chip} variant="outline" size="sm" onClick={() => handleSend(chip)} className="h-8 rounded-lg border-slate-200 text-slate-600 text-[10px] font-bold px-4 hover:border-blue-500 hover:text-blue-500 transition-colors">
-                                {chip}
-                            </Button>
-                        ))}
-                    </div>
                     <div className="flex gap-2 bg-slate-100 p-1.5 rounded-2xl border-2 border-transparent focus-within:border-blue-100 transition-all">
                         <Input 
                             placeholder="Type a message..." 
@@ -341,11 +350,3 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
     </Dialog>
   );
 }
-
-const QUICK_SEARCH_CHIPS = [
-  "Matching Jewelry",
-  "Compare speakers",
-  "Blue-exclusive deals"
-];
-
-const MAX_IMAGE_SIZE_PX = 800;

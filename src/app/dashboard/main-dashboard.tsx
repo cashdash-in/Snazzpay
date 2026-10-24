@@ -3,11 +3,11 @@
 
 import { useState, useEffect } from "react";
 import { getCollection, getDocument } from "@/services/firestore";
-import type { EditableOrder } from "@/app/orders/page";
+import type { EditableOrder } from "@/types/order";
 import { useToast } from "@/hooks/use-toast";
 import { format, subDays } from "date-fns";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
-import { DollarSign, WalletCards, CheckCircle2, AlertTriangle, Users, CircleDollarSign, Eye, MousePointerClick, Calendar as CalendarIcon } from "lucide-react";
+import { DollarSign, WalletCards, CheckCircle2, AlertTriangle, Users, CircleDollarSign, Eye, MousePointerClick, Calendar as CalendarIcon, Sparkles, Search, ShoppingBag } from "lucide-react";
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts"
 import { RecentOrders } from "@/components/dashboard/recent-orders";
 import { onSnapshot, doc } from "firebase/firestore";
@@ -28,6 +28,11 @@ export function MainDashboard() {
         magazineVisits: 0,
         secureCodActiveSessions: 0,
         magazineActiveSessions: 0,
+        tryOnAttempts: 0,
+        tryOnSuccesses: 0,
+        geneeOpens: 0,
+        geneeSearches: 0,
+        geneeCartAdds: 0
     });
     const [salesData, setSalesData] = useState<{ name: string, total: number }[]>([]);
     const [loading, setLoading] = useState(true);
@@ -35,10 +40,8 @@ export function MainDashboard() {
     const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
 
     useEffect(() => {
-        // Set initial date on client-side to avoid hydration mismatch
         setSelectedDate(new Date());
     }, []);
-
 
     useEffect(() => {
         if (!selectedDate) return;
@@ -47,13 +50,29 @@ export function MainDashboard() {
 
         const unsubscribe = onSnapshot(liveStatsDocRef, (doc) => {
             if (doc.exists()) {
-                setLiveStats(doc.data() as any);
+                const data = doc.data();
+                setLiveStats({
+                    secureCodClicks: data.secureCodClicks || 0,
+                    magazineVisits: data.magazineVisits || 0,
+                    secureCodActiveSessions: data.secureCodActiveSessions || 0,
+                    magazineActiveSessions: data.magazineActiveSessions || 0,
+                    tryOnAttempts: data.tryOnAttempts || 0,
+                    tryOnSuccesses: data.tryOnSuccesses || 0,
+                    geneeOpens: data.geneeOpens || 0,
+                    geneeSearches: data.geneeSearches || 0,
+                    geneeCartAdds: data.geneeCartAdds || 0
+                });
             } else {
                  setLiveStats({
                     secureCodClicks: 0,
                     magazineVisits: 0,
                     secureCodActiveSessions: 0,
                     magazineActiveSessions: 0,
+                    tryOnAttempts: 0,
+                    tryOnSuccesses: 0,
+                    geneeOpens: 0,
+                    geneeSearches: 0,
+                    geneeCartAdds: 0
                 });
             }
         }, (error) => {
@@ -74,7 +93,6 @@ export function MainDashboard() {
                 
                 const allOrders = orders;
 
-                // Calculate Stats
                 const totalSecuredValue = allOrders
                     .filter(o => o.paymentStatus === 'Authorized')
                     .reduce((sum, o) => sum + parseFloat(o.price || '0'), 0);
@@ -96,7 +114,6 @@ export function MainDashboard() {
                     totalRefunds,
                 });
                 
-                // Prepare Sales Chart Data for last 7 days
                 const salesByDay: { [key: string]: number } = {};
                 for (let i = 6; i >= 0; i--) {
                     const date = subDays(new Date(), i);
@@ -114,16 +131,13 @@ export function MainDashboard() {
                                 const formattedDate = format(orderDate, 'MMM d');
                                 salesByDay[formattedDate] = (salesByDay[formattedDate] || 0) + parseFloat(o.price);
                             }
-                        } catch(e){
-                            // ignore invalid date formats
-                        }
+                        } catch(e){}
                     });
                 
                 setSalesData(Object.entries(salesByDay).map(([name, total]) => ({ name, total })));
 
-
             } catch (error: any) {
-                toast({ variant: 'destructive', title: "Dashboard Error", description: "Could not retrieve order data from Firestore." });
+                toast({ variant: 'destructive', title: "Dashboard Error" });
             } finally {
                 setLoading(false);
             }
@@ -135,14 +149,11 @@ export function MainDashboard() {
 
     return (
         <div className="grid gap-8">
-             <div className="flex justify-end">
+             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                <h3 className="text-lg font-black uppercase tracking-tighter italic">Operational Intelligence</h3>
                 <Popover>
                     <PopoverTrigger asChild>
-                        <Button
-                            id="date"
-                            variant={"outline"}
-                            className={"w-[240px] pl-3 text-left font-normal"}
-                        >
+                        <Button variant="outline" className="w-[240px] pl-3 text-left font-normal rounded-xl">
                             <span>{selectedDate ? format(selectedDate, "PPP") : "Select a date"}</span>
                             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                         </Button>
@@ -152,159 +163,123 @@ export function MainDashboard() {
                             mode="single"
                             selected={selectedDate}
                             onSelect={(date) => setSelectedDate(date || new Date())}
-                            disabled={(date) =>
-                                date > new Date() || date < new Date("1900-01-01")
-                            }
+                            disabled={(date) => date > new Date()}
                             initialFocus
                         />
                     </PopoverContent>
                 </Popover>
             </div>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+                 <Card className="border-purple-100 bg-purple-50/10">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-[10px] font-black uppercase text-purple-600 tracking-widest">Try-On Success</CardTitle>
+                        <Sparkles className="h-4 w-4 text-purple-400" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-black">{liveStats.tryOnSuccesses}</div>
+                        <p className="text-[10px] text-muted-foreground">Fitting room conversions.</p>
+                    </CardContent>
+                </Card>
+                <Card className="border-blue-100 bg-blue-50/10">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-[10px] font-black uppercase text-blue-600 tracking-widest">Genee Search</CardTitle>
+                        <Search className="h-4 w-4 text-blue-400" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-black">{liveStats.geneeSearches}</div>
+                        <p className="text-[10px] text-muted-foreground">AI discovery queries.</p>
+                    </CardContent>
+                </Card>
+                <Card className="border-green-100 bg-green-50/10">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-[10px] font-black uppercase text-green-600 tracking-widest">Genee Sales</CardTitle>
+                        <ShoppingBag className="h-4 w-4 text-green-400" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-black">{liveStats.geneeCartAdds}</div>
+                        <p className="text-[10px] text-muted-foreground">Added from AI Terminal.</p>
+                    </CardContent>
+                </Card>
                  <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Secure COD Clicks ({selectedDate ? (isToday ? 'Today' : 'on Date') : '...'})</CardTitle>
+                        <CardTitle className="text-[10px] font-black uppercase tracking-widest">COD Clicks</CardTitle>
                         <MousePointerClick className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{liveStats.secureCodClicks}</div>
-                        <p className="text-xs text-muted-foreground">Clicks on the main Secure COD button.</p>
+                        <div className="text-2xl font-black">{liveStats.secureCodClicks}</div>
                     </CardContent>
                 </Card>
                  <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Magazine Visits ({selectedDate ? (isToday ? 'Today' : 'on Date') : '...'})</CardTitle>
+                        <CardTitle className="text-[10px] font-black uppercase tracking-widest">Mag. Views</CardTitle>
                         <Eye className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{liveStats.magazineVisits}</div>
-                         <p className="text-xs text-muted-foreground">Total views across all Smart Magazines.</p>
-                    </CardContent>
-                </Card>
-                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Active Secure COD Sessions</CardTitle>
-                        <Users className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{liveStats.secureCodActiveSessions}</div>
-                        <p className="text-xs text-muted-foreground">Users on payment page {selectedDate ? (isToday ? 'today' : `on ${format(selectedDate, 'MMM d')}`) : '...'}.</p>
-                    </CardContent>
-                </Card>
-                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Active Magazine Sessions</CardTitle>
-                        <Users className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{liveStats.magazineActiveSessions}</div>
-                        <p className="text-xs text-muted-foreground">Users on magazine page {selectedDate ? (isToday ? 'today' : `on ${format(selectedDate, 'MMM d')}`) : '...'}.</p>
+                        <div className="text-2xl font-black">{liveStats.magazineVisits}</div>
                     </CardContent>
                 </Card>
             </div>
+
              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total Secured Value</CardTitle>
-                        <DollarSign className="h-4 w-4 text-muted-foreground" />
+                 <Card className="bg-primary text-primary-foreground border-none shadow-xl">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 opacity-70">
+                        <CardTitle className="text-[10px] font-black uppercase tracking-widest">Trust Wallet Value</CardTitle>
+                        <DollarSign className="h-4 w-4" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">₹{stats.totalSecuredValue.toFixed(2)}</div>
-                        <p className="text-xs text-muted-foreground">Value held in customer Trust Wallets.</p>
+                        <div className="text-2xl font-black italic">₹{stats.totalSecuredValue.toFixed(2)}</div>
                     </CardContent>
                 </Card>
-                 <Card>
+                 <Card className="shadow-lg border-primary/10">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Active Leads</CardTitle>
+                        <CardTitle className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Active Leads</CardTitle>
                         <Users className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{stats.activeLeads}</div>
-                        <p className="text-xs text-muted-foreground">Customers who submitted order requests.</p>
+                        <div className="text-2xl font-black">{stats.activeLeads}</div>
                     </CardContent>
                 </Card>
-                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Successful Charges</CardTitle>
-                        <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+                 <Card className="bg-green-600 text-white border-none shadow-xl">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 opacity-70">
+                        <CardTitle className="text-[10px] font-black uppercase tracking-widest">Settled Revenue</CardTitle>
+                        <CheckCircle2 className="h-4 w-4" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">₹{stats.successfulCharges.toFixed(2)}</div>
-                        <p className="text-xs text-muted-foreground">Total value of finalized payments.</p>
+                        <div className="text-2xl font-black italic">₹{stats.successfulCharges.toFixed(2)}</div>
                     </CardContent>
                 </Card>
-                 <Card>
+                 <Card className="shadow-lg border-primary/10">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Refunded / Cancelled</CardTitle>
+                        <CardTitle className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Total Refunds</CardTitle>
                         <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">₹{stats.totalRefunds.toFixed(2)}</div>
-                        <p className="text-xs text-muted-foreground">Total value of refunded orders.</p>
+                        <div className="text-2xl font-black">₹{stats.totalRefunds.toFixed(2)}</div>
                     </CardContent>
                 </Card>
             </div>
+
             <div className="grid grid-cols-1 lg:grid-cols-7 gap-8">
-                <Card className="lg:col-span-4">
+                <Card className="lg:col-span-4 rounded-[24px] shadow-sm">
                     <CardHeader>
-                        <CardTitle>Sales Overview (Last 7 Days)</CardTitle>
+                        <CardTitle className="text-base font-black uppercase italic tracking-tight">Sales Velocity (7 Days)</CardTitle>
                     </CardHeader>
                     <CardContent className="pl-2">
                        <ResponsiveContainer width="100%" height={350}>
                             <BarChart data={salesData}>
-                                <XAxis
-                                    dataKey="name"
-                                    stroke="#888888"
-                                    fontSize={12}
-                                    tickLine={false}
-                                    axisLine={false}
-                                />
-                                <YAxis
-                                    stroke="#888888"
-                                    fontSize={12}
-                                    tickLine={false}
-                                    axisLine={false}
-                                    tickFormatter={(value) => `₹{value}`}
-                                />
-                                <Tooltip 
-                                     cursor={{fill: 'hsl(var(--muted))'}}
-                                     content={({ active, payload }) => {
-                                        if (active && payload && payload.length) {
-                                            return (
-                                            <div className="rounded-lg border bg-background p-2 shadow-sm">
-                                                <div className="grid grid-cols-2 gap-2">
-                                                    <div className="flex flex-col">
-                                                        <span className="text-[0.70rem] uppercase text-muted-foreground">
-                                                        Day
-                                                        </span>
-                                                        <span className="font-bold text-muted-foreground">
-                                                        {payload[0].payload.name}
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex flex-col">
-                                                        <span className="text-[0.70rem] uppercase text-muted-foreground">
-                                                        Sales
-                                                        </span>
-                                                        <span className="font-bold">
-                                                        ₹{payload[0].value?.toLocaleString() ?? 0}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            )
-                                        }
-                                        return null
-                                     }}
-                                />
+                                <XAxis dataKey="name" stroke="#888888" fontSize={10} tickLine={false} axisLine={false} />
+                                <YAxis stroke="#888888" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(value) => `₹${value}`} />
+                                <Tooltip cursor={{fill: 'hsl(var(--muted))'}} />
                                 <Bar dataKey="total" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                             </BarChart>
                         </ResponsiveContainer>
                     </CardContent>
                 </Card>
-                 <Card className="lg:col-span-3">
+                 <Card className="lg:col-span-3 rounded-[24px] shadow-sm">
                     <CardHeader>
-                        <CardTitle>Recent Orders</CardTitle>
-                        <CardDescription>Your 5 most recent orders from all sources.</CardDescription>
+                        <CardTitle className="text-base font-black uppercase italic tracking-tight">Recent Orders</CardTitle>
+                        <CardDescription>Last 5 transactions from all channels.</CardDescription>
                     </CardHeader>
                     <CardContent>
                        <RecentOrders />
