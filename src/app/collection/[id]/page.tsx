@@ -27,6 +27,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { useToast } from '@/hooks/use-toast';
 import { virtualTryOn } from '@/ai/flows/virtual-try-on';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { ProductGenee } from '@/components/genee/product-genee';
 
 type DisplayProduct = (SellerProduct | ProductDrop) & { isTryOnEnabled?: boolean; isEastIndianLugra?: boolean };
 
@@ -314,6 +315,13 @@ function BrandedCollectionContent() {
                                         </Badge>
                                     </div>
                                 )}
+
+                                <div className="absolute top-2 right-2 z-20">
+                                    <ProductGenee 
+                                        product={{...product, price}} 
+                                        storeName={magazine?.vendorTitle || magazine?.creatorName || 'Snazzify Store'} 
+                                    />
+                                </div>
 
                                 {isProductTryOn && tryOnResult && (
                                     <div className="absolute top-2 left-2 flex gap-1 z-30">

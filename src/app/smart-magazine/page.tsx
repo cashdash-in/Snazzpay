@@ -28,6 +28,7 @@ import { useToast } from '@/hooks/use-toast';
 import { virtualTryOn } from '@/ai/flows/virtual-try-on';
 import { cn, sanitizePhoneNumber } from '@/lib/utils';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { ProductGenee } from '@/components/genee/product-genee';
 
 type DisplayProduct = (SellerProduct | ProductDrop) & { isEastIndianLugra?: boolean; isTryOnEnabled?: boolean };
 
@@ -459,6 +460,13 @@ function SmartMagazineContent() {
 
                                         {discount > 0 && <Badge className="absolute top-4 right-4 bg-destructive text-white font-black italic">-{discount}%</Badge>}
                                         
+                                        <div className="absolute top-2 right-2 z-20">
+                                            <ProductGenee 
+                                                product={{...product, price}} 
+                                                storeName={magazine?.vendorTitle || magazine?.creatorName || 'Snazzify Store'} 
+                                            />
+                                        </div>
+
                                         {canTryOn && !isProductTryOn && (
                                             <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
                                                 <Button size="sm" className="pointer-events-auto rounded-full bg-white/90 text-slate-900 hover:bg-white font-black italic text-[10px] scale-90 group-hover:scale-100 transition-transform" onClick={() => { setTryOnProductId(product.id); cameraInputRef.current?.click(); }}>
