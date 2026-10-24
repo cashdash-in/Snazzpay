@@ -27,7 +27,6 @@ export function SellerGenee() {
   ]);
   const [isLoading, setIsLoading] = useState(false);
   
-  // Draggable State
   const [position, setPosition] = useState({ x: 32, y: 32 });
   const [isDragging, setIsDragging] = useState(false);
   const dragStart = useRef({ x: 0, y: 0 });
@@ -125,7 +124,6 @@ export function SellerGenee() {
           "relative group transition-transform flex flex-col items-center",
           isDragging ? "scale-110 cursor-grabbing" : "cursor-grab animate-bounce-slow"
         )}>
-            {/* Flashing Label */}
             {!isDragging && (
                 <div className="mb-4 bg-white shadow-2xl rounded-full px-6 py-2.5 border-4 border-primary animate-genee-flash pointer-events-none select-none flex items-center gap-2">
                    <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" />
@@ -201,7 +199,7 @@ export function SellerGenee() {
                 </div>
                 <div className="space-y-4 flex-1">
                     <div className={cn(
-                        "p-5 rounded-[32px] text-sm shadow-sm leading-relaxed",
+                        "p-5 rounded-[32px] text-[13px] shadow-sm leading-relaxed whitespace-pre-wrap break-words",
                         m.role === 'assistant' ? "bg-white border-2 border-slate-100 text-slate-800 rounded-tl-none" : "bg-primary text-white rounded-tr-none font-medium shadow-md shadow-primary/20"
                     )}>
                         {m.content}
@@ -238,7 +236,7 @@ export function SellerGenee() {
                   <Loader2 className="h-6 w-6 text-white animate-spin" />
                 </div>
                 <div className="p-5 bg-white border-2 border-slate-100 rounded-[32px] rounded-tl-none flex items-center gap-3 shadow-sm">
-                  <p className="text-sm italic text-muted-foreground animate-pulse">Star Girl is analyzing marketplace data... ✨</p>
+                  <p className="text-[13px] italic text-muted-foreground animate-pulse">Star Girl is analyzing marketplace data... ✨</p>
                 </div>
               </div>
             )}
@@ -260,22 +258,6 @@ export function SellerGenee() {
           </CardFooter>
         </Card>
       )}
-      <style jsx global>{`
-        @keyframes spin-slow {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        .animate-spin-slow {
-          animation: spin-slow 12s linear infinite;
-        }
-        @keyframes bounce-slow {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-20px); }
-        }
-        .animate-bounce-slow {
-          animation: bounce-slow 3s ease-in-out infinite;
-        }
-      `}</style>
     </div>
   );
 }

@@ -86,7 +86,6 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
   }, [cart]);
 
   const topSellers = useMemo(() => {
-    // Logic for top sellers - prioritize items in same category or just first few
     return allProducts.slice(0, 6);
   }, [allProducts]);
 
@@ -153,7 +152,6 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
 
   const handleCheckout = () => {
     if (cart.length === 0) return;
-    // Bundle checkout - for now using the first item or lead logic
     const firstItem = cart[0].product;
     const params = new URLSearchParams();
     params.set('id', firstItem.id);
@@ -205,10 +203,10 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
             </Tabs>
           </CardHeader>
 
-          <CardContent className="flex-1 overflow-y-auto p-0 bg-slate-50/50">
+          <CardContent className="flex-1 overflow-y-auto p-0 bg-slate-50/50" ref={scrollRef}>
             <Tabs value={activeTab} className="h-full">
-                <TabsContent value="chat" className="h-full m-0 p-6 space-y-8" ref={scrollRef}>
-                     <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                <TabsContent value="chat" className="h-full m-0 p-6 space-y-8">
+                     <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide shrink-0">
                         {QUICK_SEARCH_CHIPS.map(chip => (
                             <Button key={chip} variant="outline" size="sm" onClick={() => handleSend(chip)} className="rounded-full bg-white border-primary/20 text-[10px] font-bold h-7 px-4 whitespace-nowrap hover:bg-primary hover:text-white transition-colors">
                                 {chip}
@@ -222,7 +220,10 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
                             <div className={cn("w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border-2", m.role === 'assistant' ? "bg-slate-950 border-primary animate-genee-flash" : "bg-primary text-white border-primary")}>
                                 {m.role === 'assistant' ? <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" /> : <User className="h-4 w-4" />}
                             </div>
-                            <div className={cn("p-4 rounded-3xl text-sm shadow-sm leading-relaxed", m.role === 'assistant' ? "bg-white border-2 border-slate-100 text-slate-800 rounded-tl-none" : "bg-primary text-white rounded-tr-none font-medium shadow-md shadow-primary/20")}>
+                            <div className={cn(
+                                "p-3.5 rounded-3xl text-[13px] shadow-sm leading-relaxed whitespace-pre-wrap break-words", 
+                                m.role === 'assistant' ? "bg-white border-2 border-slate-100 text-slate-800 rounded-tl-none" : "bg-primary text-white rounded-tr-none font-medium shadow-md shadow-primary/20"
+                            )}>
                                 {m.content}
                             </div>
                         </div>
@@ -291,7 +292,7 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
                         <Loader2 className="h-6 w-6 text-white animate-spin" />
                         </div>
                         <div className="p-5 bg-white border-2 border-slate-100 rounded-[32px] rounded-tl-none flex items-center gap-3 shadow-sm">
-                        <p className="text-sm italic text-muted-foreground animate-pulse">Star Girl is scouring the vault... ✨</p>
+                        <p className="text-[13px] italic text-muted-foreground animate-pulse">Star Girl is scouring the vault... ✨</p>
                         </div>
                     </div>
                     )}
@@ -413,4 +414,3 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
     </Dialog>
   );
 }
-

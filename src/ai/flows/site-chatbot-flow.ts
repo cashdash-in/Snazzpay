@@ -59,13 +59,17 @@ const searchSnazzifyGlobal = ai.defineTool(
     })),
   },
   async (input) => {
-    const allProducts = await fetchLiveSnazzifyProducts();
-    // Intelligent search logic
-    const searchLower = input.searchTerm.toLowerCase();
-    return allProducts.filter(p => 
-        p.title.toLowerCase().includes(searchLower) ||
-        p.category.toLowerCase().includes(searchLower)
-    ).slice(0, 4);
+    try {
+        const allProducts = await fetchLiveSnazzifyProducts();
+        const searchLower = input.searchTerm.toLowerCase();
+        return allProducts.filter(p => 
+            p.title.toLowerCase().includes(searchLower) ||
+            p.category.toLowerCase().includes(searchLower)
+        ).slice(0, 4);
+    } catch (e) {
+        console.error("Global Search Tool Error:", e);
+        return [];
+    }
   }
 );
 
@@ -86,11 +90,7 @@ const siteChatbotFlow = ai.defineFlow(
     4. TRUST: Promote "Secure COD" (payment held in trust, released on dispatch) and "Shakti Card" rewards.
 
     CATALOG CONTEXT:
-    {{#if catalog}}
-    {{json catalog}}
-    {{else}}
-    No local products provided.
-    {{/if}}
+    ${input.catalog ? JSON.stringify(input.catalog) : 'No local products provided.'}
 
     INTERACTION STYLE:
     - Be energetic, Star-Girl themed, and extremely helpful.
@@ -98,15 +98,31 @@ const siteChatbotFlow = ai.defineFlow(
     - Provide 3-4 "searchSuggestions" related to the query.
     - Always aim to get the user to click "Buy Now".`;
 
-    const { output } = await ai.generate({
-        model: 'googleai/gemini-2.5-flash',
-        system: systemPrompt,
-        prompt: input.query,
-        tools: [searchSnazzifyGlobal],
-        output: { schema: SiteChatbotOutputSchema }
-    });
+    try {
+        const { output } = await ai.generate({
+            model: 'googleai/gemini-2.5-flash',
+            system: systemPrompt,
+            prompt: input.query,
+            tools: [searchSnazzifyGlobal],
+            output: { schema: SiteChatbotOutputSchema }
+        });
 
-    return output!;
+        if (!output) {
+            return {
+                answer: "I found some great results for you! Take a look ✨",
+                recommendedProductIds: input.catalog?.slice(0, 2).map(p => p.id),
+                searchSuggestions: ["Tell me more", "Show categories"]
+            };
+        }
+
+        return output;
+    } catch (error: any) {
+        console.error("Site Chatbot Flow Error:", error);
+        return {
+            answer: "My star-circuits are flickering slightly! I'm still here to help. What can I find for you? ✨",
+            searchSuggestions: ["New Arrivals", "Secure COD Info"]
+        };
+    }
   }
 );
 
