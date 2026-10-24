@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Sparkles, X, Send, User, Loader2, Star, ShoppingCart, ShieldCheck, Tag, Percent } from 'lucide-react';
+import { Sparkles, X, Send, User, Loader2, Star, ShoppingCart, ShieldCheck, Tag, Percent, Globe, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { askSiteAssistant } from '@/ai/flows/site-chatbot-flow';
 import Image from 'next/image';
@@ -16,6 +16,7 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   recommendations?: any[];
+  externalRecommendations?: any[];
   bundleOffer?: string;
 }
 
@@ -66,6 +67,7 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
         persona: `You are the ASK.ME Star Girl, a cheerful, futuristic, and expert sales assistant. 
         You look like a star-themed holographic girl. Use emojis like ✨, ⭐, 🚀.
         Focus on selling items from the provided catalog.
+        If items aren't available, suggest popular picks from our main site www.snazzify.co.in.
         Always promote "Secure COD" as the safest way to buy.`,
         query: userMsg,
         catalog: allProducts.map(p => ({
@@ -87,6 +89,7 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
         role: 'assistant', 
         content: response.answer,
         recommendations: recs,
+        externalRecommendations: response.externalRecommendations,
         bundleOffer: response.bundleDiscountOffer
       }]);
     } catch (error) {
@@ -101,6 +104,10 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
     params.set('id', pId);
     params.set('sellerName', storeName);
     router.push(`/catalogue?${params.toString()}`);
+  };
+
+  const handleViewExternal = (url: string) => {
+    window.open(url, '_blank');
   };
 
   return (
@@ -212,6 +219,32 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
                                         <p className="text-[11px] font-bold truncate uppercase italic">{p.title}</p>
                                         <Button size="sm" onClick={() => handleBuyNow(p.id)} className="w-full h-8 text-[9px] font-black uppercase italic rounded-lg">
                                             Add to Cart
+                                        </Button>
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {m.externalRecommendations && m.externalRecommendations.length > 0 && (
+                    <div className="pl-11 space-y-4">
+                        <div className="flex items-center gap-2 text-[10px] font-black uppercase text-indigo-600 tracking-widest">
+                            <Globe className="h-3 w-3" /> From Snazzify Global
+                        </div>
+                        <div className="flex gap-3 overflow-x-auto pb-4 pr-4 scrollbar-hide">
+                            {m.externalRecommendations.map((p, idx) => (
+                                <Card key={idx} className="min-w-[180px] w-[180px] rounded-2xl overflow-hidden shadow-sm border-2 border-indigo-100 hover:border-indigo-300 transition-colors bg-white shrink-0">
+                                    <div className="relative aspect-square">
+                                        <Image src={p.imageUrl} alt={p.title} fill className="object-cover" unoptimized />
+                                        <div className="absolute top-2 right-2">
+                                            <Badge className="bg-indigo-600 text-white font-black text-[9px]">₹{p.price}</Badge>
+                                        </div>
+                                    </div>
+                                    <CardContent className="p-3 space-y-2">
+                                        <p className="text-[11px] font-bold truncate uppercase italic text-indigo-900">{p.title}</p>
+                                        <Button size="sm" onClick={() => handleViewExternal(p.url)} variant="outline" className="w-full h-8 text-[9px] font-black uppercase border-indigo-200 text-indigo-600 hover:bg-indigo-50">
+                                            <ExternalLink className="mr-1 h-2.5 w-2.5" /> View Store
                                         </Button>
                                     </CardContent>
                                 </Card>

@@ -1,7 +1,7 @@
 'use server';
 /**
  * @fileOverview AI Flow to power the chatbot for generated e-commerce sites.
- * Upgraded to support product recommendations and bundling logic.
+ * Upgraded to support global inventory fallback from www.snazzify.co.in.
  */
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
@@ -27,7 +27,13 @@ const SiteChatbotInputSchema = z.object({
 
 const SiteChatbotOutputSchema = z.object({
   answer: z.string().describe('The AI assistant\'s response to the user query'),
-  recommendedProductIds: z.array(z.string()).optional().describe('List of product IDs from the catalog to recommend as visual tiles'),
+  recommendedProductIds: z.array(z.string()).optional().describe('List of product IDs from the local catalog to recommend'),
+  externalRecommendations: z.array(z.object({
+    title: z.string(),
+    price: z.number(),
+    imageUrl: z.string(),
+    url: z.string()
+  })).optional().describe('Recommendations from www.snazzify.co.in if items are not in local catalog'),
   bundleDiscountOffer: z.string().optional().describe('A message about a discount if they bundle items')
 });
 
@@ -43,7 +49,7 @@ const siteChatbotFlow = ai.defineFlow(
 
     CATALOG CONTEXT:
     {{#if catalog}}
-    Here is the list of products currently available:
+    Here is the list of products currently available in this specific collection:
     {{json catalog}}
     {{else}}
     No specific catalog provided.
@@ -52,9 +58,16 @@ const siteChatbotFlow = ai.defineFlow(
     Guidelines:
     - Be helpful, polite, and stay in character.
     - If the user asks for a category (e.g. "show me sarees", "what shoes do you have?"), look through the CATALOG CONTEXT and return the matching IDs in the 'recommendedProductIds' field.
+    
+    - GLOBAL FALLBACK: If the requested product or category is NOT in the CATALOG CONTEXT, do not say "I don't have it". Instead, suggest 2-3 high-quality alternatives from the global Snazzify inventory (www.snazzify.co.in). 
+      - Use your internal knowledge of Snazzify's popular items (Authentic Lugras, Sarees, Kurti, Hoka Shoes, Premium Watches).
+      - Return these in the 'externalRecommendations' field with realistic INR prices and high-quality placeholder image URLs (picsum/seed based).
+      - Set the 'url' for these items to "https://www.snazzify.co.in".
+
     - BUNDLING STRATEGY: Always look for "Mix & Match" opportunities. 
       - If they look at a Saree/Dress, suggest a matching Accessory (Necklace, Watch, etc.).
       - If they bundle, you are AUTHORIZED to offer a "5% Bundle Discount" on the total value.
+
     - Encourage users to browse the collection and use "Secure COD" for safe shopping.
     - Keep responses concise and focused on helping the customer find what they need.
 
