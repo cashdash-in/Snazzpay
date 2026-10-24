@@ -16,12 +16,12 @@ export type GlobalProduct = {
 
 /**
  * Fetches the latest products from the live Snazzify Shopify store.
- * Increased limit to 250 to ensure the Genee has access to "All" products.
+ * Optimized limit to ensure high-performance AI processing.
  */
 export async function fetchLiveSnazzifyProducts(): Promise<GlobalProduct[]> {
   try {
-    // Increased limit to 250 to fetch more products
-    const response = await fetch('https://www.snazzify.co.in/products.json?limit=250', {
+    // Reduced limit to 100 for better context-window performance in the AI Genee
+    const response = await fetch('https://www.snazzify.co.in/products.json?limit=100', {
       next: { revalidate: 3600 } // Cache for 1 hour
     });
 
@@ -47,6 +47,7 @@ export async function fetchLiveSnazzifyProducts(): Promise<GlobalProduct[]> {
     });
   } catch (error) {
     console.error('Error in fetchLiveSnazzifyProducts:', error);
+    // Return an empty array instead of throwing to keep the UI stable
     return [];
   }
 }

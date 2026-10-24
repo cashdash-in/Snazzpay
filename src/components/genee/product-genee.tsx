@@ -10,11 +10,11 @@ import {
     ShoppingCart, ShieldCheck, Tag, Percent, 
     Globe, Search, TrendingUp, 
     ShoppingBag, Trash2, Zap, Plus,
-    ArrowRight, Sparkles, Moon, Sun
+    ArrowRight, Sparkles
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -25,7 +25,6 @@ interface Message {
   content: string;
   recommendations?: any[];
   externalRecommendations?: any[];
-  bundleOffer?: string;
   searchSuggestions?: string[];
 }
 
@@ -35,14 +34,7 @@ interface CartItem {
 }
 
 interface ProductGeneeProps {
-  product?: {
-    id: string;
-    title: string;
-    description: string;
-    price: number;
-    imageDataUris: string[];
-    category?: string;
-  };
+  product?: any;
   allProducts: any[];
   storeName: string;
   isOpen: boolean;
@@ -55,7 +47,7 @@ export function ProductGenee({ product, allProducts, storeName, isOpen, onOpenCh
   const [input, setInput] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeView, setActiveTab] = useState<'grid' | 'cart'>('grid');
+  const [activeView, setActiveView] = useState<'grid' | 'cart'>('grid');
   
   const [messages, setMessages] = useState<Message[]>([
     { 
@@ -72,16 +64,6 @@ export function ProductGenee({ product, allProducts, storeName, isOpen, onOpenCh
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, isLoading]);
-
-  useEffect(() => {
-      if (isOpen) {
-          fetch('/api/track', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ event: 'geneeOpen' })
-          });
-      }
-  }, [isOpen]);
 
   const cartTotal = useMemo(() => {
     return cart.reduce((sum, item) => sum + (item.product.price || item.product.costPrice || 0) * item.quantity, 0);
@@ -112,10 +94,6 @@ export function ProductGenee({ product, allProducts, storeName, isOpen, onOpenCh
     toast({ title: "Added to Cart!", description: `${prod.title} is ready.` });
   };
 
-  const removeFromCart = (productId: string) => {
-    setCart(prev => prev.filter(item => item.product.id !== productId));
-  };
-
   const handleSend = async (forcedQuery?: string) => {
     const userMsg = forcedQuery || input.trim();
     if (!userMsg || isLoading) return;
@@ -124,21 +102,14 @@ export function ProductGenee({ product, allProducts, storeName, isOpen, onOpenCh
     setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
     setIsLoading(true);
 
-    fetch('/api/track', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ event: 'geneeSearch' })
-    });
-
     try {
       const res = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            siteId: product?.id || 'global',
             storeName: storeName,
             query: userMsg,
-            catalog: (allProducts || []).slice(0, 10).map(p => ({
+            catalog: (allProducts || []).slice(0, 8).map(p => ({
                 id: p.id,
                 title: p.title,
                 price: p.price || p.costPrice,
@@ -147,15 +118,12 @@ export function ProductGenee({ product, allProducts, storeName, isOpen, onOpenCh
         })
       });
       
-      if (!res.ok) throw new Error("API error");
       const response = await res.json();
-
       setMessages(prev => [...prev, { 
         role: 'assistant', 
         content: response.answer || "I found some great options for you! ✨",
         recommendations: response.recommendedProductIds ? (allProducts || []).filter(p => response.recommendedProductIds.includes(p.id)) : [],
         externalRecommendations: response.externalRecommendations,
-        bundleOffer: response.bundleOffer,
         searchSuggestions: response.searchSuggestions
       }]);
     } catch (error) {
@@ -168,74 +136,74 @@ export function ProductGenee({ product, allProducts, storeName, isOpen, onOpenCh
   const handleCheckout = () => {
     if (cart.length === 0) return;
     const firstItem = cart[0].product;
-    const params = new URLSearchParams();
-    params.set('id', firstItem.id);
-    params.set('sellerName', storeName);
-    router.push(`/catalogue?${params.toString()}`);
+    router.push(`/catalogue?id=${firstItem.id}&sellerName=${encodeURIComponent(storeName)}`);
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] w-full md:max-w-7xl h-[90vh] p-0 border-none overflow-hidden rounded-[32px] bg-[#f8f9fa] shadow-2xl">
+      <DialogContent className="max-w-[95vw] w-full md:max-w-7xl h-[90vh] p-0 border-none overflow-hidden rounded-[32px] bg-slate-50 shadow-2xl">
         <div className="flex flex-col h-full w-full">
-          {/* Top Status Bar */}
-          <div className="bg-slate-100/80 px-6 py-2 border-b flex items-center justify-between shrink-0">
+          {/* Header */}
+          <div className="bg-white px-6 py-3 border-b flex items-center justify-between shrink-0">
              <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
-                <span className="text-[10px] font-medium text-slate-500 uppercase tracking-widest">Global Discovery Engine Online...</span>
+                <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Live Discovery Engine...</span>
              </div>
              <div className="flex items-center gap-4">
-                <div className="relative">
-                    <Button variant="ghost" size="icon" onClick={() => setActiveTab('cart')} className="h-8 w-8 rounded-full text-slate-400 hover:text-slate-900 relative">
-                        <ShoppingCart className="h-4 w-4" />
-                        {cart.length > 0 && <Badge className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center bg-blue-500 text-[8px] border-none">{cart.length}</Badge>}
-                    </Button>
-                </div>
-                <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} className="h-8 w-8 rounded-full text-slate-400 hover:text-slate-900"><X className="h-5 w-5"/></Button>
+                <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={() => setActiveView(activeView === 'cart' ? 'grid' : 'cart')} 
+                    className="relative h-10 w-10 rounded-full hover:bg-slate-100"
+                >
+                    <ShoppingCart className="h-5 w-5 text-slate-600" />
+                    {cart.length > 0 && (
+                        <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center bg-blue-500 text-[10px] animate-pulse">
+                            {cart.length}
+                        </Badge>
+                    )}
+                </Button>
+                <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} className="h-10 w-10 rounded-full hover:bg-slate-100"><X className="h-6 w-6 text-slate-400"/></Button>
              </div>
           </div>
 
           <div className="flex-1 flex overflow-hidden">
-            {/* Left Pane: Product Discovery Grid */}
+            {/* Left Pane: Discovery Grid */}
             <div className="flex-1 flex flex-col bg-white border-r">
-                <div className="p-6 border-b flex flex-col sm:flex-row items-center justify-between gap-4 shrink-0">
-                    <div className="flex items-center gap-2">
-                        <Plus className="h-4 w-4 text-blue-500" />
-                        <h2 className="text-sm font-black uppercase tracking-tight text-slate-800">Shop Discovery</h2>
-                    </div>
-                    <div className="relative w-full sm:w-80">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                        <Input 
-                            placeholder="Search recommendations" 
-                            value={searchQuery}
-                            onChange={e => setSearchQuery(e.target.value)}
-                            className="pl-9 h-10 bg-slate-50 border-none rounded-full text-xs font-medium"
-                        />
-                    </div>
+                <div className="p-6 border-b flex items-center justify-between gap-4 shrink-0">
+                    <h2 className="text-sm font-black uppercase tracking-tight text-slate-800">
+                        {activeView === 'grid' ? 'Recommendations' : 'Shopping Bag'}
+                    </h2>
+                    {activeView === 'grid' && (
+                        <div className="relative w-72">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                            <Input 
+                                placeholder="Search catalog..." 
+                                value={searchQuery}
+                                onChange={e => setSearchQuery(e.target.value)}
+                                className="pl-9 h-10 bg-slate-50 border-none rounded-full text-xs font-bold"
+                            />
+                        </div>
+                    )}
                 </div>
 
                 <ScrollArea className="flex-1 p-6">
                     {activeView === 'grid' ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 pb-20">
                             {filteredProducts.map((p) => (
-                                <Card key={p.id} className="rounded-[24px] overflow-hidden border-2 border-transparent hover:border-blue-100 transition-all group shadow-sm bg-white">
+                                <Card key={p.id} className="rounded-[24px] overflow-hidden border-2 border-transparent hover:border-blue-100 transition-all shadow-sm bg-white group">
                                     <div className="relative aspect-[4/5] bg-slate-50">
-                                        <Image src={(p.imageDataUris || [])[0]} alt={p.title} fill className="object-cover transition-transform group-hover:scale-105" unoptimized />
-                                        <div className="absolute top-3 left-3">
-                                            <Badge className="bg-white/90 text-blue-600 text-[8px] font-black uppercase shadow-sm border-none">{p.category || 'New'}</Badge>
-                                        </div>
+                                        <Image src={(p.imageDataUris || [])[0] || (p.imageUrl)} alt={p.title} fill className="object-cover transition-transform group-hover:scale-105" unoptimized />
                                     </div>
-                                    <CardContent className="p-4 space-y-2">
-                                        <h3 className="text-[11px] font-black uppercase text-slate-800 line-clamp-1 truncate leading-none">{p.title}</h3>
-                                        <div className="flex items-center gap-2 pt-1">
-                                            <span className="text-sm font-black text-slate-900">₹{p.price || p.costPrice}</span>
-                                        </div>
+                                    <CardContent className="p-4 space-y-1">
+                                        <h3 className="text-[11px] font-black uppercase text-slate-800 line-clamp-1 truncate">{p.title}</h3>
+                                        <p className="text-sm font-black text-blue-600">₹{p.price || p.costPrice}</p>
                                     </CardContent>
-                                    <CardFooter className="p-2 pt-0 flex gap-2">
-                                        <Button onClick={() => addToCart(p)} className="flex-1 h-9 rounded-xl bg-blue-500 hover:bg-blue-600 shadow-md shadow-blue-200">
-                                            <ShoppingCart className="h-4 w-4" />
+                                    <CardFooter className="p-2 pt-0 gap-2">
+                                        <Button onClick={() => addToCart(p)} className="flex-1 h-10 rounded-xl bg-blue-500 hover:bg-blue-600 shadow-md shadow-blue-100">
+                                            <ShoppingCart className="h-4 w-4 mr-2" /> Add
                                         </Button>
-                                        <Button variant="outline" onClick={() => addToCart(p)} size="icon" className="h-9 w-9 rounded-xl border-slate-200 text-blue-500">
+                                        <Button variant="outline" size="icon" onClick={() => addToCart(p)} className="h-10 w-10 rounded-xl border-slate-200">
                                             <Plus className="h-4 w-4" />
                                         </Button>
                                     </CardFooter>
@@ -243,46 +211,39 @@ export function ProductGenee({ product, allProducts, storeName, isOpen, onOpenCh
                             ))}
                         </div>
                     ) : (
-                        <div className="max-w-xl mx-auto space-y-4 py-8">
-                             <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-lg font-black uppercase italic">Your Shopping Bag</h3>
-                                <Button variant="ghost" onClick={() => setActiveTab('grid')} className="text-xs font-bold text-blue-500">Back to Store</Button>
-                             </div>
+                        <div className="max-w-xl mx-auto space-y-6 py-8">
                              {cart.length === 0 ? (
-                                 <div className="text-center py-20 opacity-20"><ShoppingBag className="h-20 w-20 mx-auto" /><p className="mt-4 font-bold">Your bag is empty</p></div>
+                                 <div className="text-center py-20 opacity-20"><ShoppingBag className="h-20 w-20 mx-auto" /><p className="mt-4 font-bold">Bag is empty</p></div>
                              ) : (
                                 <>
                                     {cart.map(item => (
-                                        <div key={item.product.id} className="bg-white border rounded-2xl p-4 flex gap-4 items-center">
-                                            <div className="relative h-16 w-16 rounded-xl overflow-hidden shrink-0"><Image src={item.product.imageDataUris[0]} fill alt="p" className="object-cover" /></div>
+                                        <div key={item.product.id} className="bg-white border-2 border-slate-100 rounded-3xl p-5 flex gap-4 items-center">
+                                            <div className="relative h-20 w-20 rounded-2xl overflow-hidden shrink-0 border"><Image src={item.product.imageDataUris?.[0] || item.product.imageUrl} fill alt="p" className="object-cover" unoptimized /></div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="font-bold text-xs uppercase truncate">{item.product.title}</p>
-                                                <p className="font-black text-sm text-blue-600">₹{(item.product.price || item.product.costPrice) * item.quantity}</p>
+                                                <p className="font-black text-xs uppercase truncate text-slate-800">{item.product.title}</p>
+                                                <p className="text-xs font-bold text-slate-400">Quantity: {item.quantity}</p>
+                                                <p className="font-black text-lg text-blue-600 mt-1">₹{(item.product.price || item.product.costPrice) * item.quantity}</p>
                                             </div>
-                                            <Button variant="ghost" size="icon" className="text-red-500" onClick={() => removeFromCart(item.product.id)}><Trash2 className="h-4 w-4"/></Button>
+                                            <Button variant="ghost" size="icon" className="text-red-400 hover:text-red-600 rounded-full" onClick={() => removeFromCart(item.product.id)}><Trash2 className="h-5 w-5"/></Button>
                                         </div>
                                     ))}
-                                    <div className="pt-6 border-t mt-10">
-                                        <div className="flex justify-between items-center mb-6">
-                                            <span className="font-bold text-slate-400 uppercase text-xs">Total Amount</span>
-                                            <span className="text-3xl font-black italic">₹{cartTotal.toFixed(2)}</span>
+                                    <div className="pt-8 border-t-2 border-dashed border-slate-200 mt-10">
+                                        <div className="flex justify-between items-center mb-8">
+                                            <span className="font-black text-slate-400 uppercase text-xs tracking-widest">Estimated Total</span>
+                                            <span className="text-4xl font-black italic text-slate-900">₹{cartTotal.toFixed(2)}</span>
                                         </div>
-                                        <Button onClick={handleCheckout} className="w-full h-16 rounded-2xl bg-blue-500 text-xl font-black uppercase italic shadow-xl shadow-blue-200">
-                                            Confirm Order <ArrowRight className="ml-2 h-6 w-6"/>
+                                        <Button onClick={handleCheckout} className="w-full h-20 rounded-3xl bg-blue-500 hover:bg-blue-600 text-2xl font-black uppercase italic shadow-2xl shadow-blue-200">
+                                            Confirm Secure COD <ArrowRight className="ml-2 h-8 w-8"/>
                                         </Button>
+                                        <p className="text-center text-[10px] font-bold text-slate-400 uppercase mt-6 flex items-center justify-center gap-2">
+                                            <ShieldCheck className="h-4 w-4" /> Powered by SnazzPay Trust Wallet
+                                        </p>
                                     </div>
                                 </>
                              )}
                         </div>
                     )}
                 </ScrollArea>
-                
-                <div className="p-6 shrink-0 bg-white border-t">
-                    <Button variant="ghost" className="h-14 px-8 rounded-2xl bg-blue-500 text-white font-black uppercase italic tracking-tight shadow-xl shadow-blue-200 group">
-                        <ShoppingBag className="mr-3 h-6 w-6 fill-current" />
-                        SNZ POINTS
-                    </Button>
-                </div>
             </div>
 
             {/* Right Pane: AI Chat Assistant */}
@@ -292,7 +253,7 @@ export function ProductGenee({ product, allProducts, storeName, isOpen, onOpenCh
                         <div className="p-2 bg-blue-50 rounded-lg"><Sparkles className="h-5 w-5 text-blue-500" /></div>
                         <div>
                             <h3 className="text-sm font-black uppercase text-slate-800">Star Girl Assistant</h3>
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">AI Agent Online</p>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Online & Ready ✨</p>
                         </div>
                     </div>
                 </div>
@@ -309,7 +270,7 @@ export function ProductGenee({ product, allProducts, storeName, isOpen, onOpenCh
                             {m.searchSuggestions && (
                                 <div className="flex flex-wrap gap-2 pt-1">
                                     {m.searchSuggestions.map(s => (
-                                        <button key={s} onClick={() => handleSend(s)} className="text-[10px] font-bold text-blue-500 border border-blue-200 bg-white px-3 py-1 rounded-full hover:bg-blue-50">
+                                        <button key={s} onClick={() => handleSend(s)} className="text-[10px] font-black text-blue-500 border-2 border-blue-100 bg-white px-4 py-1.5 rounded-full hover:bg-blue-50 transition-colors uppercase italic tracking-tighter">
                                             {s}
                                         </button>
                                     ))}
@@ -319,7 +280,7 @@ export function ProductGenee({ product, allProducts, storeName, isOpen, onOpenCh
                     ))}
                     {isLoading && (
                         <div className="flex flex-col gap-2 items-start animate-pulse">
-                            <div className="bg-white p-4 rounded-[24px] rounded-tl-none border">
+                            <div className="bg-white p-4 rounded-[24px] rounded-tl-none border shadow-sm">
                                 <Loader2 className="h-5 w-5 text-blue-500 animate-spin" />
                             </div>
                         </div>
@@ -327,19 +288,19 @@ export function ProductGenee({ product, allProducts, storeName, isOpen, onOpenCh
                 </div>
 
                 <div className="p-6 bg-white border-t space-y-4 shrink-0">
-                    <div className="flex gap-2 bg-slate-100 p-1.5 rounded-2xl border-2 border-transparent focus-within:border-blue-100 transition-all">
+                    <div className="flex gap-2 bg-slate-100 p-2 rounded-2xl border-2 border-transparent focus-within:border-blue-100 transition-all">
                         <Input 
                             placeholder="Type a message..." 
                             value={input}
                             onChange={e => setInput(e.target.value)}
                             onKeyDown={e => e.key === 'Enter' && handleSend()}
-                            className="bg-transparent border-none focus-visible:ring-0 text-sm font-medium"
+                            className="bg-transparent border-none focus-visible:ring-0 text-sm font-bold"
                         />
-                        <Button size="icon" onClick={() => handleSend()} disabled={isLoading || !input.trim()} className="h-10 w-10 rounded-xl bg-blue-500 hover:bg-blue-600 shadow-lg shadow-blue-100 shrink-0">
-                            <Send className="h-4 w-4" />
+                        <Button size="icon" onClick={() => handleSend()} disabled={isLoading || !input.trim()} className="h-11 w-11 rounded-xl bg-blue-500 hover:bg-blue-600 shadow-lg shrink-0">
+                            <Send className="h-5 w-5" />
                         </Button>
                     </div>
-                    <p className="text-[9px] text-center font-bold text-slate-400 uppercase tracking-widest">Powered by <span className="text-blue-500 font-black">Snazzify AI</span></p>
+                    <p className="text-[9px] text-center font-bold text-slate-400 uppercase tracking-widest">Powered by <span className="text-blue-500 font-black italic">Snazzify AI</span></p>
                 </div>
             </div>
           </div>
