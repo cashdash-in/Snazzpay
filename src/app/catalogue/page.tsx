@@ -234,7 +234,7 @@ function CatalogueOrderPageContent() {
         setIsTryOnLoading(true);
         setTryOnResult(null);
 
-        // Track Attempt
+        // Track Try-On Attempt
         fetch('/api/track', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -266,7 +266,7 @@ function CatalogueOrderPageContent() {
                 toast({ variant: 'destructive', title: "Try-On Failed", description: result.error });
             } else if (result.generatedImageDataUri) {
                 setTryOnResult(result.generatedImageDataUri);
-                // Track Success
+                // Track Try-On Success
                 fetch('/api/track', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },

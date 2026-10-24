@@ -74,6 +74,7 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
 
   useEffect(() => {
       if (isOpen) {
+          // Track Genee Open
           fetch('/api/track', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -104,6 +105,7 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
         return [...prev, { product: prod, quantity: 1 }];
     });
     
+    // Track Add to Cart from Genee
     fetch('/api/track', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -125,7 +127,7 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
     setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
     setIsLoading(true);
 
-    // Track user interaction
+    // Track user search interaction
     fetch('/api/track', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -185,6 +187,7 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
       </DialogTrigger>
       <DialogContent className="max-w-[95vw] w-full md:max-w-7xl h-[90vh] p-0 border-none overflow-hidden rounded-[32px] bg-[#f8f9fa] shadow-2xl">
         <div className="flex flex-col h-full w-full">
+          {/* Top Status Bar */}
           <div className="bg-slate-100/80 px-6 py-2 border-b flex items-center justify-between shrink-0">
              <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
@@ -203,6 +206,7 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
           </div>
 
           <div className="flex-1 flex overflow-hidden">
+            {/* Left Pane: Product Discovery Grid */}
             <div className="flex-1 flex flex-col bg-white border-r">
                 <div className="p-6 border-b flex flex-col sm:flex-row items-center justify-between gap-4 shrink-0">
                     <div className="flex items-center gap-2">
@@ -288,6 +292,7 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
                 </div>
             </div>
 
+            {/* Right Pane: AI Chat Assistant */}
             <div className="w-full md:w-[380px] lg:w-[450px] flex flex-col bg-[#f0f2f5] border-l">
                 <div className="p-6 border-b flex items-center justify-between bg-white shrink-0">
                     <div className="flex items-center gap-3">

@@ -170,6 +170,7 @@ export function MainDashboard() {
                 </Popover>
             </div>
 
+            {/* AI Intelligence Row */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
                  <Card className="border-purple-100 bg-purple-50/10">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button';
 import { Loader2, ShoppingCart, MessageCircle, Sparkles, Camera, ImagePlus, RefreshCcw, Download, Store, Share2, ArrowLeft, ShieldCheck, Star } from 'lucide-react';
 import Image from 'next/image';
-import type { SellerProduct } from '@/types/product';
+import type { DisplayProduct, Magazine } from '@/types/product';
 import { getCollection, getDocument, saveDocument } from '@/services/firestore';
 import type { ProductDrop } from '@/types/product';
 import { Badge } from '@/components/ui/badge';
@@ -30,22 +30,6 @@ import { ProductGenee } from '@/components/genee/product-genee';
 import { sanitizePhoneNumber } from '@/lib/utils';
 
 export const maxDuration = 120;
-
-type DisplayProduct = (SellerProduct | ProductDrop) & { isTryOnEnabled?: boolean; isEastIndianLugra?: boolean };
-
-type Magazine = {
-    id: string;
-    title: string;
-    vendorTitle?: string;
-    productIds: string[];
-    creatorId: string;
-    creatorName: string;
-    createdAt: string;
-    discount?: number;
-    logoDataUri?: string;
-    isTryOnEnabled?: boolean;
-    contactNo?: string;
-};
 
 const MAX_TRYON_SIZE_PX = 448;
 
@@ -91,11 +75,11 @@ function BrandedCollectionContent() {
                 if (productIds.length === 0) { setIsLoading(false); return; }
                 
                 const [sellerProducts, productDrops] = await Promise.all([
-                    getCollection<SellerProduct>('seller_products'),
-                    getCollection<ProductDrop>('product_drops')
+                    getCollection<any>('seller_products'),
+                    getCollection<any>('product_drops')
                 ]);
                 
-                const productMap = new Map<string, DisplayProduct>();
+                const productMap = new Map<string, any>();
                 (sellerProducts || []).forEach(p => productMap.set(p.id, p));
                 (productDrops || []).forEach(p => productMap.set(p.id, p));
 
@@ -134,13 +118,6 @@ function BrandedCollectionContent() {
         return { type: 'General', hint: 'selfie', label: 'SELFIE', isApparel: false };
     };
 
-    const handleWhatsAppBusinessChat = () => {
-        if (!magazine) return;
-        const msg = `Hi! I'm visiting your Branded Collection: *${magazine.title}* and I'm interested in buying. \n\nI want to:\n1️⃣ Browse Collection\n2️⃣ Check Availability\n3️⃣ Get Recommendation\n4️⃣ Talk to Human Agent\n\n*Reference:* ${window.location.href}`;
-        const phone = sanitizePhoneNumber(magazine.contactNo || '919920320790');
-        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
-    };
-
     const resizeImageForAI = (fileOrUri: File | string, maxSize: number = MAX_TRYON_SIZE_PX): Promise<string> => {
         return new Promise((resolve, reject) => {
             const img = new (window as any).Image();
@@ -173,6 +150,13 @@ function BrandedCollectionContent() {
         setIsTryOnLoading(true);
         setTryOnResult(null);
         setTryOnProductId(product.id);
+
+        // Track Try-On Attempt
+        fetch('/api/track', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ event: 'tryOnAttempt' })
+        });
         
         const ctx = getProductContext(product);
 
@@ -201,6 +185,12 @@ function BrandedCollectionContent() {
                 toast({ variant: 'destructive', title: "Try-On Failed", description: result.error });
             } else if (result.generatedImageDataUri) {
                 setTryOnResult(result.generatedImageDataUri);
+                // Track Try-On Success
+                fetch('/api/track', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ event: 'tryOnSuccess' })
+                });
                 toast({ title: "Magic Mirror Ready!" });
             }
         } catch (err: any) {
@@ -242,6 +232,13 @@ function BrandedCollectionContent() {
         } finally {
             setIsEnquiring(false);
         }
+    };
+
+    const handleWhatsAppBusinessChat = () => {
+        if (!magazine) return;
+        const msg = `Hi! I'm visiting your Branded Collection: *${magazine.title}* and I'm interested in buying. \n\nI want to:\n1️⃣ Browse Collection\n2️⃣ Check Availability\n3️⃣ Get Recommendation\n4️⃣ Talk to Human Agent\n\n*Reference:* ${window.location.href}`;
+        const phone = sanitizePhoneNumber(magazine.contactNo || '919920320790');
+        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
     };
 
     if (!mounted || isLoading) return <div className="flex h-screen w-full items-center justify-center"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>;

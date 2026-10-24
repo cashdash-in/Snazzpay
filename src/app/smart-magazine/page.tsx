@@ -90,11 +90,11 @@ function SmartMagazineContent() {
                 if (productIds.length === 0) { setIsLoading(false); return; }
                 
                 const [sellerProducts, productDrops] = await Promise.all([
-                    getCollection<SellerProduct>('seller_products'),
-                    getCollection<ProductDrop>('product_drops')
+                    getCollection<any>('seller_products'),
+                    getCollection<any>('product_drops')
                 ]);
                 
-                const productMap = new Map<string, DisplayProduct>();
+                const productMap = new Map<string, any>();
                 (sellerProducts || []).forEach(p => productMap.set(p.id, p));
                 (productDrops || []).forEach(p => productMap.set(p.id, p));
 
@@ -167,6 +167,13 @@ function SmartMagazineContent() {
         setIsTryOnLoading(true);
         setTryOnResult(null);
         setTryOnProductId(product.id);
+
+        // Track Try-On Attempt
+        fetch('/api/track', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ event: 'tryOnAttempt' })
+        });
         
         const ctx = getProductContext(product);
 
@@ -195,6 +202,12 @@ function SmartMagazineContent() {
                 toast({ variant: 'destructive', title: "Try-On Failed", description: result.error });
             } else if (result.generatedImageDataUri) {
                 setTryOnResult(result.generatedImageDataUri);
+                // Track Try-On Success
+                fetch('/api/track', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ event: 'tryOnSuccess' })
+                });
                 toast({ title: "Magic Mirror Ready!" });
             }
         } catch (err: any) {

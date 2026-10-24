@@ -27,7 +27,7 @@ export async function POST(request: Request) {
         const dateString = format(new Date(), 'yyyy-MM-dd');
         const analyticsDocRef = doc(db, 'analytics', dateString);
 
-        // Map events to counter field names
+        // Map events to counter field names in Firestore
         const fieldMap: Record<AnalyticsEvent, string> = {
             secureCodClick: 'secureCodClicks',
             magazineVisit: 'magazineVisits',
