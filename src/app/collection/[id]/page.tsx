@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Suspense, useEffect, useState, useRef, useMemo } from 'react';
@@ -132,7 +131,6 @@ function BrandedCollectionContent() {
         if (isKurti) return { type: 'Kurti', hint: 'selfie', label: 'SELFIE', isApparel: true };
         if (isSaree) return { type: 'Fabric', hint: 'selfie', label: 'SELFIE', isApparel: true };
         
-        // Final fallback: General product, no clothing options
         return { type: 'General', hint: 'selfie', label: 'SELFIE', isApparel: false };
     };
 
@@ -319,6 +317,7 @@ function BrandedCollectionContent() {
                                 <div className="absolute top-2 right-2 z-20">
                                     <ProductGenee 
                                         product={{...product, price}} 
+                                        allProducts={products}
                                         storeName={magazine?.vendorTitle || magazine?.creatorName || 'Snazzify Store'} 
                                     />
                                 </div>

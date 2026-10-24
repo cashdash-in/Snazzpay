@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Suspense, useEffect, useState, useRef, useMemo } from 'react';
@@ -463,6 +462,7 @@ function SmartMagazineContent() {
                                         <div className="absolute top-2 right-2 z-20">
                                             <ProductGenee 
                                                 product={{...product, price}} 
+                                                allProducts={products}
                                                 storeName={magazine?.vendorTitle || magazine?.creatorName || 'Snazzify Store'} 
                                             />
                                         </div>

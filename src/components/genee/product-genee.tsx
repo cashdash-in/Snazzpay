@@ -1,11 +1,10 @@
-
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Sparkles, X, Send, User, Loader2, Star, ShoppingCart, ShieldCheck } from 'lucide-react';
+import { Sparkles, X, Send, User, Loader2, Star, ShoppingCart, ShieldCheck, Tag, Percent } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { askSiteAssistant } from '@/ai/flows/site-chatbot-flow';
 import Image from 'next/image';
@@ -16,6 +15,8 @@ import { useRouter } from 'next/navigation';
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+  recommendations?: any[];
+  bundleOffer?: string;
 }
 
 interface ProductGeneeProps {
@@ -25,18 +26,20 @@ interface ProductGeneeProps {
     description: string;
     price: number;
     imageDataUris: string[];
+    category?: string;
   };
+  allProducts: any[];
   storeName: string;
 }
 
-export function ProductGenee({ product, storeName }: ProductGeneeProps) {
+export function ProductGenee({ product, allProducts, storeName }: ProductGeneeProps) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([
     { 
         role: 'assistant', 
-        content: `Hi! I'm your ASK.ME Star Girl! ✨ Looking at this ${product.title}? It's amazing for just ₹${product.price}. Want to see more pics or add it to your cart?` 
+        content: `Hii! I'm your ASK.ME Star Girl! ✨ Looking at this ${product.title}? It's stunning for only ₹${product.price}. Want to see more from this collection or find something that matches?` 
     }
   ]);
   const [isLoading, setIsLoading] = useState(false);
@@ -62,15 +65,30 @@ export function ProductGenee({ product, storeName }: ProductGeneeProps) {
         storeName: storeName,
         persona: `You are the ASK.ME Star Girl, a cheerful, futuristic, and expert sales assistant. 
         You look like a star-themed holographic girl. Use emojis like ✨, ⭐, 🚀.
-        Focus on selling: "${product.title}" for ₹${product.price}. 
-        You can mention its features: ${product.description}. 
-        Always promote "Secure COD" as the safest way to buy. 
-        If the user asks to see more or buy, encourage them to click the buttons in the chat.`,
+        Focus on selling items from the provided catalog.
+        Always promote "Secure COD" as the safest way to buy.`,
         query: userMsg,
-        history: messages
+        catalog: allProducts.map(p => ({
+            id: p.id,
+            title: p.title,
+            description: p.description,
+            price: p.price || p.costPrice,
+            category: p.category || '',
+            image: p.imageDataUris[0]
+        })),
+        history: messages.map(m => ({ role: m.role, content: m.content }))
       });
 
-      setMessages(prev => [...prev, { role: 'assistant', content: response.answer }]);
+      const recs = response.recommendedProductIds 
+        ? allProducts.filter(p => response.recommendedProductIds?.includes(p.id))
+        : [];
+
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: response.answer,
+        recommendations: recs,
+        bundleOffer: response.bundleDiscountOffer
+      }]);
     } catch (error) {
       setMessages(prev => [...prev, { role: 'assistant', content: "My star-circuits are flickering! Can you try again? ✨" }]);
     } finally {
@@ -78,9 +96,9 @@ export function ProductGenee({ product, storeName }: ProductGeneeProps) {
     }
   };
 
-  const handleBuyNow = () => {
+  const handleBuyNow = (pId: string) => {
     const params = new URLSearchParams();
-    params.set('id', product.id);
+    params.set('id', pId);
     params.set('sellerName', storeName);
     router.push(`/catalogue?${params.toString()}`);
   };
@@ -107,8 +125,8 @@ export function ProductGenee({ product, storeName }: ProductGeneeProps) {
             </div>
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px] p-0 border-none overflow-hidden rounded-[32px] bg-white shadow-2xl">
-        <Card className="border-none shadow-none flex flex-col h-[600px]">
+      <DialogContent className="sm:max-w-[480px] p-0 border-none overflow-hidden rounded-[40px] bg-white shadow-2xl">
+        <Card className="border-none shadow-none flex flex-col h-[700px]">
           <CardHeader className="bg-slate-950 text-white p-6 relative shrink-0">
             <div className="flex justify-between items-center relative z-10">
               <div className="flex items-center gap-4">
@@ -126,7 +144,7 @@ export function ProductGenee({ product, storeName }: ProductGeneeProps) {
                     Star Girl <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" />
                   </CardTitle>
                   <p className="text-[10px] text-primary font-bold uppercase tracking-widest flex items-center gap-1">
-                      <ShieldCheck className="h-2.5 w-2.5" /> AI Shopping Pro
+                      <ShieldCheck className="h-2.5 w-2.5" /> AI Personal Shopper
                   </p>
                 </div>
               </div>
@@ -137,7 +155,7 @@ export function ProductGenee({ product, storeName }: ProductGeneeProps) {
             <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary to-transparent"></div>
           </CardHeader>
 
-          <CardContent className="flex-1 overflow-y-auto p-4 space-y-6 bg-slate-50/50" ref={scrollRef}>
+          <CardContent className="flex-1 overflow-y-auto p-6 space-y-8 bg-slate-50/50" ref={scrollRef}>
              <Card className="border-2 border-primary/20 bg-white overflow-hidden rounded-2xl shadow-sm">
                 <div className="flex gap-4 p-3">
                     <div className="relative h-20 w-20 rounded-xl border overflow-hidden shrink-0 bg-white">
@@ -145,12 +163,12 @@ export function ProductGenee({ product, storeName }: ProductGeneeProps) {
                     </div>
                     <div className="flex-1 flex flex-col justify-between">
                         <div>
-                            <p className="text-[10px] font-black uppercase text-slate-400">Viewing Product</p>
+                            <p className="text-[10px] font-black uppercase text-slate-400">Current View</p>
                             <p className="text-sm font-bold line-clamp-1">{product.title}</p>
                             <p className="text-lg font-black text-primary">₹{product.price}</p>
                         </div>
-                        <Button size="sm" onClick={handleBuyNow} className="h-8 rounded-lg font-black text-[10px] uppercase italic">
-                            <ShoppingCart className="mr-1 h-3 w-3" /> Add to Cart
+                        <Button size="sm" onClick={() => handleBuyNow(product.id)} className="h-8 rounded-lg font-black text-[10px] uppercase italic">
+                            <ShoppingCart className="mr-1 h-3 w-3" /> Buy Now
                         </Button>
                     </div>
                 </div>
@@ -158,21 +176,63 @@ export function ProductGenee({ product, storeName }: ProductGeneeProps) {
 
             {messages.map((m, i) => (
               <div key={i} className={cn(
-                "flex gap-3 max-w-[95%]",
-                m.role === 'user' ? "ml-auto flex-row-reverse" : "mr-auto"
+                "space-y-4",
+                m.role === 'user' ? "ml-auto max-w-[80%]" : "mr-auto max-w-[95%]"
               )}>
-                <div className={cn(
-                  "w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border-2",
-                  m.role === 'assistant' ? "bg-slate-950 border-primary shadow-lg animate-genee-flash" : "bg-primary text-white border-primary"
-                )}>
-                  {m.role === 'assistant' ? <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" /> : <User className="h-4 w-4" />}
+                <div className={cn("flex gap-3", m.role === 'user' ? "flex-row-reverse" : "")}>
+                    <div className={cn(
+                    "w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border-2",
+                    m.role === 'assistant' ? "bg-slate-950 border-primary shadow-lg animate-genee-flash" : "bg-primary text-white border-primary"
+                    )}>
+                    {m.role === 'assistant' ? <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" /> : <User className="h-4 w-4" />}
+                    </div>
+                    <div className={cn(
+                    "p-4 rounded-3xl text-sm shadow-sm leading-relaxed",
+                    m.role === 'assistant' ? "bg-white border-2 border-slate-100 text-slate-800 rounded-tl-none" : "bg-primary text-white rounded-tr-none font-medium shadow-md shadow-primary/20"
+                    )}>
+                    {m.content}
+                    </div>
                 </div>
-                <div className={cn(
-                  "p-4 rounded-3xl text-sm shadow-sm leading-relaxed",
-                  m.role === 'assistant' ? "bg-white border-2 border-slate-100 text-slate-800 rounded-tl-none" : "bg-primary text-white rounded-tr-none font-medium shadow-md shadow-primary/20"
-                )}>
-                  {m.content}
-                </div>
+
+                {m.recommendations && m.recommendations.length > 0 && (
+                    <div className="pl-11 space-y-4">
+                        <div className="flex items-center gap-2 text-[10px] font-black uppercase text-primary tracking-widest">
+                            <Sparkles className="h-3 w-3" /> Top Picks for You
+                        </div>
+                        <div className="flex gap-3 overflow-x-auto pb-4 pr-4 scrollbar-hide">
+                            {m.recommendations.map(p => (
+                                <Card key={p.id} className="min-w-[180px] w-[180px] rounded-2xl overflow-hidden shadow-sm border-2 hover:border-primary/50 transition-colors bg-white shrink-0">
+                                    <div className="relative aspect-square">
+                                        <Image src={p.imageDataUris[0]} alt={p.title} fill className="object-cover" unoptimized />
+                                        <div className="absolute top-2 right-2">
+                                            <Badge className="bg-white/90 text-primary font-black text-[9px]">₹{p.price || p.costPrice}</Badge>
+                                        </div>
+                                    </div>
+                                    <CardContent className="p-3 space-y-2">
+                                        <p className="text-[11px] font-bold truncate uppercase italic">{p.title}</p>
+                                        <Button size="sm" onClick={() => handleBuyNow(p.id)} className="w-full h-8 text-[9px] font-black uppercase italic rounded-lg">
+                                            Add to Cart
+                                        </Button>
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {m.bundleOffer && (
+                    <div className="pl-11">
+                        <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border-2 border-primary/20 p-5 rounded-[24px] shadow-sm flex items-start gap-4">
+                            <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center shadow-inner shrink-0">
+                                <Percent className="h-5 w-5 text-primary" />
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black uppercase text-primary mb-1 tracking-widest">Bundle & Save ✨</p>
+                                <p className="text-xs font-bold text-slate-800 leading-relaxed italic">"{m.bundleOffer}"</p>
+                            </div>
+                        </div>
+                    </div>
+                )}
               </div>
             ))}
             {isLoading && (
@@ -181,7 +241,7 @@ export function ProductGenee({ product, storeName }: ProductGeneeProps) {
                   <Loader2 className="h-4 w-4 text-white animate-spin" />
                 </div>
                 <div className="p-4 bg-white border-2 border-slate-100 rounded-3xl rounded-tl-none text-xs italic text-muted-foreground animate-pulse">
-                  Star Girl is thinking... ✨
+                  Star Girl is searching our vaults... ✨
                 </div>
               </div>
             )}
@@ -190,7 +250,7 @@ export function ProductGenee({ product, storeName }: ProductGeneeProps) {
           <CardFooter className="p-5 border-t bg-white shrink-0">
             <div className="flex w-full gap-2 bg-slate-100 p-1.5 rounded-[24px]">
               <Input 
-                placeholder="Ask me anything... ✨" 
+                placeholder="Ask me for matching jewelry... ✨" 
                 value={input} 
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSend()}
@@ -210,6 +270,13 @@ export function ProductGenee({ product, storeName }: ProductGeneeProps) {
         }
         .animate-spin-slow {
           animation: spin-slow 8s linear infinite;
+        }
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
         }
       `}</style>
     </Dialog>
