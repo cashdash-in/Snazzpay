@@ -265,7 +265,8 @@ export function ProductGenee({ product, allProducts, storeName, isOpen, onOpenCh
                                             <p className="text-center text-[11px] font-black text-slate-400 uppercase mt-8 flex items-center justify-center gap-3">
                                                 <ShieldCheck className="h-5 w-5 text-blue-500" /> Secured by SnazzPay Trust Wallet
                                             </p>
-                                        </>
+                                        </div>
+                                    </>
                                  )}
                             </div>
                         )}
@@ -294,7 +295,7 @@ export function ProductGenee({ product, allProducts, storeName, isOpen, onOpenCh
                         {messages.map((m, i) => (
                             <div key={i} className={cn("flex flex-col gap-3", m.role === 'user' ? "items-end" : "items-start")}>
                                 <div className={cn(
-                                    "max-w-[90%] p-5 rounded-[32px] text-[13px] leading-relaxed shadow-sm break-words overflow-wrap-anywhere border-2",
+                                    "max-w-[90%] p-5 rounded-[32px] text-[13px] shadow-sm break-words overflow-wrap-anywhere border-2",
                                     m.role === 'assistant' ? "bg-white text-slate-800 rounded-tl-none border-slate-100" : "bg-blue-500 text-white rounded-tr-none font-bold border-blue-400 shadow-blue-100"
                                 )}>
                                     {m.content}
