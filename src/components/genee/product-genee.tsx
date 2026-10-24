@@ -84,7 +84,7 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
   }, [cart]);
 
   const topSellers = useMemo(() => {
-    return allProducts.slice(0, 6);
+    return (allProducts || []).slice(0, 6);
   }, [allProducts]);
 
   const addToCart = (prod: any) => {
@@ -119,7 +119,7 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
             siteId: product.id,
             storeName: storeName,
             query: userMsg,
-            catalog: (allProducts || []).slice(0, 5).map(p => ({
+            catalog: (allProducts || []).slice(0, 10).map(p => ({
                 id: p.id,
                 title: p.title,
                 price: p.price || p.costPrice,
@@ -128,24 +128,24 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
         })
       });
       
+      if (!res.ok) throw new Error("API responded with error");
       const response = await res.json();
-      if (response.error) throw new Error(response.error);
 
       const recs = response.recommendedProductIds 
-        ? allProducts.filter(p => response.recommendedProductIds?.includes(p.id))
+        ? (allProducts || []).filter(p => response.recommendedProductIds?.includes(p.id))
         : [];
 
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: response.answer,
+        content: response.answer || "I found some great options! What else can I help you find? ✨",
         recommendations: recs,
         externalRecommendations: response.externalRecommendations,
         bundleOffer: response.bundleDiscountOffer,
         searchSuggestions: response.searchSuggestions
       }]);
     } catch (error) {
-      console.error("Genee API Error:", error);
-      setMessages(prev => [...prev, { role: 'assistant', content: "My star-circuits are stabilizing! ✨ What else can I help you find in our catalog?" }]);
+      console.error("Genee Chat Error:", error);
+      setMessages(prev => [...prev, { role: 'assistant', content: "I'm recalibrating my star-sensors! ✨ How else can I help you browse our catalog?" }]);
     } finally {
       setIsLoading(false);
     }
@@ -216,14 +216,14 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
 
                     {messages.map((m, i) => (
                     <div key={i} className={cn("space-y-4 w-full flex flex-col overflow-hidden", m.role === 'user' ? "items-end" : "items-start")}>
-                        <div className={cn("flex gap-3 w-full max-w-[95%] items-end", m.role === 'user' ? "flex-row-reverse" : "flex-row")}>
+                        <div className={cn("flex gap-3 w-full max-w-[98%] items-end", m.role === 'user' ? "flex-row-reverse" : "flex-row")}>
                             <div className={cn("w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border-2", m.role === 'assistant' ? "bg-slate-950 border-primary animate-genee-flash" : "bg-primary text-white border-primary")}>
                                 {m.role === 'assistant' ? <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" /> : <User className="h-4 w-4" />}
                             </div>
                             <div className={cn(
-                                "p-3.5 rounded-[24px] text-[12px] shadow-sm leading-relaxed whitespace-pre-wrap break-words overflow-hidden", 
+                                "p-3 rounded-[24px] text-[12px] shadow-sm leading-relaxed whitespace-pre-wrap overflow-wrap-anywhere", 
                                 m.role === 'assistant' ? "bg-white border-2 border-slate-100 text-slate-800 rounded-tl-none" : "bg-primary text-white rounded-tr-none font-medium shadow-md shadow-primary/20"
-                            )} style={{ wordBreak: 'break-word', maxWidth: 'calc(100% - 48px)' }}>
+                            )} style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
                                 {m.content}
                             </div>
                         </div>
@@ -277,10 +277,13 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
                         )}
 
                         {m.bundleOffer && (
-                            <div className="pl-11 w-full overflow-hidden">
-                                <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border-2 border-primary/20 p-5 rounded-[24px] shadow-sm flex items-start gap-4 mr-4">
+                            <div className="pl-11 w-full overflow-hidden pr-4">
+                                <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border-2 border-primary/20 p-5 rounded-[24px] shadow-sm flex items-start gap-4">
                                     <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center shrink-0"><Percent className="h-5 w-5 text-primary" /></div>
-                                    <div className="flex-1 min-w-0"><p className="text-[10px] font-black uppercase text-primary mb-1 tracking-widest">Bundle & Save ✨</p><p className="text-xs font-bold text-slate-800 italic break-words">"{m.bundleOffer}"</p></div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-[10px] font-black uppercase text-primary mb-1 tracking-widest">Bundle & Save ✨</p>
+                                        <p className="text-xs font-bold text-slate-800 italic overflow-wrap-anywhere whitespace-normal">"{m.bundleOffer}"</p>
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -301,7 +304,7 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
                 <TabsContent value="sellers" className="h-full m-0 p-6">
                     <div className="space-y-6">
                          <div className="flex items-center justify-between">
-                            <h3 className="text-lg font-black italic uppercase tracking-tighter">Popular in {storeName}</h3>
+                            <h3 className="text-lg font-black italic uppercase tracking-tighter">Popular Items</h3>
                             <Badge variant="outline" className="text-[10px] uppercase font-bold">Trending Now</Badge>
                          </div>
                          <div className="grid grid-cols-2 gap-4">
@@ -355,7 +358,7 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
                                                 <p className="text-[10px] font-bold text-muted-foreground">Qty: {item.quantity}</p>
                                                 <p className="text-sm font-black text-primary">₹{(item.product.price || item.product.costPrice) * item.quantity}</p>
                                             </div>
-                                            <Badge className="text-[8px] h-4 bg-green-100 text-green-700 border-none">Ready to Ship</Badge>
+                                            <Badge className="text-[8px] h-4 bg-green-100 text-green-700 border-none">Ready</Badge>
                                         </div>
                                     </div>
                                 </Card>
@@ -370,10 +373,6 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
                                     <span className="text-xs font-bold text-muted-foreground uppercase">Subtotal</span>
                                     <span className="font-black text-lg">₹{cartTotal.toFixed(2)}</span>
                                 </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-xs font-bold text-green-600 uppercase">Secure COD Discount</span>
-                                    <span className="font-black text-xs text-green-600">Calculated at Checkout</span>
-                                </div>
                                 <div className="flex justify-between items-center mt-4 pt-4 border-t border-slate-200">
                                     <span className="font-black uppercase italic text-sm">Total Value</span>
                                     <span className="text-3xl font-black text-primary tracking-tighter">₹{cartTotal.toFixed(2)}</span>
@@ -383,7 +382,7 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
                                 <Zap className="fill-current" /> Confirm Order & Checkout
                             </Button>
                             <div className="flex items-center justify-center gap-3 text-[10px] font-black uppercase text-slate-400 tracking-widest">
-                                <ShieldCheck className="h-4 w-4" /> Secure COD via SnazzPay Trust Wallet
+                                <ShieldCheck className="h-4 w-4" /> Secure COD via SnazzPay
                             </div>
                         </div>
                     )}
@@ -400,10 +399,10 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
                         value={input} 
                         onChange={e => setInput(e.target.value)}
                         onKeyDown={e => e.key === 'Enter' && handleSend()}
-                        className="bg-transparent border-none focus-visible:ring-0 placeholder:text-slate-400 font-bold"
+                        className="bg-transparent border-none focus-visible:ring-0 placeholder:text-slate-400 font-bold h-10"
                     />
-                    <Button size="icon" onClick={() => handleSend()} disabled={isLoading || !input.trim()} className="rounded-full h-12 w-12 shadow-xl bg-slate-950 hover:bg-slate-900 transition-transform active:scale-90">
-                        <Send className="h-5 w-5" />
+                    <Button size="icon" onClick={() => handleSend()} disabled={isLoading || !input.trim()} className="rounded-full h-10 w-10 shadow-xl bg-slate-950 hover:bg-slate-900 transition-transform active:scale-90">
+                        <Send className="h-4 w-4" />
                     </Button>
                 </div>
                 <p className="text-[9px] text-center font-black uppercase tracking-widest text-slate-400">Powered by Snazzify Discovery AI</p>
