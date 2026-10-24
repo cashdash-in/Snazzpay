@@ -120,16 +120,15 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
         persona: `You are the ASK.ME Star Girl, an expert high-tech sales search engine. 
         Focus on selling items and finding matches. Use emojis like ✨, ⭐, 🚀.`,
         query: userMsg,
-        // Passing optimized catalog context
-        catalog: (allProducts || []).slice(0, 20).map(p => ({
+        catalog: (allProducts || []).slice(0, 15).map(p => ({
             id: p.id,
             title: p.title,
-            description: p.description.substring(0, 100),
+            description: p.description.substring(0, 60),
             price: p.price || p.costPrice,
             category: p.category || '',
             image: (p.imageDataUris || [])[0]
         })),
-        history: messages.slice(-5).map(m => ({ role: m.role, content: m.content }))
+        history: messages.slice(-4).map(m => ({ role: m.role, content: m.content }))
       });
 
       const recs = response.recommendedProductIds 
@@ -146,7 +145,7 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
       }]);
     } catch (error) {
       console.error("Genee Component Error:", error);
-      setMessages(prev => [...prev, { role: 'assistant', content: "My star-circuits are flickering! Can you try searching again? ✨" }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: "My star-circuits are flickering slightly! I'm still here to help. What can I find for you? ✨" }]);
     } finally {
       setIsLoading(false);
     }
@@ -186,21 +185,20 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="icon" onClick={() => setActiveTab('cart')} className="relative text-white hover:bg-white/10 rounded-full">
+                  <Button variant="ghost" size="icon" onClick={() => setActiveTab('cart')} className="relative text-white hover:bg-white/10 rounded-full h-11 w-11">
                     <ShoppingCart className="h-6 w-6" />
-                    {cart.length > 0 && <Badge className="absolute -top-1 -right-1 h-5 w-5 bg-primary text-white p-0 flex items-center justify-center rounded-full animate-bounce">{cart.length}</Badge>}
+                    {cart.length > 0 && <Badge className="absolute -top-1 -right-1 h-5 w-5 bg-primary text-white p-0 flex items-center justify-center rounded-full animate-bounce text-[10px] border-none">{cart.length}</Badge>}
                   </Button>
-                  <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)} className="text-white hover:bg-white/10 rounded-full">
+                  <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)} className="text-white hover:bg-white/10 rounded-full h-11 w-11">
                     <X className="h-6 w-6" />
                   </Button>
               </div>
             </div>
             
             <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-6">
-                <TabsList className="bg-white/10 p-1 rounded-full grid grid-cols-3">
+                <TabsList className="bg-white/10 p-1 rounded-full grid grid-cols-2">
                     <TabsTrigger value="chat" className="rounded-full text-[10px] font-black uppercase data-[state=active]:bg-primary data-[state=active]:text-white">AI Search</TabsTrigger>
                     <TabsTrigger value="sellers" className="rounded-full text-[10px] font-black uppercase data-[state=active]:bg-primary data-[state=active]:text-white">Top Sellers</TabsTrigger>
-                    <TabsTrigger value="cart" className="rounded-full text-[10px] font-black uppercase data-[state=active]:bg-primary data-[state=active]:text-white">My Cart ({cart.length})</TabsTrigger>
                 </TabsList>
             </Tabs>
           </CardHeader>
@@ -223,7 +221,7 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
                                 {m.role === 'assistant' ? <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" /> : <User className="h-4 w-4" />}
                             </div>
                             <div className={cn(
-                                "p-3.5 rounded-[24px] text-[13px] shadow-sm leading-relaxed whitespace-pre-wrap break-words overflow-hidden", 
+                                "p-3.5 rounded-[24px] text-[13px] shadow-sm leading-relaxed whitespace-pre-wrap break-words overflow-hidden max-w-full", 
                                 m.role === 'assistant' ? "bg-white border-2 border-slate-100 text-slate-800 rounded-tl-none mr-4" : "bg-primary text-white rounded-tr-none font-medium shadow-md shadow-primary/20 ml-4"
                             )}>
                                 {m.content}
@@ -239,7 +237,7 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
                         )}
 
                         {m.recommendations && m.recommendations.length > 0 && (
-                            <div className="pl-11 space-y-3 w-full">
+                            <div className="pl-11 space-y-3 w-full overflow-hidden">
                                 <div className="flex items-center gap-2 text-[10px] font-black uppercase text-primary tracking-widest"><TrendingUp className="h-3 w-3" /> Internal Match Engine</div>
                                 <div className="flex gap-3 overflow-x-auto pb-4 pr-4 scrollbar-hide">
                                     {m.recommendations.map(p => (
@@ -259,7 +257,7 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
                         )}
 
                         {m.externalRecommendations && m.externalRecommendations.length > 0 && (
-                            <div className="pl-11 space-y-3 w-full">
+                            <div className="pl-11 space-y-3 w-full overflow-hidden">
                                 <div className="flex items-center gap-2 text-[10px] font-black uppercase text-indigo-600 tracking-widest"><Globe className="h-3 w-3" /> Live from Snazzify Global</div>
                                 <div className="flex gap-3 overflow-x-auto pb-4 pr-4 scrollbar-hide">
                                     {m.externalRecommendations.map((p, idx) => (
@@ -279,10 +277,10 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
                         )}
 
                         {m.bundleOffer && (
-                            <div className="pl-11 w-full">
+                            <div className="pl-11 w-full overflow-hidden">
                                 <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border-2 border-primary/20 p-5 rounded-[24px] shadow-sm flex items-start gap-4 mr-4">
                                     <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center shrink-0"><Percent className="h-5 w-5 text-primary" /></div>
-                                    <div className="flex-1"><p className="text-[10px] font-black uppercase text-primary mb-1 tracking-widest">Bundle & Save ✨</p><p className="text-xs font-bold text-slate-800 italic break-words">"{m.bundleOffer}"</p></div>
+                                    <div className="flex-1 min-w-0"><p className="text-[10px] font-black uppercase text-primary mb-1 tracking-widest">Bundle & Save ✨</p><p className="text-xs font-bold text-slate-800 italic break-words">"{m.bundleOffer}"</p></div>
                                 </div>
                             </div>
                         )}
@@ -347,9 +345,9 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
                                     <div className="relative h-20 w-20 rounded-xl border overflow-hidden shrink-0 bg-white">
                                         <Image src={item.product.imageDataUris[0]} alt={item.product.title} fill className="object-cover" unoptimized />
                                     </div>
-                                    <div className="flex-1 flex flex-col justify-between py-1">
+                                    <div className="flex-1 flex flex-col justify-between py-1 min-w-0">
                                         <div className="flex justify-between items-start">
-                                            <p className="font-bold text-xs uppercase line-clamp-1">{item.product.title}</p>
+                                            <p className="font-bold text-xs uppercase line-clamp-1 truncate">{item.product.title}</p>
                                             <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeFromCart(item.product.id)}><Trash2 className="h-3 w-3" /></Button>
                                         </div>
                                         <div className="flex justify-between items-end">

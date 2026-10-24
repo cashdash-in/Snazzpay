@@ -61,6 +61,8 @@ const searchSnazzifyGlobal = ai.defineTool(
   async (input) => {
     try {
         const allProducts = await fetchLiveSnazzifyProducts();
+        if (!allProducts || allProducts.length === 0) return [];
+        
         const searchLower = input.searchTerm.toLowerCase();
         return allProducts.filter(p => 
             p.title.toLowerCase().includes(searchLower) ||
@@ -80,23 +82,23 @@ const siteChatbotFlow = ai.defineFlow(
     outputSchema: SiteChatbotOutputSchema,
   },
   async (input) => {
+    // We construct the prompt carefully to avoid overwhelming the model
     const systemPrompt = `You are the "Discovery Engine" for "${input.storeName}". 
-    Your mission is to find the PERFECT products for the user and maximize conversion.
+    Your mission is to find the PERFECT products for the user.
 
     SEARCH STRATEGY:
-    1. LOCAL FIRST: Search the LOCAL CATALOG (provided context below) for matches.
-    2. GLOBAL SECOND: If no perfect matches exist locally, use 'searchSnazzifyGlobal' to fetch live results from our main inventory.
-    3. UP-SELL: For every main item, suggest a matching accessory (e.g., matching shoes for a dress) and mention a "5% Bundle Discount".
-    4. TRUST: Promote "Secure COD" (payment held in trust, released on dispatch) and "Shakti Card" rewards.
+    1. LOCAL FIRST: Search the LOCAL CATALOG (context below) for matches.
+    2. GLOBAL SECOND: Use 'searchSnazzifyGlobal' ONLY if no local matches exist.
+    3. UP-SELL: Mention a "5% Bundle Discount" for matching accessories.
+    4. TRUST: Promote "Secure COD" and "Shakti Card".
 
-    CATALOG CONTEXT:
-    ${input.catalog ? JSON.stringify(input.catalog) : 'No local products provided.'}
+    LOCAL CATALOG:
+    ${input.catalog ? JSON.stringify(input.catalog) : 'No local products.'}
 
-    INTERACTION STYLE:
-    - Be energetic, Star-Girl themed, and extremely helpful.
+    STYLE:
     - Use emojis ✨, ⭐, 🚀.
-    - Provide 3-4 "searchSuggestions" related to the query.
-    - Always aim to get the user to click "Buy Now".`;
+    - Be brief and helpful.
+    - Provide searchSuggestions for quick clicking.`;
 
     try {
         const { output } = await ai.generate({
@@ -108,20 +110,19 @@ const siteChatbotFlow = ai.defineFlow(
         });
 
         if (!output) {
-            return {
-                answer: "I found some great results for you! Take a look ✨",
-                recommendedProductIds: input.catalog?.slice(0, 2).map(p => p.id),
-                searchSuggestions: ["Tell me more", "Show categories"]
+             return {
+                answer: "I found some great options for you! ✨",
+                recommendedProductIds: (input.catalog || []).slice(0, 2).map(p => p.id),
+                searchSuggestions: ["Tell me more", "How do I buy?"]
             };
         }
 
         return output;
     } catch (error: any) {
         console.error("Site Chatbot Flow Error:", error);
-        // Fallback response instead of throwing to prevent component crash
         return {
-            answer: "My star-circuits are flickering slightly! I'm still here to help. What can I find for you? ✨",
-            searchSuggestions: ["New Arrivals", "Secure COD Info"]
+            answer: "I'm here to help! Let me look into that for you. What else can I find? ✨",
+            searchSuggestions: ["New Arrivals", "Best Sellers"]
         };
     }
   }
