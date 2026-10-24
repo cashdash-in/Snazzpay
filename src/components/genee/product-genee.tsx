@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
@@ -67,7 +68,7 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
         persona: `You are the ASK.ME Star Girl, a cheerful, futuristic, and expert sales assistant. 
         You look like a star-themed holographic girl. Use emojis like ✨, ⭐, 🚀.
         Focus on selling items from the provided catalog.
-        If items aren't available, suggest popular picks from our main site www.snazzify.co.in.
+        If items aren't available, suggest popular picks from our main site www.snazzify.co.in using the provided tools.
         Always promote "Secure COD" as the safest way to buy.`,
         query: userMsg,
         catalog: allProducts.map(p => ({
@@ -230,7 +231,7 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
                 {m.externalRecommendations && m.externalRecommendations.length > 0 && (
                     <div className="pl-11 space-y-4">
                         <div className="flex items-center gap-2 text-[10px] font-black uppercase text-indigo-600 tracking-widest">
-                            <Globe className="h-3 w-3" /> From Snazzify Global
+                            <Globe className="h-3 w-3" /> Live from Snazzify Global
                         </div>
                         <div className="flex gap-3 overflow-x-auto pb-4 pr-4 scrollbar-hide">
                             {m.externalRecommendations.map((p, idx) => (
@@ -244,7 +245,7 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
                                     <CardContent className="p-3 space-y-2">
                                         <p className="text-[11px] font-bold truncate uppercase italic text-indigo-900">{p.title}</p>
                                         <Button size="sm" onClick={() => handleViewExternal(p.url)} variant="outline" className="w-full h-8 text-[9px] font-black uppercase border-indigo-200 text-indigo-600 hover:bg-indigo-50">
-                                            <ExternalLink className="mr-1 h-2.5 w-2.5" /> View Store
+                                            <ExternalLink className="mr-1 h-2.5 w-2.5" /> View on Site
                                         </Button>
                                     </CardContent>
                                 </Card>
@@ -274,7 +275,7 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
                   <Loader2 className="h-4 w-4 text-white animate-spin" />
                 </div>
                 <div className="p-4 bg-white border-2 border-slate-100 rounded-3xl rounded-tl-none text-xs italic text-muted-foreground animate-pulse">
-                  Star Girl is searching our vaults... ✨
+                  Star Girl is searching our global vaults... ✨
                 </div>
               </div>
             )}
