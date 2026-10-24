@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState, useRef, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, ShoppingCart, Percent, MessageCircle, Send, Sparkles, Camera, ImagePlus, RefreshCcw, ShieldCheck, Share2, Download, Facebook, Instagram, Store } from 'lucide-react';
+import { Loader2, ShoppingCart, Percent, MessageCircle, Send, Sparkles, Camera, ImagePlus, RefreshCcw, ShieldCheck, Share2, Download, Facebook, Instagram, Store, Star } from 'lucide-react';
 import Image from 'next/image';
 import type { SellerProduct } from '../seller/ai-product-uploader/page';
 import { getCollection, getDocument, saveDocument } from '@/services/firestore';
@@ -95,7 +95,7 @@ function SmartMagazineContent() {
                 }
                 setMagazine(fetchedMagazine);
                 
-                const productIds = fetchedMagazine.productIds;
+                const productIds = fetchedMagazine.productIds || [];
                 if (productIds.length === 0) {
                     setIsLoading(false);
                     return;
@@ -107,8 +107,8 @@ function SmartMagazineContent() {
                 ]);
                 
                 const productMap = new Map<string, DisplayProduct>();
-                sellerProducts.forEach(p => productMap.set(p.id, p));
-                productDrops.forEach(p => productMap.set(p.id, p));
+                (sellerProducts || []).forEach(p => productMap.set(p.id, p));
+                (productDrops || []).forEach(p => productMap.set(p.id, p));
 
                 const fetched = productIds.map(id => productMap.get(id)).filter(p => !!p) as DisplayProduct[];
                 setProducts(fetched);
@@ -308,7 +308,7 @@ function SmartMagazineContent() {
                             {tryOnProductId === mainProduct.id && tryOnResult ? (
                                 <Image src={tryOnResult} fill alt="Virtual Look" className="object-cover animate-in fade-in duration-700" unoptimized />
                             ) : (
-                                <Image src={mainProduct.imageDataUris[0]} fill alt={mainProduct.title} className="object-cover" unoptimized />
+                                <Image src={(mainProduct.imageDataUris || [])[0]} fill alt={mainProduct.title} className="object-cover" unoptimized />
                             )}
                             {isTryOnLoading && tryOnProductId === mainProduct.id && (
                                 <div className="absolute inset-0 bg-black/60 backdrop-blur-md flex flex-col items-center justify-center text-center p-8 gap-4">
@@ -429,7 +429,7 @@ function SmartMagazineContent() {
                 <div className="space-y-6">
                     <h3 className="text-2xl font-black italic uppercase tracking-tighter text-slate-400 border-b pb-4">Browse Collection</h3>
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
-                        {products.map(product => {
+                        {(products || []).map(product => {
                             const price = (product as any).price || (product as any).costPrice;
                             const ctx = getProductContext(product);
                             const isProductTryOn = tryOnProductId === product.id;
@@ -442,7 +442,7 @@ function SmartMagazineContent() {
                                         {isProductTryOn && tryOnResult ? (
                                             <Image src={tryOnResult} fill alt="Try On" className="object-cover animate-in fade-in duration-500" unoptimized />
                                         ) : (
-                                            <Image src={product.imageDataUris[0]} fill alt={product.title} className="object-cover transition-transform duration-700 group-hover:scale-105" unoptimized />
+                                            <Image src={(product.imageDataUris || [])[0]} fill alt={product.title} className="object-cover transition-transform duration-700 group-hover:scale-105" unoptimized />
                                         )}
                                         
                                         {isProductTryOn && isTryOnLoading && (
@@ -462,7 +462,7 @@ function SmartMagazineContent() {
 
                                         {discount > 0 && <Badge className="absolute top-4 right-4 bg-destructive text-white font-black italic">-{discount}%</Badge>}
                                         
-                                        <div className="absolute top-2 right-2 z-20">
+                                        <div className="absolute top-4 right-4 z-20">
                                             <ProductGenee 
                                                 product={{...product, price}} 
                                                 allProducts={products}

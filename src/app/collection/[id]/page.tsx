@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, ShoppingCart, MessageCircle, Sparkles, Camera, ImagePlus, RefreshCcw, Download, Store, Share2, ArrowLeft, ShieldCheck } from 'lucide-react';
+import { Loader2, ShoppingCart, MessageCircle, Sparkles, Camera, ImagePlus, RefreshCcw, Download, Store, Share2, ArrowLeft, ShieldCheck, Star } from 'lucide-react';
 import Image from 'next/image';
 import type { SellerProduct } from '@/types/product';
 import { getCollection, getDocument, saveDocument } from '@/services/firestore';
@@ -86,7 +86,7 @@ function BrandedCollectionContent() {
                 if (!fetchedMagazine) { setIsLoading(false); return; }
                 setMagazine(fetchedMagazine);
                 
-                const productIds = fetchedMagazine.productIds;
+                const productIds = fetchedMagazine.productIds || [];
                 if (productIds.length === 0) { setIsLoading(false); return; }
                 
                 const [sellerProducts, productDrops] = await Promise.all([
@@ -95,8 +95,8 @@ function BrandedCollectionContent() {
                 ]);
                 
                 const productMap = new Map<string, DisplayProduct>();
-                sellerProducts.forEach(p => productMap.set(p.id, p));
-                productDrops.forEach(p => productMap.set(p.id, p));
+                (sellerProducts || []).forEach(p => productMap.set(p.id, p));
+                (productDrops || []).forEach(p => productMap.set(p.id, p));
 
                 const fetched = productIds.map(id => productMap.get(id)).filter(p => !!p) as DisplayProduct[];
                 setProducts(fetched);
@@ -269,7 +269,7 @@ function BrandedCollectionContent() {
 
             <main className="max-w-7xl mx-auto p-4 md:p-10 space-y-10">
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                    {products.map(product => {
+                    {(products || []).map(product => {
                          const price = ((product as any).price || (product as any).costPrice);
                          const discountedPrice = discount > 0 ? price - (price * (discount / 100)) : price;
                          const ctx = getProductContext(product);
@@ -285,7 +285,7 @@ function BrandedCollectionContent() {
                                 ) : (
                                     <Carousel className="w-full h-full relative group/carousel">
                                         <CarouselContent>
-                                            {product.imageDataUris.map((uri, index) => (
+                                            {(product.imageDataUris || []).map((uri, index) => (
                                                 <CarouselItem key={index}>
                                                     <div className="relative w-full h-48 sm:h-64">
                                                         <Image src={uri} alt={product.title} fill className="object-cover" unoptimized />
@@ -293,7 +293,7 @@ function BrandedCollectionContent() {
                                                 </CarouselItem>
                                             ))}
                                         </CarouselContent>
-                                        {product.imageDataUris.length > 1 && (
+                                        {product.imageDataUris && product.imageDataUris.length > 1 && (
                                             <>
                                                 <CarouselPrevious className="absolute left-2 top-1/2 -translate-y-1/2 opacity-0 group-hover/carousel:opacity-100 transition-opacity" />
                                                 <CarouselNext className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover/carousel:opacity-100 transition-opacity" />
@@ -317,7 +317,7 @@ function BrandedCollectionContent() {
                                     </div>
                                 )}
 
-                                <div className="absolute top-2 right-2 z-20">
+                                <div className="absolute top-4 right-4 z-20">
                                     <ProductGenee 
                                         product={{...product, price}} 
                                         allProducts={products}

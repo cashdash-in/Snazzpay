@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
@@ -12,6 +11,7 @@ import Image from 'next/image';
 import placeholders from '@/app/lib/placeholder-images.json';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useRouter } from 'next/navigation';
+import { Badge } from '@/components/ui/badge';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -71,13 +71,13 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
         If items aren't available, suggest popular picks from our main site www.snazzify.co.in using the provided tools.
         Always promote "Secure COD" as the safest way to buy.`,
         query: userMsg,
-        catalog: allProducts.map(p => ({
+        catalog: (allProducts || []).map(p => ({
             id: p.id,
             title: p.title,
             description: p.description,
             price: p.price || p.costPrice,
             category: p.category || '',
-            image: p.imageDataUris[0]
+            image: (p.imageDataUris || [])[0]
         })),
         history: messages.map(m => ({ role: m.role, content: m.content }))
       });
@@ -114,31 +114,9 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <div className="relative group cursor-pointer flex flex-col items-center">
-            {/* Bold Flashing Label */}
-            <div className="absolute -top-10 left-1/2 -translate-x-1/2 whitespace-nowrap bg-white border-2 border-primary rounded-full px-3 py-1 shadow-lg animate-genee-flash z-30">
-                <span className="text-[10px] font-black uppercase italic tracking-tighter text-primary">ASK ME GENEE</span>
-            </div>
-
-            <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-12 w-12 rounded-full relative hover:bg-primary/10"
-                title="Ask Star Girl about this product"
-            >
-                <div className="absolute inset-0 bg-primary/30 rounded-full blur-xl animate-genee-flash"></div>
-                <div className="relative h-full w-full flex items-center justify-center">
-                    <Image 
-                        src={placeholders.geneeHologram.src} 
-                        alt="Star Girl" 
-                        fill 
-                        className="object-cover p-1 mix-blend-screen brightness-125 z-10 animate-pulse"
-                        unoptimized
-                    />
-                    <Star className="absolute top-0 right-0 h-4 w-4 text-yellow-400 fill-yellow-400 animate-spin-slow z-20" />
-                </div>
-            </Button>
-        </div>
+        <Badge className="bg-white/90 text-primary font-black italic text-[9px] px-3 py-1 rounded-full shadow-lg flex items-center gap-1 animate-pulse cursor-pointer border-2 border-primary/20 transition-transform hover:scale-105 active:scale-95">
+            <Star className="h-2 w-2 fill-primary" /> ASK ME
+        </Badge>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[480px] p-0 border-none overflow-hidden rounded-[40px] bg-white shadow-2xl">
         <Card className="border-none shadow-none flex flex-col h-[700px]">
@@ -174,7 +152,7 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
              <Card className="border-2 border-primary/20 bg-white overflow-hidden rounded-2xl shadow-sm">
                 <div className="flex gap-4 p-3">
                     <div className="relative h-20 w-20 rounded-xl border overflow-hidden shrink-0 bg-white">
-                        <Image src={product.imageDataUris[0]} alt={product.title} fill className="object-cover" unoptimized />
+                        <Image src={(product.imageDataUris || [])[0] || placeholders.heroPlaceholder.src} alt={product.title} fill className="object-cover" unoptimized />
                     </div>
                     <div className="flex-1 flex flex-col justify-between">
                         <div>
@@ -189,7 +167,7 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
                 </div>
              </Card>
 
-            {messages.map((m, i) => (
+            {(messages || []).map((m, i) => (
               <div key={i} className={cn(
                 "space-y-4",
                 m.role === 'user' ? "ml-auto max-w-[80%]" : "mr-auto max-w-[95%]"
@@ -216,9 +194,9 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
                         </div>
                         <div className="flex gap-3 overflow-x-auto pb-4 pr-4 scrollbar-hide">
                             {m.recommendations.map(p => (
-                                <Card key={p.id} className="min-w-[180px] w-[180px] rounded-2xl overflow-hidden shadow-sm border-2 hover:border-primary/50 transition-colors bg-white shrink-0">
+                                <Card key={p.id} className="min-w-[180px] w-[180px] rounded-2xl overflow-hidden shadow-sm border-2 border-slate-100 hover:border-primary/50 transition-colors bg-white shrink-0">
                                     <div className="relative aspect-square">
-                                        <Image src={p.imageDataUris[0]} alt={p.title} fill className="object-cover" unoptimized />
+                                        <Image src={(p.imageDataUris || [])[0] || placeholders.heroPlaceholder.src} alt={p.title} fill className="object-cover" unoptimized />
                                         <div className="absolute top-2 right-2">
                                             <Badge className="bg-white/90 text-primary font-black text-[9px]">₹{p.price || p.costPrice}</Badge>
                                         </div>
@@ -244,7 +222,7 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
                             {m.externalRecommendations.map((p, idx) => (
                                 <Card key={idx} className="min-w-[180px] w-[180px] rounded-2xl overflow-hidden shadow-sm border-2 border-indigo-100 hover:border-indigo-300 transition-colors bg-white shrink-0">
                                     <div className="relative aspect-square">
-                                        <Image src={p.imageUrl} alt={p.title} fill className="object-cover" unoptimized />
+                                        <Image src={p.imageUrl || placeholders.heroPlaceholder.src} alt={p.title} fill className="object-cover" unoptimized />
                                         <div className="absolute top-2 right-2">
                                             <Badge className="bg-indigo-600 text-white font-black text-[9px]">₹{p.price}</Badge>
                                         </div>
@@ -279,7 +257,7 @@ export function ProductGenee({ product, allProducts, storeName }: ProductGeneePr
             {isLoading && (
               <div className="flex gap-3 mr-auto max-w-[80%]">
                 <div className="w-8 h-8 rounded-xl bg-slate-950 border-2 border-primary flex items-center justify-center shrink-0 shadow-lg animate-genee-flash">
-                  <Loader2 className="h-4 w-4 text-white animate-spin" />
+                  <Star className="h-4 w-4 text-yellow-400 animate-spin" />
                 </div>
                 <div className="p-4 bg-white border-2 border-slate-100 rounded-3xl rounded-tl-none text-xs italic text-muted-foreground animate-pulse">
                   Star Girl is searching our global vaults... ✨
