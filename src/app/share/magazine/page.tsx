@@ -98,8 +98,13 @@ export default function ShareMagazinePage() {
                     setVendorTitle(settings.companyName || settings.name || '');
                 }
 
-            } catch (error) {
-                toast({ variant: 'destructive', title: "Error loading products" });
+            } catch (error: any) {
+                console.error("Magazine loadData error:", error);
+                toast({ 
+                    variant: 'destructive', 
+                    title: "Fetch Error", 
+                    description: "Could not load products. Please check if your account has permission." 
+                });
             } finally {
                 setIsLoading(false);
             }

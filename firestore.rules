@@ -2,9 +2,8 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // This is an open rule for development.
-    // It allows any client to read and write to the entire database.
-    // We will secure this later.
+    // Open rules for development to resolve "Error loading products" and other access issues.
+    // Ensure all collections (product_drops, leads, orders, etc.) are accessible.
     match /{document=**} {
       allow read, write: if true;
     }
