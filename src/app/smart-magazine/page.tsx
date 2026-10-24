@@ -25,7 +25,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { v4 as uuidv4 } from 'uuid';
 import { useToast } from '@/hooks/use-toast';
-import { virtualTryOn } from '@/ai/flows/virtual-try-on';
 import { cn, sanitizePhoneNumber } from '@/lib/utils';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { ProductGenee } from '@/components/genee/product-genee';
@@ -113,7 +112,7 @@ function SmartMagazineContent() {
         const cat = (p.category || '').toLowerCase();
         
         const isWatch = title.includes('watch') || cat.includes('watch');
-        const isShoes = title.includes('shoe') || title.includes('sneaker') || title.includes('sandal') || title.includes('heel') || title.includes('bondi') || title.includes('clifton') || title.includes('hoka') || cat.includes('footwear') || cat.includes('shoe') || cat.includes('sneaker');
+        const isShoes = title.includes('shoe') || title.includes('sandal') || title.includes('sneaker') || title.includes('footwear');
         const isEyewear = title.includes('glass') || title.includes('shade') || title.includes('spectacle') || cat.includes('eyewear') || cat.includes('glass');
         
         const isShirt = (title.includes('shirt') || title.includes('t-shirt') || cat.includes('shirt') || cat.includes('top')) && !title.includes('dress');
@@ -132,42 +131,6 @@ function SmartMagazineContent() {
         if (isSkirt) return { type: 'Western Wear', hint: 'selfie', label: 'SELFIE', isApparel: true };
         
         return { type: 'General', hint: 'selfie', label: 'SELFIE', isApparel: false };
-    };
-
-    const handleTryOnUpload = async (e: React.ChangeEvent<HTMLInputElement>, product: DisplayProduct) => {
-        if (!hasConsented) { toast({ variant: 'destructive', title: "Consent Required" }); return; }
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        setIsTryOnLoading(true);
-        setTryOnResult(null);
-        setTryOnProductId(product.id);
-        
-        const ctx = getProductContext(product);
-
-        try {
-            const [personUri, productUri] = await Promise.all([
-                resizeImageForAI(file),
-                resizeImageForAI(product.imageDataUris[0])
-            ]);
-            
-            const result = await virtualTryOn({
-                personImageDataUri: personUri,
-                productImageDataUri: productUri,
-                productTitle: product.title,
-                garmentType: ctx.type as any,
-                drapeStyle: selectedDrapeStyle,
-                sleeveLength: selectedSleeves
-            });
-            
-            setTryOnResult(result.generatedImageDataUri);
-        } catch (err: any) {
-            toast({ variant: 'destructive', title: "Try-On Failed", description: err.message });
-            setTryOnProductId(null);
-        } finally {
-            setIsTryOnLoading(false);
-            if (e.target) e.target.value = '';
-        }
     };
 
     const resizeImageForAI = (fileOrUri: File | string, maxSize: number = MAX_TRYON_SIZE_PX): Promise<string> => {
@@ -192,6 +155,53 @@ function SmartMagazineContent() {
                 reader.readAsDataURL(fileOrUri);
             }
         });
+    };
+
+    const handleTryOnUpload = async (e: React.ChangeEvent<HTMLInputElement>, product: DisplayProduct) => {
+        if (!hasConsented) { toast({ variant: 'destructive', title: "Consent Required" }); return; }
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setIsTryOnLoading(true);
+        setTryOnResult(null);
+        setTryOnProductId(product.id);
+        
+        const ctx = getProductContext(product);
+
+        try {
+            const [personUri, productUri] = await Promise.all([
+                resizeImageForAI(file),
+                resizeImageForAI(product.imageDataUris[0])
+            ]);
+            
+            const res = await fetch('/api/ai/virtual-try-on', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    personImageDataUri: personUri,
+                    productImageDataUri: productUri,
+                    productTitle: product.title,
+                    garmentType: ctx.type,
+                    drapeStyle: selectedDrapeStyle,
+                    sleeveLength: selectedSleeves
+                })
+            });
+            
+            const result = await res.json();
+            
+            if (result.error) {
+                toast({ variant: 'destructive', title: "Try-On Failed", description: result.error });
+            } else if (result.generatedImageDataUri) {
+                setTryOnResult(result.generatedImageDataUri);
+                toast({ title: "Magic Mirror Ready!" });
+            }
+        } catch (err: any) {
+            toast({ variant: 'destructive', title: "Try-On Failed", description: err.message });
+            setTryOnProductId(null);
+        } finally {
+            setIsTryOnLoading(false);
+            if (e.target) e.target.value = '';
+        }
     };
 
     const handleWhatsAppBusinessChat = () => {

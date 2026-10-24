@@ -18,23 +18,37 @@ export async function POST(request: Request) {
     const isShoes = title.includes('shoe') || title.includes('sandal') || title.includes('sneaker') || title.includes('footwear');
     const isEyewear = title.includes('glass') || title.includes('shade') || title.includes('spectacle');
     
-    // Pattern & Fabric preservation instructions for skirts and minis
-    const patternInstruction = `CRITICAL: The fabric pattern, color details, and texture of the item in the SECOND photo must be preserved EXACTLY and mapped onto the new garment silhouette in the generated image.`;
+    // Pattern & Fabric preservation instructions
+    const patternInstruction = `CRITICAL: The fabric pattern, color motifs, and texture of the item in the SECOND photo must be preserved 100% EXACTLY and mapped onto the new garment in the final image. Do NOT use generic or plain colors if the product has a pattern.`;
 
     let styleInstructions = '';
     if (isWatch) {
         styleInstructions = `MODE: ACCESSORY FITTING (WATCH). Fit the watch from the second photo onto the user's wrist shown in the first photo. Match angle and shadows.`;
     } else if (isShoes) {
-        styleInstructions = `MODE: FOOTWEAR FITTING. Re-dress the user's feet in the first photo with the shoes from the second photo.`;
+        styleInstructions = `MODE: FOOTWEAR FITTING. COMPLETELY REPLACE the user's current footwear in the first photo with the shoes from the second photo.`;
     } else if (input.drapeStyle === 'East Indian Lugra') {
-        styleInstructions = `MODE: AUTHENTIC EAST INDIAN LUGRA. Drape the fabric from the second photo over the left shoulder. Add traditional East Indian jewelry. ${patternInstruction}`;
+        styleInstructions = `MODE: AUTHENTIC EAST INDIAN LUGRA. Drape the fabric from the second photo over the person's left shoulder. Add traditional East Indian jewelry. ${patternInstruction}`;
     } else if (input.drapeStyle === 'Standard Saree') {
         styleInstructions = `MODE: STANDARD NIVI SAREE. Floor-length drape with matching blouse from the provided fabric. ${patternInstruction}`;
     } else if (input.drapeStyle === 'Western Wear' || title.includes('skirt') || title.includes('mini')) {
-        styleInstructions = `MODE: WESTERN FIT (MINI/SKIRT/TIGHT FIT). Re-dress the person with a high-end fashion mini-skirt or short dress silhouette. ${patternInstruction}`;
+        styleInstructions = `MODE: WESTERN FIT (MINI/SKIRT/TIGHT FIT). COMPLETELY REMOVE the person's current lower-body clothing and replace it with a high-end fashion mini-skirt silhouette using the fabric from the SECOND photo. ${patternInstruction}`;
     } else {
         styleInstructions = `STYLING MODE: ${input.drapeStyle || 'Western'}. Silhouette: ${input.garmentType || 'Clothing'}. Sleeves: ${input.sleeveLength || 'Standard'}. ${patternInstruction}`;
     }
+
+    const finalPrompt = `ACT AS AN ELITE VIRTUAL FASHION STYLIST. 
+    
+    TASK: COMPLETELY REPLACE the clothing or accessories worn by the person in the FIRST photo with the SPECIFIC product shown in the SECOND photo ("${input.productTitle}").
+    
+    REPLACEMENT RULES:
+    1. The person's original outfit MUST BE REMOVED and substituted with the new item.
+    2. Map the design, pattern, and colors from the SECOND photo onto the person's body in the FIRST photo.
+    3. Match the lighting, shadows, and angle of the person's pose.
+    4. CRITICAL: Keep the person's head, face, skin tone, and distinct physical features EXACTLY as they are.
+    
+    ${styleInstructions}
+    
+    Return ONLY the final generated image.`;
 
     try {
         const { media } = await ai.generate({
@@ -42,9 +56,7 @@ export async function POST(request: Request) {
           prompt: [
             { media: { url: input.personImageDataUri, contentType: 'image/jpeg' } },
             { media: { url: input.productImageDataUri, contentType: 'image/jpeg' } },
-            { 
-              text: `ACT AS AN ELITE VIRTUAL STYLIST. TASK: RE-DRESS or ACCESSORIZE the person in the first photo using the item shown in the second photo ("${input.productTitle}"). ${styleInstructions} CRITICAL: Keep person's face and distinct features exactly as they are. Return ONLY the final generated image.` 
-            },
+            { text: finalPrompt },
           ],
           config: {
             responseModalities: ['TEXT', 'IMAGE'],

@@ -25,7 +25,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { v4 as uuidv4 } from 'uuid';
 import { useToast } from '@/hooks/use-toast';
-import { virtualTryOn } from '@/ai/flows/virtual-try-on';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { ProductGenee } from '@/components/genee/product-genee';
 import { sanitizePhoneNumber } from '@/lib/utils';
@@ -140,47 +139,6 @@ function BrandedCollectionContent() {
         window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
     };
 
-    const handleTryOnUpload = async (e: React.ChangeEvent<HTMLInputElement>, product: DisplayProduct) => {
-        if (!hasConsented) { toast({ variant: 'destructive', title: "Consent Required" }); return; }
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        setIsTryOnLoading(true);
-        setTryOnResult(null);
-        setTryOnProductId(product.id);
-        
-        const ctx = getProductContext(product);
-
-        try {
-            const [personUri, productUri] = await Promise.all([
-                resizeImageForAI(file),
-                resizeImageForAI(product.imageDataUris[0])
-            ]);
-            
-            const result = await virtualTryOn({
-                personImageDataUri: personUri,
-                productImageDataUri: productUri,
-                productTitle: product.title,
-                garmentType: ctx.type as any,
-                drapeStyle: selectedDrapeStyle,
-                sleeveLength: selectedSleeves
-            });
-            
-            if (result.error) {
-                toast({ variant: 'destructive', title: "Try-On Failed", description: result.error });
-            } else if (result.generatedImageDataUri) {
-                setTryOnResult(result.generatedImageDataUri);
-                toast({ title: "Magic Mirror Ready!" });
-            }
-        } catch (err: any) {
-            toast({ variant: 'destructive', title: "Try-On Failed", description: err.message });
-            setTryOnProductId(null);
-        } finally {
-            setIsTryOnLoading(false);
-            if (e.target) e.target.value = '';
-        }
-    };
-
     const resizeImageForAI = (fileOrUri: File | string, maxSize: number = MAX_TRYON_SIZE_PX): Promise<string> => {
         return new Promise((resolve, reject) => {
             const img = new (window as any).Image();
@@ -203,6 +161,53 @@ function BrandedCollectionContent() {
                 reader.readAsDataURL(fileOrUri);
             }
         });
+    };
+
+    const handleTryOnUpload = async (e: React.ChangeEvent<HTMLInputElement>, product: DisplayProduct) => {
+        if (!hasConsented) { toast({ variant: 'destructive', title: "Consent Required" }); return; }
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setIsTryOnLoading(true);
+        setTryOnResult(null);
+        setTryOnProductId(product.id);
+        
+        const ctx = getProductContext(product);
+
+        try {
+            const [personUri, productUri] = await Promise.all([
+                resizeImageForAI(file),
+                resizeImageForAI(product.imageDataUris[0])
+            ]);
+            
+            const res = await fetch('/api/ai/virtual-try-on', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    personImageDataUri: personUri,
+                    productImageDataUri: productUri,
+                    productTitle: product.title,
+                    garmentType: ctx.type,
+                    drapeStyle: selectedDrapeStyle,
+                    sleeveLength: selectedSleeves
+                })
+            });
+            
+            const result = await res.json();
+            
+            if (result.error) {
+                toast({ variant: 'destructive', title: "Try-On Failed", description: result.error });
+            } else if (result.generatedImageDataUri) {
+                setTryOnResult(result.generatedImageDataUri);
+                toast({ title: "Magic Mirror Ready!" });
+            }
+        } catch (err: any) {
+            toast({ variant: 'destructive', title: "Try-On Failed", description: err.message });
+            setTryOnProductId(null);
+        } finally {
+            setIsTryOnLoading(false);
+            if (e.target) e.target.value = '';
+        }
     };
 
     const handleOrderClick = (product: DisplayProduct) => {
@@ -304,7 +309,7 @@ function BrandedCollectionContent() {
                                 {isProductTryOn && isTryOnLoading && (
                                     <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center p-4 text-center z-20">
                                         <Sparkles className="h-10 w-10 text-primary animate-bounce mb-2" />
-                                        <p className="text-[10px] font-black uppercase italic text-slate-900">AI Fitting room...</p>
+                                        <p className="text-[10px] font-black uppercase italic text-slate-900">AI Fitting Room...</p>
                                     </div>
                                 )}
 
