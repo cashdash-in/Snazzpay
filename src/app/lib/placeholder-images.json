@@ -1,14 +1,14 @@
 
 {
   "geneeHologram": {
-    "src": "https://picsum.photos/seed/genee-holo/300/300",
-    "alt": "Genee Hologram",
-    "keywords": "genie character hologram"
+    "src": "https://picsum.photos/seed/genee-star-girl/300/300",
+    "alt": "Star Girl Hologram",
+    "keywords": "anime girl star neon hologram"
   },
   "geneeAvatar": {
-    "src": "https://picsum.photos/seed/genee-avatar/200/200",
-    "alt": "Genee Avatar",
-    "keywords": "genie face mascot"
+    "src": "https://picsum.photos/seed/avatar-star-girl/200/200",
+    "alt": "Star Girl Avatar",
+    "keywords": "cute anime girl star mascot"
   },
   "heroPlaceholder": {
     "src": "https://picsum.photos/seed/1/1200/500",

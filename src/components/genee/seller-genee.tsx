@@ -5,7 +5,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Sparkles, X, Send, User, Loader2, TrendingUp, GripHorizontal } from 'lucide-react';
+import { Star, X, Send, User, Loader2, TrendingUp, GripHorizontal, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { askSellerGenee } from '@/ai/flows/seller-genee-flow';
 import Image from 'next/image';
@@ -23,12 +23,12 @@ export function SellerGenee() {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'assistant', content: "Hello! I am your ASK.ME Genee. I'm here to help you conquer marketplaces like Amazon and Myntra while keeping your profits high. What shall we build today?" }
+    { role: 'assistant', content: "Hii! I'm your ASK.ME Star Girl! ✨ Ready to blast your sales to the moon? Let's dominate Amazon and Myntra together! 🚀" }
   ]);
   const [isLoading, setIsLoading] = useState(false);
   
   // Draggable State
-  const [position, setPosition] = useState({ x: 32, y: 32 }); // Default: bottom-8, right-8
+  const [position, setPosition] = useState({ x: 32, y: 32 });
   const [isDragging, setIsDragging] = useState(false);
   const dragStart = useRef({ x: 0, y: 0 });
   const initialPos = useRef({ x: 0, y: 0 });
@@ -43,7 +43,7 @@ export function SellerGenee() {
   }, [messages, isLoading]);
 
   const handlePointerDown = (e: React.PointerEvent) => {
-    if (isOpen) return; // Disable dragging when chat is open
+    if (isOpen) return;
     setIsDragging(true);
     dragStart.current = { x: e.clientX, y: e.clientY };
     initialPos.current = { ...position };
@@ -69,7 +69,6 @@ export function SellerGenee() {
   };
 
   const handleTriggerClick = (e: React.MouseEvent) => {
-    // If moved more than 5px, treat as drag, not click
     if (moveDistance.current > 5) {
       e.preventDefault();
       return;
@@ -103,7 +102,7 @@ export function SellerGenee() {
         profitTip: result.profitTip
       }]);
     } catch (error) {
-      setMessages(prev => [...prev, { role: 'assistant', content: "My crystal ball is a bit cloudy. Let's try again in a moment!" }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: "Oops! My star-power dipped for a second. Try again? ✨" }]);
     } finally {
       setIsLoading(false);
     }
@@ -126,101 +125,100 @@ export function SellerGenee() {
           "relative group transition-transform",
           isDragging ? "scale-110 cursor-grabbing" : "cursor-grab animate-bounce-slow"
         )}>
-            {/* Pulsing Hologram Auras */}
-            <div className="absolute -inset-12 bg-purple-500/30 rounded-full blur-3xl animate-pulse group-hover:bg-purple-500/50 transition-all duration-1000"></div>
-            <div className="absolute -inset-6 bg-indigo-500/20 rounded-full blur-2xl animate-pulse delay-700"></div>
+            <div className="absolute -inset-16 bg-purple-500/40 rounded-full blur-3xl animate-genee-flash"></div>
             
             <Button 
-                className="h-24 w-24 rounded-full shadow-[0_0_50px_rgba(139,92,246,0.5)] bg-slate-950 border-4 border-primary p-0 overflow-hidden relative group-hover:shadow-[0_0_80px_rgba(139,92,246,0.8)]"
+                className="h-28 w-28 rounded-full shadow-[0_0_60px_rgba(139,92,246,0.6)] bg-slate-950 border-4 border-primary p-0 overflow-hidden relative group-hover:shadow-[0_0_90px_rgba(139,92,246,0.9)]"
                 onClick={handleTriggerClick}
             >
                 <Image 
                     src={placeholders.geneeHologram.src} 
-                    alt={placeholders.geneeHologram.alt} 
+                    alt="Star Girl" 
                     fill 
-                    className="object-cover opacity-80 mix-blend-screen brightness-125 pointer-events-none"
-                    data-ai-hint={placeholders.geneeHologram.keywords}
+                    className="object-cover mix-blend-screen brightness-150 pointer-events-none animate-pulse"
+                    unoptimized
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-primary/60 to-transparent pointer-events-none"></div>
-                <Sparkles className="absolute top-3 right-3 h-5 w-5 text-white animate-spin-slow pointer-events-none" />
-                <GripHorizontal className="absolute bottom-2 left-1/2 -translate-x-1/2 h-3 w-3 text-white/30 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <Star className="absolute top-4 right-4 h-6 w-6 text-yellow-400 fill-yellow-400 animate-spin-slow pointer-events-none" />
+                <GripHorizontal className="absolute bottom-2 left-1/2 -translate-x-1/2 h-4 w-4 text-white/40 opacity-0 group-hover:opacity-100 transition-opacity" />
             </Button>
 
-            {/* Floating Label */}
             {!isDragging && (
-                <div className="absolute -top-14 right-0 bg-white shadow-2xl rounded-2xl px-5 py-2.5 text-[11px] font-black uppercase italic tracking-tighter whitespace-nowrap animate-bounce border-2 border-primary pointer-events-none select-none">
-                    Summon Genee for Profits! ✨
+                <div className="absolute -top-16 right-0 bg-white shadow-2xl rounded-2xl px-6 py-3 text-[12px] font-black uppercase italic tracking-tighter whitespace-nowrap animate-bounce border-2 border-primary pointer-events-none select-none flex items-center gap-2">
+                   <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" /> Start Selling! ✨
                 </div>
             )}
         </div>
       ) : (
-        <Card className="w-[380px] sm:w-[450px] h-[600px] flex flex-col shadow-[0_35px_60px_-15px_rgba(0,0,0,0.3)] border-none animate-in zoom-in-95 slide-in-from-bottom-10 duration-500 rounded-[32px] overflow-hidden bg-white">
-          <CardHeader className="p-6 bg-slate-950 text-white border-b border-white/10 shrink-0 relative">
+        <Card className="w-[400px] sm:w-[480px] h-[650px] flex flex-col shadow-[0_35px_60px_-15px_rgba(0,0,0,0.3)] border-none animate-in zoom-in-95 slide-in-from-bottom-10 duration-500 rounded-[40px] overflow-hidden bg-white">
+          <CardHeader className="p-8 bg-slate-950 text-white border-b border-white/10 shrink-0 relative">
             <div className="flex justify-between items-center relative z-10">
-              <div className="flex items-center gap-3">
-                <div className="relative h-14 w-14 rounded-2xl overflow-hidden border-2 border-primary shadow-[0_0_20px_rgba(139,92,246,0.6)] bg-black">
+              <div className="flex items-center gap-4">
+                <div className="relative h-16 w-16 rounded-2xl overflow-hidden border-2 border-primary shadow-[0_0_20px_rgba(139,92,246,0.6)] bg-black animate-genee-flash">
                      <Image 
                         src={placeholders.geneeAvatar.src} 
-                        alt={placeholders.geneeAvatar.alt} 
+                        alt="Star Girl" 
                         fill 
                         className="object-cover mix-blend-screen brightness-150"
-                        data-ai-hint={placeholders.geneeAvatar.keywords}
+                        unoptimized
                     />
                 </div>
                 <div>
-                  <CardTitle className="text-xl font-black italic tracking-tighter uppercase">ASK.ME Genee</CardTitle>
-                  <p className="text-[10px] text-primary font-bold uppercase tracking-widest flex items-center gap-1.5">
-                    <span className="flex h-2 w-2 relative">
+                  <CardTitle className="text-2xl font-black italic tracking-tighter uppercase flex items-center gap-2">
+                    Star Girl <Star className="h-5 w-5 text-yellow-400 fill-yellow-400" />
+                  </CardTitle>
+                  <p className="text-[11px] text-primary font-bold uppercase tracking-widest flex items-center gap-2">
+                    <span className="flex h-2.5 w-2.5 relative">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
                     </span>
-                    AI Marketplace Consultant
+                    Marketplace Wizard ✨
                   </p>
                 </div>
               </div>
               <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 rounded-full" onClick={() => setIsOpen(false)}>
-                <X className="h-6 w-6" />
+                <X className="h-7 w-7" />
               </Button>
             </div>
             <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary to-transparent"></div>
           </CardHeader>
 
-          <CardContent className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/50" ref={scrollRef}>
+          <CardContent className="flex-1 overflow-y-auto p-8 space-y-8 bg-slate-50/50" ref={scrollRef}>
             {messages.map((m, i) => (
               <div key={i} className={cn(
-                "flex gap-3 max-w-[95%]",
+                "flex gap-4 max-w-[95%]",
                 m.role === 'user' ? "ml-auto flex-row-reverse" : "mr-auto"
               )}>
                 <div className={cn(
-                  "w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border-2",
-                  m.role === 'assistant' ? "bg-slate-950 border-primary shadow-lg" : "bg-primary border-primary text-white"
+                  "w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 border-2",
+                  m.role === 'assistant' ? "bg-slate-950 border-primary shadow-lg animate-genee-flash" : "bg-primary border-primary text-white"
                 )}>
-                  {m.role === 'assistant' ? <Sparkles className="h-5 w-5 text-white" /> : <User className="h-5 w-5" />}
+                  {m.role === 'assistant' ? <Star className="h-5 w-5 text-yellow-400 fill-yellow-400" /> : <User className="h-6 w-6" />}
                 </div>
                 <div className="space-y-4 flex-1">
                     <div className={cn(
-                        "p-4 rounded-3xl text-sm shadow-sm leading-relaxed",
-                        m.role === 'assistant' ? "bg-white border-2 border-slate-100 rounded-tl-none text-slate-800" : "bg-primary text-white rounded-tr-none font-medium shadow-md shadow-primary/20"
+                        "p-5 rounded-[32px] text-sm shadow-sm leading-relaxed",
+                        m.role === 'assistant' ? "bg-white border-2 border-slate-100 text-slate-800 rounded-tl-none" : "bg-primary text-white rounded-tr-none font-medium shadow-md shadow-primary/20"
                     )}>
                         {m.content}
                     </div>
 
                     {m.profitTip && (
-                        <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-100 p-5 rounded-3xl animate-in fade-in slide-in-from-left-4 duration-500 shadow-sm">
-                            <p className="text-[10px] font-black uppercase text-green-600 tracking-widest mb-2 flex items-center gap-2">
-                                <TrendingUp className="h-4 w-4"/> Genee Profit Strategy
+                        <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-100 p-6 rounded-[32px] animate-in fade-in slide-in-from-left-4 duration-500 shadow-sm">
+                            <p className="text-[11px] font-black uppercase text-green-600 tracking-widest mb-3 flex items-center gap-2">
+                                <TrendingUp className="h-4 w-4"/> Profit Max Strategy ✨
                             </p>
                             <p className="text-xs font-bold text-emerald-900 italic leading-relaxed">"{m.profitTip}"</p>
                         </div>
                     )}
 
                     {m.nextSteps && m.nextSteps.length > 0 && (
-                        <div className="space-y-3">
-                             <p className="text-[11px] font-black uppercase text-slate-400 tracking-widest ml-1">Your Execution Steps</p>
-                             <div className="flex flex-col gap-2">
+                        <div className="space-y-4">
+                             <p className="text-[11px] font-black uppercase text-slate-400 tracking-widest ml-2">Action Plan 🚀</p>
+                             <div className="flex flex-col gap-3">
                                 {m.nextSteps.map((step, idx) => (
-                                    <div key={idx} className="bg-white border-2 border-slate-100 p-3.5 rounded-2xl text-[12px] font-bold flex items-center gap-3 hover:border-primary/40 transition-all hover:translate-x-1">
-                                        <div className="h-5 w-5 rounded-lg bg-primary/10 text-primary flex items-center justify-center text-[11px] font-black italic">{idx + 1}</div>
+                                    <div key={idx} className="bg-white border-2 border-slate-100 p-4 rounded-2xl text-[13px] font-bold flex items-center gap-4 hover:border-primary/40 transition-all hover:translate-x-2">
+                                        <div className="h-6 w-6 rounded-xl bg-primary/10 text-primary flex items-center justify-center text-[12px] font-black italic">{idx + 1}</div>
                                         {step}
                                     </div>
                                 ))}
@@ -231,47 +229,47 @@ export function SellerGenee() {
               </div>
             ))}
             {isLoading && (
-              <div className="flex gap-3 mr-auto max-w-[80%]">
-                <div className="w-9 h-9 rounded-xl bg-slate-950 border-2 border-primary flex items-center justify-center shrink-0 shadow-lg">
-                  <Loader2 className="h-5 w-5 text-white animate-spin" />
+              <div className="flex gap-4 mr-auto max-w-[85%]">
+                <div className="w-10 h-10 rounded-2xl bg-slate-950 border-2 border-primary flex items-center justify-center shrink-0 shadow-lg animate-genee-flash">
+                  <Loader2 className="h-6 w-6 text-white animate-spin" />
                 </div>
-                <div className="p-4 bg-white border-2 border-slate-100 rounded-3xl rounded-tl-none flex items-center gap-2 shadow-sm">
-                  <p className="text-xs italic text-muted-foreground animate-pulse">Genee is decoding the algorithms...</p>
+                <div className="p-5 bg-white border-2 border-slate-100 rounded-[32px] rounded-tl-none flex items-center gap-3 shadow-sm">
+                  <p className="text-sm italic text-muted-foreground animate-pulse">Star Girl is analyzing marketplace data... ✨</p>
                 </div>
               </div>
             )}
           </CardContent>
 
-          <CardFooter className="p-5 border-t bg-white shrink-0">
-            <div className="flex w-full gap-2 bg-slate-100 p-1.5 rounded-[24px]">
+          <CardFooter className="p-6 border-t bg-white shrink-0">
+            <div className="flex w-full gap-2 bg-slate-100 p-2 rounded-[30px]">
               <Input 
-                placeholder="Ask Amazon, Myntra, Profit Tips..." 
+                placeholder="Ask me how to sell on Myntra... ✨" 
                 value={input} 
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSend()}
-                className="bg-transparent border-none focus-visible:ring-0 placeholder:text-slate-400 font-medium"
+                className="bg-transparent border-none focus-visible:ring-0 placeholder:text-slate-400 font-bold"
               />
-              <Button size="icon" onClick={handleSend} disabled={isLoading || !input.trim()} className="rounded-full h-12 w-12 shadow-xl bg-slate-950 hover:bg-slate-900 transition-transform active:scale-90">
-                <Send className="h-5 w-5" />
+              <Button size="icon" onClick={handleSend} disabled={isLoading || !input.trim()} className="rounded-full h-14 w-14 shadow-2xl bg-slate-950 hover:bg-slate-900 transition-transform active:scale-95">
+                <Send className="h-6 w-6" />
               </Button>
             </div>
           </CardFooter>
         </Card>
       )}
       <style jsx global>{`
-        @keyframes bounce-slow {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-15px); }
-        }
-        .animate-bounce-slow {
-          animation: bounce-slow 4s ease-in-out infinite;
-        }
         @keyframes spin-slow {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
         }
         .animate-spin-slow {
-          animation: spin-slow 8s linear infinite;
+          animation: spin-slow 12s linear infinite;
+        }
+        @keyframes bounce-slow {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-20px); }
+        }
+        .animate-bounce-slow {
+          animation: bounce-slow 3s ease-in-out infinite;
         }
       `}</style>
     </div>
