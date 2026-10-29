@@ -13,26 +13,30 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing image data' }, { status: 400 });
     }
 
-    // High-Intensity "Surgical Re-Dress" Instructions
-    const finalPrompt = `ACT AS AN ELITE FASHION STUDIO RETOUCHER. 
+    // Advanced "Pixel-Erase & Re-Clothe" Instructions
+    const finalPrompt = `ACT AS AN ELITE FASHION STUDIO RETOUCHER & GENERATIVE FILL MASTER. 
     
-    MISSION: PERFORM A FULL, 100% CLOTHING REPLACEMENT.
+    MISSION: PERFORM A FULL-BODY CLOTHING REPLACEMENT WITH 100% FABRIC FIDELITY.
     
-    1. TARGET PERSON (First Photo): IDENTIFY AND OBLITERATE (ERASE) THE CURRENT OUTFIT COMPLETELY. 
-       - IF THEY ARE WEARING A SHIRT (E.G., YELLOW SHIRT), DELETE IT.
-       - IF THEY ARE WEARING A SKIRT (E.G., BEIGE SKIRT), DELETE IT.
-       - NO TRACE, TEXTURE, OR COLOR of the original clothes should remain.
+    1. IDENTIFY TARGET AREA (First Photo): 
+       - Find the exact area occupied by the current clothing (shirt, top, dress, skirt, or pants).
+       - MASK AND ERASE this entire area. OBLITERATE the original outfit pixels completely. 
+       - Do NOT let any part of the original outfit (like a yellow shirt or beige skirt) show through or blend.
        
-    2. PRODUCT (Second Photo): EXTRACT THE FABRIC, PATTERN, AND TEXTURE OF THIS ITEM ("${input.productTitle}").
+    2. PRODUCT EXTRACTION (Second Photo): 
+       - Study the product: "${input.productTitle}".
+       - EXTRACT the exact pattern, color motifs, and fabric texture.
     
-    3. RE-CLOTHE: RE-DRESS THE PERSON USING ONLY THE ITEM FROM THE SECOND PHOTO.
-       - MAP THE PATTERN AND TEXTURE PIXEL-PERFECTLY ONTO THE PERSON'S BODY.
-       - THE NEW GARMENT MUST COVER THE EXACT AREA WHERE THE OLD CLOTHES WERE.
-       - ENSURE THE DRAPE AND SHADOWS MATCH THE PERSON'S POSE.
+    3. SURGICAL RE-DRESS: 
+       - Generate the new garment in the ERASED area using ONLY the patterns and textures from the product photo.
+       - MAP the texture pixel-perfectly onto the body's contours.
+       - The new garment must be the ONLY clothing visible in that area.
+       - MATCH shadows and highlights to the lighting of the first photo.
        
-    4. PRESERVE HUMAN IDENTITY: DO NOT CHANGE THE PERSON'S FACE, HAIR, HANDS, OR SKIN TONE.
+    4. PRESERVE IDENTITY: 
+       - DO NOT modify the face, hands, skin tone, hair, or physical features of the person.
     
-    OUTPUT: RETURN ONLY THE FINAL IMAGE. THIS IS A MANDATORY REPLACEMENT TASK.`;
+    OUTPUT: RETURN ONLY THE FINAL GENERATED IMAGE. THIS IS A MANDATORY REPLACEMENT, NOT A BLEND.`;
 
     try {
         const { media } = await ai.generate({

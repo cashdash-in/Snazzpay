@@ -13,7 +13,8 @@ import {
     Scan, PackagePlus, AlertTriangle, Copy, 
     DollarSign, Mic, MessageSquare, History,
     ShoppingCart, ShieldCheck, ArrowRight,
-    TrendingUp, FileSpreadsheet, Trash2
+    TrendingUp, FileSpreadsheet, Trash2,
+    Sparkles, Send
 } from 'lucide-react';
 import { getCollection, saveDocument, addDocument } from '@/services/firestore';
 import { analyzeInventoryItem } from '@/ai/flows/inventory-analyzer';
@@ -25,6 +26,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { cn, sanitizePhoneNumber } from "@/lib/utils";
 import type { InventoryItem, StockMovement, MovementType } from '@/types/inventory';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Link from 'next/link';
 
 const MAX_IMAGE_SIZE_PX = 600;
@@ -193,7 +195,7 @@ export default function AdminInventoryPage() {
                                 <div className="p-2 bg-blue-100 text-blue-600 rounded-lg"><ShoppingCart /></div>
                                 <div className="text-xl font-bold">New Invoice</div>
                             </CardContent>
-                        </Card>
+                        </Link>
                     </Link>
                     <Link href="/admin/inventory/audit">
                         <Card className="hover:bg-slate-50 transition-colors shadow-lg border-none cursor-pointer h-full">
@@ -202,7 +204,7 @@ export default function AdminInventoryPage() {
                                 <div className="p-2 bg-purple-100 text-purple-600 rounded-lg"><ShieldCheck /></div>
                                 <div className="text-xl font-bold">Shelf Check</div>
                             </CardContent>
-                        </Card>
+                        </Link>
                     </Link>
                     <Card className="bg-slate-900 text-white shadow-xl border-none">
                          <CardHeader className="pb-2"><CardTitle className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Total SKUs</CardTitle></CardHeader>
@@ -294,7 +296,10 @@ export default function AdminInventoryPage() {
                                                     <div className="py-4 space-y-4">
                                                         <div className="space-y-2"><Label>Quantity Lost</Label><Input type="number" id={`qty-loss-${item.id}`} defaultValue={1} /></div>
                                                         <div className="space-y-2"><Label>Reason for Loss</Label>
-                                                            <Select id={`reason-loss-${item.id}`} defaultValue="Damage">
+                                                            <Select onValueChange={(val) => {
+                                                                const el = document.getElementById(`reason-loss-${item.id}`);
+                                                                if(el) (el as any).value = val;
+                                                            }} defaultValue="Damage">
                                                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                                                 <SelectContent>
                                                                     <SelectItem value="Damage">Damage / Broken</SelectItem>
@@ -302,13 +307,14 @@ export default function AdminInventoryPage() {
                                                                     <SelectItem value="Missing">Missing / Theft</SelectItem>
                                                                 </SelectContent>
                                                             </Select>
+                                                            <input type="hidden" id={`reason-loss-${item.id}`} value="Damage" />
                                                         </div>
                                                     </div>
                                                     <DialogFooter>
                                                         <DialogClose asChild>
                                                             <Button variant="destructive" className="w-full h-12 font-bold rounded-2xl" onClick={async () => {
                                                                 const qty = parseInt((document.getElementById(`qty-loss-${item.id}`) as HTMLInputElement).value) || 0;
-                                                                const reason = (document.getElementById(`reason-loss-${item.id}`) as any).value || 'Damage';
+                                                                const reason = (document.getElementById(`reason-loss-${item.id}`) as HTMLInputElement).value || 'Damage';
                                                                 await recordMovement(item, -qty, 'Damage', reason);
                                                             }}>Record Loss & Update Stock</Button>
                                                         </DialogClose>
