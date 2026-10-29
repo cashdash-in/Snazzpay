@@ -15,7 +15,7 @@ import {
     MessageSquare, History, TrendingUp, 
     Sparkles, Send, Mic, Trash2, AlertTriangle,
     X, PackagePlus, Info, ImagePlus, QrCode, Printer, Calendar as CalendarIcon,
-    Layers, Scan, Map as MapIcon, LayoutGrid, List
+    Layers, Scan, Map as MapIcon, LayoutGrid, List, CheckCircle2
 } from 'lucide-react';
 import { getCollection, saveDocument, addDocument } from '@/services/firestore';
 import { parseInventoryCommand, detectItemsInPhoto } from '@/ai/flows/inventory-ai';
@@ -57,8 +57,8 @@ export default function AdminInventoryPage() {
             const stock = await getCollection<InventoryItem>('inventory');
             // Sort: Newest Added First
             const sorted = (stock || []).sort((a, b) => {
-                const dateA = new Date(a.addedDate || 0).getTime();
-                const dateB = new Date(b.addedDate || 0).getTime();
+                const dateA = new Date(a.addedDate || a.lastUpdated || 0).getTime();
+                const dateB = new Date(b.addedDate || b.lastUpdated || 0).getTime();
                 return dateB - dateA;
             });
             setInventory(sorted);
