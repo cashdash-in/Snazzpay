@@ -1,3 +1,4 @@
+
 import { NextResponse } from 'next/server';
 import { ai } from '@/ai/genkit';
 import { googleAI } from '@genkit-ai/google-genai';
@@ -20,8 +21,8 @@ export async function POST(request: Request) {
     MISSION PARAMETERS:
     1. SURGICAL OBLITERATION: 
        - Identify the exact area occupied by the person's current outfit (torso, sleeves, legs).
-       - COMPLETELY ERASE every single pixel of the original clothes.
-       - IGNORE original colors (like yellow, beige, or white). They must be 100% OBLITERATED.
+       - COMPLETELY ERASE and OBLITERATE every single pixel of the original clothes.
+       - IGNORE original colors (like yellow, beige, or white). They must be 100% REMOVED.
        - Do not "blend" or "overlay"; this is a clean-slate full replacement.
        
     2. PRODUCT INJECTION: 

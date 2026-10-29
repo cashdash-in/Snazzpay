@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -82,6 +83,7 @@ export default function AdminInventoryPage() {
     };
 
     const recordMovement = async (item: InventoryItem, qty: number, type: MovementType, note?: string) => {
+        // Optimistic quantity update to prevent lag
         const newQty = item.quantity + qty;
         const movement: StockMovement = {
             id: uuidv4(),
@@ -95,15 +97,20 @@ export default function AdminInventoryPage() {
         };
 
         try {
+            // Update local state first for immediate UI response
+            setInventory(prev => prev.map(i => i.id === item.id ? { ...i, quantity: newQty, lastUpdated: movement.date } : i));
+
+            // Sync with database
             await Promise.all([
                 saveDocument('inventory', { ...item, quantity: newQty, lastUpdated: movement.date }, item.id),
                 saveDocument('inventory_movements', movement, movement.id)
             ]);
             
-            setInventory(prev => prev.map(i => i.id === item.id ? { ...i, quantity: newQty } : i));
             return true;
         } catch (e) {
-            console.error(e);
+            console.error("Stock update error:", e);
+            // Revert on error
+            setInventory(prev => prev.map(i => i.id === item.id ? { ...i, quantity: item.quantity } : i));
             return false;
         }
     };
@@ -148,17 +155,22 @@ export default function AdminInventoryPage() {
     const finalizeBulkSale = async () => {
         setIsAnalyzing(true);
         let successCount = 0;
+        
+        // We use the current inventory state to process the batch
         for (const sale of detectedSaleItems) {
+            // Find the item in our current inventory list
             const item = inventory.find(i => 
                 i.name.toLowerCase().includes(sale.productName.toLowerCase()) || 
                 sale.productName.toLowerCase().includes(i.name.toLowerCase())
             );
+            
             if (item) {
                 const type = sale.qty < 0 ? 'Sale' : 'Purchase';
                 const ok = await recordMovement(item, sale.qty, type as MovementType, "AI Automated Update");
                 if (ok) successCount++;
             }
         }
+        
         toast({ title: "Stock Updated", description: `Updated ${successCount} products successfully.` });
         setDetectedSaleItems([]);
         setIsAnalyzing(false);

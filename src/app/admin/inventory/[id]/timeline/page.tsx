@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -9,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { 
     Loader2, ArrowLeft, History, TrendingUp, 
     TrendingDown, AlertCircle, ShoppingBag, 
-    Truck, RefreshCcw, Package
+    Truck, RefreshCcw, Package, ArrowRight
 } from 'lucide-react';
 import { getDocument, getCollection } from '@/services/firestore';
 import type { InventoryItem, StockMovement } from '@/types/inventory';
