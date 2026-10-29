@@ -15,8 +15,7 @@ import {
     MessageSquare, History, TrendingUp, 
     Sparkles, Send, Mic, Trash2, AlertTriangle,
     X, PackagePlus, Info, ImagePlus, QrCode, Printer, Calendar as CalendarIcon,
-    Layers, Scan, Map as MapIcon, LayoutGrid, List,
-    CheckCircle2, RefreshCw
+    Layers, Scan, Map as MapIcon, LayoutGrid, List
 } from 'lucide-react';
 import { getCollection, saveDocument, addDocument } from '@/services/firestore';
 import { parseInventoryCommand, detectItemsInPhoto } from '@/ai/flows/inventory-ai';
@@ -32,7 +31,7 @@ import Link from 'next/link';
 import { format } from 'date-fns';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 
-const MAX_IMAGE_SIZE_PX = 600;
+const MAX_IMAGE_SIZE_PX = 800;
 
 export default function AdminInventoryPage() {
     const { toast } = useToast();
@@ -43,23 +42,23 @@ export default function AdminInventoryPage() {
     const [isMounted, setIsMounted] = useState(false);
     const [activeView, setActiveView] = useState<'list' | 'shop-map'>('list');
     
-    // QR Search State
+    // Scan/Search States
     const [isQrSearching, setIsQrSearching] = useState(false);
     
     // AI Interaction States
     const [isListening, setIsListening] = useState(false);
     const [voiceTranscript, setVoiceTranscript] = useState('');
     const [textCommand, setTextCommand] = useState('');
-    const [detectedSaleItems, setDetectedSaleItems] = useState<{productName: string, qty: number}[]>([]);
+    const [detectedIntakeItems, setDetectedIntakeItems] = useState<{productName: string, qty: number, category: string, imageDataUri?: string}[]>([]);
 
     const loadData = useCallback(async () => {
         setIsLoading(true);
         try {
             const stock = await getCollection<InventoryItem>('inventory');
-            // STRICT SORT: Newest Added at the top
+            // Sort: Newest Added First
             const sorted = (stock || []).sort((a, b) => {
-                const dateA = new Date(a.addedDate || a.lastUpdated || 0).getTime();
-                const dateB = new Date(b.addedDate || b.lastUpdated || 0).getTime();
+                const dateA = new Date(a.addedDate || 0).getTime();
+                const dateB = new Date(b.addedDate || 0).getTime();
                 return dateB - dateA;
             });
             setInventory(sorted);
@@ -89,14 +88,17 @@ export default function AdminInventoryPage() {
     // QR Scanner Logic for Search
     useEffect(() => {
         if (!isQrSearching) return;
-        const scanner = new Html5QrcodeScanner("qr-search-reader", { fps: 10, qrbox: 250 }, false);
-        scanner.render((decodedText) => {
-            setSearchQuery(decodedText);
-            setIsQrSearching(false);
-            scanner.clear();
-            toast({ title: "Product Identified", description: `Searching for ID: ${decodedText}` });
-        }, (err) => {});
-        return () => { scanner.clear().catch(() => {}); };
+        const timer = setTimeout(() => {
+            const scanner = new Html5QrcodeScanner("qr-search-reader", { fps: 10, qrbox: 250 }, false);
+            scanner.render((decodedText) => {
+                setSearchQuery(decodedText);
+                setIsQrSearching(false);
+                scanner.clear();
+                toast({ title: "Product Found", description: `Searching for: ${decodedText}` });
+            }, (err) => {});
+            return () => { scanner.clear().catch(() => {}); };
+        }, 100);
+        return () => clearTimeout(timer);
     }, [isQrSearching, toast]);
 
     const handlePrintLabel = (item: InventoryItem) => {
@@ -123,13 +125,14 @@ export default function AdminInventoryPage() {
                             text-align: center;
                             box-sizing: border-box;
                         }
-                        .title { font-weight: 900; font-size: 14px; text-transform: uppercase; margin-bottom: 5px; line-clamp: 2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+                        .title { font-weight: 900; font-size: 14px; text-transform: uppercase; margin-bottom: 5px; }
                         .content { display: flex; align-items: center; gap: 15px; width: 100%; }
                         .qr { width: 80px; height: 80px; }
                         .details { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
                         .price { font-weight: 900; font-size: 18px; }
                         .id { font-family: monospace; font-size: 10px; color: #666; }
                         .shelf { font-size: 10px; font-weight: bold; background: #eee; padding: 2px 5px; border-radius: 4px; margin-top: 5px; }
+                        .watermark { font-size: 8px; text-transform: uppercase; opacity: 0.3; font-weight: bold; margin-top: 5px; }
                     </style>
                 </head>
                 <body>
@@ -140,9 +143,10 @@ export default function AdminInventoryPage() {
                             <div class="details">
                                 <div class="price">₹${item.mrp}</div>
                                 <div class="id">${item.id}</div>
-                                <div class="shelf">SHELF: ${item.shelfNumber}</div>
+                                <div class="shelf">LOC: ${item.shelfNumber}</div>
                             </div>
                         </div>
+                        <div class="watermark">Snazzify Secure Inventory System</div>
                     </div>
                     <script>
                         window.onload = function() {
@@ -196,14 +200,24 @@ export default function AdminInventoryPage() {
         }
     };
 
-    const handleCreateAndRecord = async (productName: string, qty: number, type: MovementType, note?: string) => {
+    const handleCreateAndRecord = async (productName: string, qty: number, type: MovementType, category: string, imageDataUri?: string) => {
         const shortId = uuidv4().substring(0, 8).toUpperCase();
         const now = new Date().toISOString();
         const newItem: InventoryItem = {
-            id: shortId, name: productName, quantity: Math.max(0, qty), wholesalePrice: 0, mrp: 0, shelfNumber: 'NEW', imageDataUri: `https://picsum.photos/seed/${shortId}/400/400`, category: 'New Article', lastUpdated: now, addedDate: now, purchaseDate: now, description: 'Auto-added via AI command.',
+            id: shortId, 
+            name: productName, 
+            quantity: Math.max(0, qty), 
+            wholesalePrice: 0, 
+            mrp: 0, 
+            shelfNumber: 'NEW', 
+            imageDataUri: imageDataUri || `https://picsum.photos/seed/${shortId}/400/400`, 
+            category: category || 'New Article', 
+            lastUpdated: now, 
+            addedDate: now, 
+            purchaseDate: now
         };
         const movement: StockMovement = {
-            id: uuidv4(), productId: shortId, type: 'Opening', quantity: Math.max(0, qty), date: now, note: note || "AI Auto-created", previousStock: 0, newStock: Math.max(0, qty)
+            id: uuidv4(), productId: shortId, type: 'Opening', quantity: Math.max(0, qty), date: now, note: "AI Auto-created during Intake", previousStock: 0, newStock: Math.max(0, qty)
         };
         try {
             await Promise.all([saveDocument('inventory', newItem, shortId), saveDocument('inventory_movements', movement, movement.id)]);
@@ -217,14 +231,41 @@ export default function AdminInventoryPage() {
         setIsAnalyzing(true);
         try {
             const result = await parseInventoryCommand(command);
-            setDetectedSaleItems(result.items.map(i => ({ productName: i.productName, qty: i.quantity })));
+            setDetectedIntakeItems(result.items.map(i => ({ productName: i.productName, qty: i.quantity, category: 'General' })));
             setTextCommand('');
             setIsListening(false);
-            toast({ title: "AI Detected Items", description: result.summary });
+            toast({ title: "AI Detected Movement", description: result.summary });
         } catch (e) {
             toast({ variant: 'destructive', title: "Parsing Failed" });
         } finally {
             setIsAnalyzing(false);
+        }
+    };
+
+    const handleBulkIntakeCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setIsAnalyzing(true);
+        try {
+            const uri = await resizeImage(file);
+            const detections = await detectItemsInPhoto(uri, 'intake');
+            
+            if (detections.length === 0) {
+                toast({ variant: 'destructive', title: "Detection Failed", description: "AI couldn't find distinct items." });
+            } else {
+                setDetectedIntakeItems(detections.map(d => ({
+                    productName: d.productName,
+                    qty: d.count,
+                    category: d.category,
+                    imageDataUri: uri
+                })));
+                toast({ title: "Items Segregated!", description: `AI detected ${detections.length} distinct products.` });
+            }
+        } catch (e) {
+            toast({ variant: 'destructive', title: "Intake Error" });
+        } finally {
+            setIsAnalyzing(false);
+            e.target.value = '';
         }
     };
 
@@ -273,22 +314,27 @@ export default function AdminInventoryPage() {
         }
     };
 
-    const finalizeBulkSale = async () => {
+    const finalizeBulkIntake = async () => {
         setIsAnalyzing(true);
         let successCount = 0;
-        for (const sale of detectedSaleItems) {
-            const item = inventory.find(i => i.name.toLowerCase() === sale.productName.toLowerCase() || i.name.toLowerCase().includes(sale.productName.toLowerCase()) || sale.productName.toLowerCase().includes(i.name.toLowerCase()));
+        for (const intake of detectedIntakeItems) {
+            const item = inventory.find(i => 
+                i.name.toLowerCase() === intake.productName.toLowerCase() || 
+                i.name.toLowerCase().includes(intake.productName.toLowerCase()) || 
+                intake.productName.toLowerCase().includes(i.name.toLowerCase())
+            );
+            
             if (item) {
-                const type = sale.qty < 0 ? 'Sale' : 'Purchase';
-                const ok = await recordMovement(item, sale.qty, type as MovementType, "AI Automated Update");
+                const type = intake.qty > 0 ? 'Purchase' : 'Sale';
+                const ok = await recordMovement(item, intake.qty, type as MovementType, "Bulk Intake Sync");
                 if (ok) successCount++;
-            } else if (sale.qty > 0) {
-                const ok = await handleCreateAndRecord(sale.productName, sale.qty, 'Purchase', "AI Auto-created from Command");
+            } else if (intake.qty > 0) {
+                const ok = await handleCreateAndRecord(intake.productName, intake.qty, 'Bulk Intake', intake.category, intake.imageDataUri);
                 if (ok) successCount++;
             }
         }
-        toast({ title: successCount > 0 ? "Stock Updated" : "No Changes Applied", description: `Processed ${successCount} items.` });
-        setDetectedSaleItems([]);
+        toast({ title: successCount > 0 ? "Inventory Synced" : "No Changes", description: `Processed ${successCount} items.` });
+        setDetectedIntakeItems([]);
         setIsAnalyzing(false);
     };
 
@@ -325,29 +371,29 @@ export default function AdminInventoryPage() {
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                     <Card className="bg-primary text-primary-foreground shadow-xl border-none">
                         <CardHeader className="pb-2 flex flex-row justify-between items-center">
-                            <CardTitle className="text-[10px] font-black uppercase tracking-widest opacity-70">Capture Actions</CardTitle>
+                            <CardTitle className="text-[10px] font-black uppercase tracking-widest opacity-70">Intake Actions</CardTitle>
                             <Sparkles className="h-4 w-4" />
                         </CardHeader>
                         <CardContent className="space-y-2">
-                             <div className="flex gap-2">
-                                <Button size="sm" variant="secondary" className="flex-1 rounded-xl" onClick={startVoiceCapture}>
-                                    <Mic className="h-4 w-4 mr-2" /> Voice
+                             <div className="flex flex-col gap-2">
+                                <Button size="sm" variant="secondary" className="w-full rounded-xl" onClick={() => document.getElementById('bulk-intake-capture')?.click()}>
+                                    {isAnalyzing ? <Loader2 className="animate-spin h-4 w-4" /> : <Layers className="h-4 w-4 mr-2" />} Bulk Intake (Photo)
                                 </Button>
-                                <Button size="sm" variant="secondary" className="flex-1 rounded-xl" onClick={() => document.getElementById('new-item-capture')?.click()}>
-                                    {isAnalyzing ? <Loader2 className="animate-spin h-4 w-4" /> : <Camera className="h-4 w-4 mr-2" />} New
-                                </Button>
-                                <input type="file" id="new-item-capture" accept="image/*" className="hidden" onChange={handleNewProductCapture} />
+                                <div className="flex gap-2">
+                                    <Button size="sm" variant="secondary" className="flex-1 rounded-xl" onClick={startVoiceCapture}><Mic className="h-3 w-3 mr-1" /> Voice</Button>
+                                    <Button size="sm" variant="secondary" className="flex-1 rounded-xl" onClick={() => document.getElementById('new-item-capture')?.click()}><Plus className="h-3 w-3 mr-1" /> New</Button>
+                                </div>
                              </div>
+                             <input type="file" id="bulk-intake-capture" accept="image/*" className="hidden" onChange={handleBulkIntakeCapture} />
+                             <input type="file" id="new-item-capture" accept="image/*" className="hidden" onChange={handleNewProductCapture} />
                         </CardContent>
                     </Card>
 
                     <Link href="/admin/inventory/audit">
                         <Card className="hover:bg-slate-50 transition-colors shadow-lg border-none cursor-pointer h-full">
-                            <CardHeader className="pb-2">
-                                <CardTitle className="text-[10px] font-black uppercase text-purple-600 tracking-widest">Visual Audit</CardTitle>
-                            </CardHeader>
+                            <CardHeader className="pb-2"><CardTitle className="text-[10px] font-black uppercase text-purple-600 tracking-widest">Visual Audit</CardTitle></CardHeader>
                             <CardContent className="flex items-center gap-4">
-                                <div className="p-2 bg-purple-100 text-purple-600 rounded-lg"><Layers className="h-5 w-5" /></div>
+                                <div className="p-2 bg-purple-100 text-purple-600 rounded-lg"><CheckCircle2 className="h-5 w-5" /></div>
                                 <div className="text-xl font-bold">Shelf Check</div>
                             </CardContent>
                         </Card>
@@ -355,9 +401,7 @@ export default function AdminInventoryPage() {
 
                     <Link href="/admin/inventory/billing">
                         <Card className="hover:bg-slate-50 transition-colors shadow-lg border-none cursor-pointer h-full">
-                            <CardHeader className="pb-2">
-                                <CardTitle className="text-[10px] font-black uppercase text-blue-600 tracking-widest">Point of Sale</CardTitle>
-                            </CardHeader>
+                            <CardHeader className="pb-2"><CardTitle className="text-[10px] font-black uppercase text-blue-600 tracking-widest">Point of Sale</CardTitle></CardHeader>
                             <CardContent className="flex items-center gap-4">
                                 <div className="p-2 bg-blue-100 text-blue-600 rounded-lg"><ShoppingCart className="h-5 w-5" /></div>
                                 <div className="text-xl font-bold">New Bill</div>
@@ -373,12 +417,8 @@ export default function AdminInventoryPage() {
                     <Card className="bg-slate-50 shadow-inner border-none flex flex-col justify-center p-4">
                         <p className="text-[8px] font-black uppercase text-slate-400 mb-1">Navigation Mode</p>
                         <div className="flex bg-white rounded-xl p-1 border">
-                            <Button variant={activeView === 'list' ? 'default' : 'ghost'} size="sm" className="flex-1 h-8 rounded-lg text-[10px] uppercase font-bold" onClick={() => setActiveView('list')}>
-                                <List className="h-3 w-3 mr-1" /> List
-                            </Button>
-                            <Button variant={activeView === 'shop-map' ? 'default' : 'ghost'} size="sm" className="flex-1 h-8 rounded-lg text-[10px] uppercase font-bold" onClick={() => setActiveView('shop-map')}>
-                                <MapIcon className="h-3 w-3 mr-1" /> Map
-                            </Button>
+                            <Button variant={activeView === 'list' ? 'default' : 'ghost'} size="sm" className="flex-1 h-8 rounded-lg text-[10px] uppercase font-bold" onClick={() => setActiveView('list')}><List className="h-3 w-3 mr-1" /> List</Button>
+                            <Button variant={activeView === 'shop-map' ? 'default' : 'ghost'} size="sm" className="flex-1 h-8 rounded-lg text-[10px] uppercase font-bold" onClick={() => setActiveView('shop-map')}><MapIcon className="h-3 w-3 mr-1" /> Map</Button>
                         </div>
                     </Card>
                 </div>
@@ -401,7 +441,7 @@ export default function AdminInventoryPage() {
                     <div className="flex gap-2">
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input placeholder="Search inventory or Shelf..." className="pl-9 h-12 w-64 rounded-2xl bg-white shadow-sm" value={searchTerm} onChange={e => setSearchQuery(e.target.value)} />
+                            <Input placeholder="Search items or Shelf..." className="pl-9 h-12 w-64 rounded-2xl bg-white shadow-sm" value={searchTerm} onChange={e => setSearchQuery(e.target.value)} />
                         </div>
                         <Button variant="outline" size="icon" className="h-12 w-12 rounded-2xl shadow-sm bg-white" onClick={() => setIsQrSearching(true)}>
                             <Scan className="h-5 w-5 text-primary" />
@@ -409,34 +449,27 @@ export default function AdminInventoryPage() {
                     </div>
                 </div>
 
-                {detectedSaleItems.length > 0 && (
+                {detectedIntakeItems.length > 0 && (
                     <Card className="border-2 border-primary bg-primary/5 rounded-[32px] animate-in fade-in slide-in-from-top-4">
-                        <CardHeader><CardTitle className="text-lg flex items-center gap-2 italic font-black"><Sparkles className="text-primary"/> Confirm Stock Movement</CardTitle></CardHeader>
-                        <CardContent>
-                            <div className="space-y-2">
-                                {detectedSaleItems.map((sale, idx) => {
-                                    const match = inventory.find(i => i.name.toLowerCase() === sale.productName.toLowerCase() || i.name.toLowerCase().includes(sale.productName.toLowerCase()) || sale.productName.toLowerCase().includes(i.name.toLowerCase()));
-                                    return (
-                                        <div key={idx} className={cn("flex justify-between items-center p-3 bg-white rounded-xl border", !match && "border-amber-200 bg-amber-50/50")}>
-                                            <div className="flex items-center gap-3">
-                                                <Badge variant={sale.qty < 0 ? 'destructive' : 'default'} className="rounded-full w-8 h-8 p-0 flex items-center justify-center font-bold">
-                                                    {sale.qty > 0 ? '+' : ''}{sale.qty}
-                                                </Badge>
-                                                <div>
-                                                    <span className="font-bold uppercase text-xs block">{sale.productName}</span>
-                                                    {!match && sale.qty > 0 && <span className="text-[10px] text-amber-600 font-bold uppercase tracking-widest flex items-center gap-1"><Info className="h-2 w-2" /> New Product Record</span>}
-                                                </div>
+                        <CardHeader><CardTitle className="text-lg flex items-center gap-2 italic font-black"><Sparkles className="text-primary"/> Confirm AI Intake</CardTitle></CardHeader>
+                        <CardContent><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                            {detectedIntakeItems.map((item, idx) => {
+                                const match = inventory.find(i => i.name.toLowerCase() === item.productName.toLowerCase() || i.name.toLowerCase().includes(item.productName.toLowerCase()));
+                                return (
+                                    <div key={idx} className={cn("p-4 bg-white rounded-2xl border flex items-center justify-between", !match && "border-amber-200 bg-amber-50/50")}>
+                                        <div className="flex items-center gap-3">
+                                            <Badge variant={item.qty < 0 ? 'destructive' : 'default'} className="rounded-full h-8 w-8 p-0 flex items-center justify-center font-bold">{item.qty > 0 ? '+' : ''}{item.qty}</Badge>
+                                            <div>
+                                                <span className="font-bold uppercase text-xs block">{item.productName}</span>
+                                                <span className="text-[9px] text-muted-foreground uppercase">{item.category}</span>
                                             </div>
-                                            <Button variant="ghost" size="icon" onClick={() => setDetectedSaleItems(prev => prev.filter((_, i) => i !== idx))}><Trash2 className="h-4 w-4 text-red-400" /></Button>
                                         </div>
-                                    );
-                                })}
-                            </div>
-                        </CardContent>
-                        <CardFooter className="gap-2">
-                            <Button variant="outline" className="flex-1 rounded-2xl" onClick={() => setDetectedSaleItems([])}>Discard</Button>
-                            <Button className="flex-1 rounded-2xl h-12 text-lg font-black" onClick={finalizeBulkSale} disabled={isAnalyzing}>Confirm & Update Stock</Button>
-                        </CardFooter>
+                                        <Button variant="ghost" size="icon" onClick={() => setDetectedIntakeItems(prev => prev.filter((_, i) => i !== idx))}><Trash2 className="h-4 w-4 text-red-400" /></Button>
+                                    </div>
+                                );
+                            })}
+                        </div></CardContent>
+                        <CardFooter className="gap-2"><Button variant="outline" className="flex-1 rounded-2xl" onClick={() => setDetectedIntakeItems([])}>Discard</Button><Button className="flex-1 rounded-2xl h-12 text-lg font-black" onClick={finalizeBulkIntake} disabled={isAnalyzing}>Process AI Intake</Button></CardFooter>
                     </Card>
                 )}
 

@@ -10,7 +10,8 @@ export type MovementType =
     | 'Damage' 
     | 'Return to Supplier' 
     | 'Customer Return' 
-    | 'Adjustment';
+    | 'Adjustment'
+    | 'Bulk Intake';
 
 export interface StockMovement {
     id: string;

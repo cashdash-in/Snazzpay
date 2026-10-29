@@ -1,7 +1,8 @@
+
 'use server';
 /**
  * @fileOverview AI flows for Inventory Intelligence.
- * Handles parsing voice/text commands and detecting items in photos.
+ * Handles parsing voice/text commands, detecting items in photos, and bulk segregation.
  */
 
 import { ai } from '@/ai/genkit';
@@ -43,12 +44,17 @@ export async function parseInventoryCommand(text: string) {
 
 /**
  * Uses vision to detect products and quantities from a photo of sold items or a shelf.
- * Upgraded to use gemini-2.5-flash for stable vision-to-json extraction.
  */
-export async function detectItemsInPhoto(imageDataUri: string, mode: 'sale' | 'audit' = 'sale') {
-  const systemPrompt = mode === 'sale' 
-    ? "Act as a professional retail checkout scanner. Identify every product visible in this photo on the counter and count their quantities. These items are currently being sold."
-    : "Act as a detailed inventory auditor. Analyze this storage shelf photo. List every distinct product type and perform a precise visual count of how many of each are on the shelf.";
+export async function detectItemsInPhoto(imageDataUri: string, mode: 'sale' | 'audit' | 'intake' = 'sale') {
+  let systemPrompt = "";
+  
+  if (mode === 'sale') {
+      systemPrompt = "Act as a professional retail checkout scanner. Identify every product visible in this photo on the counter and count their quantities. These items are currently being sold.";
+  } else if (mode === 'audit') {
+      systemPrompt = "Act as a detailed inventory auditor. Analyze this storage shelf photo. List every distinct product type and perform a precise visual count of how many of each are on the shelf.";
+  } else if (mode === 'intake') {
+      systemPrompt = "Act as an intake manager. Analyze this photo of newly purchased items. Segregate them by identifying each distinct product type and counting them. These are new stocks being added to inventory.";
+  }
 
   try {
     const { output } = await ai.generate({
@@ -62,6 +68,7 @@ export async function detectItemsInPhoto(imageDataUri: string, mode: 'sale' | 'a
             detections: z.array(z.object({
                 productName: z.string().describe("The name of the identified product"),
                 count: z.number().describe("The number of units detected"),
+                category: z.string().describe("Suggested category"),
                 confidence: z.number().describe("AI confidence score (0-1)")
             }))
           })
