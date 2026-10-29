@@ -15,7 +15,8 @@ import {
     MessageSquare, History, TrendingUp, 
     Sparkles, Send, Mic, Trash2, AlertTriangle,
     X, PackagePlus, Info, ImagePlus, QrCode, Printer, Calendar as CalendarIcon,
-    Layers, Scan, Map as MapIcon, LayoutGrid, List
+    Layers, Scan, Map as MapIcon, LayoutGrid, List,
+    CheckCircle2
 } from 'lucide-react';
 import { getCollection, saveDocument, addDocument } from '@/services/firestore';
 import { parseInventoryCommand, detectItemsInPhoto } from '@/ai/flows/inventory-ai';
@@ -28,36 +29,11 @@ import type { InventoryItem, StockMovement, MovementType } from '@/types/invento
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Link from 'next/link';
-import { useReactToPrint } from 'react-to-print';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const MAX_IMAGE_SIZE_PX = 600;
-
-// Printable Label Component
-const ProductLabel = ({ item }: { item: InventoryItem }) => {
-    return (
-        <div className="p-6 bg-white border-2 border-black w-[80mm] h-[50mm] flex flex-col items-center justify-center gap-2 text-black print:m-0">
-            <h4 className="font-black uppercase text-center text-sm leading-tight line-clamp-2">{item.name}</h4>
-            <div className="flex items-center gap-4">
-                <div className="relative w-20 h-20 border border-slate-200">
-                    <img 
-                        src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${item.id}`} 
-                        alt="QR Code" 
-                        className="w-full h-full object-contain"
-                    />
-                </div>
-                <div className="flex flex-col gap-1">
-                    <p className="font-black text-lg">₹{item.mrp}</p>
-                    <p className="text-[8px] font-mono font-bold uppercase">{item.id}</p>
-                    <p className="text-[8px] font-bold opacity-50 uppercase tracking-tighter">Shelf: {item.shelfNumber}</p>
-                </div>
-            </div>
-            <p className="text-[8px] font-bold uppercase tracking-widest">{item.category}</p>
-        </div>
-    );
-};
 
 export default function AdminInventoryPage() {
     const { toast } = useToast();
@@ -71,36 +47,9 @@ export default function AdminInventoryPage() {
     // QR Search State
     const [isQrSearching, setIsQrSearching] = useState(false);
     
-    // QR Print State
-    const [printItem, setPrintItem] = useState<InventoryItem | null>(null);
-    const printRef = useRef<HTMLDivElement>(null);
-    const handlePrint = useReactToPrint({
-        content: () => printRef.current,
-        documentTitle: `Label_${printItem?.name || 'product'}`,
-    });
-
-    useEffect(() => {
-        if (printItem && printRef.current) {
-            handlePrint();
-            setPrintItem(null);
-        }
-    }, [printItem, handlePrint]);
-
-    // Grouping for Shop Map
-    const shelfGroups = useMemo(() => {
-        const groups: Record<string, InventoryItem[]> = {};
-        inventory.forEach(item => {
-            const shelf = item.shelfNumber || 'Unassigned';
-            if (!groups[shelf]) groups[shelf] = [];
-            groups[shelf].push(item);
-        });
-        return groups;
-    }, [inventory]);
-
     // AI Interaction States
     const [isListening, setIsListening] = useState(false);
     const [voiceTranscript, setVoiceTranscript] = useState('');
-    const [isVisionProcessing, setIsVisionProcessing] = useState(false);
     const [textCommand, setTextCommand] = useState('');
     const [detectedSaleItems, setDetectedSaleItems] = useState<{productName: string, qty: number}[]>([]);
 
@@ -126,6 +75,17 @@ export default function AdminInventoryPage() {
         loadData();
     }, [loadData]);
 
+    // Grouping for Shop Map
+    const shelfGroups = useMemo(() => {
+        const groups: Record<string, InventoryItem[]> = {};
+        inventory.forEach(item => {
+            const shelf = item.shelfNumber || 'Unassigned';
+            if (!groups[shelf]) groups[shelf] = [];
+            groups[shelf].push(item);
+        });
+        return groups;
+    }, [inventory]);
+
     // QR Scanner Logic
     useEffect(() => {
         if (!isQrSearching) return;
@@ -138,6 +98,64 @@ export default function AdminInventoryPage() {
         }, (err) => {});
         return () => { scanner.clear().catch(() => {}); };
     }, [isQrSearching, toast]);
+
+    const handlePrintLabel = (item: InventoryItem) => {
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${item.id}`;
+        
+        const printWindow = window.open('', '_blank', 'width=600,height=600');
+        if (!printWindow) return;
+
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>Print Label - ${item.name}</title>
+                    <style>
+                        body { margin: 0; padding: 20px; font-family: sans-serif; display: flex; align-items: center; justify-content: center; }
+                        .label { 
+                            width: 80mm; 
+                            height: 50mm; 
+                            border: 2px solid black; 
+                            padding: 10px; 
+                            display: flex; 
+                            flex-direction: column; 
+                            align-items: center; 
+                            justify-content: center;
+                            text-align: center;
+                            box-sizing: border-box;
+                        }
+                        .title { font-weight: 900; font-size: 14px; text-transform: uppercase; margin-bottom: 5px; line-clamp: 2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+                        .content { display: flex; align-items: center; gap: 15px; width: 100%; }
+                        .qr { width: 80px; height: 80px; }
+                        .details { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+                        .price { font-weight: 900; font-size: 18px; }
+                        .id { font-family: monospace; font-size: 10px; color: #666; }
+                        .shelf { font-size: 10px; font-weight: bold; background: #eee; padding: 2px 5px; border-radius: 4px; margin-top: 5px; }
+                        @media print { .no-print { display: none; } }
+                    </style>
+                </head>
+                <body>
+                    <div class="label">
+                        <div class="title">${item.name}</div>
+                        <div class="content">
+                            <img src="${qrUrl}" class="qr" />
+                            <div class="details">
+                                <div class="price">₹${item.mrp}</div>
+                                <div class="id">${item.id}</div>
+                                <div class="shelf">SHELF: ${item.shelfNumber}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <script>
+                        window.onload = function() {
+                            window.print();
+                            window.onafterprint = function() { window.close(); };
+                        };
+                    </script>
+                </body>
+            </html>
+        `);
+        printWindow.document.close();
+    };
 
     const resizeImage = (file: File): Promise<string> => {
         return new Promise((resolve) => {
@@ -183,13 +201,13 @@ export default function AdminInventoryPage() {
         const shortId = uuidv4().substring(0, 8).toUpperCase();
         const now = new Date().toISOString();
         const newItem: InventoryItem = {
-            id: shortId, name: productName, quantity: Math.max(0, qty), wholesalePrice: 0, mrp: 0, shelfNumber: 'New', imageDataUri: `https://picsum.photos/seed/${shortId}/400/400`, category: 'New Article', lastUpdated: now, addedDate: now, purchaseDate: now, description: 'Auto-added via AI command.',
+            id: shortId, name: productName, quantity: Math.max(0, qty), wholesalePrice: 0, mrp: 0, shelfNumber: 'NEW', imageDataUri: `https://picsum.photos/seed/${shortId}/400/400`, category: 'New Article', lastUpdated: now, addedDate: now, purchaseDate: now, description: 'Auto-added via AI command.',
         };
         const movement: StockMovement = {
-            id: uuidv4(), productId: newItem.id, type: 'Opening', quantity: Math.max(0, qty), date: now, note: note || "AI Auto-created", previousStock: 0, newStock: Math.max(0, qty)
+            id: uuidv4(), productId: shortId, type: 'Opening', quantity: Math.max(0, qty), date: now, note: note || "AI Auto-created", previousStock: 0, newStock: Math.max(0, qty)
         };
         try {
-            await Promise.all([saveDocument('inventory', newItem, newItem.id), saveDocument('inventory_movements', movement, movement.id)]);
+            await Promise.all([saveDocument('inventory', newItem, shortId), saveDocument('inventory_movements', movement, movement.id)]);
             setInventory(prev => [newItem, ...prev]);
             return true;
         } catch (e) { return false; }
@@ -221,9 +239,9 @@ export default function AdminInventoryPage() {
             const shortId = uuidv4().substring(0, 8).toUpperCase();
             const now = new Date().toISOString();
             const newItem: InventoryItem = {
-                id: shortId, name: aiData.productName, quantity: 1, wholesalePrice: 0, mrp: aiData.suggestedMRP, shelfNumber: 'Pending', imageDataUri: uri, category: aiData.category, lastUpdated: now, addedDate: now, purchaseDate: now, description: aiData.description, sellingPoints: aiData.sellingPoints,
+                id: shortId, name: aiData.productName, quantity: 1, wholesalePrice: 0, mrp: aiData.suggestedMRP, shelfNumber: 'PENDING', imageDataUri: uri, category: aiData.category, lastUpdated: now, addedDate: now, purchaseDate: now, description: aiData.description, sellingPoints: aiData.sellingPoints,
             };
-            await saveDocument('inventory', newItem, newItem.id);
+            await saveDocument('inventory', newItem, shortId);
             setInventory(prev => [newItem, ...prev]);
             toast({ title: "New Product Listed!", description: `AI added: ${aiData.productName}` });
         } catch (e) {
@@ -270,7 +288,7 @@ export default function AdminInventoryPage() {
                 if (ok) successCount++;
             }
         }
-        toast({ title: successCount > 0 ? "Stock Updated" : "No Changes Applied", description: `Processed ${successCount} items.`, variant: successCount === 0 ? "destructive" : "default" });
+        toast({ title: successCount > 0 ? "Stock Updated" : "No Changes Applied", description: `Processed ${successCount} items.` });
         setDetectedSaleItems([]);
         setIsAnalyzing(false);
     };
@@ -456,7 +474,15 @@ export default function AdminInventoryPage() {
                                             <TableCell>
                                                 <div className="flex items-center gap-2">
                                                     <LayoutGrid className="h-3 w-3 text-muted-foreground" />
-                                                    <Input className="h-8 w-24 text-xs font-bold uppercase" value={item.shelfNumber} onChange={(e) => updateItem(item.id, { shelfNumber: e.target.value.toUpperCase() })} />
+                                                    <Input 
+                                                        className="h-8 w-24 text-xs font-bold uppercase" 
+                                                        value={item.shelfNumber} 
+                                                        onChange={(e) => {
+                                                            const newShelf = e.target.value.toUpperCase();
+                                                            setInventory(prev => prev.map(i => i.id === item.id ? { ...i, shelfNumber: newShelf } : i));
+                                                            saveDocument('inventory', { shelfNumber: newShelf }, item.id);
+                                                        }} 
+                                                    />
                                                 </div>
                                             </TableCell>
                                             <TableCell>
@@ -474,7 +500,7 @@ export default function AdminInventoryPage() {
                                                 </div>
                                             </TableCell>
                                             <TableCell className="text-right space-x-2">
-                                                <Button variant="outline" size="sm" className="rounded-xl h-8 text-[10px] uppercase font-bold" onClick={() => setPrintItem(item)}><Printer className="h-3 w-3 mr-1" /> Label</Button>
+                                                <Button variant="outline" size="sm" className="rounded-xl h-8 text-[10px] uppercase font-bold" onClick={() => handlePrintLabel(item)}><Printer className="h-3 w-3 mr-1" /> Label</Button>
                                                 <Dialog>
                                                     <DialogTrigger asChild><Button variant="outline" size="sm" className="rounded-xl h-8 text-[10px] uppercase font-bold text-destructive"><AlertTriangle className="h-3 w-3 mr-1" /> Loss</Button></DialogTrigger>
                                                     <DialogContent>
@@ -555,9 +581,6 @@ export default function AdminInventoryPage() {
                     </div>
                 </DialogContent>
             </Dialog>
-
-            <div className="hidden"><div ref={printRef}>{printItem && <ProductLabel item={printItem} />}</div></div>
         </AppShell>
     );
 }
-
