@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useRef, useEffect, useMemo } from 'react';
@@ -111,7 +110,6 @@ export function ProductGenee({ product, allProducts, storeName, isOpen, onOpenCh
 
     if (!forcedQuery) setInput('');
     
-    // Track Genee Search
     fetch('/api/track', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -186,7 +184,6 @@ export function ProductGenee({ product, allProducts, storeName, isOpen, onOpenCh
           </div>
 
           <div className="flex-1 flex overflow-hidden">
-            {/* Left Pane: Discovery Grid */}
             <div className="flex-1 flex flex-col bg-white border-r min-w-0">
                 <div className="p-6 border-b flex flex-col sm:flex-row items-center justify-between gap-4 shrink-0 bg-slate-50/50">
                     <h2 className="text-sm font-black uppercase tracking-tight text-slate-800 italic">
@@ -228,12 +225,6 @@ export function ProductGenee({ product, allProducts, storeName, isOpen, onOpenCh
                                         </CardFooter>
                                     </Card>
                                 ))}
-                                {filteredProducts.length === 0 && (
-                                    <div className="col-span-full py-32 text-center space-y-4 opacity-30">
-                                        <Search className="h-16 w-16 mx-auto" />
-                                        <p className="font-black uppercase italic">No matching products found</p>
-                                    </div>
-                                )}
                             </div>
                         ) : (
                             <div className="max-w-2xl mx-auto space-y-6 py-8">
@@ -274,7 +265,6 @@ export function ProductGenee({ product, allProducts, storeName, isOpen, onOpenCh
                 </ScrollArea>
             </div>
 
-            {/* Right Pane: AI Chat Assistant */}
             <div className="w-full md:w-[400px] lg:w-[480px] flex flex-col bg-[#f8fafc] border-l shrink-0">
                 <div className="p-6 border-b flex items-center justify-between bg-white shrink-0">
                     <div className="flex items-center gap-4">
@@ -289,7 +279,6 @@ export function ProductGenee({ product, allProducts, storeName, isOpen, onOpenCh
                     </div>
                 </div>
 
-                {/* SCROLLER AREA */}
                 <ScrollArea className="flex-1" ref={scrollRef}>
                     <div className="p-6 space-y-6">
                         {messages.map((m, i) => (

@@ -43,29 +43,35 @@ export async function parseInventoryCommand(text: string) {
 
 /**
  * Uses vision to detect products and quantities from a photo of sold items or a shelf.
+ * Upgraded to use gemini-2.5-flash for stable vision-to-json extraction.
  */
 export async function detectItemsInPhoto(imageDataUri: string, mode: 'sale' | 'audit' = 'sale') {
   const systemPrompt = mode === 'sale' 
-    ? "Act as a checkout scanner. Analyze this photo of items on a counter. Identify every product and count them accurately. These items are being sold."
-    : "Act as an inventory auditor. Analyze this photo of a storage shelf. Perform a visual count of every distinct product type you see. Be extremely precise.";
+    ? "Act as a professional retail checkout scanner. Identify every product visible in this photo on the counter and count their quantities. These items are currently being sold."
+    : "Act as a detailed inventory auditor. Analyze this storage shelf photo. List every distinct product type and perform a precise visual count of how many of each are on the shelf.";
 
-  const { output } = await ai.generate({
-    model: 'googleai/gemini-2.5-flash-image',
-    prompt: [
-        { text: systemPrompt },
-        { media: { url: imageDataUri, contentType: 'image/jpeg' } }
-    ],
-    output: {
-      schema: z.object({
-        detections: z.array(z.object({
-            productName: z.string(),
-            count: z.number(),
-            confidence: z.number()
-        }))
-      })
-    }
-  });
+  try {
+    const { output } = await ai.generate({
+        model: 'googleai/gemini-2.5-flash',
+        prompt: [
+            { text: systemPrompt },
+            { media: { url: imageDataUri, contentType: 'image/jpeg' } }
+        ],
+        output: {
+          schema: z.object({
+            detections: z.array(z.object({
+                productName: z.string().describe("The name of the identified product"),
+                count: z.number().describe("The number of units detected"),
+                confidence: z.number().describe("AI confidence score (0-1)")
+            }))
+          })
+        }
+      });
 
-  if (!output) return [];
-  return output.detections;
+      if (!output) return [];
+      return output.detections;
+  } catch (error: any) {
+      console.error("detectItemsInPhoto AI error:", error);
+      return [];
+  }
 }

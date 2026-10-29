@@ -12,28 +12,28 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing image data' }, { status: 400 });
     }
 
-    // NUCLEAR SURGICAL RE-DRESS PROMPT
+    // NUCLEAR SURGICAL RE-DRESS PROMPT - HIGHEST INTENSITY
     const finalPrompt = `ACT AS AN ELITE FASHION STUDIO RETOUCHER & AI GENERATIVE FILL MASTER. 
 
-    TASK: PERFORM A 100% CLOTHING SUBSTITUTION ON THE PERSON IN THE FIRST PHOTO.
+    TASK: PERFORM A 100% SURGICAL CLOTHING SUBSTITUTION ON THE PERSON IN THE FIRST PHOTO.
     
     MISSION PARAMETERS:
     1. SURGICAL OBLITERATION: 
        - Identify the exact area occupied by the person's current outfit (torso, sleeves, legs).
-       - COMPLETELY ERASE every pixel of the original clothes.
-       - IGNORE original colors (like yellow or beige). They must be 100% REMOVED.
-       - Do not "blend" with existing clothes; this is a full replacement.
+       - COMPLETELY ERASE every single pixel of the original clothes.
+       - IGNORE original colors (like yellow, beige, or white). They must be 100% OBLITERATED.
+       - Do not "blend" or "overlay"; this is a clean-slate full replacement.
        
     2. PRODUCT INJECTION: 
        - Use the product shown in the second photo: "${input.productTitle}".
-       - Extract the exact pattern, fabric texture, and color motif.
+       - Extract the exact pattern, fabric texture, weave, and color motif.
        - Re-dress the person using ONLY the new product texture.
-       - Drape the garment flawlessly according to the body silhouette.
+       - Drape the garment flawlessly according to the body silhouette, matching folds and natural physics.
     
     3. IDENTITY PRESERVATION: 
        - CRITICAL: Do NOT modify the person's face, hair, skin tone, or background.
-       - The person must remain exactly the same; only the outfit changes.
-       - Ensure shadows and lighting on the new fabric match the scene environment.
+       - The person must remain exactly the same; only the outfit is surgically swapped.
+       - Ensure shadows and environment lighting on the new fabric are 100% realistic.
 
     MODE: ${input.garmentType || 'Apparel'} Fitting.
     DRAPE STYLE: ${input.drapeStyle || 'Western'}.
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
         });
 
         if (!media?.url) {
-          return NextResponse.json({ error: 'AI processed the request but did not return an image. This might be due to safety filters.' }, { status: 200 });
+          return NextResponse.json({ error: 'AI processed the request but did not return an image. This might be due to high traffic.' }, { status: 200 });
         }
 
         return NextResponse.json({ generatedImageDataUri: media.url });
