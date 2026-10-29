@@ -1,3 +1,4 @@
+
 /**
  * @fileOverview Core types for the Inventory Intelligence system.
  */

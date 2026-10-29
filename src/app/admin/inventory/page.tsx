@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -55,7 +56,7 @@ export default function AdminInventoryPage() {
         setIsLoading(true);
         try {
             const stock = await getCollection<InventoryItem>('inventory');
-            // Strict Sort: Newest Added at the top
+            // STRICT SORT: Newest Added at the top
             const sorted = (stock || []).sort((a, b) => {
                 const dateA = new Date(a.addedDate || a.lastUpdated || 0).getTime();
                 const dateB = new Date(b.addedDate || b.lastUpdated || 0).getTime();
