@@ -15,7 +15,7 @@ import {
     MessageSquare, History, TrendingUp, 
     Sparkles, Send, Mic, Trash2, AlertTriangle,
     X, PackagePlus, Info, ImagePlus, QrCode, Printer, Calendar as CalendarIcon,
-    Layers
+    Layers, Scan, Map as MapIcon, LayoutGrid, List
 } from 'lucide-react';
 import { getCollection, saveDocument, addDocument } from '@/services/firestore';
 import { parseInventoryCommand, detectItemsInPhoto } from '@/ai/flows/inventory-ai';
@@ -30,6 +30,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import Link from 'next/link';
 import { useReactToPrint } from 'react-to-print';
 import { format } from 'date-fns';
+import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const MAX_IMAGE_SIZE_PX = 600;
 
@@ -49,7 +51,7 @@ const ProductLabel = ({ item }: { item: InventoryItem }) => {
                 <div className="flex flex-col gap-1">
                     <p className="font-black text-lg">₹{item.mrp}</p>
                     <p className="text-[8px] font-mono font-bold uppercase">{item.id}</p>
-                    <p className="text-[8px] font-bold opacity-50 uppercase tracking-tighter">Snazzify Secure</p>
+                    <p className="text-[8px] font-bold opacity-50 uppercase tracking-tighter">Shelf: {item.shelfNumber}</p>
                 </div>
             </div>
             <p className="text-[8px] font-bold uppercase tracking-widest">{item.category}</p>
@@ -64,6 +66,10 @@ export default function AdminInventoryPage() {
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [searchTerm, setSearchQuery] = useState('');
     const [isMounted, setIsMounted] = useState(false);
+    const [activeView, setActiveView] = useState<'list' | 'shop-map'>('list');
+    
+    // QR Search State
+    const [isQrSearching, setIsQrSearching] = useState(false);
     
     // QR Print State
     const [printItem, setPrintItem] = useState<InventoryItem | null>(null);
@@ -73,13 +79,23 @@ export default function AdminInventoryPage() {
         documentTitle: `Label_${printItem?.name || 'product'}`,
     });
 
-    // Effect to trigger print after state is set and content is rendered
     useEffect(() => {
         if (printItem && printRef.current) {
             handlePrint();
             setPrintItem(null);
         }
     }, [printItem, handlePrint]);
+
+    // Grouping for Shop Map
+    const shelfGroups = useMemo(() => {
+        const groups: Record<string, InventoryItem[]> = {};
+        inventory.forEach(item => {
+            const shelf = item.shelfNumber || 'Unassigned';
+            if (!groups[shelf]) groups[shelf] = [];
+            groups[shelf].push(item);
+        });
+        return groups;
+    }, [inventory]);
 
     // AI Interaction States
     const [isListening, setIsListening] = useState(false);
@@ -92,7 +108,6 @@ export default function AdminInventoryPage() {
         setIsLoading(true);
         try {
             const stock = await getCollection<InventoryItem>('inventory');
-            // Sort by addedDate or lastUpdated descending so new products appear on top
             const sorted = (stock || []).sort((a, b) => {
                 const dateA = new Date(a.addedDate || a.lastUpdated || 0).getTime();
                 const dateB = new Date(b.addedDate || b.lastUpdated || 0).getTime();
@@ -110,6 +125,19 @@ export default function AdminInventoryPage() {
         setIsMounted(true);
         loadData();
     }, [loadData]);
+
+    // QR Scanner Logic
+    useEffect(() => {
+        if (!isQrSearching) return;
+        const scanner = new Html5QrcodeScanner("qr-search-reader", { fps: 10, qrbox: 250 }, false);
+        scanner.render((decodedText) => {
+            setSearchQuery(decodedText);
+            setIsQrSearching(false);
+            scanner.clear();
+            toast({ title: "Product Identified", description: `Searching for ID: ${decodedText}` });
+        }, (err) => {});
+        return () => { scanner.clear().catch(() => {}); };
+    }, [isQrSearching, toast]);
 
     const resizeImage = (file: File): Promise<string> => {
         return new Promise((resolve) => {
@@ -136,29 +164,17 @@ export default function AdminInventoryPage() {
         const now = new Date().toISOString();
         const newQty = item.quantity + qty;
         const movement: StockMovement = {
-            id: uuidv4(),
-            productId: item.id,
-            type,
-            quantity: qty,
-            date: now,
-            note,
-            previousStock: item.quantity,
-            newStock: newQty
+            id: uuidv4(), productId: item.id, type, quantity: qty, date: now, note, previousStock: item.quantity, newStock: newQty
         };
 
         try {
-            // Update local state first for instant UI response
             setInventory(prev => prev.map(i => i.id === item.id ? { ...i, quantity: newQty, lastUpdated: now } : i));
-
-            // Sync with database
             await Promise.all([
                 saveDocument('inventory', { ...item, quantity: newQty, lastUpdated: now }, item.id),
                 saveDocument('inventory_movements', movement, movement.id)
             ]);
-            
             return true;
         } catch (e) {
-            console.error("Stock update error:", e);
             return false;
         }
     };
@@ -167,42 +183,16 @@ export default function AdminInventoryPage() {
         const shortId = uuidv4().substring(0, 8).toUpperCase();
         const now = new Date().toISOString();
         const newItem: InventoryItem = {
-            id: shortId,
-            name: productName,
-            quantity: Math.max(0, qty),
-            wholesalePrice: 0,
-            mrp: 0,
-            shelfNumber: 'New',
-            imageDataUri: `https://picsum.photos/seed/${shortId}/400/400`, // Placeholder
-            category: 'New Article',
-            lastUpdated: now,
-            addedDate: now,
-            purchaseDate: now,
-            description: 'Auto-added via AI command.',
+            id: shortId, name: productName, quantity: Math.max(0, qty), wholesalePrice: 0, mrp: 0, shelfNumber: 'New', imageDataUri: `https://picsum.photos/seed/${shortId}/400/400`, category: 'New Article', lastUpdated: now, addedDate: now, purchaseDate: now, description: 'Auto-added via AI command.',
         };
-
         const movement: StockMovement = {
-            id: uuidv4(),
-            productId: newItem.id,
-            type: 'Opening',
-            quantity: Math.max(0, qty),
-            date: now,
-            note: note || "AI Auto-created",
-            previousStock: 0,
-            newStock: Math.max(0, qty)
+            id: uuidv4(), productId: newItem.id, type: 'Opening', quantity: Math.max(0, qty), date: now, note: note || "AI Auto-created", previousStock: 0, newStock: Math.max(0, qty)
         };
-
         try {
-            await Promise.all([
-                saveDocument('inventory', newItem, newItem.id),
-                saveDocument('inventory_movements', movement, movement.id)
-            ]);
+            await Promise.all([saveDocument('inventory', newItem, newItem.id), saveDocument('inventory_movements', movement, movement.id)]);
             setInventory(prev => [newItem, ...prev]);
             return true;
-        } catch (e) {
-            console.error("Creation error:", e);
-            return false;
-        }
+        } catch (e) { return false; }
     };
 
     const handleTextCommand = async (command: string) => {
@@ -228,25 +218,11 @@ export default function AdminInventoryPage() {
         try {
             const uri = await resizeImage(file);
             const aiData = await analyzeInventoryItem({ imageDataUri: uri });
-            
             const shortId = uuidv4().substring(0, 8).toUpperCase();
             const now = new Date().toISOString();
             const newItem: InventoryItem = {
-                id: shortId,
-                name: aiData.productName,
-                quantity: 1,
-                wholesalePrice: 0,
-                mrp: aiData.suggestedMRP,
-                shelfNumber: 'Pending',
-                imageDataUri: uri,
-                category: aiData.category,
-                lastUpdated: now,
-                addedDate: now,
-                purchaseDate: now,
-                description: aiData.description,
-                sellingPoints: aiData.sellingPoints,
+                id: shortId, name: aiData.productName, quantity: 1, wholesalePrice: 0, mrp: aiData.suggestedMRP, shelfNumber: 'Pending', imageDataUri: uri, category: aiData.category, lastUpdated: now, addedDate: now, purchaseDate: now, description: aiData.description, sellingPoints: aiData.sellingPoints,
             };
-
             await saveDocument('inventory', newItem, newItem.id);
             setInventory(prev => [newItem, ...prev]);
             toast({ title: "New Product Listed!", description: `AI added: ${aiData.productName}` });
@@ -280,54 +256,21 @@ export default function AdminInventoryPage() {
         }
     };
 
-    const handlePhotoSale = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        setIsVisionProcessing(true);
-        try {
-            const uri = await resizeImage(file);
-            const detections = await detectItemsInPhoto(uri, 'sale');
-            if (!detections || detections.length === 0) {
-                toast({ variant: 'destructive', title: "No items detected" });
-            } else {
-                setDetectedSaleItems(detections.map(d => ({ productName: d.productName, qty: -d.count })));
-                toast({ title: "Photo Analyzed", description: `Found ${detections.length} types of items.` });
-            }
-        } catch (e) {
-            toast({ variant: 'destructive', title: "Vision Error" });
-        } finally {
-            setIsVisionProcessing(false);
-            e.target.value = '';
-        }
-    };
-
     const finalizeBulkSale = async () => {
         setIsAnalyzing(true);
         let successCount = 0;
-        
         for (const sale of detectedSaleItems) {
-            const item = inventory.find(i => 
-                i.name.toLowerCase() === sale.productName.toLowerCase() ||
-                i.name.toLowerCase().includes(sale.productName.toLowerCase()) || 
-                sale.productName.toLowerCase().includes(i.name.toLowerCase())
-            );
-            
+            const item = inventory.find(i => i.name.toLowerCase() === sale.productName.toLowerCase() || i.name.toLowerCase().includes(sale.productName.toLowerCase()) || sale.productName.toLowerCase().includes(i.name.toLowerCase()));
             if (item) {
                 const type = sale.qty < 0 ? 'Sale' : 'Purchase';
                 const ok = await recordMovement(item, sale.qty, type as MovementType, "AI Automated Update");
                 if (ok) successCount++;
             } else if (sale.qty > 0) {
-                // Auto-create New Product from "Add" Command
                 const ok = await handleCreateAndRecord(sale.productName, sale.qty, 'Purchase', "AI Auto-created from Command");
                 if (ok) successCount++;
             }
         }
-        
-        toast({ 
-            title: successCount > 0 ? "Stock Updated" : "No Changes Applied", 
-            description: `Processed ${successCount} out of ${detectedSaleItems.length} commands.`,
-            variant: successCount === 0 ? "destructive" : "default"
-        });
+        toast({ title: successCount > 0 ? "Stock Updated" : "No Changes Applied", description: `Processed ${successCount} items.`, variant: successCount === 0 ? "destructive" : "default" });
         setDetectedSaleItems([]);
         setIsAnalyzing(false);
     };
@@ -338,65 +281,53 @@ export default function AdminInventoryPage() {
             toast({ variant: 'destructive', title: "Speech Not Supported" });
             return;
         }
-
         const recognition = new SpeechRecognition();
         recognition.lang = 'en-IN';
-        recognition.onstart = () => {
-            setIsListening(true);
-            setVoiceTranscript('Listening...');
-        };
+        recognition.onstart = () => { setIsListening(true); setVoiceTranscript('Listening...'); };
         recognition.onresult = (event: any) => {
             const transcript = event.results[0][0].transcript;
             setVoiceTranscript(transcript);
             handleTextCommand(transcript);
         };
-        recognition.onerror = () => {
-            setIsListening(false);
-            toast({ variant: 'destructive', title: "Speech Error" });
-        };
+        recognition.onerror = () => { setIsListening(false); toast({ variant: 'destructive', title: "Speech Error" }); };
         recognition.onend = () => setIsListening(false);
         recognition.start();
     };
 
     const filteredInventory = inventory.filter(i => 
         (i.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
-        (i.id || '').toLowerCase().includes(searchTerm.toLowerCase())
+        (i.id || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (i.shelfNumber || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     if (!isMounted) return null;
 
     return (
-        <AppShell title="Shop Inventory">
+        <AppShell title="Shop Intelligence Hub">
             <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                     <Card className="bg-primary text-primary-foreground shadow-xl border-none">
                         <CardHeader className="pb-2 flex flex-row justify-between items-center">
-                            <CardTitle className="text-[10px] font-black uppercase tracking-widest opacity-70">Inventory Intelligence</CardTitle>
+                            <CardTitle className="text-[10px] font-black uppercase tracking-widest opacity-70">Capture Actions</CardTitle>
                             <Sparkles className="h-4 w-4" />
                         </CardHeader>
                         <CardContent className="space-y-2">
                              <div className="flex gap-2">
                                 <Button size="sm" variant="secondary" className="flex-1 rounded-xl" onClick={startVoiceCapture}>
-                                    <Mic className="h-4 w-4 mr-2" /> {isListening ? 'Listening...' : 'Voice'}
+                                    <Mic className="h-4 w-4 mr-2" /> Voice
                                 </Button>
-                                <Button size="sm" variant="secondary" className="flex-1 rounded-xl" onClick={() => document.getElementById('sale-photo')?.click()}>
-                                    {isVisionProcessing ? <Loader2 className="animate-spin h-4 w-4" /> : <Camera className="h-4 w-4 mr-2" />} Photo
+                                <Button size="sm" variant="secondary" className="flex-1 rounded-xl" onClick={() => document.getElementById('new-item-capture')?.click()}>
+                                    {isAnalyzing ? <Loader2 className="animate-spin h-4 w-4" /> : <Camera className="h-4 w-4 mr-2" />} New
                                 </Button>
-                                <input type="file" id="sale-photo" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoSale} />
+                                <input type="file" id="new-item-capture" accept="image/*" className="hidden" onChange={handleNewProductCapture} />
                              </div>
                         </CardContent>
                     </Card>
 
-                    <Button onClick={() => document.getElementById('new-item-capture')?.click()} variant="outline" className="h-full border-2 border-dashed border-primary/20 bg-white rounded-2xl flex flex-col gap-2 p-4 shadow-sm hover:bg-slate-50">
-                        {isAnalyzing ? <Loader2 className="animate-spin text-primary" /> : <PackagePlus className="h-6 w-6 text-primary" />}
-                        <span className="font-bold uppercase text-[10px]">Capture New Product</span>
-                        <input type="file" id="new-item-capture" accept="image/*" className="hidden" onChange={handleNewProductCapture} />
-                    </Button>
-
                     <Link href="/admin/inventory/audit">
                         <Card className="hover:bg-slate-50 transition-colors shadow-lg border-none cursor-pointer h-full">
                             <CardHeader className="pb-2">
-                                <CardTitle className="text-[10px] font-black uppercase text-purple-600 tracking-widest">Stock Audit Mode</CardTitle>
+                                <CardTitle className="text-[10px] font-black uppercase text-purple-600 tracking-widest">Visual Audit</CardTitle>
                             </CardHeader>
                             <CardContent className="flex items-center gap-4">
                                 <div className="p-2 bg-purple-100 text-purple-600 rounded-lg"><Layers className="h-5 w-5" /></div>
@@ -408,11 +339,11 @@ export default function AdminInventoryPage() {
                     <Link href="/admin/inventory/billing">
                         <Card className="hover:bg-slate-50 transition-colors shadow-lg border-none cursor-pointer h-full">
                             <CardHeader className="pb-2">
-                                <CardTitle className="text-[10px] font-black uppercase text-blue-600 tracking-widest">Billing Mode</CardTitle>
+                                <CardTitle className="text-[10px] font-black uppercase text-blue-600 tracking-widest">Point of Sale</CardTitle>
                             </CardHeader>
                             <CardContent className="flex items-center gap-4">
                                 <div className="p-2 bg-blue-100 text-blue-600 rounded-lg"><ShoppingCart className="h-5 w-5" /></div>
-                                <div className="text-xl font-bold">New Invoice</div>
+                                <div className="text-xl font-bold">New Bill</div>
                             </CardContent>
                         </Card>
                     </Link>
@@ -421,11 +352,23 @@ export default function AdminInventoryPage() {
                          <CardHeader className="pb-2"><CardTitle className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Total SKUs</CardTitle></CardHeader>
                          <CardContent><div className="text-3xl font-black">{inventory.length}</div></CardContent>
                     </Card>
+
+                    <Card className="bg-slate-50 shadow-inner border-none flex flex-col justify-center p-4">
+                        <p className="text-[8px] font-black uppercase text-slate-400 mb-1">Navigation Mode</p>
+                        <div className="flex bg-white rounded-xl p-1 border">
+                            <Button variant={activeView === 'list' ? 'default' : 'ghost'} size="sm" className="flex-1 h-8 rounded-lg text-[10px] uppercase font-bold" onClick={() => setActiveView('list')}>
+                                <List className="h-3 w-3 mr-1" /> List
+                            </Button>
+                            <Button variant={activeView === 'shop-map' ? 'default' : 'ghost'} size="sm" className="flex-1 h-8 rounded-lg text-[10px] uppercase font-bold" onClick={() => setActiveView('shop-map')}>
+                                <MapIcon className="h-3 w-3 mr-1" /> Map
+                            </Button>
+                        </div>
+                    </Card>
                 </div>
 
-                <Card className="rounded-3xl shadow-sm border-none bg-white p-2">
-                    <div className="flex gap-2 p-2">
-                        <div className="p-3 bg-green-100 text-green-600 rounded-2xl"><MessageSquare className="h-6 w-6" /></div>
+                <div className="flex gap-4">
+                    <Card className="flex-1 rounded-[28px] shadow-sm border-none bg-white p-2 flex items-center">
+                        <div className="p-3 bg-green-100 text-green-600 rounded-2xl ml-2"><MessageSquare className="h-6 w-6" /></div>
                         <Input 
                             placeholder="Type command: 'Sold 2 rosaries' or 'Add 5 candles'..." 
                             className="flex-1 border-none focus-visible:ring-0 text-sm font-medium"
@@ -433,11 +376,21 @@ export default function AdminInventoryPage() {
                             onChange={e => setTextCommand(e.target.value)}
                             onKeyDown={e => e.key === 'Enter' && handleTextCommand(textCommand)}
                         />
-                        <Button onClick={() => handleTextCommand(textCommand)} disabled={!textCommand || isAnalyzing} className="rounded-2xl">
+                        <Button onClick={() => handleTextCommand(textCommand)} disabled={!textCommand || isAnalyzing} className="rounded-2xl mr-2">
                             {isAnalyzing ? <Loader2 className="animate-spin" /> : <Send className="h-4 w-4" />}
                         </Button>
+                    </Card>
+
+                    <div className="flex gap-2">
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input placeholder="Search inventory or Shelf..." className="pl-9 h-12 w-64 rounded-2xl bg-white shadow-sm" value={searchTerm} onChange={e => setSearchQuery(e.target.value)} />
+                        </div>
+                        <Button variant="outline" size="icon" className="h-12 w-12 rounded-2xl shadow-sm bg-white" onClick={() => setIsQrSearching(true)}>
+                            <Scan className="h-5 w-5 text-primary" />
+                        </Button>
                     </div>
-                </Card>
+                </div>
 
                 {detectedSaleItems.length > 0 && (
                     <Card className="border-2 border-primary bg-primary/5 rounded-[32px] animate-in fade-in slide-in-from-top-4">
@@ -445,11 +398,7 @@ export default function AdminInventoryPage() {
                         <CardContent>
                             <div className="space-y-2">
                                 {detectedSaleItems.map((sale, idx) => {
-                                    const match = inventory.find(i => 
-                                        i.name.toLowerCase() === sale.productName.toLowerCase() ||
-                                        i.name.toLowerCase().includes(sale.productName.toLowerCase()) || 
-                                        sale.productName.toLowerCase().includes(i.name.toLowerCase())
-                                    );
+                                    const match = inventory.find(i => i.name.toLowerCase() === sale.productName.toLowerCase() || i.name.toLowerCase().includes(sale.productName.toLowerCase()) || sale.productName.toLowerCase().includes(i.name.toLowerCase()));
                                     return (
                                         <div key={idx} className={cn("flex justify-between items-center p-3 bg-white rounded-xl border", !match && "border-amber-200 bg-amber-50/50")}>
                                             <div className="flex items-center gap-3">
@@ -458,8 +407,7 @@ export default function AdminInventoryPage() {
                                                 </Badge>
                                                 <div>
                                                     <span className="font-bold uppercase text-xs block">{sale.productName}</span>
-                                                    {!match && sale.qty > 0 && <span className="text-[10px] text-amber-600 font-bold uppercase tracking-widest flex items-center gap-1"><Info className="h-2 w-2" /> New SKU: Product will be added</span>}
-                                                    {!match && sale.qty < 0 && <span className="text-[10px] text-red-500 font-bold uppercase tracking-widest">Error: Cannot sell unknown item</span>}
+                                                    {!match && sale.qty > 0 && <span className="text-[10px] text-amber-600 font-bold uppercase tracking-widest flex items-center gap-1"><Info className="h-2 w-2" /> New Product Record</span>}
                                                 </div>
                                             </div>
                                             <Button variant="ghost" size="icon" onClick={() => setDetectedSaleItems(prev => prev.filter((_, i) => i !== idx))}><Trash2 className="h-4 w-4 text-red-400" /></Button>
@@ -470,154 +418,146 @@ export default function AdminInventoryPage() {
                         </CardContent>
                         <CardFooter className="gap-2">
                             <Button variant="outline" className="flex-1 rounded-2xl" onClick={() => setDetectedSaleItems([])}>Discard</Button>
-                            <Button className="flex-1 rounded-2xl h-12 text-lg font-black" onClick={finalizeBulkSale} disabled={isAnalyzing}>
-                                {isAnalyzing ? <Loader2 className="animate-spin" /> : "Confirm & Update Stock"}
-                            </Button>
+                            <Button className="flex-1 rounded-2xl h-12 text-lg font-black" onClick={finalizeBulkSale} disabled={isAnalyzing}>Confirm & Update Stock</Button>
                         </CardFooter>
                     </Card>
                 )}
 
-                <Card className="rounded-[32px] overflow-hidden shadow-sm border-none bg-white">
-                    <div className="p-6 border-b flex justify-between items-center">
-                        <div className="relative w-64">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input placeholder="Search..." className="pl-9 h-10 rounded-xl" value={searchTerm} onChange={e => setSearchQuery(e.target.value)} />
-                        </div>
-                        <div className="flex gap-2">
-                             <Button variant="outline" className="rounded-xl" onClick={() => loadData()}>
-                                <History className="h-4 w-4 mr-2" /> Refresh
-                            </Button>
-                        </div>
-                    </div>
-                    <CardContent className="p-0">
-                        <Table>
-                            <TableHeader className="bg-slate-50">
-                                <TableRow>
-                                    <TableHead>Product</TableHead>
-                                    <TableHead>Dates</TableHead>
-                                    <TableHead>Price</TableHead>
-                                    <TableHead>In Stock</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {filteredInventory.map(item => (
-                                    <TableRow key={item.id}>
-                                        <TableCell>
-                                            <div className="flex items-center gap-3">
-                                                <div 
-                                                    className="relative w-10 h-10 rounded-xl overflow-hidden border bg-slate-50 cursor-pointer group hover:border-primary transition-all"
-                                                    onClick={() => document.getElementById(`img-update-${item.id}`)?.click()}
-                                                    title="Click to update product image"
-                                                >
-                                                    <Image src={item.imageDataUri} fill alt="p" className="object-cover" unoptimized />
-                                                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <Camera className="h-4 w-4 text-white" />
-                                                    </div>
-                                                    <input 
-                                                        type="file" 
-                                                        id={`img-update-${item.id}`} 
-                                                        className="hidden" 
-                                                        accept="image/*"
-                                                        onChange={(e) => handleImageUpdate(item.id, e)}
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <Link href={`/admin/inventory/${item.id}/timeline`} className="font-bold hover:underline hover:text-primary transition-colors uppercase italic">{item.name}</Link>
-                                                    <p className="text-[9px] text-muted-foreground font-mono tracking-widest">{item.category}</p>
-                                                </div>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="space-y-1">
-                                                <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                                                    <TrendingUp className="h-3 w-3 text-green-500" />
-                                                    <span>Bought: {item.purchaseDate ? format(new Date(item.purchaseDate), 'dd MMM') : 'N/A'}</span>
-                                                </div>
-                                                <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                                                    <CalendarIcon className="h-3 w-3 text-blue-500" />
-                                                    <span>Added: {item.addedDate ? format(new Date(item.addedDate), 'dd MMM') : format(new Date(item.lastUpdated), 'dd MMM')}</span>
-                                                </div>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell><div className="font-black text-slate-800">₹{item.mrp}</div></TableCell>
-                                        <TableCell>
-                                            <div className="flex items-center gap-3">
-                                                <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg hover:bg-red-50 text-red-500" onClick={() => recordMovement(item, -1, 'Sale')}><Minus className="h-4 w-4" /></Button>
-                                                <span className={cn("font-black text-lg", item.quantity < 5 ? "text-red-500 animate-pulse" : "text-slate-700")}>{item.quantity}</span>
-                                                <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg hover:bg-green-50 text-green-500" onClick={() => recordMovement(item, 1, 'Purchase')}><Plus className="h-4 w-4" /></Button>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="text-right space-x-2">
-                                            <Button 
-                                                variant="outline" 
-                                                size="sm" 
-                                                className="rounded-xl h-8 text-[10px] uppercase font-bold"
-                                                onClick={() => setPrintItem(item)}
-                                            >
-                                                <Printer className="h-3 w-3 mr-1" /> Label
-                                            </Button>
-                                            <Dialog>
-                                                <DialogTrigger asChild><Button variant="outline" size="sm" className="rounded-xl h-8 text-[10px] uppercase font-bold"><AlertTriangle className="h-3 w-3 mr-1" /> Damage</Button></DialogTrigger>
-                                                <DialogContent>
-                                                    <DialogHeader><DialogTitle>Report Damage / Loss: {item.name}</DialogTitle></DialogHeader>
-                                                    <div className="py-4 space-y-4">
-                                                        <div className="space-y-2"><Label>Quantity Lost</Label><Input type="number" id={`qty-loss-${item.id}`} defaultValue={1} /></div>
-                                                        <div className="space-y-2"><Label>Reason for Loss</Label>
-                                                            <Select onValueChange={(val) => {
-                                                                const el = document.getElementById(`reason-loss-${item.id}`);
-                                                                if(el) (el as any).value = val;
-                                                            }} defaultValue="Damage">
-                                                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                                                <SelectContent>
-                                                                    <SelectItem value="Damage">Damage / Broken</SelectItem>
-                                                                    <SelectItem value="Expired">Expired</SelectItem>
-                                                                    <SelectItem value="Missing">Missing / Theft</SelectItem>
-                                                                </SelectContent>
-                                                            </Select>
-                                                            <input type="hidden" id={`reason-loss-${item.id}`} value="Damage" />
-                                                        </div>
-                                                    </div>
-                                                    <DialogFooter>
-                                                        <DialogClose asChild>
-                                                            <Button variant="destructive" className="w-full h-12 font-bold rounded-2xl" onClick={async () => {
-                                                                const qtyInput = document.getElementById(`qty-loss-${item.id}`) as HTMLInputElement;
-                                                                const reasonInput = document.getElementById(`reason-loss-${item.id}`) as HTMLInputElement;
-                                                                const qty = parseInt(qtyInput?.value) || 0;
-                                                                const reason = reasonInput?.value || 'Damage';
-                                                                await recordMovement(item, -qty, 'Damage', reason);
-                                                            }}>Record Loss & Update Stock</Button>
-                                                        </DialogClose>
-                                                    </DialogFooter>
-                                                </DialogContent>
-                                            </Dialog>
-                                        </TableCell>
+                {activeView === 'list' ? (
+                    <Card className="rounded-[32px] overflow-hidden shadow-sm border-none bg-white">
+                        <CardContent className="p-0">
+                            <Table>
+                                <TableHeader className="bg-slate-50">
+                                    <TableRow>
+                                        <TableHead>Product</TableHead>
+                                        <TableHead>Shelf Location</TableHead>
+                                        <TableHead>Dates</TableHead>
+                                        <TableHead>Price</TableHead>
+                                        <TableHead>In Stock</TableHead>
+                                        <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
+                                </TableHeader>
+                                <TableBody>
+                                    {filteredInventory.map(item => (
+                                        <TableRow key={item.id}>
+                                            <TableCell>
+                                                <div className="flex items-center gap-3">
+                                                    <div className="relative w-10 h-10 rounded-xl overflow-hidden border bg-slate-50 cursor-pointer group" onClick={() => document.getElementById(`img-update-${item.id}`)?.click()}>
+                                                        <Image src={item.imageDataUri} fill alt="p" className="object-cover" unoptimized />
+                                                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><Camera className="h-4 w-4 text-white" /></div>
+                                                        <input type="file" id={`img-update-${item.id}`} className="hidden" accept="image/*" onChange={(e) => handleImageUpdate(item.id, e)} />
+                                                    </div>
+                                                    <div>
+                                                        <Link href={`/admin/inventory/${item.id}/timeline`} className="font-bold hover:underline hover:text-primary transition-colors uppercase italic">{item.name}</Link>
+                                                        <p className="text-[9px] text-muted-foreground font-mono tracking-widest">{item.category}</p>
+                                                    </div>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center gap-2">
+                                                    <LayoutGrid className="h-3 w-3 text-muted-foreground" />
+                                                    <Input className="h-8 w-24 text-xs font-bold uppercase" value={item.shelfNumber} onChange={(e) => updateItem(item.id, { shelfNumber: e.target.value.toUpperCase() })} />
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="space-y-1 text-[10px] text-muted-foreground font-medium">
+                                                    <div className="flex items-center gap-1"><TrendingUp className="h-3 w-3 text-green-500" /> Bought: {item.purchaseDate ? format(new Date(item.purchaseDate), 'dd MMM') : 'N/A'}</div>
+                                                    <div className="flex items-center gap-1"><CalendarIcon className="h-3 w-3 text-blue-500" /> Added: {format(new Date(item.addedDate || item.lastUpdated), 'dd MMM')}</div>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell><div className="font-black text-slate-800">₹{item.mrp}</div></TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center gap-3">
+                                                    <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg hover:bg-red-50 text-red-500" onClick={() => recordMovement(item, -1, 'Sale')}><Minus className="h-4 w-4" /></Button>
+                                                    <span className={cn("font-black text-lg", item.quantity < 5 ? "text-red-500 animate-pulse" : "text-slate-700")}>{item.quantity}</span>
+                                                    <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg hover:bg-green-50 text-green-500" onClick={() => recordMovement(item, 1, 'Purchase')}><Plus className="h-4 w-4" /></Button>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="text-right space-x-2">
+                                                <Button variant="outline" size="sm" className="rounded-xl h-8 text-[10px] uppercase font-bold" onClick={() => setPrintItem(item)}><Printer className="h-3 w-3 mr-1" /> Label</Button>
+                                                <Dialog>
+                                                    <DialogTrigger asChild><Button variant="outline" size="sm" className="rounded-xl h-8 text-[10px] uppercase font-bold text-destructive"><AlertTriangle className="h-3 w-3 mr-1" /> Loss</Button></DialogTrigger>
+                                                    <DialogContent>
+                                                        <DialogHeader><DialogTitle>Report Damage / Loss: {item.name}</DialogTitle></DialogHeader>
+                                                        <div className="py-4 space-y-4">
+                                                            <div className="space-y-2"><Label>Quantity Lost</Label><Input type="number" id={`qty-loss-${item.id}`} defaultValue={1} /></div>
+                                                            <div className="space-y-2"><Label>Reason</Label>
+                                                                <Select defaultValue="Damage" onValueChange={(val) => { const el = document.getElementById(`reason-loss-${item.id}`); if(el) (el as any).value = val; }}>
+                                                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                                                    <SelectContent><SelectItem value="Damage">Damage / Broken</SelectItem><SelectItem value="Expired">Expired</SelectItem><SelectItem value="Missing">Missing / Theft</SelectItem></SelectContent>
+                                                                </Select>
+                                                                <input type="hidden" id={`reason-loss-${item.id}`} value="Damage" />
+                                                            </div>
+                                                        </div>
+                                                        <DialogFooter><DialogClose asChild><Button variant="destructive" className="w-full h-12 font-bold rounded-2xl" onClick={async () => {
+                                                            const qty = parseInt((document.getElementById(`qty-loss-${item.id}`) as HTMLInputElement).value) || 0;
+                                                            const reason = (document.getElementById(`reason-loss-${item.id}`) as HTMLInputElement).value || 'Damage';
+                                                            await recordMovement(item, -qty, 'Damage', reason);
+                                                        }}>Record Loss & Update Stock</Button></DialogClose></DialogFooter>
+                                                    </DialogContent>
+                                                </Dialog>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {Object.entries(shelfGroups).sort().map(([shelf, items]) => (
+                            <Card key={shelf} className="rounded-[32px] border-none shadow-lg bg-white overflow-hidden group hover:shadow-2xl transition-all">
+                                <CardHeader className="bg-slate-50 border-b flex flex-row items-center justify-between py-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-primary/10 rounded-xl text-primary font-black italic">{shelf}</div>
+                                        <div>
+                                            <CardTitle className="text-sm font-black uppercase italic">Shelf Profile</CardTitle>
+                                            <CardDescription className="text-[10px] uppercase font-bold">{items.length} Products Hosted</CardDescription>
+                                        </div>
+                                    </div>
+                                    <Badge className="bg-slate-900 text-[10px] font-black italic">Total Qty: {items.reduce((sum, i) => sum + i.quantity, 0)}</Badge>
+                                </CardHeader>
+                                <CardContent className="p-4">
+                                    <div className="space-y-3">
+                                        {items.slice(0, 3).map(item => (
+                                            <div key={item.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 transition-colors">
+                                                <Image src={item.imageDataUri} width={32} height={32} alt="p" className="rounded-lg object-cover" unoptimized />
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-[11px] font-black uppercase italic truncate">{item.name}</p>
+                                                    <p className="text-[9px] font-bold text-primary">In Stock: {item.quantity}</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                        {items.length > 3 && <p className="text-center text-[10px] font-bold text-muted-foreground uppercase py-2">+{items.length - 3} more items on this shelf</p>}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
+                )}
             </div>
+
+            <Dialog open={isQrSearching} onOpenChange={setIsQrSearching}>
+                <DialogContent className="max-w-sm rounded-[32px] p-6 border-none shadow-2xl">
+                    <DialogHeader><DialogTitle className="text-xl font-black uppercase italic tracking-widest text-primary text-center">QR Search Scanner</DialogTitle></DialogHeader>
+                    <div id="qr-search-reader" className="w-full rounded-2xl overflow-hidden border-2 border-primary/20 bg-slate-100 min-h-[300px] flex items-center justify-center">
+                        <p className="text-xs text-muted-foreground">Initializing scanner...</p>
+                    </div>
+                </DialogContent>
+            </Dialog>
 
             <Dialog open={isListening} onOpenChange={setIsListening}>
                 <DialogContent className="max-w-sm rounded-[32px] p-8 text-center border-none shadow-2xl">
                     <DialogHeader><DialogTitle className="text-xl font-black uppercase italic tracking-widest text-primary">Listening Mode</DialogTitle></DialogHeader>
                     <div className="flex flex-col items-center gap-6 py-6">
-                        <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center animate-pulse">
-                            <Mic className="h-10 w-10 text-primary" />
-                        </div>
+                        <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center animate-pulse"><Mic className="h-10 w-10 text-primary" /></div>
                         <p className="text-sm font-bold text-slate-600">"{voiceTranscript || 'Say: Sold 2 Rosaries'}"</p>
                     </div>
                 </DialogContent>
             </Dialog>
 
-            {/* Hidden Print Container */}
-            <div className="hidden">
-                <div ref={printRef}>
-                    {printItem && <ProductLabel item={printItem} />}
-                </div>
-            </div>
+            <div className="hidden"><div ref={printRef}>{printItem && <ProductLabel item={printItem} />}</div></div>
         </AppShell>
     );
 }
+

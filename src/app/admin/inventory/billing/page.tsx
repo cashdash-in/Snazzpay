@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -11,7 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { 
     Loader2, Search, ShoppingCart, Trash2, 
     CheckCircle2, Printer, Plus, Minus,
-    FileText, User, Receipt
+    FileText, User, Receipt, MapPin, LayoutGrid
 } from 'lucide-react';
 import { getCollection, saveDocument } from '@/services/firestore';
 import type { InventoryItem, StockMovement } from '@/types/inventory';
@@ -40,7 +41,11 @@ export default function BillingModePage() {
 
     const filteredProducts = useMemo(() => {
         if (!searchTerm) return [];
-        return inventory.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()) && p.quantity > 0);
+        const lowerSearch = searchTerm.toLowerCase();
+        return inventory.filter(p => 
+            (p.name.toLowerCase().includes(lowerSearch) || p.shelfNumber?.toLowerCase().includes(lowerSearch) || p.id.toLowerCase().includes(lowerSearch)) 
+            && p.quantity > 0
+        );
     }, [searchTerm, inventory]);
 
     const addToCart = (product: InventoryItem) => {
@@ -87,30 +92,34 @@ export default function BillingModePage() {
     };
 
     return (
-        <AppShell title="Billing Mode">
+        <AppShell title="Billing & Checkout">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
                 <div className="lg:col-span-2 space-y-6">
-                    <Card className="rounded-[32px] shadow-sm">
-                        <CardHeader><CardTitle className="italic font-black uppercase">Create Bill</CardTitle></CardHeader>
-                        <CardContent className="space-y-4">
+                    <Card className="rounded-[32px] shadow-sm border-none bg-white">
+                        <CardHeader><CardTitle className="italic font-black uppercase text-xl tracking-tighter">Create Invoice</CardTitle></CardHeader>
+                        <CardContent className="space-y-6">
                             <div className="relative">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                                 <Input 
-                                    placeholder="Search product to add..." 
-                                    className="pl-10 h-12 rounded-2xl border-2" 
+                                    placeholder="Search product name, ID or Shelf (e.g. A1)..." 
+                                    className="pl-12 h-14 rounded-2xl border-2 bg-slate-50 focus-visible:bg-white transition-all text-sm font-bold" 
                                     value={searchTerm}
                                     onChange={e => setSearchTerm(e.target.value)}
                                 />
                                 {filteredProducts.length > 0 && (
-                                    <div className="absolute top-14 left-0 right-0 z-50 bg-white border rounded-2xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto">
+                                    <div className="absolute top-16 left-0 right-0 z-50 bg-white border rounded-[28px] shadow-2xl overflow-hidden max-h-[400px] overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-300">
                                         {filteredProducts.map(p => (
-                                            <button key={p.id} className="w-full text-left p-3 hover:bg-slate-50 flex items-center gap-3 border-b last:border-none" onClick={() => addToCart(p)}>
-                                                <Image src={p.imageDataUri} width={40} height={40} alt="p" className="rounded-lg object-cover" />
+                                            <button key={p.id} className="w-full text-left p-4 hover:bg-slate-50 flex items-center gap-4 border-b last:border-none transition-colors group" onClick={() => addToCart(p)}>
+                                                <div className="relative h-12 w-12 rounded-xl overflow-hidden border shrink-0"><Image src={p.imageDataUri} fill alt="p" className="object-cover" unoptimized /></div>
                                                 <div className="flex-1">
-                                                    <p className="font-bold text-xs uppercase">{p.name}</p>
-                                                    <p className="text-[10px] text-primary font-bold">₹{p.mrp} • Stock: {p.quantity}</p>
+                                                    <p className="font-black text-sm uppercase italic group-hover:text-primary transition-colors">{p.name}</p>
+                                                    <div className="flex items-center gap-2 mt-0.5">
+                                                        <Badge className="bg-primary/10 text-primary border-none text-[8px] font-black italic px-2 py-0 h-4">₹{p.mrp}</Badge>
+                                                        <Badge variant="outline" className="text-[8px] font-black uppercase border-slate-200 px-2 h-4"><MapPin className="h-2 w-2 mr-1" /> {p.shelfNumber}</Badge>
+                                                        <span className="text-[10px] text-muted-foreground font-bold">Stock: {p.quantity}</span>
+                                                    </div>
                                                 </div>
-                                                <Plus className="h-4 w-4 text-slate-300" />
+                                                <div className="h-10 w-10 bg-slate-50 rounded-full flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-all"><Plus className="h-5 w-5" /></div>
                                             </button>
                                         ))}
                                     </div>
@@ -118,23 +127,28 @@ export default function BillingModePage() {
                             </div>
 
                             <Table>
-                                <TableHeader><TableRow><TableHead>Item</TableHead><TableHead>Qty</TableHead><TableHead>Price</TableHead><TableHead className="text-right">Total</TableHead></TableRow></TableHeader>
+                                <TableHeader className="bg-slate-50/50"><TableRow><TableHead>Article & Location</TableHead><TableHead className="text-center">Qty</TableHead><TableHead>Price</TableHead><TableHead className="text-right">Total</TableHead></TableRow></TableHeader>
                                 <TableBody>
                                     {cart.map(item => (
                                         <TableRow key={item.product.id}>
-                                            <TableCell className="font-bold uppercase text-xs">{item.product.name}</TableCell>
                                             <TableCell>
-                                                <div className="flex items-center gap-2">
-                                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setCart(prev => prev.map(i => i.product.id === item.product.id ? {...i, qty: Math.max(1, i.qty - 1)} : i))}><Minus className="h-3 w-3"/></Button>
-                                                    <span className="font-bold">{item.qty}</span>
-                                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setCart(prev => prev.map(i => i.product.id === item.product.id ? {...i, qty: Math.min(item.product.quantity, i.qty + 1)} : i))}><Plus className="h-3 w-3"/></Button>
+                                                <div className="flex flex-col">
+                                                    <span className="font-black uppercase text-[11px] italic leading-none">{item.product.name}</span>
+                                                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-1 flex items-center gap-1"><LayoutGrid className="h-2 w-2" /> SHELF: {item.product.shelfNumber}</span>
                                                 </div>
                                             </TableCell>
-                                            <TableCell>₹{item.product.mrp}</TableCell>
-                                            <TableCell className="text-right font-bold">₹{item.product.mrp * item.qty}</TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center justify-center gap-3">
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg hover:bg-slate-100" onClick={() => setCart(prev => prev.map(i => i.product.id === item.product.id ? {...i, qty: Math.max(1, i.qty - 1)} : i))}><Minus className="h-3.5 w-3.5 text-slate-400"/></Button>
+                                                    <span className="font-black text-sm">{item.qty}</span>
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg hover:bg-slate-100" onClick={() => setCart(prev => prev.map(i => i.product.id === item.product.id ? {...i, qty: Math.min(item.product.quantity, i.qty + 1)} : i))}><Plus className="h-3.5 w-3.5 text-primary"/></Button>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="font-bold text-sm text-slate-600">₹{item.product.mrp}</TableCell>
+                                            <TableCell className="text-right font-black text-sm text-primary">₹{item.product.mrp * item.qty}</TableCell>
                                         </TableRow>
                                     ))}
-                                    {cart.length === 0 && <TableRow><TableCell colSpan={4} className="text-center py-20 text-muted-foreground italic">Add products to start billing.</TableCell></TableRow>}
+                                    {cart.length === 0 && <TableRow><TableCell colSpan={4} className="text-center py-24 text-muted-foreground italic font-medium opacity-50">Add products to start building your bill.</TableCell></TableRow>}
                                 </TableBody>
                             </Table>
                         </CardContent>
@@ -142,23 +156,27 @@ export default function BillingModePage() {
                 </div>
 
                 <div className="lg:col-span-1 space-y-6">
-                    <Card className="rounded-[32px] shadow-xl border-primary/20 bg-slate-900 text-white sticky top-24">
-                        <CardHeader><CardTitle className="text-lg font-black italic uppercase tracking-widest text-primary flex items-center gap-2"><Receipt className="h-5 w-5"/> Final Settlement</CardTitle></CardHeader>
-                        <CardContent className="space-y-6">
+                    <Card className="rounded-[32px] shadow-2xl border-none bg-slate-900 text-white sticky top-24 overflow-hidden">
+                        <div className="absolute top-0 right-0 p-4 opacity-10 rotate-12"><Receipt className="h-24 w-24" /></div>
+                        <CardHeader className="relative z-10"><CardTitle className="text-lg font-black italic uppercase tracking-widest text-primary flex items-center gap-2"><Receipt className="h-5 w-5"/> Checkout Summary</CardTitle></CardHeader>
+                        <CardContent className="space-y-6 relative z-10">
                              <div className="space-y-1.5">
-                                <Label className="text-[10px] font-black uppercase text-slate-500">Customer Name (Optional)</Label>
-                                <div className="relative"><User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" /><Input className="pl-9 h-11 bg-white/5 border-white/10 rounded-xl text-white" value={customerName} onChange={e => setCustomerName(e.target.value)} /></div>
+                                <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Customer Name (Optional)</Label>
+                                <div className="relative"><User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" /><Input className="pl-9 h-12 bg-white/5 border-white/10 rounded-2xl text-white font-bold" value={customerName} onChange={e => setCustomerName(e.target.value)} /></div>
                             </div>
-                            <div className="space-y-2 border-t border-white/10 pt-4">
-                                <div className="flex justify-between text-slate-400 text-sm"><span>Subtotal</span><span>₹{cartTotal.toFixed(2)}</span></div>
-                                <div className="flex justify-between text-2xl font-black italic tracking-tighter"><span>Grand Total</span><span>₹{cartTotal.toFixed(2)}</span></div>
+                            <div className="space-y-3 border-t border-white/10 pt-6">
+                                <div className="flex justify-between text-slate-400 text-xs font-bold uppercase tracking-widest"><span>Items Subtotal</span><span>₹{cartTotal.toFixed(2)}</span></div>
+                                <div className="flex justify-between items-end">
+                                    <span className="text-[10px] font-black uppercase text-slate-500 mb-1">Payable Now</span>
+                                    <span className="text-5xl font-black italic tracking-tighter text-white leading-none">₹{cartTotal.toFixed(2)}</span>
+                                </div>
                             </div>
                         </CardContent>
-                        <CardFooter className="flex-col gap-2">
-                             <Button className="w-full h-14 text-xl font-black uppercase italic rounded-2xl shadow-2xl" onClick={handleCompleteSale} disabled={cart.length === 0 || isProcessing}>
-                                {isProcessing ? <Loader2 className="animate-spin" /> : "Complete Sale"}
+                        <CardFooter className="flex-col gap-3 pb-8 relative z-10">
+                             <Button className="w-full h-16 text-2xl font-black uppercase italic rounded-[24px] shadow-[0_20px_50px_rgba(90,49,244,0.3)] bg-primary hover:bg-primary/90 hover:scale-[1.02] transition-all" onClick={handleCompleteSale} disabled={cart.length === 0 || isProcessing}>
+                                {isProcessing ? <Loader2 className="animate-spin h-8 w-8" /> : "Finalize Sale"}
                             </Button>
-                            <Button variant="ghost" className="w-full text-slate-400 hover:text-white" onClick={() => router.back()}>Cancel & Go Back</Button>
+                            <Button variant="ghost" className="w-full text-slate-500 hover:text-white font-black uppercase text-[10px] tracking-widest" onClick={() => router.back()}>Cancel & Go Back</Button>
                         </CardFooter>
                     </Card>
                 </div>
@@ -166,3 +184,4 @@ export default function BillingModePage() {
         </AppShell>
     );
 }
+
