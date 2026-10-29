@@ -14,7 +14,8 @@ import {
     ShoppingCart, ShieldCheck, ArrowRight,
     MessageSquare, History, TrendingUp, 
     Sparkles, Send, Mic, Trash2, AlertTriangle,
-    X, PackagePlus, Info, ImagePlus, QrCode, Printer, Calendar as CalendarIcon
+    X, PackagePlus, Info, ImagePlus, QrCode, Printer, Calendar as CalendarIcon,
+    Layers
 } from 'lucide-react';
 import { getCollection, saveDocument, addDocument } from '@/services/firestore';
 import { parseInventoryCommand, detectItemsInPhoto } from '@/ai/flows/inventory-ai';
@@ -359,7 +360,7 @@ export default function AdminInventoryPage() {
     return (
         <AppShell title="Shop Inventory">
             <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                     <Card className="bg-primary text-primary-foreground shadow-xl border-none">
                         <CardHeader className="pb-2 flex flex-row justify-between items-center">
                             <CardTitle className="text-[10px] font-black uppercase tracking-widest opacity-70">Inventory Intelligence</CardTitle>
@@ -383,6 +384,18 @@ export default function AdminInventoryPage() {
                         <span className="font-bold uppercase text-[10px]">Capture New Product</span>
                         <input type="file" id="new-item-capture" accept="image/*" className="hidden" onChange={handleNewProductCapture} />
                     </Button>
+
+                    <Link href="/admin/inventory/audit">
+                        <Card className="hover:bg-slate-50 transition-colors shadow-lg border-none cursor-pointer h-full">
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-[10px] font-black uppercase text-purple-600 tracking-widest">Stock Audit Mode</CardTitle>
+                            </CardHeader>
+                            <CardContent className="flex items-center gap-4">
+                                <div className="p-2 bg-purple-100 text-purple-600 rounded-lg"><Layers className="h-5 w-5" /></div>
+                                <div className="text-xl font-bold">Shelf Check</div>
+                            </CardContent>
+                        </Card>
+                    </Link>
 
                     <Link href="/admin/inventory/billing">
                         <Card className="hover:bg-slate-50 transition-colors shadow-lg border-none cursor-pointer h-full">
@@ -579,7 +592,7 @@ export default function AdminInventoryPage() {
                             </TableBody>
                         </Table>
                     </CardContent>
-                </Card>
+                </AppShell>
             </div>
 
             <Dialog open={isListening} onOpenChange={setIsListening}>
@@ -603,3 +616,4 @@ export default function AdminInventoryPage() {
         </AppShell>
     );
 }
+
