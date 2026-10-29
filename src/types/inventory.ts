@@ -32,6 +32,8 @@ export interface InventoryItem {
     imageDataUri: string;
     category: string;
     lastUpdated: string;
+    addedDate?: string;
+    purchaseDate?: string;
     description?: string;
     sellingPoints?: string[];
     marketInsight?: string;

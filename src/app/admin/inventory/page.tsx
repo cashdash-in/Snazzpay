@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { AppShell } from '@/components/layout/app-shell';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,7 +13,7 @@ import {
     ShoppingCart, ShieldCheck, ArrowRight,
     MessageSquare, History, TrendingUp, 
     Sparkles, Send, Mic, Trash2, AlertTriangle,
-    X, PackagePlus, Info, ImagePlus
+    X, PackagePlus, Info, ImagePlus, QrCode, Printer, Calendar as CalendarIcon
 } from 'lucide-react';
 import { getCollection, saveDocument, addDocument } from '@/services/firestore';
 import { parseInventoryCommand, detectItemsInPhoto } from '@/ai/flows/inventory-ai';
@@ -26,8 +26,34 @@ import type { InventoryItem, StockMovement, MovementType } from '@/types/invento
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Link from 'next/link';
+import { useReactToPrint } from 'react-to-print';
+import { format } from 'date-fns';
 
 const MAX_IMAGE_SIZE_PX = 600;
+
+// Printable Label Component
+const ProductLabel = ({ item }: { item: InventoryItem }) => {
+    return (
+        <div className="p-6 bg-white border-2 border-black w-[80mm] h-[50mm] flex flex-col items-center justify-center gap-2 text-black print:m-0">
+            <h4 className="font-black uppercase text-center text-sm leading-tight line-clamp-2">{item.name}</h4>
+            <div className="flex items-center gap-4">
+                <div className="relative w-20 h-20 border border-slate-200">
+                    <img 
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${item.id}`} 
+                        alt="QR Code" 
+                        className="w-full h-full object-contain"
+                    />
+                </div>
+                <div className="flex flex-col gap-1">
+                    <p className="font-black text-lg">₹{item.mrp}</p>
+                    <p className="text-[8px] font-mono font-bold uppercase">{item.id}</p>
+                    <p className="text-[8px] font-bold opacity-50 uppercase tracking-tighter">Snazzify Secure</p>
+                </div>
+            </div>
+            <p className="text-[8px] font-bold uppercase tracking-widest">{item.category}</p>
+        </div>
+    );
+};
 
 export default function AdminInventoryPage() {
     const { toast } = useToast();
@@ -37,6 +63,14 @@ export default function AdminInventoryPage() {
     const [searchTerm, setSearchQuery] = useState('');
     const [isMounted, setIsMounted] = useState(false);
     
+    // QR Print State
+    const [printItem, setPrintItem] = useState<InventoryItem | null>(null);
+    const printRef = useRef<HTMLDivElement>(null);
+    const handlePrint = useReactToPrint({
+        content: () => printRef.current,
+        documentTitle: `Label_${printItem?.name || 'product'}`,
+    });
+
     // AI Interaction States
     const [isListening, setIsListening] = useState(false);
     const [voiceTranscript, setVoiceTranscript] = useState('');
@@ -48,7 +82,13 @@ export default function AdminInventoryPage() {
         setIsLoading(true);
         try {
             const stock = await getCollection<InventoryItem>('inventory');
-            setInventory(stock || []);
+            // Sort by addedDate or lastUpdated descending so new products appear on top
+            const sorted = (stock || []).sort((a, b) => {
+                const dateA = new Date(a.addedDate || a.lastUpdated || 0).getTime();
+                const dateB = new Date(b.addedDate || b.lastUpdated || 0).getTime();
+                return dateB - dateA;
+            });
+            setInventory(sorted);
         } catch (e) {
             toast({ variant: 'destructive', title: 'Load Failed' });
         } finally {
@@ -83,13 +123,14 @@ export default function AdminInventoryPage() {
     };
 
     const recordMovement = async (item: InventoryItem, qty: number, type: MovementType, note?: string) => {
+        const now = new Date().toISOString();
         const newQty = item.quantity + qty;
         const movement: StockMovement = {
             id: uuidv4(),
             productId: item.id,
             type,
             quantity: qty,
-            date: new Date().toISOString(),
+            date: now,
             note,
             previousStock: item.quantity,
             newStock: newQty
@@ -97,11 +138,11 @@ export default function AdminInventoryPage() {
 
         try {
             // Update local state first for instant UI response
-            setInventory(prev => prev.map(i => i.id === item.id ? { ...i, quantity: newQty, lastUpdated: movement.date } : i));
+            setInventory(prev => prev.map(i => i.id === item.id ? { ...i, quantity: newQty, lastUpdated: now } : i));
 
             // Sync with database
             await Promise.all([
-                saveDocument('inventory', { ...item, quantity: newQty, lastUpdated: movement.date }, item.id),
+                saveDocument('inventory', { ...item, quantity: newQty, lastUpdated: now }, item.id),
                 saveDocument('inventory_movements', movement, movement.id)
             ]);
             
@@ -125,6 +166,8 @@ export default function AdminInventoryPage() {
             imageDataUri: `https://picsum.photos/seed/${shortId}/400/400`, // Placeholder
             category: 'New Article',
             lastUpdated: now,
+            addedDate: now,
+            purchaseDate: now,
             description: 'Auto-added via AI command.',
         };
 
@@ -177,6 +220,7 @@ export default function AdminInventoryPage() {
             const aiData = await analyzeInventoryItem({ imageDataUri: uri });
             
             const shortId = uuidv4().substring(0, 8).toUpperCase();
+            const now = new Date().toISOString();
             const newItem: InventoryItem = {
                 id: shortId,
                 name: aiData.productName,
@@ -186,7 +230,9 @@ export default function AdminInventoryPage() {
                 shelfNumber: 'Pending',
                 imageDataUri: uri,
                 category: aiData.category,
-                lastUpdated: new Date().toISOString(),
+                lastUpdated: now,
+                addedDate: now,
+                purchaseDate: now,
                 description: aiData.description,
                 sellingPoints: aiData.sellingPoints,
             };
@@ -415,10 +461,23 @@ export default function AdminInventoryPage() {
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input placeholder="Search..." className="pl-9 h-10 rounded-xl" value={searchTerm} onChange={e => setSearchQuery(e.target.value)} />
                         </div>
+                        <div className="flex gap-2">
+                             <Button variant="outline" className="rounded-xl" onClick={() => loadData()}>
+                                <History className="h-4 w-4 mr-2" /> Refresh
+                            </Button>
+                        </div>
                     </div>
                     <CardContent className="p-0">
                         <Table>
-                            <TableHeader className="bg-slate-50"><TableRow><TableHead>Product</TableHead><TableHead>Price</TableHead><TableHead>In Stock</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                            <TableHeader className="bg-slate-50">
+                                <TableRow>
+                                    <TableHead>Product</TableHead>
+                                    <TableHead>Dates</TableHead>
+                                    <TableHead>Price</TableHead>
+                                    <TableHead>In Stock</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
                             <TableBody>
                                 {filteredInventory.map(item => (
                                     <TableRow key={item.id}>
@@ -447,6 +506,18 @@ export default function AdminInventoryPage() {
                                                 </div>
                                             </div>
                                         </TableCell>
+                                        <TableCell>
+                                            <div className="space-y-1">
+                                                <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                                                    <TrendingUp className="h-3 w-3 text-green-500" />
+                                                    <span>Bought: {item.purchaseDate ? format(new Date(item.purchaseDate), 'dd MMM') : 'N/A'}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                                                    <CalendarIcon className="h-3 w-3 text-blue-500" />
+                                                    <span>Added: {item.addedDate ? format(new Date(item.addedDate), 'dd MMM') : format(new Date(item.lastUpdated), 'dd MMM')}</span>
+                                                </div>
+                                            </div>
+                                        </TableCell>
                                         <TableCell><div className="font-black text-slate-800">₹{item.mrp}</div></TableCell>
                                         <TableCell>
                                             <div className="flex items-center gap-3">
@@ -456,8 +527,19 @@ export default function AdminInventoryPage() {
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-right space-x-2">
+                                            <Button 
+                                                variant="outline" 
+                                                size="sm" 
+                                                className="rounded-xl h-8 text-[10px] uppercase font-bold"
+                                                onClick={() => {
+                                                    setPrintItem(item);
+                                                    setTimeout(() => handlePrint(), 100);
+                                                }}
+                                            >
+                                                <Printer className="h-3 w-3 mr-1" /> Label
+                                            </Button>
                                             <Dialog>
-                                                <DialogTrigger asChild><Button variant="outline" size="sm" className="rounded-xl"><AlertTriangle className="h-4 w-4 mr-2" /> Damage</Button></DialogTrigger>
+                                                <DialogTrigger asChild><Button variant="outline" size="sm" className="rounded-xl h-8 text-[10px] uppercase font-bold"><AlertTriangle className="h-3 w-3 mr-1" /> Damage</Button></DialogTrigger>
                                                 <DialogContent>
                                                     <DialogHeader><DialogTitle>Report Damage / Loss: {item.name}</DialogTitle></DialogHeader>
                                                     <div className="py-4 space-y-4">
@@ -510,6 +592,13 @@ export default function AdminInventoryPage() {
                     </div>
                 </DialogContent>
             </Dialog>
+
+            {/* Hidden Print Container */}
+            <div className="hidden">
+                <div ref={printRef}>
+                    {printItem && <ProductLabel item={printItem} />}
+                </div>
+            </div>
         </AppShell>
     );
 }
