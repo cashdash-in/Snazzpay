@@ -14,7 +14,7 @@ import {
     ShoppingCart, ShieldCheck, ArrowRight,
     MessageSquare, History, TrendingUp, 
     Sparkles, Send, Mic, Trash2, AlertTriangle,
-    X, PackagePlus, Info
+    X, PackagePlus, Info, ImagePlus
 } from 'lucide-react';
 import { getCollection, saveDocument, addDocument } from '@/services/firestore';
 import { parseInventoryCommand, detectItemsInPhoto } from '@/ai/flows/inventory-ai';
@@ -113,6 +113,46 @@ export default function AdminInventoryPage() {
         }
     };
 
+    const handleCreateAndRecord = async (productName: string, qty: number, type: MovementType, note?: string) => {
+        const shortId = uuidv4().substring(0, 8).toUpperCase();
+        const now = new Date().toISOString();
+        const newItem: InventoryItem = {
+            id: shortId,
+            name: productName,
+            quantity: Math.max(0, qty),
+            wholesalePrice: 0,
+            mrp: 0,
+            shelfNumber: 'New',
+            imageDataUri: `https://picsum.photos/seed/${shortId}/400/400`, // Placeholder
+            category: 'New Article',
+            lastUpdated: now,
+            description: 'Auto-added via AI command.',
+        };
+
+        const movement: StockMovement = {
+            id: uuidv4(),
+            productId: newItem.id,
+            type: 'Opening',
+            quantity: Math.max(0, qty),
+            date: now,
+            note: note || "AI Auto-created",
+            previousStock: 0,
+            newStock: Math.max(0, qty)
+        };
+
+        try {
+            await Promise.all([
+                saveDocument('inventory', newItem, newItem.id),
+                saveDocument('inventory_movements', movement, movement.id)
+            ]);
+            setInventory(prev => [newItem, ...prev]);
+            return true;
+        } catch (e) {
+            console.error("Creation error:", e);
+            return false;
+        }
+    };
+
     const handleTextCommand = async (command: string) => {
         if (!command.trim()) return;
         setIsAnalyzing(true);
@@ -163,6 +203,28 @@ export default function AdminInventoryPage() {
         }
     };
 
+    const handleImageUpdate = async (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        
+        setIsAnalyzing(true);
+        try {
+            const uri = await resizeImage(file);
+            const item = inventory.find(i => i.id === id);
+            if (item) {
+                const updatedItem = { ...item, imageDataUri: uri, lastUpdated: new Date().toISOString() };
+                await saveDocument('inventory', updatedItem, id);
+                setInventory(prev => prev.map(i => i.id === id ? updatedItem : i));
+                toast({ title: "Photo Updated!" });
+            }
+        } catch (err) {
+            toast({ variant: 'destructive', title: "Update Failed" });
+        } finally {
+            setIsAnalyzing(false);
+            e.target.value = '';
+        }
+    };
+
     const handlePhotoSale = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -188,8 +250,6 @@ export default function AdminInventoryPage() {
         setIsAnalyzing(true);
         let successCount = 0;
         
-        // Use a function to ensure we always have the latest inventory list
-        // when processing multiple items in a loop
         for (const sale of detectedSaleItems) {
             const item = inventory.find(i => 
                 i.name.toLowerCase() === sale.productName.toLowerCase() ||
@@ -201,12 +261,16 @@ export default function AdminInventoryPage() {
                 const type = sale.qty < 0 ? 'Sale' : 'Purchase';
                 const ok = await recordMovement(item, sale.qty, type as MovementType, "AI Automated Update");
                 if (ok) successCount++;
+            } else if (sale.qty > 0) {
+                // New Product from AI Command
+                const ok = await handleCreateAndRecord(sale.productName, sale.qty, 'Purchase', "AI Auto-created from Command");
+                if (ok) successCount++;
             }
         }
         
         toast({ 
-            title: successCount > 0 ? "Stock Updated" : "No Matches Found", 
-            description: `Updated ${successCount} out of ${detectedSaleItems.length} items.`,
+            title: successCount > 0 ? "Stock Updated" : "No Changes Applied", 
+            description: `Processed ${successCount} out of ${detectedSaleItems.length} commands.`,
             variant: successCount === 0 ? "destructive" : "default"
         });
         setDetectedSaleItems([]);
@@ -296,7 +360,7 @@ export default function AdminInventoryPage() {
                     <div className="flex gap-2 p-2">
                         <div className="p-3 bg-green-100 text-green-600 rounded-2xl"><MessageSquare className="h-6 w-6" /></div>
                         <Input 
-                            placeholder="Type sale: 'Sold 2 rosaries' or 'Add 5 candles'..." 
+                            placeholder="Type command: 'Sold 2 rosaries' or 'Add 5 candles'..." 
                             className="flex-1 border-none focus-visible:ring-0 text-sm font-medium"
                             value={textCommand}
                             onChange={e => setTextCommand(e.target.value)}
@@ -320,14 +384,15 @@ export default function AdminInventoryPage() {
                                         sale.productName.toLowerCase().includes(i.name.toLowerCase())
                                     );
                                     return (
-                                        <div key={idx} className={cn("flex justify-between items-center p-3 bg-white rounded-xl border", !match && "border-red-200 bg-red-50/50")}>
+                                        <div key={idx} className={cn("flex justify-between items-center p-3 bg-white rounded-xl border", !match && "border-amber-200 bg-amber-50/50")}>
                                             <div className="flex items-center gap-3">
                                                 <Badge variant={sale.qty < 0 ? 'destructive' : 'default'} className="rounded-full w-8 h-8 p-0 flex items-center justify-center font-bold">
                                                     {sale.qty > 0 ? '+' : ''}{sale.qty}
                                                 </Badge>
                                                 <div>
                                                     <span className="font-bold uppercase text-xs block">{sale.productName}</span>
-                                                    {!match && <span className="text-[10px] text-red-500 font-bold uppercase tracking-widest">Product not in stock</span>}
+                                                    {!match && sale.qty > 0 && <span className="text-[10px] text-amber-600 font-bold uppercase tracking-widest flex items-center gap-1"><Info className="h-2 w-2" /> New SKU: Product will be added</span>}
+                                                    {!match && sale.qty < 0 && <span className="text-[10px] text-red-500 font-bold uppercase tracking-widest">Error: Cannot sell unknown item</span>}
                                                 </div>
                                             </div>
                                             <Button variant="ghost" size="icon" onClick={() => setDetectedSaleItems(prev => prev.filter((_, i) => i !== idx))}><Trash2 className="h-4 w-4 text-red-400" /></Button>
@@ -360,8 +425,22 @@ export default function AdminInventoryPage() {
                                     <TableRow key={item.id}>
                                         <TableCell>
                                             <div className="flex items-center gap-3">
-                                                <div className="relative w-10 h-10 rounded-xl overflow-hidden border bg-slate-50">
+                                                <div 
+                                                    className="relative w-10 h-10 rounded-xl overflow-hidden border bg-slate-50 cursor-pointer group hover:border-primary transition-all"
+                                                    onClick={() => document.getElementById(`img-update-${item.id}`)?.click()}
+                                                    title="Click to update product image"
+                                                >
                                                     <Image src={item.imageDataUri} fill alt="p" className="object-cover" unoptimized />
+                                                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <Camera className="h-4 w-4 text-white" />
+                                                    </div>
+                                                    <input 
+                                                        type="file" 
+                                                        id={`img-update-${item.id}`} 
+                                                        className="hidden" 
+                                                        accept="image/*"
+                                                        onChange={(e) => handleImageUpdate(item.id, e)}
+                                                    />
                                                 </div>
                                                 <div>
                                                     <Link href={`/admin/inventory/${item.id}/timeline`} className="font-bold hover:underline hover:text-primary transition-colors uppercase italic">{item.name}</Link>
@@ -432,6 +511,6 @@ export default function AdminInventoryPage() {
                     </div>
                 </DialogContent>
             </Dialog>
-        </AppShell>
+        </div>
     );
 }
