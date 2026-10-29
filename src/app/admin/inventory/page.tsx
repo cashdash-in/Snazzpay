@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -250,23 +251,23 @@ export default function AdminInventoryPage() {
 
     const handleImageUpdate = async (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (!file) return;
-        
-        setIsAnalyzing(true);
-        try {
-            const uri = await resizeImage(file);
-            const item = inventory.find(i => i.id === id);
-            if (item) {
-                const updatedItem = { ...item, imageDataUri: uri, lastUpdated: new Date().toISOString() };
-                await saveDocument('inventory', updatedItem, id);
-                setInventory(prev => prev.map(i => i.id === id ? updatedItem : i));
-                toast({ title: "Photo Updated!" });
+        if (file) {
+            setIsAnalyzing(true);
+            try {
+                const uri = await resizeImage(file);
+                const item = inventory.find(i => i.id === id);
+                if (item) {
+                    const updatedItem = { ...item, imageDataUri: uri, lastUpdated: new Date().toISOString() };
+                    await saveDocument('inventory', updatedItem, id);
+                    setInventory(prev => prev.map(i => i.id === id ? updatedItem : i));
+                    toast({ title: "Photo Updated!" });
+                }
+            } catch (err) {
+                toast({ variant: 'destructive', title: "Update Failed" });
+            } finally {
+                setIsAnalyzing(false);
+                e.target.value = '';
             }
-        } catch (err) {
-            toast({ variant: 'destructive', title: "Update Failed" });
-        } finally {
-            setIsAnalyzing(false);
-            e.target.value = '';
         }
     };
 
