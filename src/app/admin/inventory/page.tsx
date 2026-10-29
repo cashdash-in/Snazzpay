@@ -73,6 +73,14 @@ export default function AdminInventoryPage() {
         documentTitle: `Label_${printItem?.name || 'product'}`,
     });
 
+    // Effect to trigger print after state is set and content is rendered
+    useEffect(() => {
+        if (printItem && printRef.current) {
+            handlePrint();
+            setPrintItem(null);
+        }
+    }, [printItem, handlePrint]);
+
     // AI Interaction States
     const [isListening, setIsListening] = useState(false);
     const [voiceTranscript, setVoiceTranscript] = useState('');
@@ -545,10 +553,7 @@ export default function AdminInventoryPage() {
                                                 variant="outline" 
                                                 size="sm" 
                                                 className="rounded-xl h-8 text-[10px] uppercase font-bold"
-                                                onClick={() => {
-                                                    setPrintItem(item);
-                                                    setTimeout(() => handlePrint(), 100);
-                                                }}
+                                                onClick={() => setPrintItem(item)}
                                             >
                                                 <Printer className="h-3 w-3 mr-1" /> Label
                                             </Button>
@@ -592,7 +597,7 @@ export default function AdminInventoryPage() {
                             </TableBody>
                         </Table>
                     </CardContent>
-                </AppShell>
+                </Card>
             </div>
 
             <Dialog open={isListening} onOpenChange={setIsListening}>
@@ -616,4 +621,3 @@ export default function AdminInventoryPage() {
         </AppShell>
     );
 }
-
