@@ -12,3 +12,4 @@ import './flows/seller-genee-flow';
 import './flows/site-builder-flow';
 import './flows/site-chatbot-flow';
 import './flows/whatsapp-product-parser';
+import './flows/inventory-ai';
