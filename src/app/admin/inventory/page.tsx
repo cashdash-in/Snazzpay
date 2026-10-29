@@ -10,19 +10,16 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useToast } from '@/hooks/use-toast';
 import { 
     Loader2, Camera, Plus, Minus, Search, 
-    Scan, PackagePlus, AlertTriangle, Copy, 
-    DollarSign, Mic, MessageSquare, History,
     ShoppingCart, ShieldCheck, ArrowRight,
-    TrendingUp, FileSpreadsheet, Trash2,
-    Sparkles, Send
+    MessageSquare, History, TrendingUp, 
+    Sparkles, Send, Mic, Trash2, AlertTriangle,
+    X, PackagePlus
 } from 'lucide-react';
 import { getCollection, saveDocument, addDocument } from '@/services/firestore';
-import { analyzeInventoryItem } from '@/ai/flows/inventory-analyzer';
 import { parseInventoryCommand, detectItemsInPhoto } from '@/ai/flows/inventory-ai';
 import { v4 as uuidv4 } from 'uuid';
 import Image from 'next/image';
-import { startOfDay } from 'date-fns';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { cn, sanitizePhoneNumber } from "@/lib/utils";
 import type { InventoryItem, StockMovement, MovementType } from '@/types/inventory';
 import { Badge } from '@/components/ui/badge';
@@ -41,6 +38,7 @@ export default function AdminInventoryPage() {
     
     // AI Interaction States
     const [isListening, setIsListening] = useState(false);
+    const [voiceTranscript, setVoiceTranscript] = useState('');
     const [isVisionProcessing, setIsVisionProcessing] = useState(false);
     const [textCommand, setTextCommand] = useState('');
     const [detectedSaleItems, setDetectedSaleItems] = useState<{productName: string, qty: number}[]>([]);
@@ -111,11 +109,13 @@ export default function AdminInventoryPage() {
     };
 
     const handleTextCommand = async (command: string) => {
+        if (!command.trim()) return;
         setIsAnalyzing(true);
         try {
             const result = await parseInventoryCommand(command);
             setDetectedSaleItems(result.items.map(i => ({ productName: i.productName, qty: i.quantity })));
             setTextCommand('');
+            setIsListening(false);
             toast({ title: "AI Detected Items", description: result.summary });
         } catch (e) {
             toast({ variant: 'destructive', title: "Parsing Failed" });
@@ -131,12 +131,17 @@ export default function AdminInventoryPage() {
         try {
             const uri = await resizeImage(file);
             const detections = await detectItemsInPhoto(uri, 'sale');
-            setDetectedSaleItems(detections.map(d => ({ productName: d.productName, qty: -d.count })));
-            toast({ title: "Photo Analyzed", description: `Found ${detections.length} types of items.` });
+            if (!detections || detections.length === 0) {
+                toast({ variant: 'destructive', title: "No items detected", description: "Try taking a clearer photo of the items on the counter." });
+            } else {
+                setDetectedSaleItems(detections.map(d => ({ productName: d.productName, qty: -d.count })));
+                toast({ title: "Photo Analyzed", description: `Found ${detections.length} types of items.` });
+            }
         } catch (e) {
             toast({ variant: 'destructive', title: "Vision Error" });
         } finally {
             setIsVisionProcessing(false);
+            e.target.value = '';
         }
     };
 
@@ -144,16 +149,45 @@ export default function AdminInventoryPage() {
         setIsAnalyzing(true);
         let successCount = 0;
         for (const sale of detectedSaleItems) {
-            const item = inventory.find(i => i.name.toLowerCase().includes(sale.productName.toLowerCase()) || sale.productName.toLowerCase().includes(i.name.toLowerCase()));
+            const item = inventory.find(i => 
+                i.name.toLowerCase().includes(sale.productName.toLowerCase()) || 
+                sale.productName.toLowerCase().includes(i.name.toLowerCase())
+            );
             if (item) {
                 const type = sale.qty < 0 ? 'Sale' : 'Purchase';
-                const ok = await recordMovement(item, sale.qty, type as MovementType, "AI Detected Capture");
+                const ok = await recordMovement(item, sale.qty, type as MovementType, "AI Automated Update");
                 if (ok) successCount++;
             }
         }
-        toast({ title: "Bulk Update Complete", description: `Updated ${successCount} products in stock.` });
+        toast({ title: "Stock Updated", description: `Updated ${successCount} products successfully.` });
         setDetectedSaleItems([]);
         setIsAnalyzing(false);
+    };
+
+    const startVoiceCapture = () => {
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            toast({ variant: 'destructive', title: "Speech Not Supported", description: "Your browser does not support voice recognition." });
+            return;
+        }
+
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'en-IN';
+        recognition.onstart = () => {
+            setIsListening(true);
+            setVoiceTranscript('Listening...');
+        };
+        recognition.onresult = (event: any) => {
+            const transcript = event.results[0][0].transcript;
+            setVoiceTranscript(transcript);
+            handleTextCommand(transcript);
+        };
+        recognition.onerror = () => {
+            setIsListening(false);
+            toast({ variant: 'destructive', title: "Speech Error" });
+        };
+        recognition.onend = () => setIsListening(false);
+        recognition.start();
     };
 
     const filteredInventory = inventory.filter(i => 
@@ -174,8 +208,8 @@ export default function AdminInventoryPage() {
                         </CardHeader>
                         <CardContent className="space-y-2">
                              <div className="flex gap-2">
-                                <Button size="sm" variant="secondary" className="flex-1 rounded-xl" onClick={() => setIsListening(true)}>
-                                    <Mic className="h-4 w-4 mr-2" /> Voice
+                                <Button size="sm" variant="secondary" className="flex-1 rounded-xl" onClick={startVoiceCapture}>
+                                    <Mic className="h-4 w-4 mr-2" /> {isListening ? 'Listening...' : 'Voice'}
                                 </Button>
                                 <Button size="sm" variant="secondary" className="flex-1 rounded-xl" onClick={() => document.getElementById('sale-photo')?.click()}>
                                     {isVisionProcessing ? <Loader2 className="animate-spin h-4 w-4" /> : <Camera className="h-4 w-4 mr-2" />} Photo
@@ -184,24 +218,31 @@ export default function AdminInventoryPage() {
                              </div>
                         </CardContent>
                     </Card>
+
                     <Link href="/admin/inventory/billing">
                         <Card className="hover:bg-slate-50 transition-colors shadow-lg border-none cursor-pointer h-full">
-                            <CardHeader className="pb-2"><CardTitle className="text-[10px] font-black uppercase text-blue-600 tracking-widest">Billing Mode</CardTitle></CardHeader>
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-[10px] font-black uppercase text-blue-600 tracking-widest">Billing Mode</CardTitle>
+                            </CardHeader>
                             <CardContent className="flex items-center gap-4">
                                 <div className="p-2 bg-blue-100 text-blue-600 rounded-lg"><ShoppingCart /></div>
                                 <div className="text-xl font-bold">New Invoice</div>
                             </CardContent>
                         </Card>
                     </Link>
+
                     <Link href="/admin/inventory/audit">
                         <Card className="hover:bg-slate-50 transition-colors shadow-lg border-none cursor-pointer h-full">
-                            <CardHeader className="pb-2"><CardTitle className="text-[10px] font-black uppercase text-purple-600 tracking-widest">Audit Mode</CardTitle></CardHeader>
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-[10px] font-black uppercase text-purple-600 tracking-widest">Audit Mode</CardTitle>
+                            </CardHeader>
                             <CardContent className="flex items-center gap-4">
                                 <div className="p-2 bg-purple-100 text-purple-600 rounded-lg"><ShieldCheck /></div>
                                 <div className="text-xl font-bold">Shelf Check</div>
                             </CardContent>
                         </Card>
                     </Link>
+
                     <Card className="bg-slate-900 text-white shadow-xl border-none">
                          <CardHeader className="pb-2"><CardTitle className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Total SKUs</CardTitle></CardHeader>
                          <CardContent><div className="text-3xl font-black">{inventory.length}</div></CardContent>
@@ -244,7 +285,9 @@ export default function AdminInventoryPage() {
                         </CardContent>
                         <CardFooter className="gap-2">
                             <Button variant="outline" className="flex-1 rounded-2xl" onClick={() => setDetectedSaleItems([])}>Discard</Button>
-                            <Button className="flex-1 rounded-2xl h-12 text-lg font-black" onClick={finalizeBulkSale}>Confirm & Update Stock</Button>
+                            <Button className="flex-1 rounded-2xl h-12 text-lg font-black" onClick={finalizeBulkSale} disabled={isAnalyzing}>
+                                {isAnalyzing ? <Loader2 className="animate-spin" /> : "Confirm & Update Stock"}
+                            </Button>
                         </CardFooter>
                     </Card>
                 )}
@@ -324,6 +367,18 @@ export default function AdminInventoryPage() {
                     </CardContent>
                 </Card>
             </div>
+
+            <Dialog open={isListening} onOpenChange={setIsListening}>
+                <DialogContent className="max-w-sm rounded-[32px] p-8 text-center border-none shadow-2xl">
+                    <DialogHeader><DialogTitle className="text-xl font-black uppercase italic tracking-widest text-primary">Listening Mode</DialogTitle></DialogHeader>
+                    <div className="flex flex-col items-center gap-6 py-6">
+                        <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center animate-pulse">
+                            <Mic className="h-10 w-10 text-primary" />
+                        </div>
+                        <p className="text-sm font-bold text-slate-600">"{voiceTranscript || 'Say: Sold 2 Rosaries'}"</p>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </AppShell>
     );
 }

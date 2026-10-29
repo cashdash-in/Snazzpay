@@ -12,30 +12,33 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing image data' }, { status: 400 });
     }
 
-    // High-Intensity "Nuclear Pixel-Erase" Instructions for absolute clothing replacement
-    const finalPrompt = `ACT AS AN ELITE FASHION STUDIO RETOUCHER & GENERATIVE FILL MASTER. 
+    // NUCLEAR SURGICAL RE-DRESS PROMPT
+    const finalPrompt = `ACT AS AN ELITE FASHION STUDIO RETOUCHER & AI GENERATIVE FILL MASTER. 
+
+    TASK: PERFORM A 100% CLOTHING SUBSTITUTION ON THE PERSON IN THE FIRST PHOTO.
     
-    MISSION: PERFORM A FULL-BODY CLOTHING REPLACEMENT. THE GOAL IS TO REMOVE ALL TRACES OF THE ORIGINAL GARMENT.
-    
-    1. OBLITERATE ORIGINAL CLOTHING (First Photo): 
-       - Identify the exact area occupied by the person's current outfit (e.g. shirt, top, skirt, dress).
-       - SURGICALLY ERASE every pixel of this outfit. DO NOT BLEND. 
-       - Completely ignore the original garment's colors (such as a yellow shirt or beige skirt). They must be 100% GONE.
+    MISSION PARAMETERS:
+    1. SURGICAL OBLITERATION: 
+       - Identify the exact area occupied by the person's current outfit (torso, sleeves, legs).
+       - COMPLETELY ERASE every pixel of the original clothes.
+       - IGNORE original colors (like yellow or beige). They must be 100% REMOVED.
+       - Do not "blend" with existing clothes; this is a full replacement.
        
-    2. PRODUCT SUBSTITUTION (Second Photo): 
-       - Use the product: "${input.productTitle}".
-       - EXTRACT the exact fabric texture, pattern, and color motif.
+    2. PRODUCT INJECTION: 
+       - Use the product shown in the second photo: "${input.productTitle}".
+       - Extract the exact pattern, fabric texture, and color motif.
+       - Re-dress the person using ONLY the new product texture.
+       - Drape the garment flawlessly according to the body silhouette.
     
-    3. PIXEL-PERFECT RE-DRESS: 
-       - Re-clothe the person using ONLY the new product. 
-       - Map the texture flawlessly onto the body silhouette. 
-       - Ensure the new garment is the ONLY thing visible in that body region.
-       - Match shadows and ambient lighting to the background of the first photo.
-       
-    4. IDENTITY PRESERVATION: 
-       - Do NOT change the person's face, features, skin tone, or hair. Keep the human identity exactly as it appears in the first photo.
-    
-    OUTPUT: RETURN ONLY THE FINAL GENERATED IMAGE. THIS IS A REPLACEMENT, NOT AN OVERLAY.`;
+    3. IDENTITY PRESERVATION: 
+       - CRITICAL: Do NOT modify the person's face, hair, skin tone, or background.
+       - The person must remain exactly the same; only the outfit changes.
+       - Ensure shadows and lighting on the new fabric match the scene environment.
+
+    MODE: ${input.garmentType || 'Apparel'} Fitting.
+    DRAPE STYLE: ${input.drapeStyle || 'Western'}.
+
+    OUTPUT: RETURN ONLY THE FINAL GENERATED IMAGE. NO OVERLAYS. NO GHOSTING.`;
 
     try {
         const { media } = await ai.generate({
@@ -57,7 +60,7 @@ export async function POST(request: Request) {
         });
 
         if (!media?.url) {
-          return NextResponse.json({ error: 'AI processed the request but did not return an image. The product may have triggered a safety filter.' }, { status: 200 });
+          return NextResponse.json({ error: 'AI processed the request but did not return an image. This might be due to safety filters.' }, { status: 200 });
         }
 
         return NextResponse.json({ generatedImageDataUri: media.url });

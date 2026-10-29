@@ -19,12 +19,16 @@ const ProductQtySchema = z.object({
 export async function parseInventoryCommand(text: string) {
   const { output } = await ai.generate({
     model: 'googleai/gemini-2.5-flash',
-    system: `You are an inventory assistant for a religious goods shop. 
-    Convert user commands into a list of stock movements.
-    - If they say "Sold", quantity should be negative.
-    - If they say "Purchase" or "Added", quantity should be positive.
-    - Map products to their most likely category.`,
-    prompt: `Text: "${text}"`,
+    system: `You are an elite inventory assistant for a specialized retail shop. 
+    Convert user voice or text commands into a structured list of stock movements.
+    
+    LOGIC:
+    - "Sold", "Given", "Gone" -> Quantity should be NEGATIVE (e.g. -3).
+    - "Bought", "Purchased", "Added", "Restock" -> Quantity should be POSITIVE (e.g. +5).
+    - "Damaged", "Broken", "Lost" -> Quantity should be NEGATIVE.
+    
+    Output a JSON object with 'items' (array of movements) and a 'summary'.`,
+    prompt: `Process this command: "${text}"`,
     output: { 
         schema: z.object({
             items: z.array(ProductQtySchema),
@@ -42,8 +46,8 @@ export async function parseInventoryCommand(text: string) {
  */
 export async function detectItemsInPhoto(imageDataUri: string, mode: 'sale' | 'audit' = 'sale') {
   const systemPrompt = mode === 'sale' 
-    ? "Analyze this photo of items on a counter. List every product you see and count them exactly. These are items being sold."
-    : "Analyze this photo of a storage shelf. Perform a visual count of every distinct product type you see. Be as precise as possible.";
+    ? "Act as a checkout scanner. Analyze this photo of items on a counter. Identify every product and count them accurately. These items are being sold."
+    : "Act as an inventory auditor. Analyze this photo of a storage shelf. Perform a visual count of every distinct product type you see. Be extremely precise.";
 
   const { output } = await ai.generate({
     model: 'googleai/gemini-2.5-flash-image',
@@ -62,6 +66,6 @@ export async function detectItemsInPhoto(imageDataUri: string, mode: 'sale' | 'a
     }
   });
 
-  if (!output) throw new Error("Vision analysis failed.");
+  if (!output) return [];
   return output.detections;
 }
