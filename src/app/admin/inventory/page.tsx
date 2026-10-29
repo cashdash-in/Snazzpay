@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -24,12 +23,12 @@ import { analyzeInventoryItem } from '@/ai/flows/inventory-analyzer';
 import { v4 as uuidv4 } from 'uuid';
 import Image from 'next/image';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { cn, sanitizePhoneNumber } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import type { InventoryItem, StockMovement, MovementType } from '@/types/inventory';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Link from 'next/link';
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 
 const MAX_IMAGE_SIZE_PX = 600;
@@ -56,7 +55,7 @@ export default function AdminInventoryPage() {
         setIsLoading(true);
         try {
             const stock = await getCollection<InventoryItem>('inventory');
-            // Hard pull: Sort newest added items to the top
+            // Strict Sort: Newest Added at the top
             const sorted = (stock || []).sort((a, b) => {
                 const dateA = new Date(a.addedDate || a.lastUpdated || 0).getTime();
                 const dateB = new Date(b.addedDate || b.lastUpdated || 0).getTime();
@@ -86,7 +85,7 @@ export default function AdminInventoryPage() {
         return groups;
     }, [inventory]);
 
-    // QR Scanner Logic
+    // QR Scanner Logic for Search
     useEffect(() => {
         if (!isQrSearching) return;
         const scanner = new Html5QrcodeScanner("qr-search-reader", { fps: 10, qrbox: 250 }, false);
@@ -130,7 +129,6 @@ export default function AdminInventoryPage() {
                         .price { font-weight: 900; font-size: 18px; }
                         .id { font-family: monospace; font-size: 10px; color: #666; }
                         .shelf { font-size: 10px; font-weight: bold; background: #eee; padding: 2px 5px; border-radius: 4px; margin-top: 5px; }
-                        @media print { .no-print { display: none; } }
                     </style>
                 </head>
                 <body>
@@ -186,7 +184,6 @@ export default function AdminInventoryPage() {
         };
 
         try {
-            // Functional state update to handle batch changes
             setInventory(prev => prev.map(i => i.id === item.id ? { ...i, quantity: newQty, lastUpdated: now } : i));
             await Promise.all([
                 saveDocument('inventory', { ...item, quantity: newQty, lastUpdated: now }, item.id),
