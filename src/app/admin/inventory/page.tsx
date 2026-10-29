@@ -83,9 +83,6 @@ export default function AdminInventoryPage() {
         });
     };
 
-    /**
-     * Records a stock movement and updates the inventory atomicity (formula-based).
-     */
     const recordMovement = async (item: InventoryItem, qty: number, type: MovementType, note?: string) => {
         const newQty = item.quantity + qty;
         const movement: StockMovement = {
@@ -169,7 +166,6 @@ export default function AdminInventoryPage() {
     return (
         <AppShell title="Shop Inventory">
             <div className="space-y-6">
-                {/* Header Actions */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <Card className="bg-primary text-primary-foreground shadow-xl border-none">
                         <CardHeader className="pb-2 flex flex-row justify-between items-center">
@@ -195,7 +191,7 @@ export default function AdminInventoryPage() {
                                 <div className="p-2 bg-blue-100 text-blue-600 rounded-lg"><ShoppingCart /></div>
                                 <div className="text-xl font-bold">New Invoice</div>
                             </CardContent>
-                        </Link>
+                        </Card>
                     </Link>
                     <Link href="/admin/inventory/audit">
                         <Card className="hover:bg-slate-50 transition-colors shadow-lg border-none cursor-pointer h-full">
@@ -204,7 +200,7 @@ export default function AdminInventoryPage() {
                                 <div className="p-2 bg-purple-100 text-purple-600 rounded-lg"><ShieldCheck /></div>
                                 <div className="text-xl font-bold">Shelf Check</div>
                             </CardContent>
-                        </Link>
+                        </Card>
                     </Link>
                     <Card className="bg-slate-900 text-white shadow-xl border-none">
                          <CardHeader className="pb-2"><CardTitle className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Total SKUs</CardTitle></CardHeader>
@@ -212,7 +208,6 @@ export default function AdminInventoryPage() {
                     </Card>
                 </div>
 
-                {/* WhatsApp-Style Text Input */}
                 <Card className="rounded-3xl shadow-sm border-none bg-white p-2">
                     <div className="flex gap-2 p-2">
                         <div className="p-3 bg-green-100 text-green-600 rounded-2xl"><MessageSquare className="h-6 w-6" /></div>
@@ -229,7 +224,6 @@ export default function AdminInventoryPage() {
                     </div>
                 </Card>
 
-                {/* AI Detection Confirmation */}
                 {detectedSaleItems.length > 0 && (
                     <Card className="border-2 border-primary bg-primary/5 rounded-[32px] animate-in fade-in slide-in-from-top-4">
                         <CardHeader><CardTitle className="text-lg flex items-center gap-2 italic font-black"><Sparkles className="text-primary"/> Confirm Stock Movement</CardTitle></CardHeader>
@@ -255,7 +249,6 @@ export default function AdminInventoryPage() {
                     </Card>
                 )}
 
-                {/* Inventory Table */}
                 <Card className="rounded-[32px] overflow-hidden shadow-sm border-none bg-white">
                     <div className="p-6 border-b flex justify-between items-center">
                         <div className="relative w-64">
@@ -313,8 +306,10 @@ export default function AdminInventoryPage() {
                                                     <DialogFooter>
                                                         <DialogClose asChild>
                                                             <Button variant="destructive" className="w-full h-12 font-bold rounded-2xl" onClick={async () => {
-                                                                const qty = parseInt((document.getElementById(`qty-loss-${item.id}`) as HTMLInputElement).value) || 0;
-                                                                const reason = (document.getElementById(`reason-loss-${item.id}`) as HTMLInputElement).value || 'Damage';
+                                                                const qtyInput = document.getElementById(`qty-loss-${item.id}`) as HTMLInputElement;
+                                                                const reasonInput = document.getElementById(`reason-loss-${item.id}`) as HTMLInputElement;
+                                                                const qty = parseInt(qtyInput?.value) || 0;
+                                                                const reason = reasonInput?.value || 'Damage';
                                                                 await recordMovement(item, -qty, 'Damage', reason);
                                                             }}>Record Loss & Update Stock</Button>
                                                         </DialogClose>

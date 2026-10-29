@@ -1,4 +1,3 @@
-
 import { NextResponse } from 'next/server';
 import { ai } from '@/ai/genkit';
 import { googleAI } from '@genkit-ai/google-genai';
@@ -13,30 +12,30 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing image data' }, { status: 400 });
     }
 
-    // Advanced "Pixel-Erase & Re-Clothe" Instructions
+    // High-Intensity "Nuclear Pixel-Erase" Instructions for absolute clothing replacement
     const finalPrompt = `ACT AS AN ELITE FASHION STUDIO RETOUCHER & GENERATIVE FILL MASTER. 
     
-    MISSION: PERFORM A FULL-BODY CLOTHING REPLACEMENT WITH 100% FABRIC FIDELITY.
+    MISSION: PERFORM A FULL-BODY CLOTHING REPLACEMENT. THE GOAL IS TO REMOVE ALL TRACES OF THE ORIGINAL GARMENT.
     
-    1. IDENTIFY TARGET AREA (First Photo): 
-       - Find the exact area occupied by the current clothing (shirt, top, dress, skirt, or pants).
-       - MASK AND ERASE this entire area. OBLITERATE the original outfit pixels completely. 
-       - Do NOT let any part of the original outfit (like a yellow shirt or beige skirt) show through or blend.
+    1. OBLITERATE ORIGINAL CLOTHING (First Photo): 
+       - Identify the exact area occupied by the person's current outfit (e.g. shirt, top, skirt, dress).
+       - SURGICALLY ERASE every pixel of this outfit. DO NOT BLEND. 
+       - Completely ignore the original garment's colors (such as a yellow shirt or beige skirt). They must be 100% GONE.
        
-    2. PRODUCT EXTRACTION (Second Photo): 
-       - Study the product: "${input.productTitle}".
-       - EXTRACT the exact pattern, color motifs, and fabric texture.
+    2. PRODUCT SUBSTITUTION (Second Photo): 
+       - Use the product: "${input.productTitle}".
+       - EXTRACT the exact fabric texture, pattern, and color motif.
     
-    3. SURGICAL RE-DRESS: 
-       - Generate the new garment in the ERASED area using ONLY the patterns and textures from the product photo.
-       - MAP the texture pixel-perfectly onto the body's contours.
-       - The new garment must be the ONLY clothing visible in that area.
-       - MATCH shadows and highlights to the lighting of the first photo.
+    3. PIXEL-PERFECT RE-DRESS: 
+       - Re-clothe the person using ONLY the new product. 
+       - Map the texture flawlessly onto the body silhouette. 
+       - Ensure the new garment is the ONLY thing visible in that body region.
+       - Match shadows and ambient lighting to the background of the first photo.
        
-    4. PRESERVE IDENTITY: 
-       - DO NOT modify the face, hands, skin tone, hair, or physical features of the person.
+    4. IDENTITY PRESERVATION: 
+       - Do NOT change the person's face, features, skin tone, or hair. Keep the human identity exactly as it appears in the first photo.
     
-    OUTPUT: RETURN ONLY THE FINAL GENERATED IMAGE. THIS IS A MANDATORY REPLACEMENT, NOT A BLEND.`;
+    OUTPUT: RETURN ONLY THE FINAL GENERATED IMAGE. THIS IS A REPLACEMENT, NOT AN OVERLAY.`;
 
     try {
         const { media } = await ai.generate({
@@ -58,7 +57,7 @@ export async function POST(request: Request) {
         });
 
         if (!media?.url) {
-          return NextResponse.json({ error: 'AI processed the request but did not return an image. Try a clearer photo.' }, { status: 200 });
+          return NextResponse.json({ error: 'AI processed the request but did not return an image. The product may have triggered a safety filter.' }, { status: 200 });
         }
 
         return NextResponse.json({ generatedImageDataUri: media.url });
