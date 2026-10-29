@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -97,7 +96,7 @@ export default function AdminInventoryPage() {
         };
 
         try {
-            // Update local state first
+            // Update local state first for instant UI response
             setInventory(prev => prev.map(i => i.id === item.id ? { ...i, quantity: newQty, lastUpdated: movement.date } : i));
 
             // Sync with database
@@ -262,7 +261,7 @@ export default function AdminInventoryPage() {
                 const ok = await recordMovement(item, sale.qty, type as MovementType, "AI Automated Update");
                 if (ok) successCount++;
             } else if (sale.qty > 0) {
-                // New Product from AI Command
+                // Auto-create New Product from "Add" Command
                 const ok = await handleCreateAndRecord(sale.productName, sale.qty, 'Purchase', "AI Auto-created from Command");
                 if (ok) successCount++;
             }
@@ -511,6 +510,6 @@ export default function AdminInventoryPage() {
                     </div>
                 </DialogContent>
             </Dialog>
-        </div>
+        </AppShell>
     );
 }
