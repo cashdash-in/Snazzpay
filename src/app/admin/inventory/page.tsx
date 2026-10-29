@@ -16,7 +16,7 @@ import {
     Sparkles, Send, Mic, Trash2, AlertTriangle,
     X, PackagePlus, Info, ImagePlus, QrCode, Printer, Calendar as CalendarIcon,
     Layers, Scan, Map as MapIcon, LayoutGrid, List,
-    CheckCircle2
+    CheckCircle2, RefreshCw
 } from 'lucide-react';
 import { getCollection, saveDocument, addDocument } from '@/services/firestore';
 import { parseInventoryCommand, detectItemsInPhoto } from '@/ai/flows/inventory-ai';
@@ -31,7 +31,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import { Html5QrcodeScanner } from 'html5-qrcode';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const MAX_IMAGE_SIZE_PX = 600;
 
@@ -57,6 +56,7 @@ export default function AdminInventoryPage() {
         setIsLoading(true);
         try {
             const stock = await getCollection<InventoryItem>('inventory');
+            // Hard pull: Sort newest added items to the top
             const sorted = (stock || []).sort((a, b) => {
                 const dateA = new Date(a.addedDate || a.lastUpdated || 0).getTime();
                 const dateB = new Date(b.addedDate || b.lastUpdated || 0).getTime();
@@ -186,6 +186,7 @@ export default function AdminInventoryPage() {
         };
 
         try {
+            // Functional state update to handle batch changes
             setInventory(prev => prev.map(i => i.id === item.id ? { ...i, quantity: newQty, lastUpdated: now } : i));
             await Promise.all([
                 saveDocument('inventory', { ...item, quantity: newQty, lastUpdated: now }, item.id),
