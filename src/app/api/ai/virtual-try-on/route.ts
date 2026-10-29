@@ -13,33 +13,32 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing image data' }, { status: 400 });
     }
 
-    // NUCLEAR SURGICAL RE-DRESS PROMPT - HIGHEST INTENSITY
-    const finalPrompt = `ACT AS AN ELITE FASHION STUDIO RETOUCHER & AI GENERATIVE FILL MASTER. 
+    // NUCLEAR SURGICAL RE-DRESS PROMPT - MAXIMUM INTENSITY
+    const finalPrompt = `ACT AS AN ELITE FASHION STUDIO GENERATIVE FILL MASTER.
 
     TASK: PERFORM A 100% SURGICAL CLOTHING SUBSTITUTION ON THE PERSON IN THE FIRST PHOTO.
     
     MISSION PARAMETERS:
-    1. SURGICAL OBLITERATION: 
+    1. SURGICAL OBLITERATION (CRITICAL): 
        - Identify the exact area occupied by the person's current outfit (torso, sleeves, legs).
        - COMPLETELY ERASE and OBLITERATE every single pixel of the original clothes.
-       - IGNORE original colors (like yellow, beige, or white). They must be 100% REMOVED.
-       - Do not "blend" or "overlay"; this is a clean-slate full replacement.
+       - DO NOT BLEND. Original colors (like yellow, beige, white) must be 100% REMOVED and replaced.
+       - Use the second photo as the ONLY source for the new outfit's pixels.
        
     2. PRODUCT INJECTION: 
-       - Use the product shown in the second photo: "${input.productTitle}".
-       - Extract the exact pattern, fabric texture, weave, and color motif.
-       - Re-dress the person using ONLY the new product texture.
+       - Inject the product from the second photo ("${input.productTitle}") into the erased area.
+       - Extract and preserve the exact pattern, fabric texture, weave, and color motif.
        - Drape the garment flawlessly according to the body silhouette, matching folds and natural physics.
     
     3. IDENTITY PRESERVATION: 
-       - CRITICAL: Do NOT modify the person's face, hair, skin tone, or background.
-       - The person must remain exactly the same; only the outfit is surgically swapped.
-       - Ensure shadows and environment lighting on the new fabric are 100% realistic.
+       - Keep the person's face, hair, skin tone, and background EXACTLY as they are in the first photo.
+       - Only the outfit is surgically swapped.
+       - Ensure shadows and environmental lighting on the new fabric are 100% realistic.
 
     MODE: ${input.garmentType || 'Apparel'} Fitting.
     DRAPE STYLE: ${input.drapeStyle || 'Western'}.
 
-    OUTPUT: RETURN ONLY THE FINAL GENERATED IMAGE. NO OVERLAYS. NO GHOSTING.`;
+    OUTPUT: RETURN ONLY THE FINAL GENERATED IMAGE. NO OVERLAYS. NO GHOSTING. ZERO ORIGINAL CLOTHING PIXELS.`;
 
     try {
         const { media } = await ai.generate({

@@ -14,10 +14,11 @@ import {
     ShoppingCart, ShieldCheck, ArrowRight,
     MessageSquare, History, TrendingUp, 
     Sparkles, Send, Mic, Trash2, AlertTriangle,
-    X, PackagePlus
+    X, PackagePlus, Info
 } from 'lucide-react';
 import { getCollection, saveDocument, addDocument } from '@/services/firestore';
 import { parseInventoryCommand, detectItemsInPhoto } from '@/ai/flows/inventory-ai';
+import { analyzeInventoryItem } from '@/ai/flows/inventory-analyzer';
 import { v4 as uuidv4 } from 'uuid';
 import Image from 'next/image';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
@@ -83,7 +84,6 @@ export default function AdminInventoryPage() {
     };
 
     const recordMovement = async (item: InventoryItem, qty: number, type: MovementType, note?: string) => {
-        // Optimistic quantity update to prevent lag
         const newQty = item.quantity + qty;
         const movement: StockMovement = {
             id: uuidv4(),
@@ -97,7 +97,7 @@ export default function AdminInventoryPage() {
         };
 
         try {
-            // Update local state first for immediate UI response
+            // Update local state first
             setInventory(prev => prev.map(i => i.id === item.id ? { ...i, quantity: newQty, lastUpdated: movement.date } : i));
 
             // Sync with database
@@ -109,8 +109,6 @@ export default function AdminInventoryPage() {
             return true;
         } catch (e) {
             console.error("Stock update error:", e);
-            // Revert on error
-            setInventory(prev => prev.map(i => i.id === item.id ? { ...i, quantity: item.quantity } : i));
             return false;
         }
     };
@@ -131,6 +129,40 @@ export default function AdminInventoryPage() {
         }
     };
 
+    const handleNewProductCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setIsAnalyzing(true);
+        try {
+            const uri = await resizeImage(file);
+            const aiData = await analyzeInventoryItem({ imageDataUri: uri });
+            
+            const shortId = uuidv4().substring(0, 8).toUpperCase();
+            const newItem: InventoryItem = {
+                id: shortId,
+                name: aiData.productName,
+                quantity: 1,
+                wholesalePrice: 0,
+                mrp: aiData.suggestedMRP,
+                shelfNumber: 'Pending',
+                imageDataUri: uri,
+                category: aiData.category,
+                lastUpdated: new Date().toISOString(),
+                description: aiData.description,
+                sellingPoints: aiData.sellingPoints,
+            };
+
+            await saveDocument('inventory', newItem, newItem.id);
+            setInventory(prev => [newItem, ...prev]);
+            toast({ title: "New Product Listed!", description: `AI added: ${aiData.productName}` });
+        } catch (e) {
+            toast({ variant: 'destructive', title: "Identification Failed" });
+        } finally {
+            setIsAnalyzing(false);
+            e.target.value = '';
+        }
+    };
+
     const handlePhotoSale = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -139,7 +171,7 @@ export default function AdminInventoryPage() {
             const uri = await resizeImage(file);
             const detections = await detectItemsInPhoto(uri, 'sale');
             if (!detections || detections.length === 0) {
-                toast({ variant: 'destructive', title: "No items detected", description: "Try taking a clearer photo of the items on the counter." });
+                toast({ variant: 'destructive', title: "No items detected" });
             } else {
                 setDetectedSaleItems(detections.map(d => ({ productName: d.productName, qty: -d.count })));
                 toast({ title: "Photo Analyzed", description: `Found ${detections.length} types of items.` });
@@ -156,10 +188,11 @@ export default function AdminInventoryPage() {
         setIsAnalyzing(true);
         let successCount = 0;
         
-        // We use the current inventory state to process the batch
+        // Use a function to ensure we always have the latest inventory list
+        // when processing multiple items in a loop
         for (const sale of detectedSaleItems) {
-            // Find the item in our current inventory list
             const item = inventory.find(i => 
+                i.name.toLowerCase() === sale.productName.toLowerCase() ||
                 i.name.toLowerCase().includes(sale.productName.toLowerCase()) || 
                 sale.productName.toLowerCase().includes(i.name.toLowerCase())
             );
@@ -171,7 +204,11 @@ export default function AdminInventoryPage() {
             }
         }
         
-        toast({ title: "Stock Updated", description: `Updated ${successCount} products successfully.` });
+        toast({ 
+            title: successCount > 0 ? "Stock Updated" : "No Matches Found", 
+            description: `Updated ${successCount} out of ${detectedSaleItems.length} items.`,
+            variant: successCount === 0 ? "destructive" : "default"
+        });
         setDetectedSaleItems([]);
         setIsAnalyzing(false);
     };
@@ -179,7 +216,7 @@ export default function AdminInventoryPage() {
     const startVoiceCapture = () => {
         const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
         if (!SpeechRecognition) {
-            toast({ variant: 'destructive', title: "Speech Not Supported", description: "Your browser does not support voice recognition." });
+            toast({ variant: 'destructive', title: "Speech Not Supported" });
             return;
         }
 
@@ -231,26 +268,20 @@ export default function AdminInventoryPage() {
                         </CardContent>
                     </Card>
 
+                    <Button onClick={() => document.getElementById('new-item-capture')?.click()} variant="outline" className="h-full border-2 border-dashed border-primary/20 bg-white rounded-2xl flex flex-col gap-2 p-4 shadow-sm hover:bg-slate-50">
+                        {isAnalyzing ? <Loader2 className="animate-spin text-primary" /> : <PackagePlus className="h-6 w-6 text-primary" />}
+                        <span className="font-bold uppercase text-[10px]">Capture New Product</span>
+                        <input type="file" id="new-item-capture" accept="image/*" className="hidden" onChange={handleNewProductCapture} />
+                    </Button>
+
                     <Link href="/admin/inventory/billing">
                         <Card className="hover:bg-slate-50 transition-colors shadow-lg border-none cursor-pointer h-full">
                             <CardHeader className="pb-2">
                                 <CardTitle className="text-[10px] font-black uppercase text-blue-600 tracking-widest">Billing Mode</CardTitle>
                             </CardHeader>
                             <CardContent className="flex items-center gap-4">
-                                <div className="p-2 bg-blue-100 text-blue-600 rounded-lg"><ShoppingCart /></div>
+                                <div className="p-2 bg-blue-100 text-blue-600 rounded-lg"><ShoppingCart className="h-5 w-5" /></div>
                                 <div className="text-xl font-bold">New Invoice</div>
-                            </CardContent>
-                        </Card>
-                    </Link>
-
-                    <Link href="/admin/inventory/audit">
-                        <Card className="hover:bg-slate-50 transition-colors shadow-lg border-none cursor-pointer h-full">
-                            <CardHeader className="pb-2">
-                                <CardTitle className="text-[10px] font-black uppercase text-purple-600 tracking-widest">Audit Mode</CardTitle>
-                            </CardHeader>
-                            <CardContent className="flex items-center gap-4">
-                                <div className="p-2 bg-purple-100 text-purple-600 rounded-lg"><ShieldCheck /></div>
-                                <div className="text-xl font-bold">Shelf Check</div>
                             </CardContent>
                         </Card>
                     </Link>
@@ -265,7 +296,7 @@ export default function AdminInventoryPage() {
                     <div className="flex gap-2 p-2">
                         <div className="p-3 bg-green-100 text-green-600 rounded-2xl"><MessageSquare className="h-6 w-6" /></div>
                         <Input 
-                            placeholder="Type sale: 'Sold 2 rosaries, 1 candle' or paste text here..." 
+                            placeholder="Type sale: 'Sold 2 rosaries' or 'Add 5 candles'..." 
                             className="flex-1 border-none focus-visible:ring-0 text-sm font-medium"
                             value={textCommand}
                             onChange={e => setTextCommand(e.target.value)}
@@ -282,17 +313,27 @@ export default function AdminInventoryPage() {
                         <CardHeader><CardTitle className="text-lg flex items-center gap-2 italic font-black"><Sparkles className="text-primary"/> Confirm Stock Movement</CardTitle></CardHeader>
                         <CardContent>
                             <div className="space-y-2">
-                                {detectedSaleItems.map((item, idx) => (
-                                    <div key={idx} className="flex justify-between items-center p-3 bg-white rounded-xl border">
-                                        <div className="flex items-center gap-3">
-                                            <Badge variant={item.qty < 0 ? 'destructive' : 'default'} className="rounded-full w-8 h-8 p-0 flex items-center justify-center font-bold">
-                                                {item.qty > 0 ? '+' : ''}{item.qty}
-                                            </Badge>
-                                            <span className="font-bold uppercase text-xs">{item.productName}</span>
+                                {detectedSaleItems.map((sale, idx) => {
+                                    const match = inventory.find(i => 
+                                        i.name.toLowerCase() === sale.productName.toLowerCase() ||
+                                        i.name.toLowerCase().includes(sale.productName.toLowerCase()) || 
+                                        sale.productName.toLowerCase().includes(i.name.toLowerCase())
+                                    );
+                                    return (
+                                        <div key={idx} className={cn("flex justify-between items-center p-3 bg-white rounded-xl border", !match && "border-red-200 bg-red-50/50")}>
+                                            <div className="flex items-center gap-3">
+                                                <Badge variant={sale.qty < 0 ? 'destructive' : 'default'} className="rounded-full w-8 h-8 p-0 flex items-center justify-center font-bold">
+                                                    {sale.qty > 0 ? '+' : ''}{sale.qty}
+                                                </Badge>
+                                                <div>
+                                                    <span className="font-bold uppercase text-xs block">{sale.productName}</span>
+                                                    {!match && <span className="text-[10px] text-red-500 font-bold uppercase tracking-widest">Product not in stock</span>}
+                                                </div>
+                                            </div>
+                                            <Button variant="ghost" size="icon" onClick={() => setDetectedSaleItems(prev => prev.filter((_, i) => i !== idx))}><Trash2 className="h-4 w-4 text-red-400" /></Button>
                                         </div>
-                                        <Button variant="ghost" size="icon" onClick={() => setDetectedSaleItems(prev => prev.filter((_, i) => i !== idx))}><Trash2 className="h-4 w-4 text-red-400" /></Button>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </CardContent>
                         <CardFooter className="gap-2">
