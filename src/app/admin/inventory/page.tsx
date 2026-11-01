@@ -18,7 +18,7 @@ import {
     Layers, Scan, Map as MapIcon, List, CheckCircle2,
     Sun, Moon, Share2, Edit3, FileSpreadsheet, Download
 } from 'lucide-react';
-import { getCollection, saveDocument, addDocument } from '@/services/firestore';
+import { getCollection, saveDocument, addDocument, deleteDocument } from '@/services/firestore';
 import { parseInventoryCommand, detectItemsInPhoto } from '@/ai/flows/inventory-ai';
 import { analyzeInventoryItem } from '@/ai/flows/inventory-analyzer';
 import { v4 as uuidv4 } from 'uuid';
@@ -351,6 +351,16 @@ export default function AdminInventoryPage() {
         saveDocument('inventory', updates, id);
     };
 
+    const handleDeleteItem = async (id: string) => {
+        try {
+            await deleteDocument('inventory', id);
+            setInventory(prev => prev.filter(i => i.id !== id));
+            toast({ title: "Product Deleted" });
+        } catch (e) {
+            toast({ variant: 'destructive', title: "Delete Failed" });
+        }
+    };
+
     const filteredInventory = inventory.filter(i => 
         (i.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
         (i.id || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -599,7 +609,7 @@ export default function AdminInventoryPage() {
                                             </TableCell>
                                             <TableCell className="text-right space-x-2">
                                                 <Button variant="outline" size="sm" className="rounded-xl h-8 text-[10px] uppercase font-bold" onClick={() => handlePrintLabel(item)}><Printer className="h-3 w-3 mr-1" /> Label</Button>
-                                                <Button variant="outline" size="sm" className="rounded-xl h-8 text-[10px] uppercase font-bold text-destructive" onClick={() => recordMovement(item, -1, 'Damage', 'Waste Reported')}><AlertTriangle className="h-3 w-3 mr-1" /> Loss</Button>
+                                                <Button variant="outline" size="sm" className="rounded-xl h-8 text-[10px] uppercase font-bold text-destructive" onClick={() => handleDeleteItem(item.id)}><Trash2 className="h-3 w-3 mr-1" /> Delete</Button>
                                             </TableCell>
                                         </TableRow>
                                     ))}
@@ -661,4 +671,3 @@ export default function AdminInventoryPage() {
         </AppShell>
     );
 }
-
