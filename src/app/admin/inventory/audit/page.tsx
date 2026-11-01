@@ -27,6 +27,34 @@ export default function StockAuditPage() {
         getCollection<InventoryItem>('inventory').then(data => setInventory(data || []));
     }, []);
 
+    // Advanced word-intersection fuzzy matcher
+    const findProductMatch = (detectedName: string, items: InventoryItem[]) => {
+        const dWords = new Set(detectedName.toLowerCase().split(/\s+/).filter(w => w.length > 2));
+        
+        // Stage 1: Exact or substring match
+        const stage1 = items.find(i => {
+            const name = i.name.toLowerCase();
+            const detect = detectedName.toLowerCase();
+            return name === detect || name.includes(detect) || detect.includes(name);
+        });
+        if (stage1) return stage1;
+
+        // Stage 2: Word intersection score
+        let bestMatch = null;
+        let highestScore = 0;
+
+        for (const item of items) {
+            const iWords = item.name.toLowerCase().split(/\s+/);
+            const intersection = iWords.filter(w => dWords.has(w));
+            const score = intersection.length;
+            if (score > highestScore && score >= 1) {
+                highestScore = score;
+                bestMatch = item;
+            }
+        }
+        return bestMatch;
+    };
+
     const handleAuditPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -47,16 +75,12 @@ export default function StockAuditPage() {
                 }
 
                 const results = detections.map(d => {
-                    const match = inventory.find(i => {
-                        const nameA = i.name.toLowerCase();
-                        const nameB = d.productName.toLowerCase();
-                        return nameA === nameB || nameA.includes(nameB) || nameB.includes(nameA);
-                    });
+                    const match = findProductMatch(d.productName, inventory);
                     return match ? { product: match, visualCount: d.count } : null;
                 }).filter(r => !!r) as { product: InventoryItem, visualCount: number }[];
 
                 if (results.length === 0) {
-                    toast({ variant: 'destructive', title: "No Matches", description: "AI detected items but they don't match your inventory list." });
+                    toast({ variant: 'destructive', title: "No Matches", description: "AI detected items but they don't match your inventory list. Ensure items are already added to stock." });
                 } else {
                     setAuditResults(results);
                     toast({ 

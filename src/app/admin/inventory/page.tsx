@@ -63,6 +63,7 @@ export default function AdminInventoryPage() {
         setIsLoading(true);
         try {
             const stock = await getCollection<InventoryItem>('inventory');
+            // Strict sort: Newest Added first
             const sorted = (stock || []).sort((a, b) => {
                 const dateA = new Date(a.addedDate || a.lastUpdated || 0).getTime();
                 const dateB = new Date(b.addedDate || b.lastUpdated || 0).getTime();
@@ -235,7 +236,7 @@ export default function AdminInventoryPage() {
                     qty: d.count, 
                     price: 0, 
                     category: d.category, 
-                    imageDataUri: uri
+                    imageDataUri: uri // Initially show group photo until individual is taken
                 })));
                 toast({ title: "Items Segregated!" });
             }
