@@ -16,7 +16,7 @@ import {
     Sparkles, Send, Mic, Trash2, AlertTriangle,
     X, PackagePlus, Info, ImagePlus, QrCode, Printer, Calendar as CalendarIcon,
     Layers, Scan, Map as MapIcon, List, CheckCircle2,
-    Sun, Moon, Share2, Edit3
+    Sun, Moon, Share2, Edit3, FileSpreadsheet, Download
 } from 'lucide-react';
 import { getCollection, saveDocument, addDocument } from '@/services/firestore';
 import { parseInventoryCommand, detectItemsInPhoto } from '@/ai/flows/inventory-ai';
@@ -30,6 +30,7 @@ import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { Html5QrcodeScanner } from 'html5-qrcode';
+import * as XLSX from 'xlsx';
 
 const MAX_IMAGE_SIZE_PX = 800;
 
@@ -54,7 +55,8 @@ export default function AdminInventoryPage() {
     const [detectedIntakeItems, setDetectedIntakeItems] = useState<{
         productName: string, 
         qty: number, 
-        price: number,
+        mrp: number,
+        purchasePrice: number,
         category: string, 
         imageDataUri?: string
     }[]>([]);
@@ -190,11 +192,11 @@ export default function AdminInventoryPage() {
         } catch (e) { return false; }
     };
 
-    const handleCreateAndRecord = async (productName: string, qty: number, mrp: number, type: MovementType, category: string, imageDataUri?: string) => {
+    const handleCreateAndRecord = async (productName: string, qty: number, mrp: number, purchasePrice: number, type: MovementType, category: string, imageDataUri?: string) => {
         const shortId = uuidv4().substring(0, 8).toUpperCase();
         const now = new Date().toISOString();
         const newItem: InventoryItem = {
-            id: shortId, name: productName, quantity: Math.max(0, qty), wholesalePrice: 0, mrp: mrp || 0, shelfNumber: 'NEW', 
+            id: shortId, name: productName, quantity: Math.max(0, qty), wholesalePrice: purchasePrice || 0, mrp: mrp || 0, shelfNumber: 'NEW', 
             imageDataUri: imageDataUri || `https://picsum.photos/seed/${shortId}/400/400`, category: category || 'New Article', 
             lastUpdated: now, addedDate: now, purchaseDate: now
         };
@@ -213,7 +215,7 @@ export default function AdminInventoryPage() {
         setIsAnalyzing(true);
         try {
             const result = await parseInventoryCommand(command);
-            setDetectedIntakeItems(result.items.map(i => ({ productName: i.productName, qty: i.quantity, price: 0, category: 'General' })));
+            setDetectedIntakeItems(result.items.map(i => ({ productName: i.productName, qty: i.quantity, mrp: 0, purchasePrice: 0, category: 'General' })));
             setTextCommand('');
             setIsListening(false);
             toast({ title: "AI Detected Movement", description: result.summary });
@@ -234,9 +236,10 @@ export default function AdminInventoryPage() {
                 setDetectedIntakeItems(detections.map(d => ({ 
                     productName: d.productName, 
                     qty: d.count, 
-                    price: 0, 
+                    mrp: 0, 
+                    purchasePrice: 0,
                     category: d.category, 
-                    imageDataUri: uri // Initially show group photo until individual is taken
+                    imageDataUri: uri 
                 })));
                 toast({ title: "Items Segregated!" });
             }
@@ -284,11 +287,15 @@ export default function AdminInventoryPage() {
             );
             if (item) {
                 const type = intake.qty > 0 ? 'Purchase' : 'Sale';
-                const updatedItem = intake.price > 0 ? { ...item, mrp: intake.price } : item;
+                const updatedItem = { 
+                    ...item, 
+                    mrp: intake.mrp > 0 ? intake.mrp : item.mrp,
+                    wholesalePrice: intake.purchasePrice > 0 ? intake.purchasePrice : item.wholesalePrice 
+                };
                 const ok = await recordMovement(updatedItem, intake.qty, type as MovementType, "Bulk Intake Sync");
                 if (ok) successCount++;
             } else if (intake.qty > 0) {
-                const ok = await handleCreateAndRecord(intake.productName, intake.qty, intake.price, 'Bulk Intake', intake.category, intake.imageDataUri);
+                const ok = await handleCreateAndRecord(intake.productName, intake.qty, intake.mrp, intake.purchasePrice, 'Bulk Intake', intake.category, intake.imageDataUri);
                 if (ok) successCount++;
             }
         }
@@ -301,16 +308,26 @@ export default function AdminInventoryPage() {
         const lowStock = inventory.filter(i => i.quantity < 5);
         const totalValue = inventory.reduce((sum, i) => sum + (i.mrp * i.quantity), 0);
         let message = `📦 *STOCK REPORT: ${type.toUpperCase()}*\n\n`;
+        let excelData: any[] = [];
         
         if (type === 'morning') {
             message += `🌞 *Morning Readiness*\n- Low Stock Alerts: ${lowStock.length} SKUs\n- Store Value: ₹${totalValue.toLocaleString()}\n\n*Items to Reorder:*\n${lowStock.map(i => `- ${i.name} (Only ${i.quantity} left)`).join('\n')}`;
+            excelData = lowStock.map(i => ({ Product: i.name, CurrentQty: i.quantity, MRP: i.mrp, PurchasePrice: i.wholesalePrice, Shelf: i.shelfNumber }));
         } else {
             message += `🌙 *Closing Summary*\n- Total SKUs: ${inventory.length}\n- Closing Value: ₹${totalValue.toLocaleString()}\n- Shelves Verified: ${Object.keys(shelfGroups).length}`;
+            excelData = inventory.map(i => ({ Product: i.name, Category: i.category, Qty: i.quantity, MRP: i.mrp, Wholesale: i.wholesalePrice, Value: i.quantity * i.mrp, Shelf: i.shelfNumber }));
         }
         
+        // Excel Export
+        const ws = XLSX.utils.json_to_sheet(excelData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Report");
+        XLSX.writeFile(wb, `${type.toUpperCase()}_Inventory_Report_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+
+        // WhatsApp Broadcast
         const whatsappUrl = `https://wa.me/919920320790?text=${encodeURIComponent(message)}`;
         window.open(whatsappUrl, '_blank');
-        toast({ title: "Report Ready", description: "Opening WhatsApp to send broadcast." });
+        toast({ title: "Report Ready", description: "Excel downloaded & WhatsApp opening." });
     };
 
     const startVoiceCapture = () => {
@@ -377,7 +394,7 @@ export default function AdminInventoryPage() {
                     </Link>
 
                     <Card className="shadow-lg border-none bg-white h-full flex flex-col justify-center">
-                        <CardHeader className="pb-2"><CardTitle className="text-[10px] font-black uppercase text-amber-600 tracking-widest">Broadcast Alerts</CardTitle></CardHeader>
+                        <CardHeader className="pb-2"><CardTitle className="text-[10px] font-black uppercase text-amber-600 tracking-widest">Broadcast Reports</CardTitle></CardHeader>
                         <CardContent className="flex gap-2 pt-0">
                             <Button variant="outline" size="sm" className="flex-1 rounded-xl h-10 border-amber-100 text-amber-600" onClick={() => handleBroadcastReport('morning')}><Sun className="h-3 w-3 mr-1"/> MORNING</Button>
                             <Button variant="outline" size="sm" className="flex-1 rounded-xl h-10 border-indigo-100 text-indigo-600" onClick={() => handleBroadcastReport('night')}><Moon className="h-3 w-3 mr-1"/> NIGHT</Button>
@@ -429,7 +446,7 @@ export default function AdminInventoryPage() {
                         <CardHeader>
                             <div className="flex justify-between items-center">
                                 <CardTitle className="text-lg flex items-center gap-2 italic font-black"><Sparkles className="text-primary"/> Confirm AI Segregation</CardTitle>
-                                <Badge className="bg-primary text-white">Capture individual photos for each item below</Badge>
+                                <Badge className="bg-primary text-white">Review pricing for each item below</Badge>
                             </div>
                         </CardHeader>
                         <CardContent>
@@ -456,9 +473,9 @@ export default function AdminInventoryPage() {
                                                 </div>
                                                 <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-300 hover:text-red-500" onClick={() => setDetectedIntakeItems(prev => prev.filter((_, i) => i !== idx))}><X className="h-4 w-4" /></Button>
                                             </div>
-                                            <div className="grid grid-cols-2 gap-3">
+                                            <div className="grid grid-cols-3 gap-3">
                                                 <div className="space-y-1">
-                                                    <Label className="text-[8px] font-black uppercase text-slate-400 ml-1">Quantity</Label>
+                                                    <Label className="text-[8px] font-black uppercase text-slate-400 ml-1">Qty</Label>
                                                     <div className="flex items-center gap-2 bg-slate-50 rounded-lg px-2 py-1">
                                                         <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setDetectedIntakeItems(prev => prev.map((it, i) => i === idx ? { ...it, qty: it.qty - 1 } : it))}><Minus className="h-3 w-3" /></Button>
                                                         <span className="text-xs font-black">{item.qty}</span>
@@ -466,13 +483,25 @@ export default function AdminInventoryPage() {
                                                     </div>
                                                 </div>
                                                 <div className="space-y-1">
-                                                    <Label className="text-[8px] font-black uppercase text-slate-400 ml-1">Price (MRP)</Label>
+                                                    <Label className="text-[8px] font-black uppercase text-slate-400 ml-1">Purchase (₹)</Label>
                                                     <div className="flex items-center gap-1 bg-slate-50 rounded-lg px-2 py-1">
                                                         <span className="text-[10px] font-bold text-slate-400">₹</span>
                                                         <Input 
                                                             type="number" 
-                                                            value={item.price} 
-                                                            onChange={e => setDetectedIntakeItems(prev => prev.map((it, i) => i === idx ? { ...it, price: Number(e.target.value) } : it))}
+                                                            value={item.purchasePrice} 
+                                                            onChange={e => setDetectedIntakeItems(prev => prev.map((it, i) => i === idx ? { ...it, purchasePrice: Number(e.target.value) } : it))}
+                                                            className="h-6 p-0 border-none bg-transparent focus-visible:ring-0 text-xs font-black text-amber-600"
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <Label className="text-[8px] font-black uppercase text-slate-400 ml-1">MRP (₹)</Label>
+                                                    <div className="flex items-center gap-1 bg-slate-50 rounded-lg px-2 py-1">
+                                                        <span className="text-[10px] font-bold text-slate-400">₹</span>
+                                                        <Input 
+                                                            type="number" 
+                                                            value={item.mrp} 
+                                                            onChange={e => setDetectedIntakeItems(prev => prev.map((it, i) => i === idx ? { ...it, mrp: Number(e.target.value) } : it))}
                                                             className="h-6 p-0 border-none bg-transparent focus-visible:ring-0 text-xs font-black text-primary"
                                                         />
                                                     </div>
@@ -500,8 +529,7 @@ export default function AdminInventoryPage() {
                                     <TableRow>
                                         <TableHead>Product</TableHead>
                                         <TableHead>Shelf Location</TableHead>
-                                        <TableHead>Dates</TableHead>
-                                        <TableHead>Price (MRP)</TableHead>
+                                        <TableHead>Prices (₹)</TableHead>
                                         <TableHead>In Stock</TableHead>
                                         <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
@@ -539,20 +567,27 @@ export default function AdminInventoryPage() {
                                                 </div>
                                             </TableCell>
                                             <TableCell>
-                                                <div className="space-y-1 text-[10px] text-muted-foreground font-medium">
-                                                    <div className="flex items-center gap-1"><TrendingUp className="h-3 w-3 text-green-500" /> Bought: {item.purchaseDate ? format(new Date(item.purchaseDate), 'dd MMM') : 'N/A'}</div>
-                                                    <div className="flex items-center gap-1"><CalendarIcon className="h-3 w-3 text-blue-500" /> Added: {format(new Date(item.addedDate || item.lastUpdated), 'dd MMM')}</div>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>
-                                                <div className="flex items-center gap-1">
-                                                    <span className="text-[10px] font-bold text-slate-400">₹</span>
-                                                    <Input 
-                                                        type="number"
-                                                        className="h-8 w-24 font-black text-primary border-none bg-primary/5 rounded-lg focus-visible:bg-white" 
-                                                        value={item.mrp} 
-                                                        onChange={(e) => updateItemFields(item.id, { mrp: Number(e.target.value) })} 
-                                                    />
+                                                <div className="space-y-1.5">
+                                                    <div className="flex items-center gap-1">
+                                                        <span className="text-[8px] font-black text-slate-400 uppercase w-10">PURCHASE:</span>
+                                                        <span className="text-[10px] font-bold text-slate-400">₹</span>
+                                                        <Input 
+                                                            type="number"
+                                                            className="h-7 w-20 font-bold text-amber-600 border-none bg-amber-50 rounded-md focus-visible:bg-white" 
+                                                            value={item.wholesalePrice} 
+                                                            onChange={(e) => updateItemFields(item.id, { wholesalePrice: Number(e.target.value) })} 
+                                                        />
+                                                    </div>
+                                                    <div className="flex items-center gap-1">
+                                                        <span className="text-[8px] font-black text-slate-400 uppercase w-10">MRP:</span>
+                                                        <span className="text-[10px] font-bold text-slate-400">₹</span>
+                                                        <Input 
+                                                            type="number"
+                                                            className="h-7 w-20 font-black text-primary border-none bg-primary/5 rounded-md focus-visible:bg-white" 
+                                                            value={item.mrp} 
+                                                            onChange={(e) => updateItemFields(item.id, { mrp: Number(e.target.value) })} 
+                                                        />
+                                                    </div>
                                                 </div>
                                             </TableCell>
                                             <TableCell>
@@ -626,3 +661,4 @@ export default function AdminInventoryPage() {
         </AppShell>
     );
 }
+
