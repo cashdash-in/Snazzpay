@@ -51,7 +51,7 @@ export async function detectItemsInPhoto(imageDataUri: string, mode: 'sale' | 'a
   if (mode === 'sale') {
       systemPrompt = "Act as a professional retail checkout scanner. Identify every product visible in this photo on the counter and count their quantities. These items are currently being sold.";
   } else if (mode === 'audit') {
-      systemPrompt = "Act as a detailed inventory auditor. Analyze this storage shelf photo. List every distinct product type and perform a precise visual count of how many of each are on the shelf. Be very descriptive with item names to help matching.";
+      systemPrompt = "Act as a precise inventory auditor. Look at this shelf photo. Identify every distinct product and count exactly how many are present. Be very specific with product names (include colors/sizes if visible) to help match them to a database.";
   } else if (mode === 'intake') {
       systemPrompt = "Act as an intake manager. Analyze this photo of newly purchased items. Segregate them by identifying each distinct product type and counting them accurately. These are new stocks being added to inventory.";
   }

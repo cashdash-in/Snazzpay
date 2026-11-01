@@ -40,6 +40,12 @@ export default function StockAuditPage() {
                 const uri = ev.target?.result as string;
                 const detections = await detectItemsInPhoto(uri, 'audit');
                 
+                if (!detections || detections.length === 0) {
+                    toast({ variant: 'destructive', title: "No Items Found", description: "The AI couldn't detect any products in this photo." });
+                    setIsAnalyzing(false);
+                    return;
+                }
+
                 const results = detections.map(d => {
                     const match = inventory.find(i => {
                         const nameA = i.name.toLowerCase();
@@ -49,16 +55,20 @@ export default function StockAuditPage() {
                     return match ? { product: match, visualCount: d.count } : null;
                 }).filter(r => !!r) as { product: InventoryItem, visualCount: number }[];
 
-                setAuditResults(results);
-                toast({ 
-                    title: "Shelf Scan Complete", 
-                    description: `Detected ${results.length} products visually. Review the shelf report below.` 
-                });
+                if (results.length === 0) {
+                    toast({ variant: 'destructive', title: "No Matches", description: "AI detected items but they don't match your inventory list." });
+                } else {
+                    setAuditResults(results);
+                    toast({ 
+                        title: "Shelf Scan Complete", 
+                        description: `Analyzed ${results.length} items on the shelf.` 
+                    });
+                }
+                setIsAnalyzing(false);
             };
             reader.readAsDataURL(file);
         } catch (e) {
             toast({ variant: 'destructive', title: "Audit Failed" });
-        } finally {
             setIsAnalyzing(false);
         }
     };
@@ -96,7 +106,7 @@ export default function StockAuditPage() {
                     ]);
                 }
             }
-            toast({ title: "Inventory Reconciled!", description: "All system counts updated by shelf location." });
+            toast({ title: "Inventory Reconciled!", description: "All system counts updated to match shelf visuals." });
             setAuditResults([]);
         } catch (e) {
             toast({ variant: 'destructive', title: "Adjustment Failed" });
@@ -113,9 +123,9 @@ export default function StockAuditPage() {
                         <div className="p-4 bg-primary/20 rounded-full border border-primary/20 animate-pulse"><ShieldCheck className="h-12 w-12 text-primary" /></div>
                         <div className="space-y-2">
                             <h2 className="text-3xl font-black italic uppercase tracking-tighter">Visual Shelf Check</h2>
-                            <p className="text-slate-400 text-sm max-w-sm">Snap a photo of any shelf section. AI will count items and verify they are in the correct location.</p>
+                            <p className="text-slate-400 text-sm max-w-sm">Snap a photo of any shelf section. AI will count items and compare with your digital records.</p>
                         </div>
-                        <Button size="lg" className="h-16 px-10 rounded-2xl font-black uppercase italic text-lg shadow-2xl shadow-primary/20" onClick={() => document.getElementById('audit-cam-input')?.click()}>
+                        <Button size="lg" className="h-16 px-10 rounded-2xl font-black uppercase italic text-lg shadow-2xl shadow-primary/20" onClick={() => document.getElementById('audit-cam-input')?.click()} disabled={isAnalyzing}>
                             {isAnalyzing ? <Loader2 className="animate-spin mr-2" /> : <Camera className="mr-2 h-6 w-6" />} Start Shelf Scan
                         </Button>
                         <input id="audit-cam-input" type="file" accept="image/*" capture="environment" className="hidden" onChange={handleAuditPhoto} />
@@ -129,7 +139,7 @@ export default function StockAuditPage() {
                                 <div className="p-3 bg-primary text-white rounded-2xl font-black italic shadow-lg">{shelf}</div>
                                 <div>
                                     <CardTitle className="text-lg font-black italic uppercase">Shelf Discrepancy Report</CardTitle>
-                                    <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">Location Tracking Accuracy</CardDescription>
+                                    <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">Location: {shelf}</CardDescription>
                                 </div>
                             </div>
                             <Badge className="bg-slate-900 text-xs px-4 py-1">{results.length} Items Found</Badge>
@@ -151,7 +161,9 @@ export default function StockAuditPage() {
                                             <TableRow key={res.product.id} className={cn("hover:bg-slate-50 transition-colors", diff !== 0 && "bg-amber-50/20")}>
                                                 <TableCell className="pl-8">
                                                     <div className="flex items-center gap-3">
-                                                        <Image src={res.product.imageDataUri} width={32} height={32} alt="p" className="rounded-lg object-cover" unoptimized />
+                                                        <div className="relative h-10 w-10 shrink-0 border rounded-lg overflow-hidden">
+                                                            <Image src={res.product.imageDataUri} fill alt="p" className="object-cover" unoptimized />
+                                                        </div>
                                                         <div className="flex flex-col">
                                                             <span className="font-bold uppercase text-xs italic">{res.product.name}</span>
                                                             <span className="text-[9px] font-mono text-muted-foreground uppercase">ID: {res.product.id.substring(0,8)}</span>
@@ -162,10 +174,10 @@ export default function StockAuditPage() {
                                                 <TableCell className="text-center font-black text-primary text-lg">{res.visualCount}</TableCell>
                                                 <TableCell className="text-right pr-8">
                                                     {diff === 0 ? (
-                                                        <Badge className="bg-green-500 text-[10px] font-black uppercase"><CheckCircle2 className="h-3 w-3 mr-1"/> Matches</Badge>
+                                                        <Badge className="bg-green-500 text-[10px] font-black uppercase"><CheckCircle2 className="h-3 w-3 mr-1"/> Correct</Badge>
                                                     ) : (
                                                         <div className="flex flex-col items-end gap-1">
-                                                            <Badge variant="destructive" className="font-mono text-[10px] uppercase font-black">
+                                                            <Badge variant="destructive" className="font-mono text-[10px] uppercase font-black bg-red-600">
                                                                 {diff > 0 ? 'Surplus' : 'Missing'}: {Math.abs(diff)}
                                                             </Badge>
                                                         </div>
@@ -185,12 +197,12 @@ export default function StockAuditPage() {
                         <div className="flex flex-col sm:flex-row justify-between items-center gap-6">
                             <div className="space-y-1">
                                 <p className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-primary"><RefreshCw className="h-4 w-4 animate-spin-slow" /> Global Sync Ready</p>
-                                <p className="text-[10px] text-slate-400 max-w-sm">Reconciliation will record inventory adjustments across all shelves to match the visual counts detected by AI.</p>
+                                <p className="text-[10px] text-slate-400 max-w-sm">Reconciliation will update system stock to match the visual reality found on your shelves.</p>
                             </div>
                             <div className="flex gap-3 w-full sm:w-auto">
                                 <Button variant="outline" className="flex-1 sm:flex-none rounded-xl h-14 px-8 text-slate-400 border-white/10 hover:bg-white/5" onClick={() => setAuditResults([])}>Discard Audit</Button>
                                 <Button className="flex-2 sm:flex-none h-14 px-10 font-black uppercase italic rounded-xl shadow-2xl shadow-primary/20 bg-primary hover:bg-primary/90" onClick={handleApplyAdjustments} disabled={isProcessingAudit}>
-                                    {isProcessingAudit ? <Loader2 className="animate-spin mr-2" /> : <RefreshCw className="mr-2 h-5 w-5" />} Sync System with Shelves
+                                    {isProcessingAudit ? <Loader2 className="animate-spin mr-2" /> : <RefreshCw className="mr-2 h-5 w-5" />} Sync System with Visuals
                                 </Button>
                             </div>
                         </div>

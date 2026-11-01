@@ -233,9 +233,9 @@ export default function AdminInventoryPage() {
                 setDetectedIntakeItems(detections.map(d => ({ 
                     productName: d.productName, 
                     qty: d.count, 
-                    price: 0, // Staff will edit this
+                    price: 0, 
                     category: d.category, 
-                    imageDataUri: uri // Initially use group photo
+                    imageDataUri: uri
                 })));
                 toast({ title: "Items Segregated!" });
             }
@@ -283,7 +283,6 @@ export default function AdminInventoryPage() {
             );
             if (item) {
                 const type = intake.qty > 0 ? 'Purchase' : 'Sale';
-                // Update MRP if provided during intake
                 const updatedItem = intake.price > 0 ? { ...item, mrp: intake.price } : item;
                 const ok = await recordMovement(updatedItem, intake.qty, type as MovementType, "Bulk Intake Sync");
                 if (ok) successCount++;
@@ -486,7 +485,7 @@ export default function AdminInventoryPage() {
                         <CardFooter className="gap-3">
                             <Button variant="outline" className="flex-1 h-14 rounded-2xl text-slate-500 font-bold" onClick={() => setDetectedIntakeItems([])}>Discard All</Button>
                             <Button className="flex-2 h-14 rounded-2xl text-lg font-black uppercase italic shadow-2xl shadow-primary/20" onClick={finalizeBulkIntake} disabled={isAnalyzing}>
-                                {isAnalyzing ? <Loader2 className="animate-spin mr-2" /> : <PackagePlus className="mr-2 h-5 w-5" />} Sync These Items
+                                {isAnalyzing ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <PackagePlus className="mr-2 h-4 w-4" />} Sync These Items
                             </Button>
                         </CardFooter>
                     </Card>
