@@ -30,8 +30,10 @@ export default function StockAuditPage() {
     const handleAuditPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
+        
         setIsAnalyzing(true);
         setAuditResults([]);
+        
         try {
             const reader = new FileReader();
             reader.onload = async (ev) => {
@@ -39,11 +41,11 @@ export default function StockAuditPage() {
                 const detections = await detectItemsInPhoto(uri, 'audit');
                 
                 const results = detections.map(d => {
-                    const match = inventory.find(i => 
-                        i.name.toLowerCase() === d.productName.toLowerCase() ||
-                        i.name.toLowerCase().includes(d.productName.toLowerCase()) || 
-                        d.productName.toLowerCase().includes(i.name.toLowerCase())
-                    );
+                    const match = inventory.find(i => {
+                        const nameA = i.name.toLowerCase();
+                        const nameB = d.productName.toLowerCase();
+                        return nameA === nameB || nameA.includes(nameB) || nameB.includes(nameA);
+                    });
                     return match ? { product: match, visualCount: d.count } : null;
                 }).filter(r => !!r) as { product: InventoryItem, visualCount: number }[];
 
@@ -61,7 +63,6 @@ export default function StockAuditPage() {
         }
     };
 
-    // Group audit results by shelf
     const groupedAudit = useMemo(() => {
         const groups: Record<string, typeof auditResults> = {};
         auditResults.forEach(res => {
@@ -114,10 +115,10 @@ export default function StockAuditPage() {
                             <h2 className="text-3xl font-black italic uppercase tracking-tighter">Visual Shelf Check</h2>
                             <p className="text-slate-400 text-sm max-w-sm">Snap a photo of any shelf section. AI will count items and verify they are in the correct location.</p>
                         </div>
-                        <Button size="lg" className="h-16 px-10 rounded-2xl font-black uppercase italic text-lg shadow-2xl shadow-primary/20" onClick={() => document.getElementById('audit-cam')?.click()}>
+                        <Button size="lg" className="h-16 px-10 rounded-2xl font-black uppercase italic text-lg shadow-2xl shadow-primary/20" onClick={() => document.getElementById('audit-cam-input')?.click()}>
                             {isAnalyzing ? <Loader2 className="animate-spin mr-2" /> : <Camera className="mr-2 h-6 w-6" />} Start Shelf Scan
                         </Button>
-                        <input id="audit-cam" type="file" accept="image/*" capture="environment" className="hidden" onChange={handleAuditPhoto} />
+                        <input id="audit-cam-input" type="file" accept="image/*" capture="environment" className="hidden" onChange={handleAuditPhoto} />
                     </CardContent>
                 </Card>
 
