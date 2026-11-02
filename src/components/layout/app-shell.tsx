@@ -67,6 +67,7 @@ import {
   UsersRound,
   LayoutTemplate,
   Zap,
+  Gem,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { getCookie } from 'cookies-next';
@@ -87,14 +88,12 @@ type MenuItem = {
 const adminCoreMenuItems: MenuItem[] = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/inventory', label: 'SnapStock AI', icon: Zap },
+  { href: '/admin/snapstock-licenses', label: 'SnapStock Partners', icon: Gem },
   { href: '/admin/wholesale-inquiries', label: 'Wholesale Requests', icon: ShoppingBasket, notificationKey: 'wholesale' },
   { href: '/mandates', label: 'Mandates', icon: WalletCards },
   { href: '/orders', label: 'Orders', icon: ShoppingCart, notificationKey: 'orders' as const },
   { href: '/leads', label: 'Leads', icon: Users, notificationKey: 'leads' as const },
   { href: '/delivery-tracking', label: 'Delivery Tracking', icon: Truck },
-  { href: '/cancellations', label: 'Cancellations', icon: Ban },
-  { href: '/refunds', label: 'Refunds', icon: CircleDollarSign },
-  { href: '/reports', label: 'Reports', icon: FileSpreadsheet },
 ];
 
 const adminGrowthMenuItems: MenuItem[] = [

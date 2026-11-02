@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState, useRef, useMemo, useCallback } from 'rea
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, ShoppingCart, MessageCircle, Sparkles, Camera, ImagePlus, RefreshCcw, ShieldCheck, Share2, Download, Store, Star } from 'lucide-react';
+import { Loader2, ShoppingCart, MessageCircle, Sparkles, Camera, ImagePlus, RefreshCcw, ShieldCheck, Share2, Download, Store, Star, CreditCard } from 'lucide-react';
 import Image from 'next/image';
 import { getCollection, getDocument, saveDocument } from '@/services/firestore';
 import { Badge } from '@/components/ui/badge';
@@ -45,6 +45,7 @@ type Magazine = {
 };
 
 const MAX_TRYON_SIZE_PX = 448;
+const FREE_SAVES_LIMIT = 3;
 
 function SmartMagazineContent() {
     const searchParams = useSearchParams();
@@ -72,17 +73,32 @@ function SmartMagazineContent() {
     const [isGeneeOpen, setIsGeneeOpen] = useState(false);
     const [activeGeneeProduct, setActiveGeneeProduct] = useState<any>(null);
 
+    // Monetization States
+    const [saveCount, setSaveCount] = useState(0);
+    const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+    const [razorpayKeyId, setRazorpayKeyId] = useState<string | null>(null);
+
     useEffect(() => {
         setMounted(true);
         const discountParam = searchParams.get('discount');
         if (discountParam) setDiscount(parseFloat(discountParam));
+
+        // Load save count from local storage
+        const storedCount = parseInt(localStorage.getItem('tryon_saves_count') || '0');
+        setSaveCount(storedCount);
 
         async function fetchProducts() {
             const magazineId = searchParams.get('id');
             if (!magazineId) { setIsLoading(false); return; }
 
             try {
-                const fetchedMagazine = await getDocument<Magazine>('smart_magazines', magazineId);
+                const [fetchedMagazine, keyRes] = await Promise.all([
+                    getDocument<Magazine>('smart_magazines', magazineId),
+                    fetch('/api/get-key').then(res => res.json())
+                ]);
+                
+                if (keyRes?.keyId) setRazorpayKeyId(keyRes.keyId);
+
                 if (!fetchedMagazine) { setIsLoading(false); return; }
                 setMagazine(fetchedMagazine);
                 
@@ -133,74 +149,7 @@ function SmartMagazineContent() {
         return { type: 'General', hint: 'selfie', label: 'SELFIE', isApparel: false };
     }, []);
 
-    const activeTryOnProduct = useMemo(() => products.find(p => p.id === tryOnProductId) || null, [products, tryOnProductId]);
-    const activeTryOnContext = useMemo(() => getProductContext(activeTryOnProduct as DisplayProduct), [activeTryOnProduct, getProductContext]);
-
-    const resizeImageForAI = (fileOrUri: File | string, maxSize: number = MAX_TRYON_SIZE_PX): Promise<string> => {
-        return new Promise((resolve, reject) => {
-            const img = new (window as any).Image();
-            img.crossOrigin = "anonymous";
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                let { width, height } = img;
-                if (width > height) { if (width > maxSize) { height *= maxSize / width; width = maxSize; } }
-                else { if (height > maxSize) { width *= maxSize / height; height = maxSize; } }
-                canvas.width = width; canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                ctx?.drawImage(img, 0, 0, width, height);
-                resolve(canvas.toDataURL('image/jpeg', 0.5));
-            };
-            img.onerror = reject;
-            if (typeof fileOrUri === 'string') img.src = fileOrUri;
-            else {
-                const reader = new FileReader();
-                reader.onload = (e) => img.src = e.target?.result as string;
-                reader.readAsDataURL(fileOrUri);
-            }
-        });
-    };
-
-    const handleTryOnUpload = async (e: React.ChangeEvent<HTMLInputElement>, product: DisplayProduct) => {
-        if (!hasConsented) { toast({ variant: 'destructive', title: "Consent Required" }); return; }
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        setIsTryOnLoading(true);
-        setTryOnResult(null);
-        setTryOnProductId(product.id);
-
-        try {
-            const [personUri, productUri] = await Promise.all([
-                resizeImageForAI(file),
-                resizeImageForAI(product.imageDataUris[0])
-            ]);
-            
-            const res = await fetch('/api/ai/virtual-try-on', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    personImageDataUri: personUri,
-                    productImageDataUri: productUri,
-                    productTitle: product.title,
-                    garmentType: getProductContext(product).type,
-                    drapeStyle: selectedDrapeStyle,
-                    sleeveLength: selectedSleeves
-                })
-            });
-            
-            const result = await res.json();
-            if (result.error) toast({ variant: 'destructive', title: "Try-On Failed", description: result.error });
-            else if (result.generatedImageDataUri) setTryOnResult(result.generatedImageDataUri);
-        } catch (err: any) {
-            toast({ variant: 'destructive', title: "Try-On Failed" });
-            setTryOnProductId(null);
-        } finally {
-            setIsTryOnLoading(false);
-            if (e.target) e.target.value = '';
-        }
-    };
-
-    const handleSaveLook = async () => {
+    const triggerSaveDownload = async () => {
         if (!tryOnResult) return;
         try {
             const response = await fetch(tryOnResult);
@@ -213,9 +162,63 @@ function SmartMagazineContent() {
             link.click();
             document.body.removeChild(link);
             window.URL.revokeObjectURL(url);
+            
+            const newCount = saveCount + 1;
+            setSaveCount(newCount);
+            localStorage.setItem('tryon_saves_count', newCount.toString());
+            
             toast({ title: "Look Saved!", description: "Check your downloads or gallery." });
         } catch (err) {
             toast({ variant: 'destructive', title: "Save Failed", description: "Long-press the image to save." });
+        }
+    };
+
+    const handleSaveLook = async () => {
+        if (!tryOnResult) return;
+
+        // Monetization Logic
+        if (saveCount >= FREE_SAVES_LIMIT) {
+            if (!razorpayKeyId) {
+                toast({ variant: 'destructive', title: "Payment Error", description: "Gateway not ready." });
+                return;
+            }
+            setIsProcessingPayment(true);
+            try {
+                // Request a small payment of ₹10 for premium save
+                const res = await fetch('/api/create-mandate-order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        amount: 10, 
+                        productName: "Premium Look Save Pack",
+                        isAuthorization: false,
+                        name: "Smart Magazine Customer",
+                        contact: "9999999999"
+                    })
+                });
+                const data = await res.json();
+                
+                const rzp = new (window as any).Razorpay({
+                    key: razorpayKeyId,
+                    amount: 1000,
+                    currency: "INR",
+                    name: "Snazzify",
+                    description: "Premium Look Save (₹10)",
+                    order_id: data.order_id,
+                    handler: async () => {
+                        await triggerSaveDownload();
+                        setIsProcessingPayment(false);
+                    },
+                    modal: { ondismiss: () => setIsProcessingPayment(false) },
+                    theme: { color: "#5a31f4" }
+                });
+                rzp.open();
+            } catch (e) {
+                toast({ variant: 'destructive', title: "Payment Failed" });
+                setIsProcessingPayment(false);
+            }
+        } else {
+            await triggerSaveDownload();
         }
     };
 
@@ -280,7 +283,13 @@ function SmartMagazineContent() {
                 {activeTryOnProduct && (
                     <Card className="rounded-[24px] bg-slate-900 text-white p-6 shadow-2xl relative border-none animate-in slide-in-from-bottom-5">
                         <div className="flex flex-col gap-6">
-                            <div className="space-y-1"><h3 className="text-xl font-black italic uppercase flex items-center gap-2"><Sparkles className="h-5 w-5 text-purple-400" /> Magic Mirror Controls</h3><p className="text-xs text-slate-400">Refining fit for: <span className="font-bold text-white">{activeTryOnProduct.title}</span></p></div>
+                            <div className="space-y-1">
+                                <h3 className="text-xl font-black italic uppercase flex items-center gap-2"><Sparkles className="h-5 w-5 text-purple-400" /> Magic Mirror Controls</h3>
+                                <div className="flex items-center gap-2">
+                                    <p className="text-xs text-slate-400">Refining fit for: <span className="font-bold text-white">{activeTryOnProduct.title}</span></p>
+                                    <Badge variant="outline" className="text-[8px] border-white/20 text-white uppercase">{saveCount >= 3 ? "Premium Save Mode" : `${3 - saveCount} Free Saves Left`}</Badge>
+                                </div>
+                            </div>
                             <div className="bg-white/5 border border-white/10 p-4 rounded-2xl space-y-4">
                                 <div className="flex items-start gap-3"><Checkbox id="privacy-consent-mag" checked={hasConsented} onCheckedChange={(val) => setHasConsented(val as boolean)} className="mt-1 border-white/50" /><Label htmlFor="privacy-consent-mag" className="text-[10px] text-slate-300">I consent to secure AI processing of my photo. It will be deleted instantly.</Label></div>
                                 {activeTryOnContext.isApparel && (
@@ -297,7 +306,10 @@ function SmartMagazineContent() {
                                 )}
                                 <div className="grid grid-cols-2 gap-3">
                                     <Button onClick={() => cameraInputRef.current?.click()} disabled={!hasConsented || isTryOnLoading} className="bg-primary hover:bg-primary/90 text-white rounded-xl h-12 font-bold"><Camera className="mr-2 h-4 w-4" /> Retake Photo</Button>
-                                    <Button onClick={handleSaveLook} className="bg-white text-slate-900 hover:bg-slate-100 rounded-xl h-12 font-bold" disabled={!tryOnResult}><Download className="mr-2 h-4 w-4" /> Save Look</Button>
+                                    <Button onClick={handleSaveLook} className="bg-white text-slate-900 hover:bg-slate-100 rounded-xl h-12 font-bold" disabled={!tryOnResult || isProcessingPayment}>
+                                        {isProcessingPayment ? <Loader2 className="animate-spin mr-1"/> : (saveCount >= 3 ? <CreditCard className="mr-2 h-4 w-4" /> : <Download className="mr-2 h-4 w-4" />)}
+                                        {saveCount >= 3 ? 'Save Look (₹10)' : 'Save Look'}
+                                    </Button>
                                 </div>
                             </div>
                         </div>
