@@ -10,7 +10,7 @@ import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/group-radio';
 import { Checkbox } from '@/components/ui/checkbox';
 import { saveDocument, getDocument, getCollection } from '@/services/firestore';
 import type { EditableOrder } from '@/types/order';
@@ -27,7 +27,6 @@ import {
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import type { PaymentMethod } from '@/types/product';
 
-// Extended timeout for AI operations
 export const maxDuration = 180;
 
 type DisplayProduct = any & { 
@@ -93,41 +92,34 @@ function CatalogueOrderPageContent() {
     const ctx = useMemo(() => {
         if (!product) return { type: 'General', hint: 'selfie', label: 'SELFIE', isApparel: false };
         const title = product.title.toLowerCase();
+        const desc = (product.description || '').toLowerCase();
         const cat = (product.category || '').toLowerCase();
         
         const isWatch = title.includes('watch') || cat.includes('watch');
         const isFootwear = title.includes('shoe') || title.includes('sneaker') || title.includes('sandal') || title.includes('heel') || title.includes('bondi') || title.includes('clifton') || title.includes('hoka') || cat.includes('footwear') || cat.includes('shoe') || cat.includes('sneaker');
         const isEyewear = title.includes('glass') || title.includes('shade') || title.includes('spectacle') || cat.includes('eyewear') || cat.includes('glass');
         
-        const isShirt = (title.includes('shirt') || title.includes('t-shirt') || cat.includes('shirt') || cat.includes('top')) && !title.includes('dress');
+        const isMini = title.includes('mini') || desc.includes('mini') || title.includes('skirt') || desc.includes('skirt');
         const isDress = title.includes('dress') || title.includes('frock') || cat.includes('dress') || cat.includes('frock');
         const isKurti = title.includes('kurti') || title.includes('kurta') || cat.includes('kurti') || cat.includes('kurta');
-        const isSaree = title.includes('saree') || title.includes('lugra') || cat.includes('saree') || cat.includes('fabric');
-        const isSkirt = title.includes('skirt') || title.includes('mini') || cat.includes('skirt') || cat.includes('mini');
+        const isSaree = (title.includes('saree') || title.includes('fabric') || cat.includes('saree') || cat.includes('fabric')) && !isMini && !isDress;
 
         if (isWatch) return { type: 'Accessory', hint: 'wrist', label: 'WRIST', isApparel: false };
         if (isFootwear) return { type: 'Footwear', hint: 'feet', label: 'FEET', isApparel: false };
         if (isEyewear) return { type: 'Eyewear', hint: 'face', label: 'FACE', isApparel: false };
-        if (isShirt) return { type: 'Shirt', hint: 'selfie', label: 'SELFIE', isApparel: true };
+        
+        if (isMini) return { type: 'Western Wear', hint: 'selfie', label: 'SELFIE', isApparel: true };
         if (isDress) return { type: 'Dress', hint: 'selfie', label: 'SELFIE', isApparel: true };
         if (isKurti) return { type: 'Kurti', hint: 'selfie', label: 'SELFIE', isApparel: true };
         if (isSaree) return { type: 'Fabric', hint: 'selfie', label: 'SELFIE', isApparel: true };
-        if (isSkirt) return { type: 'Western Wear', hint: 'selfie', label: 'SELFIE', isApparel: true };
         
         return { type: 'General', hint: 'selfie', label: 'SELFIE', isApparel: false };
     }, [product]);
 
     useEffect(() => {
         setMounted(true);
-        const script = document.createElement('script');
-        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-        script.async = true;
-        document.body.appendChild(script);
-
         const productId = searchParams.get('id');
         const urlSellerId = searchParams.get('sellerId');
-        const backUrl = searchParams.get('return_url');
-        if (backUrl) setReturnUrl(backUrl);
         
         async function loadProduct() {
             if (!productId) {
@@ -138,14 +130,7 @@ function CatalogueOrderPageContent() {
             try {
                 if (urlSellerId) {
                     const sellerData = await getDocument<any>('seller_users', urlSellerId);
-                    if (sellerData?.logoDataUri) {
-                        setSellerLogo(sellerData.logoDataUri);
-                    } else {
-                        const vendorData = await getDocument<any>('vendors', urlSellerId);
-                        if (vendorData?.logoDataUri) {
-                            setSellerLogo(vendorData.logoDataUri);
-                        }
-                    }
+                    if (sellerData?.logoDataUri) setSellerLogo(sellerData.logoDataUri);
                 }
 
                 let fetchedProduct: any = await getDocument('seller_products', productId);
@@ -164,16 +149,12 @@ function CatalogueOrderPageContent() {
                     };
                     setProduct(displayProduct);
                     
-                    if (displayProduct.allowedPaymentMethods?.includes('Secure COD')) setPaymentMethod('Secure Charge on Delivery');
-                    else if (displayProduct.allowedPaymentMethods?.includes('Prepaid')) setPaymentMethod('Prepaid');
-                    else if (displayProduct.allowedPaymentMethods?.includes('Cash on Delivery')) setPaymentMethod('Cash on Delivery');
-
                     if (displayProduct.isEastIndianLugra) setSelectedDrapeStyle('East Indian Lugra');
-                    else if (ctx.type === 'Shirt') setSelectedDrapeStyle('Western Wear');
+                    else if (ctx.type === 'Western Wear') setSelectedDrapeStyle('Western Wear');
                     else if (ctx.type === 'Dress') setSelectedDrapeStyle('Western Dress');
                     else if (ctx.type === 'Kurti') setSelectedDrapeStyle('Kurti');
-                    else if (ctx.type === 'Western Wear' || displayProduct.title.toLowerCase().includes('skirt') || displayProduct.title.toLowerCase().includes('mini')) setSelectedDrapeStyle('Western Wear');
-
+                    else if (ctx.type === 'Fabric') setSelectedDrapeStyle('Standard Saree');
+                    
                     const discounts = await getCollection<DiscountRule>('discounts');
                     const best = discounts.find(d => d.id === `product_${productId}` || d.id === `vendor_${displayProduct.vendor}`) || null;
                     setAppliedDiscount(best);
@@ -234,13 +215,6 @@ function CatalogueOrderPageContent() {
         setIsTryOnLoading(true);
         setTryOnResult(null);
 
-        // Track Try-On Attempt
-        fetch('/api/track', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ event: 'tryOnAttempt' })
-        });
-
         try {
             const [personUri, productUri] = await Promise.all([
                 resizeImageForAI(file),
@@ -266,12 +240,6 @@ function CatalogueOrderPageContent() {
                 toast({ variant: 'destructive', title: "Try-On Failed", description: result.error });
             } else if (result.generatedImageDataUri) {
                 setTryOnResult(result.generatedImageDataUri);
-                // Track Try-On Success
-                fetch('/api/track', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ event: 'tryOnSuccess' })
-                });
                 toast({ title: "Magic Mirror Ready!" });
             }
         } catch (err: any) {
@@ -283,12 +251,6 @@ function CatalogueOrderPageContent() {
         }
     };
 
-    const handleShareWhatsApp = () => {
-        if (!tryOnResult) return;
-        const message = `Check out my new virtual look with this ${product?.title} from Snazzify! ${window.location.href}`;
-        window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
-    };
-
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!product) return;
@@ -297,7 +259,7 @@ function CatalogueOrderPageContent() {
         try {
             const orderId = '#SMRT-' + Math.floor(1000 + Math.random() * 9000);
             const orderData: EditableOrder = {
-                id: uuidv4(), orderId, productId: product.productId, customerName: customerDetails.name, contactNo: customerDetails.contact, customerAddress: customerDetails.address, pincode: customerDetails.pincode, productOrdered: product.title, quantity, price: totalPrice.toString(), date: new Date().toISOString(), paymentStatus: paymentMethod === 'Cash on Delivery' ? 'Pending' : (paymentMethod === 'Prepaid' ? 'Pending Payment' : 'Lead'), paymentMethod, source: 'Catalogue', sellerId: product.sellerId, sellerName: product.sellerName, imageDataUris: product.imageDataUris,
+                id: uuidv4(), orderId, productId: product.productId, customerName: customerDetails.name, contactNo: customerDetails.contact, customerAddress: customerDetails.address, pincode: customerDetails.pincode, productOrdered: product.title, quantity, price: totalPrice.toString(), date: new Date().toISOString(), paymentStatus: 'Lead', paymentMethod, source: 'Catalogue', sellerId: product.sellerId, sellerName: product.sellerName, imageDataUris: product.imageDataUris,
             };
             
             await saveDocument('leads', orderData, orderData.id);
@@ -333,20 +295,14 @@ function CatalogueOrderPageContent() {
                             <Image src={sellerLogo} alt="Store Logo" fill className="object-contain p-1" unoptimized />
                         </div>
                     ) : (
-                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                            <Store className="h-6 w-6" />
-                        </div>
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary"><Store className="h-6 w-6" /></div>
                     )}
                     <div>
                         <h1 className="text-lg font-black italic tracking-tighter uppercase leading-none">{product?.sellerName || 'Snazzify Store'}</h1>
-                        <p className="text-[9px] font-bold text-primary uppercase tracking-widest mt-0.5 flex items-center gap-1">
-                           <ShieldCheck className="h-2 w-2" /> Verified Partner
-                        </p>
+                        <p className="text-[9px] font-bold text-primary uppercase tracking-widest mt-0.5 flex items-center gap-1"><ShieldCheck className="h-2 w-2" /> Verified Partner</p>
                     </div>
                 </div>
-                <Button variant="ghost" size="sm" onClick={() => router.back()} className="text-[10px] font-black uppercase tracking-widest h-8 px-4 rounded-full border">
-                    <ArrowLeft className="mr-1 h-3 w-3" /> Back
-                </Button>
+                <Button variant="ghost" size="sm" onClick={() => router.back()} className="text-[10px] font-black uppercase tracking-widest h-8 px-4 rounded-full border"><ArrowLeft className="mr-1 h-3 w-3" /> Back</Button>
             </header>
 
             <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8 p-4 md:p-8">
@@ -354,9 +310,7 @@ function CatalogueOrderPageContent() {
                     <Card className="rounded-[32px] overflow-hidden shadow-xl border-none bg-white relative">
                         {product?.isTryOnEnabled && !tryOnResult && (
                             <div className="absolute top-6 left-6 z-10 pointer-events-none">
-                                <Badge className="bg-primary/90 text-white font-black italic text-xs py-1.5 px-4 rounded-full shadow-lg flex items-center gap-1.5 animate-pulse">
-                                    <Sparkles className="h-3 w-3" /> TRY ME
-                                </Badge>
+                                <Badge className="bg-primary/90 text-white font-black italic text-xs py-1.5 px-4 rounded-full shadow-lg flex items-center gap-1.5 animate-pulse"><Sparkles className="h-3 w-3" /> TRY ME</Badge>
                             </div>
                         )}
                         <div className="relative aspect-square">
@@ -376,106 +330,64 @@ function CatalogueOrderPageContent() {
                                 <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center text-center p-8 gap-4 z-20">
                                     <Sparkles className="h-16 w-16 text-primary animate-bounce" />
                                     <h3 className="text-2xl font-black italic uppercase tracking-tighter">AI Fitting Room...</h3>
-                                    <p className="text-sm text-muted-foreground animate-pulse max-w-xs">Crafting your perfect virtual look on your {ctx.hint}.</p>
+                                    <p className="text-sm text-muted-foreground animate-pulse max-w-xs">Crafting your perfect virtual look.</p>
                                 </div>
                             )}
                         </div>
                     </Card>
 
                     {product?.isTryOnEnabled && (
-                        <Card className="rounded-[24px] bg-slate-900 text-white p-6 shadow-2xl overflow-hidden relative border-none">
-                            <div className="absolute top-0 right-0 p-4 opacity-10"><Sparkles className="h-20 w-20" /></div>
-                            <div className="flex flex-col gap-6 relative z-10">
+                        <Card className="rounded-[24px] bg-slate-900 text-white p-6 shadow-2xl relative border-none">
+                            <div className="flex flex-col gap-6">
                                 <div className="space-y-1">
                                     <h3 className="text-xl font-black italic uppercase flex items-center gap-2"><Sparkles className="h-5 w-5 text-purple-400" /> Magic Mirror</h3>
-                                    <p className="text-xs text-slate-400">Instantly see how it looks on your {ctx.hint}.</p>
+                                    <p className="text-xs text-slate-400">Instantly see how it looks on you.</p>
                                 </div>
-                                
                                 <div className="bg-white/5 border border-white/10 p-4 rounded-2xl space-y-4">
                                     <div className="flex items-start gap-3">
-                                        <Checkbox 
-                                            id="privacy-consent" 
-                                            checked={hasConsented} 
-                                            onCheckedChange={(val) => setHasConsented(val as boolean)}
-                                            className="mt-1 border-white/50"
-                                        />
+                                        <Checkbox id="privacy-consent" checked={hasConsented} onCheckedChange={(val) => setHasConsented(val as boolean)} className="mt-1 border-white/50" />
                                         <Label htmlFor="privacy-consent" className="text-[10px] font-medium leading-relaxed text-slate-300">
                                             <span className="font-bold text-white uppercase block mb-1">Privacy Promise</span>
-                                            We do not save any pics to our server. Your photo is processed instantly and removed immediately after this session.
+                                            We do not save any pics to our server. Photos are processed and deleted instantly.
                                         </Label>
                                     </div>
-
                                     {ctx.isApparel && (
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-white/10">
-                                            {ctx.type !== 'Shirt' && (
-                                                <div className="space-y-2">
-                                                    <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Style Mode</Label>
-                                                    <Select value={selectedDrapeStyle} onValueChange={(val: any) => setSelectedDrapeStyle(val)}>
-                                                        <SelectTrigger className="h-10 bg-white/10 border-white/20 text-white rounded-xl text-xs font-bold">
-                                                            <SelectValue />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="Western Wear">Western Fit (Mini/Tight Fit)</SelectItem>
-                                                            <SelectItem value="Western Dress">Modern Western Dress</SelectItem>
-                                                            <SelectItem value="Kurti">Traditional Kurti</SelectItem>
-                                                            <SelectItem value="Standard Saree">Standard Saree (Floor Length)</SelectItem>
-                                                            <SelectItem value="East Indian Lugra">East Indian Lugra (Authentic)</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-                                            )}
-                                            
+                                        <div className="grid grid-cols-2 gap-4 pt-2 border-t border-white/10">
                                             <div className="space-y-2">
-                                                <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Sleeves</Label>
-                                                <Select value={selectedSleeves} onValueChange={(val: any) => setSelectedSleeves(val)}>
-                                                    <SelectTrigger className="h-10 bg-white/10 border-white/20 text-white rounded-xl text-xs font-bold">
-                                                        <SelectValue />
-                                                    </SelectTrigger>
+                                                <Label className="text-[10px] font-black uppercase text-slate-400">Style Mode</Label>
+                                                <Select value={selectedDrapeStyle} onValueChange={(val: any) => setSelectedDrapeStyle(val)}>
+                                                    <SelectTrigger className="h-10 bg-white/10 border-white/20 text-white rounded-xl text-xs font-bold"><SelectValue /></SelectTrigger>
                                                     <SelectContent>
-                                                        <SelectItem value="Half Sleeves">Half Sleeves</SelectItem>
-                                                        <SelectItem value="Full Sleeves">Full Sleeves</SelectItem>
-                                                        <SelectItem value="Sleeveless">Sleeveless</SelectItem>
+                                                        <SelectItem value="Western Wear">Westernwear (Mini/Skirt)</SelectItem>
+                                                        <SelectItem value="Western Dress">Western Dress / Gown</SelectItem>
+                                                        <SelectItem value="Kurti">Ethnic Kurti</SelectItem>
+                                                        <SelectItem value="Standard Saree">Standard Saree</SelectItem>
+                                                        <SelectItem value="East Indian Lugra">East Indian Lugra</SelectItem>
                                                     </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label className="text-[10px] font-black uppercase text-slate-400">Sleeves</Label>
+                                                <Select value={selectedSleeves} onValueChange={(val: any) => setSelectedSleeves(val)}>
+                                                    <SelectTrigger className="h-10 bg-white/10 border-white/20 text-white rounded-xl text-xs font-bold"><SelectValue /></SelectTrigger>
+                                                    <SelectContent><SelectItem value="Half Sleeves">Half Sleeves</SelectItem><SelectItem value="Full Sleeves">Full Sleeves</SelectItem><SelectItem value="Sleeveless">Sleeveless</SelectItem></SelectContent>
                                                 </Select>
                                             </div>
                                         </div>
                                     )}
-
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         {tryOnResult ? (
-                                            <div className="col-span-full space-y-3">
-                                                <div className="grid grid-cols-2 gap-3">
-                                                    <Button onClick={() => setTryOnResult(null)} variant="outline" className="w-full border-white/20 text-white hover:bg-white/10 rounded-xl h-12 font-bold"><RefreshCcw className="mr-2 h-4 w-4" /> Try Again</Button>
-                                                    <Button onClick={() => {
-                                                        const link = document.createElement('a');
-                                                        link.href = tryOnResult;
-                                                        link.download = `my_look_${product?.id}.jpg`;
-                                                        link.click();
-                                                    }} className="bg-white text-slate-900 hover:bg-slate-100 rounded-xl h-12 font-bold"><Download className="mr-2 h-4 w-4" /> Save Look</Button>
-                                                </div>
-                                                <Button onClick={handleShareWhatsApp} className="w-full bg-green-600 hover:bg-green-700 text-white rounded-xl h-12 font-bold">
-                                                    <MessageSquare className="mr-2 h-5 w-5" /> Share on WhatsApp Status
-                                                </Button>
+                                            <div className="col-span-full grid grid-cols-2 gap-3">
+                                                <Button onClick={() => setTryOnResult(null)} variant="outline" className="w-full border-white/20 text-white hover:bg-white/10 rounded-xl h-12 font-bold"><RefreshCcw className="mr-2 h-4 w-4" /> Try Again</Button>
+                                                <Button onClick={() => { const link = document.createElement('a'); link.href = tryOnResult; link.download = `my_look.jpg`; link.click(); }} className="bg-white text-slate-900 hover:bg-slate-100 rounded-xl h-12 font-bold"><Download className="mr-2 h-4 w-4" /> Save Look</Button>
                                             </div>
                                         ) : (
                                             <>
-                                                <Button 
-                                                    onClick={() => cameraInputRef.current?.click()} 
-                                                    disabled={!hasConsented || isTryOnLoading}
-                                                    className="bg-primary hover:bg-primary/90 text-white rounded-xl h-12 font-bold shadow-lg disabled:opacity-50"
-                                                >
-                                                    <Camera className="mr-2 h-4 w-4" /> Take {ctx.label}
-                                                </Button>
-                                                <Button 
-                                                    onClick={() => galleryInputRef.current?.click()} 
-                                                    disabled={!hasConsented || isTryOnLoading}
-                                                    variant="secondary" 
-                                                    className="bg-white/10 hover:bg-white/20 text-white border-white/10 rounded-xl h-12 font-bold disabled:opacity-50"
-                                                >
-                                                    <ImagePlus className="mr-2 h-4 w-4" /> From Gallery
-                                                </Button>
+                                                <Button onClick={() => cameraInputRef.current?.click()} disabled={!hasConsented || isTryOnLoading} className="bg-primary hover:bg-primary/90 text-white rounded-xl h-12 font-bold shadow-lg"><Camera className="mr-2 h-4 w-4" /> Take {ctx.label}</Button>
+                                                <Button onClick={() => galleryInputRef.current?.click()} disabled={!hasConsented || isTryOnLoading} variant="secondary" className="bg-white/10 hover:bg-white/20 text-white border-white/10 rounded-xl h-12 font-bold"><ImagePlus className="mr-2 h-4 w-4" /> From Gallery</Button>
                                             </>
                                         )}
+                                        {/* capture="environment" for live camera */}
                                         <input ref={cameraInputRef} type="file" accept="image/*" capture="user" className="hidden" onChange={handleTryOnUpload} />
                                         <input ref={galleryInputRef} type="file" accept="image/*" className="hidden" onChange={handleTryOnUpload} />
                                     </div>
@@ -492,58 +404,20 @@ function CatalogueOrderPageContent() {
                                 <h2 className="text-3xl font-black italic uppercase tracking-tighter text-slate-900 leading-tight">{product?.title}</h2>
                                 <div className="flex items-center gap-3 mt-4">
                                     <p className="text-primary font-black text-3xl tracking-tighter">₹{totalPrice.toFixed(2)}</p>
-                                    {appliedDiscount && paymentMethod === 'Secure Charge on Delivery' && (
-                                        <Badge className="bg-destructive text-white font-black italic">-{appliedDiscount.discount}% OFF</Badge>
-                                    )}
+                                    {appliedDiscount && paymentMethod === 'Secure Charge on Delivery' && <Badge className="bg-destructive text-white font-black italic">-{appliedDiscount.discount}% OFF</Badge>}
                                 </div>
                             </div>
                             <div className="space-y-4">
-                                <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Full Name</Label><Input required value={customerDetails.name} onChange={e => setCustomerDetails({...customerDetails, name: e.target.value})} className="h-12 rounded-xl bg-slate-50 border-none font-bold" /></div>
-                                <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">WhatsApp Mobile</Label><Input required type="tel" value={customerDetails.contact} onChange={e => setCustomerDetails({...customerDetails, contact: e.target.value})} className="h-12 rounded-xl bg-slate-50 border-none font-bold" /></div>
-                                <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Delivery Address</Label><Input required value={customerDetails.address} onChange={e => setCustomerDetails({...customerDetails, address: e.target.value})} className="h-12 rounded-xl bg-slate-50 border-none font-bold" /></div>
-                                <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Pincode</Label><Input required value={customerDetails.pincode} onChange={e => setCustomerDetails({...customerDetails, pincode: e.target.value})} className="h-12 rounded-xl bg-slate-50 border-none font-bold" /></div>
-                            </div>
-                            <div className="space-y-3">
-                                <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Select Payment</Label>
-                                <RadioGroup value={paymentMethod} onValueChange={(v: any) => setPaymentMethod(v)} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    {allowedMethods.includes('Secure COD') && (
-                                        <Label htmlFor="r-scod" className={cn("flex flex-col items-center justify-center p-4 border-4 rounded-2xl cursor-pointer transition-all gap-1", paymentMethod === 'Secure Charge on Delivery' ? "border-primary bg-primary/5" : "border-slate-100 hover:border-slate-200")}>
-                                            <RadioGroupItem value="Secure Charge on Delivery" id="r-scod" className="sr-only" />
-                                            <ShieldCheck className={cn("h-6 w-6", paymentMethod === 'Secure Charge on Delivery' ? "text-primary" : "text-slate-300")} />
-                                            <span className="font-black text-[10px] uppercase italic">Secure COD</span>
-                                        </Label>
-                                    )}
-                                    {allowedMethods.includes('Prepaid') && (
-                                        <Label htmlFor="r-prepaid" className={cn("flex flex-col items-center justify-center p-4 border-4 rounded-2xl cursor-pointer transition-all gap-1", paymentMethod === 'Prepaid' ? "border-primary bg-primary/5" : "border-slate-100 hover:border-slate-200")}>
-                                            <RadioGroupItem value="Prepaid" id="r-prepaid" className="sr-only" />
-                                            <CreditCard className={cn("h-6 w-6", paymentMethod === 'Prepaid' ? "text-primary" : "text-slate-300")} />
-                                            <span className="font-black text-[10px] uppercase italic">Online Payment</span>
-                                        </Label>
-                                    )}
-                                    {allowedMethods.includes('Cash on Delivery') && (
-                                        <Label htmlFor="r-cod" className={cn("flex flex-col items-center justify-center p-4 border-4 rounded-2xl cursor-pointer transition-all gap-1", paymentMethod === 'Cash on Delivery' ? "border-primary bg-primary/5" : "border-slate-100 hover:border-slate-200")}>
-                                            <RadioGroupItem value="Cash on Delivery" id="r-cod" className="sr-only" />
-                                            <ShoppingCart className={cn("h-6 w-6", paymentMethod === 'Cash on Delivery' ? "text-primary" : "text-slate-300")} />
-                                            <span className="font-black text-[10px] uppercase italic">Standard COD</span>
-                                        </Label>
-                                    )}
-                                </RadioGroup>
+                                <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase text-slate-400">Full Name</Label><Input required value={customerDetails.name} onChange={e => setCustomerDetails({...customerDetails, name: e.target.value})} className="h-12 rounded-xl bg-slate-50 border-none font-bold" /></div>
+                                <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase text-slate-400">WhatsApp Mobile</Label><Input required type="tel" value={customerDetails.contact} onChange={e => setCustomerDetails({...customerDetails, contact: e.target.value})} className="h-12 rounded-xl bg-slate-50 border-none font-bold" /></div>
+                                <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase text-slate-400">Delivery Address</Label><Input required value={customerDetails.address} onChange={e => setCustomerDetails({...customerDetails, address: e.target.value})} className="h-12 rounded-xl bg-slate-50 border-none font-bold" /></div>
+                                <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase text-slate-400">Pincode</Label><Input required value={customerDetails.pincode} onChange={e => setCustomerDetails({...customerDetails, pincode: e.target.value})} className="h-12 rounded-xl bg-slate-50 border-none font-bold" /></div>
                             </div>
                             <Button type="submit" size="lg" className="w-full h-16 text-xl font-black uppercase italic rounded-2xl shadow-xl shadow-primary/20" disabled={isSubmitting}>{isSubmitting ? <Loader2 className="animate-spin mr-2" /> : "Confirm Order"}</Button>
                         </form>
                     </Card>
                 </div>
             </div>
-            {isOrderComplete && (
-                <div className="fixed inset-0 z-50 bg-white flex flex-col items-center justify-center p-8 text-center space-y-6 animate-in fade-in duration-300">
-                    <div className="w-24 h-24 bg-green-100 text-green-600 rounded-full flex items-center justify-center shadow-inner"><CheckCircle className="h-14 w-14" /></div>
-                    <div className="space-y-2">
-                        <h2 className="text-4xl md:text-5xl font-black italic uppercase tracking-tighter">Order Received!</h2>
-                        <p className="text-muted-foreground max-sm mx-auto font-medium">Thank you for shopping. Our team will contact you on WhatsApp to finalize fulfillment.</p>
-                    </div>
-                    <Button onClick={() => window.location.href = returnUrl} size="lg" className="rounded-2xl px-12 h-14 font-black uppercase italic tracking-widest">Back to Store</Button>
-                </div>
-            )}
         </div>
     );
 }

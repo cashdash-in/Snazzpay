@@ -13,32 +13,35 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing image data' }, { status: 400 });
     }
 
-    // NUCLEAR SURGICAL RE-DRESS PROMPT - MAXIMUM INTENSITY
+    const garment = (input.productTitle || 'Apparel').toLowerCase();
+    const isWestern = garment.includes('skirt') || garment.includes('mini') || garment.includes('dress') || garment.includes('frock');
+    const styleMode = input.drapeStyle || (isWestern ? 'Western Wear' : 'Ethnic Wear');
+
+    // SURGICAL RE-DRESS PROMPT - REFINED FOR VARIETY
     const finalPrompt = `ACT AS AN ELITE FASHION STUDIO GENERATIVE FILL MASTER.
 
     TASK: PERFORM A 100% SURGICAL CLOTHING SUBSTITUTION ON THE PERSON IN THE FIRST PHOTO.
     
     MISSION PARAMETERS:
-    1. SURGICAL OBLITERATION (CRITICAL): 
-       - Identify the exact area occupied by the person's current outfit (torso, sleeves, legs).
-       - COMPLETELY ERASE and OBLITERATE every single pixel of the original clothes.
-       - DO NOT BLEND. Original colors (like yellow, beige, white) must be 100% REMOVED and replaced.
-       - Use the second photo as the ONLY source for the new outfit's pixels.
+    1. CATEGORY ALIGNMENT (CRITICAL): 
+       - The target garment is a "${input.productTitle}".
+       - DRAPE STYLE: ${styleMode}.
+       - SILHOUETTE: ${input.garmentType || 'Apparel'}.
+       - SLEEVES: ${input.sleeveLength || 'Standard'}.
+       - IF "Western Wear" or "Mini": Ensure a contemporary, short-length fit. Erase ALL original long ethnic wear.
+       - IF "Dress": Ensure a one-piece flow silhouette.
+       - IF "Saree" or "Lugra": Use traditional drape mechanics.
+
+    2. SURGICAL OBLITERATION: 
+       - Identify the exact area occupied by the person's current outfit.
+       - COMPLETELY ERASE and OBLITERATE original pixels. No blending with old colors.
+       - Use the second photo as the SOLE source for the new outfit's texture, pattern, and color.
        
-    2. PRODUCT INJECTION: 
-       - Inject the product from the second photo ("${input.productTitle}") into the erased area.
-       - Extract and preserve the exact pattern, fabric texture, weave, and color motif.
-       - Drape the garment flawlessly according to the body silhouette, matching folds and natural physics.
-    
     3. IDENTITY PRESERVATION: 
-       - Keep the person's face, hair, skin tone, and background EXACTLY as they are in the first photo.
-       - Only the outfit is surgically swapped.
-       - Ensure shadows and environmental lighting on the new fabric are 100% realistic.
+       - Keep the person's face, hair, skin tone, and environment EXACTLY as they are.
+       - Match shadows and lighting of the new fabric to the background scene.
 
-    MODE: ${input.garmentType || 'Apparel'} Fitting.
-    DRAPE STYLE: ${input.drapeStyle || 'Western'}.
-
-    OUTPUT: RETURN ONLY THE FINAL GENERATED IMAGE. NO OVERLAYS. NO GHOSTING. ZERO ORIGINAL CLOTHING PIXELS.`;
+    OUTPUT: RETURN ONLY THE FINAL GENERATED IMAGE. ZERO ORIGINAL CLOTHING PIXELS.`;
 
     try {
         const { media } = await ai.generate({
@@ -60,13 +63,13 @@ export async function POST(request: Request) {
         });
 
         if (!media?.url) {
-          return NextResponse.json({ error: 'AI processed the request but did not return an image. This might be due to high traffic.' }, { status: 200 });
+          return NextResponse.json({ error: 'AI processed the request but did not return an image. This might be due to safety filters or traffic.' }, { status: 200 });
         }
 
         return NextResponse.json({ generatedImageDataUri: media.url });
     } catch (innerError: any) {
         console.error("ai.generate crash in try-on:", innerError);
-        return NextResponse.json({ error: "The AI model is temporarily busy. Please try again in 30 seconds." }, { status: 200 });
+        return NextResponse.json({ error: "The AI model is temporarily busy. Please try again in a few moments." }, { status: 200 });
     }
   } catch (error: any) {
     console.error('API Virtual Try-On Route Crash:', error);

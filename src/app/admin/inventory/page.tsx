@@ -58,7 +58,8 @@ export default function AdminInventoryPage() {
         mrp: number,
         purchasePrice: number,
         category: string, 
-        imageDataUri?: string
+        imageDataUri?: string,
+        needsCleanShot?: boolean
     }[]>([]);
 
     const loadData = useCallback(async () => {
@@ -215,7 +216,14 @@ export default function AdminInventoryPage() {
         setIsAnalyzing(true);
         try {
             const result = await parseInventoryCommand(command);
-            setDetectedIntakeItems(result.items.map(i => ({ productName: i.productName, qty: i.quantity, mrp: 0, purchasePrice: 0, category: 'General' })));
+            setDetectedIntakeItems(result.items.map(i => ({ 
+                productName: i.productName, 
+                qty: i.quantity, 
+                mrp: 0, 
+                purchasePrice: 0, 
+                category: 'General',
+                needsCleanShot: true
+            })));
             setTextCommand('');
             setIsListening(false);
             toast({ title: "AI Detected Movement", description: result.summary });
@@ -239,9 +247,10 @@ export default function AdminInventoryPage() {
                     mrp: 0, 
                     purchasePrice: 0,
                     category: d.category, 
-                    imageDataUri: uri 
+                    imageDataUri: uri,
+                    needsCleanShot: true 
                 })));
-                toast({ title: "Items Segregated!" });
+                toast({ title: "Items Segregated!", description: "Please take individual photos for each item below." });
             }
         } catch (e) { toast({ variant: 'destructive', title: "Intake Error" }); }
         finally { setIsAnalyzing(false); e.target.value = ''; }
@@ -251,8 +260,8 @@ export default function AdminInventoryPage() {
         const file = e.target.files?.[0];
         if (file) {
             const uri = await resizeImage(file);
-            setDetectedIntakeItems(prev => prev.map((item, i) => i === idx ? { ...item, imageDataUri: uri } : item));
-            toast({ title: "Product Photo Updated" });
+            setDetectedIntakeItems(prev => prev.map((item, i) => i === idx ? { ...item, imageDataUri: uri, needsCleanShot: false } : item));
+            toast({ title: "Clean Photo Saved", description: "Product image updated successfully." });
         }
     };
 
@@ -388,8 +397,9 @@ export default function AdminInventoryPage() {
                                     <Button size="sm" variant="secondary" className="flex-1 rounded-xl" onClick={() => document.getElementById('new-item-capture')?.click()}><Plus className="h-3 w-3 mr-1" /> New</Button>
                                 </div>
                              </div>
-                             <input type="file" id="bulk-intake-capture" accept="image/*" className="hidden" onChange={handleBulkIntakeCapture} />
-                             <input type="file" id="new-item-capture" accept="image/*" className="hidden" onChange={handleNewProductCapture} />
+                             {/* capture="environment" added for camera access */}
+                             <input type="file" id="bulk-intake-capture" accept="image/*" capture="environment" className="hidden" onChange={handleBulkIntakeCapture} />
+                             <input type="file" id="new-item-capture" accept="image/*" capture="environment" className="hidden" onChange={handleNewProductCapture} />
                         </CardContent>
                     </Card>
 
@@ -456,7 +466,7 @@ export default function AdminInventoryPage() {
                         <CardHeader>
                             <div className="flex justify-between items-center">
                                 <CardTitle className="text-lg flex items-center gap-2 italic font-black"><Sparkles className="text-primary"/> Confirm AI Segregation</CardTitle>
-                                <Badge className="bg-primary text-white">Review pricing for each item below</Badge>
+                                <Badge className="bg-primary text-white">Capture individual clean shots below</Badge>
                             </div>
                         </CardHeader>
                         <CardContent>
@@ -466,12 +476,16 @@ export default function AdminInventoryPage() {
                                     return (
                                         <Card key={idx} className={cn("p-4 bg-white rounded-2xl border-none shadow-sm flex flex-col gap-4", !match && "bg-amber-50/50 border border-amber-200")}>
                                             <div className="flex items-center gap-3">
-                                                <div className="relative h-16 w-16 shrink-0 rounded-xl overflow-hidden border-2 border-slate-100 group bg-slate-50">
+                                                <div className={cn(
+                                                    "relative h-20 w-20 shrink-0 rounded-xl overflow-hidden border-4 transition-all group",
+                                                    item.needsCleanShot ? "border-red-500 animate-pulse" : "border-slate-100"
+                                                )}>
                                                     {item.imageDataUri && <Image src={item.imageDataUri} fill alt="p" className="object-cover" unoptimized />}
-                                                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer" onClick={() => document.getElementById(`indiv-photo-${idx}`)?.click()}>
-                                                        <Camera className="h-5 w-5 text-white" />
+                                                    <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer" onClick={() => document.getElementById(`indiv-photo-${idx}`)?.click()}>
+                                                        <Camera className="h-6 w-6 text-white mb-1" />
+                                                        <span className="text-[8px] font-black text-white uppercase">Take Clean Shot</span>
                                                     </div>
-                                                    <input type="file" id={`indiv-photo-${idx}`} className="hidden" accept="image/*" onChange={(e) => handleIndividualIntakePhoto(idx, e)} />
+                                                    <input type="file" id={`indiv-photo-${idx}`} className="hidden" accept="image/*" capture="environment" onChange={(e) => handleIndividualIntakePhoto(idx, e)} />
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <Input 
@@ -479,7 +493,10 @@ export default function AdminInventoryPage() {
                                                         onChange={e => setDetectedIntakeItems(prev => prev.map((it, i) => i === idx ? { ...it, productName: e.target.value } : it))}
                                                         className="h-8 text-xs font-black uppercase italic p-0 bg-transparent border-none focus-visible:ring-0"
                                                     />
-                                                    <Badge variant={!match ? "secondary" : "outline"} className="text-[8px]">{!match ? "New Item" : "Match Found"}</Badge>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <Badge variant={!match ? "secondary" : "outline"} className="text-[8px]">{!match ? "New Item" : "Match Found"}</Badge>
+                                                        {item.needsCleanShot && <span className="text-[8px] text-red-600 font-bold animate-pulse uppercase">Clean Photo Needed</span>}
+                                                    </div>
                                                 </div>
                                                 <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-300 hover:text-red-500" onClick={() => setDetectedIntakeItems(prev => prev.filter((_, i) => i !== idx))}><X className="h-4 w-4" /></Button>
                                             </div>
@@ -552,7 +569,7 @@ export default function AdminInventoryPage() {
                                                     <div className="relative w-10 h-10 rounded-xl overflow-hidden border bg-slate-50 cursor-pointer group" onClick={() => document.getElementById(`img-up-${item.id}`)?.click()}>
                                                         <Image src={item.imageDataUri} fill alt="p" className="object-cover" unoptimized />
                                                         <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><Camera className="h-4 w-4 text-white" /></div>
-                                                        <input type="file" id={`img-up-${item.id}`} className="hidden" accept="image/*" onChange={async (e) => {
+                                                        <input type="file" id={`img-up-${item.id}`} className="hidden" accept="image/*" capture="environment" onChange={async (e) => {
                                                             const file = e.target.files?.[0];
                                                             if (file) {
                                                                 const uri = await resizeImage(file);
