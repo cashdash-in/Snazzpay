@@ -311,7 +311,7 @@ export default function AdminInventoryPage() {
                         <CardContent className="space-y-2">
                              <Button size="sm" variant="secondary" className="w-full rounded-xl" onClick={() => document.getElementById('bulk-intake-capture')?.click()}>{isAnalyzing ? <Loader2 className="animate-spin h-4 w-4" /> : <Layers className="h-4 w-4 mr-2" />} Bulk Intake (Photo)</Button>
                              <div className="flex gap-2">
-                                <Button size="sm" variant="secondary" className="flex-1 rounded-xl" onClick={() => { const sr = (window as any).SpeechRecognition || (window as any).webkitRecognition; if(!sr) return; const r = new sr(); r.onstart = () => setIsListening(true); r.onresult = (e: any) => handleTextCommand(e.results[0][0].transcript); r.onend = () => setIsListening(false); r.start(); }}><Mic className="h-3 w-3 mr-1" /> Voice</Button>
+                                <Button size="sm" variant="secondary" className="flex-1 rounded-xl" onClick={() => { const sr = (window as any).SpeechRecognition || (window as any).webkitRecognition; if(!sr) return; const r = new sr(); r.onstart = () => {}; r.onresult = (e: any) => handleTextCommand(e.results[0][0].transcript); r.onend = () => {}; r.start(); }}><Mic className="h-3 w-3 mr-1" /> Voice</Button>
                                 <Button size="sm" variant="secondary" className="flex-1 rounded-xl" onClick={() => document.getElementById('new-item-capture')?.click()}><Plus className="h-3 w-3 mr-1" /> New</Button>
                              </div>
                              <input type="file" id="bulk-intake-capture" accept="image/*" capture="environment" className="hidden" onChange={handleBulkIntakeCapture} />

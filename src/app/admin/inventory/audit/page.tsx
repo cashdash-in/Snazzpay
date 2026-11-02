@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -17,16 +18,38 @@ import { cn } from '@/lib/utils';
 import * as XLSX from 'xlsx';
 import { format } from 'date-fns';
 
+const MAX_IMAGE_SIZE_PX = 800;
+
 export default function StockAuditPage() {
     const { toast } = useToast();
     const [inventory, setInventory] = useState<InventoryItem[]>([]);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [auditResults, setAuditResults] = useState<{product: InventoryItem, visualCount: number}[]>([]);
-    const [isProcessingAudit, setIsProcessingAudit] = useState(false);
 
     useEffect(() => {
         getCollection<InventoryItem>('inventory').then(data => setInventory(data || []));
     }, []);
+
+    const resizeImage = (file: File): Promise<string> => {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new (window as any).Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let { width, height } = img;
+                    if (width > height) { if (width > MAX_IMAGE_SIZE_PX) { height *= MAX_IMAGE_SIZE_PX / width; width = MAX_IMAGE_SIZE_PX; } }
+                    else { if (height > MAX_IMAGE_SIZE_PX) { width *= MAX_IMAGE_SIZE_PX / height; height = MAX_IMAGE_SIZE_PX; } }
+                    canvas.width = width; canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx?.drawImage(img, 0, 0, width, height);
+                    resolve(canvas.toDataURL('image/jpeg', 0.6));
+                };
+                img.src = e.target?.result as string;
+            };
+            reader.readAsDataURL(file);
+        });
+    };
 
     const findProductMatch = (detectedName: string, items: InventoryItem[]) => {
         const dWords = new Set(detectedName.toLowerCase().split(/\s+/).filter(w => w.length > 2));
@@ -55,25 +78,30 @@ export default function StockAuditPage() {
         if (!file) return;
         setIsAnalyzing(true);
         try {
-            const reader = new FileReader();
-            reader.onload = async (ev) => {
-                const uri = ev.target?.result as string;
-                const detections = await detectItemsInPhoto(uri, 'audit');
-                if (!detections || detections.length === 0) {
-                    toast({ variant: 'destructive', title: "No Items Found" });
-                    setIsAnalyzing(false);
-                    return;
-                }
-                const results = detections.map(d => {
-                    const match = findProductMatch(d.productName, inventory);
-                    return match ? { product: match, visualCount: d.count } : null;
-                }).filter(r => !!r) as { product: InventoryItem, visualCount: number }[];
-                setAuditResults(results);
-                toast({ title: "Shelf Scan Complete" });
+            const uri = await resizeImage(file);
+            const detections = await detectItemsInPhoto(uri, 'audit');
+            
+            if (!detections || detections.length === 0) {
+                toast({ variant: 'destructive', title: "No Items Identified" });
                 setIsAnalyzing(false);
-            };
-            reader.readAsDataURL(file);
-        } catch (e) { toast({ variant: 'destructive', title: "Audit Failed" }); setIsAnalyzing(false); }
+                return;
+            }
+
+            const results = detections.map(d => {
+                const match = findProductMatch(d.productName, inventory);
+                return match ? { product: match, visualCount: d.count } : null;
+            }).filter(r => !!r) as { product: InventoryItem, visualCount: number }[];
+            
+            setAuditResults(results);
+            toast({ title: "Shelf Scan Complete" });
+            setIsAnalyzing(false);
+        } catch (e) { 
+            console.error("Audit processing error:", e);
+            toast({ variant: 'destructive', title: "Audit Failed" }); 
+            setIsAnalyzing(false); 
+        } finally {
+            e.target.value = '';
+        }
     };
 
     const handleExportAudit = () => {
@@ -150,6 +178,13 @@ export default function StockAuditPage() {
                         </CardContent>
                     </Card>
                 ))}
+
+                {isAnalyzing && (
+                    <div className="flex flex-col items-center justify-center py-20 gap-4">
+                        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                        <p className="font-black italic uppercase text-slate-400 tracking-widest">AI is auditing your shelf...</p>
+                    </div>
+                )}
             </div>
         </AppShell>
     );
