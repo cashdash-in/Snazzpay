@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { AppShell } from '@/components/layout/app-shell';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,8 +13,7 @@ import {
     Loader2, Camera, Plus, Minus, Search, 
     ShieldCheck, Sparkles, Send, Mic, Trash2,
     X, PackagePlus, Scan, Map as MapIcon, List, CheckCircle2,
-    Sun, Moon, Download, Printer, Layers, MessageSquare,
-    FileText, FileCheck, FileUp, Zap, DollarSign, LayoutGrid
+    Printer, Layers, FileText, FileUp, Zap, DollarSign, MapPin
 } from 'lucide-react';
 import { getCollection, saveDocument, deleteDocument } from '@/services/firestore';
 import { parseInventoryCommand, detectItemsInPhoto, matchProductToBill } from '@/ai/flows/inventory-ai';
@@ -26,6 +26,7 @@ import Link from 'next/link';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { Html5QrcodeScanner } from 'html5-qrcode';
 
 const MAX_IMAGE_SIZE_PX = 800;
 
@@ -37,6 +38,12 @@ export default function AdminInventoryPage() {
     const [searchTerm, setSearchQuery] = useState('');
     const [activeView, setActiveView] = useState<'list' | 'shop-map'>('list');
     
+    // Scanner & Sale States
+    const [isScanning, setIsScanning] = useState(false);
+    const [selectedSaleItem, setSelectedSaleItem] = useState<InventoryItem | null>(null);
+    const [saleQty, setSaleQty] = useState(1);
+    const [actualSellPrice, setSalePrice] = useState(0);
+
     // Bill Intake State
     const [isBillIntakeOpen, setIsBillIntakeOpen] = useState(false);
     const [billPhoto, setBillPhoto] = useState<string | null>(null);
@@ -59,6 +66,28 @@ export default function AdminInventoryPage() {
         return () => unsubscribe();
     }, []);
 
+    // QR Scanner Logic
+    useEffect(() => {
+        if (!isScanning) return;
+        const timer = setTimeout(() => {
+            const scanner = new Html5QrcodeScanner("admin-reader", { fps: 10, qrbox: 250 }, false);
+            scanner.render((decodedText) => {
+                const item = inventory.find(i => i.id === decodedText || i.name === decodedText);
+                if (item) {
+                    setSelectedSaleItem(item);
+                    setSalePrice(item.mrp);
+                    setSaleQty(1);
+                    setIsScanning(false);
+                    scanner.clear();
+                } else {
+                    toast({ variant: 'destructive', title: "SKU Not Found" });
+                }
+            }, (err) => {});
+            return () => { scanner.clear().catch(() => {}); };
+        }, 100);
+        return () => clearTimeout(timer);
+    }, [isScanning, inventory, toast]);
+
     const resizeImage = (file: File): Promise<string> => {
         return new Promise((resolve) => {
             const reader = new FileReader();
@@ -78,6 +107,29 @@ export default function AdminInventoryPage() {
             };
             reader.readAsDataURL(file);
         });
+    };
+
+    const handleBulkIntake = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setIsAnalyzing(true);
+        try {
+            const uri = await resizeImage(file);
+            const detections = await detectItemsInPhoto(uri, 'intake');
+            for (const d of detections) {
+                const id = uuidv4();
+                await saveDocument('inventory', {
+                    id, storeId: 'admin', name: d.productName, quantity: d.count, mrp: 0, wholesalePrice: 0,
+                    category: d.category || 'General', shelfNumber: 'A1', imageDataUri: uri, lastUpdated: new Date().toISOString()
+                }, id);
+            }
+            toast({ title: "Bulk Intake Complete" });
+        } catch (e) {
+            toast({ variant: 'destructive', title: "Intake Failed" });
+        } finally {
+            setIsAnalyzing(false);
+            e.target.value = '';
+        }
     };
 
     const handleProcessBill = async () => {
@@ -110,20 +162,50 @@ export default function AdminInventoryPage() {
         }
     };
 
-    const recordMovement = async (item: InventoryItem, qty: number, type: MovementType, note?: string) => {
-        const now = new Date().toISOString();
-        const newQty = item.quantity + qty;
-        const movement: StockMovement = {
-            id: uuidv4(), productId: item.id, type, quantity: qty, date: now, note, previousStock: item.quantity, newStock: newQty
+    const handleVoiceCommand = () => {
+        const sr = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+        if (!sr) {
+            toast({ variant: 'destructive', title: "Not Supported", description: "Your browser does not support speech recognition." });
+            return;
+        }
+        const r = new sr();
+        r.onresult = async (e: any) => {
+            const text = e.results[0][0].transcript;
+            setIsAnalyzing(true);
+            try {
+                const result = await parseInventoryCommand(text);
+                for (const item of result.items) {
+                    const existing = inventory.find(i => i.name.toLowerCase() === item.productName.toLowerCase());
+                    if (existing) {
+                        const newQty = Math.max(0, existing.quantity + item.quantity);
+                        await saveDocument('inventory', { ...existing, quantity: newQty, lastUpdated: new Date().toISOString() }, existing.id);
+                    } else if (item.quantity > 0) {
+                        const id = uuidv4();
+                        await saveDocument('inventory', {
+                            id, storeId: 'admin', name: item.productName, quantity: item.quantity, mrp: 0, wholesalePrice: 0,
+                            category: 'General', shelfNumber: 'A1', imageDataUri: 'https://picsum.photos/seed/voice/200/200', lastUpdated: new Date().toISOString()
+                        }, id);
+                    }
+                }
+                toast({ title: "Voice Command Processed", description: result.summary });
+            } catch (err) {
+                toast({ variant: 'destructive', title: "Voice Parse Failed" });
+            } finally {
+                setIsAnalyzing(false);
+            }
         };
-        try {
-            await Promise.all([
-                saveDocument('inventory', { ...item, quantity: newQty, lastUpdated: now }, item.id),
-                saveDocument('inventory_movements', movement, movement.id)
-            ]);
-            toast({ title: "Stock Updated" });
-            return true;
-        } catch (e) { return false; }
+        r.start();
+    };
+
+    const updateItem = async (id: string, updates: Partial<InventoryItem>) => {
+        const item = inventory.find(i => i.id === id);
+        if (!item) return;
+        const now = new Date().toISOString();
+        await saveDocument('inventory', { ...item, ...updates, lastUpdated: now }, id);
+    };
+
+    const handlePrint = () => {
+        window.print();
     };
 
     const shelfGroups = useMemo(() => {
@@ -140,79 +222,107 @@ export default function AdminInventoryPage() {
 
     return (
         <AppShell title="SnapStock AI Dashboard">
-            <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-                    <Card className="bg-primary text-primary-foreground shadow-xl border-none md:col-span-1">
-                        <CardHeader className="pb-2 flex flex-row justify-between items-center">
-                            <CardTitle className="text-[10px] font-black uppercase tracking-widest opacity-70">Admin Tools</CardTitle>
-                            <Sparkles className="h-4 w-4" />
-                        </CardHeader>
-                        <CardContent className="space-y-2">
-                             <Button size="sm" variant="secondary" className="w-full rounded-xl" onClick={() => setIsBillIntakeOpen(true)}>
-                                <FileUp className="h-4 w-4 mr-2" /> Bill Intake
-                             </Button>
-                        </CardContent>
-                    </Card>
+            <div className="space-y-6 print:p-0">
+                <div className="grid grid-cols-1 md:grid-cols-6 gap-4 no-print">
+                    <Button onClick={() => setIsScanning(true)} size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-blue-600 hover:bg-blue-500 md:col-span-1">
+                        <Scan className="h-8 w-8" />
+                        <span className="font-bold uppercase text-xs">Scan to Sell</span>
+                    </Button>
+                    <Button onClick={() => document.getElementById('admin-bulk-input')?.click()} variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-white border-2 border-dashed border-blue-200 text-blue-600 md:col-span-1" disabled={isAnalyzing}>
+                        {isAnalyzing ? <Loader2 className="animate-spin h-8 w-8" /> : <Layers className="h-8 w-8" />}
+                        <span className="font-bold uppercase text-xs">Bulk Intake</span>
+                    </Button>
+                    <Button onClick={() => setIsBillIntakeOpen(true)} variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-white border-2 border-dashed border-indigo-200 text-indigo-600 md:col-span-1">
+                        <FileUp className="h-8 w-8" />
+                        <span className="font-bold uppercase text-xs">Bill AI</span>
+                    </Button>
+                    <Button variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg border-2 border-slate-100 bg-white md:col-span-1" onClick={handleVoiceCommand} disabled={isAnalyzing}>
+                        <Mic className="h-8 w-8 text-indigo-500" />
+                        <span className="font-bold uppercase text-xs text-slate-500">Voice Link</span>
+                    </Button>
 
-                    <Link href="/admin/inventory/audit" className="md:col-span-1">
-                        <Card className="hover:bg-slate-50 transition-colors shadow-lg border-none cursor-pointer h-full">
-                            <CardHeader className="pb-2"><CardTitle className="text-[10px] font-black uppercase text-purple-600 tracking-widest">Visual Audit</CardTitle></CardHeader>
-                            <CardContent className="flex items-center gap-4"><div className="p-2 bg-purple-100 text-purple-600 rounded-lg"><CheckCircle2 className="h-5 w-5" /></div><div className="text-xl font-bold italic">Shelf Check</div></CardContent>
-                        </Card>
-                    </Link>
-
-                    <Card className="bg-slate-900 text-white shadow-xl border-none md:col-span-2">
-                        <CardHeader className="pb-2"><CardTitle className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Network Overview</CardTitle></CardHeader>
+                    <Card className="bg-slate-900 text-white shadow-xl border-none md:col-span-1">
+                        <CardHeader className="pb-2"><CardTitle className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Network</CardTitle></CardHeader>
                         <CardContent className="flex justify-between items-center">
-                            <div><p className="text-[10px] text-slate-500 uppercase font-bold">Global SKUs</p><p className="text-3xl font-black">{inventory.length}</p></div>
-                            <div><p className="text-[10px] text-slate-500 uppercase font-bold">Network Value</p><p className="text-2xl font-black italic">₹{inventory.reduce((sum, i) => sum + (i.mrp * i.quantity), 0).toLocaleString()}</p></div>
+                            <div><p className="text-[10px] text-slate-500 uppercase font-bold">SKUs</p><p className="text-3xl font-black">{inventory.length}</p></div>
                         </CardContent>
                     </Card>
 
-                    <Card className="bg-slate-50 shadow-inner border-none flex flex-col justify-center p-4 md:col-span-2">
-                        <p className="text-[8px] font-black uppercase text-slate-400 mb-1 text-center">View Mode</p>
+                    <Card className="bg-slate-50 shadow-inner border-none flex flex-col justify-center p-4 md:col-span-1">
+                        <p className="text-[8px] font-black uppercase text-slate-400 mb-1 text-center">View</p>
                         <div className="flex bg-white rounded-xl p-1 border">
                             <Button variant={activeView === 'list' ? 'default' : 'ghost'} size="sm" className="flex-1 h-8 rounded-lg text-[10px] uppercase font-bold" onClick={() => setActiveView('list')}>List</Button>
                             <Button variant={activeView === 'shop-map' ? 'default' : 'ghost'} size="sm" className="flex-1 h-8 rounded-lg text-[10px] uppercase font-bold" onClick={() => setActiveView('shop-map')}>Map</Button>
                         </div>
                     </Card>
+                    <input type="file" id="admin-bulk-input" accept="image/*" capture="environment" className="hidden" onChange={handleBulkIntake} />
                 </div>
 
-                <div className="relative px-2">
-                    <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                    <Input placeholder="Search global inventory..." className="pl-12 h-12 rounded-2xl bg-white shadow-sm border-none font-bold" value={searchTerm} onChange={e => setSearchQuery(e.target.value)} />
+                <div className="relative px-2 no-print flex gap-4">
+                    <div className="relative flex-1">
+                        <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        <Input placeholder="Search global inventory..." className="pl-12 h-12 rounded-2xl bg-white shadow-sm border-none font-bold" value={searchTerm} onChange={e => setSearchQuery(e.target.value)} />
+                    </div>
+                    <Button variant="outline" className="h-12 w-12 rounded-2xl bg-white shadow-sm" onClick={handlePrint}>
+                        <Printer className="h-5 w-5" />
+                    </Button>
                 </div>
 
                 {activeView === 'list' ? (
                     <Card className="rounded-[32px] overflow-hidden shadow-sm border-none bg-white">
                         <CardContent className="p-0">
-                            <Table>
-                                <TableHeader className="bg-slate-50"><TableRow><TableHead className="pl-8">Product</TableHead><TableHead>Loc</TableHead><TableHead>Rate (Purchase/Sell)</TableHead><TableHead>Stock</TableHead><TableHead className="text-right pr-8">Actions</TableHead></TableRow></TableHeader>
+                            <Table id="inventory-table">
+                                <TableHeader className="bg-slate-50"><TableRow><TableHead className="pl-8">Product</TableHead><TableHead>Loc</TableHead><TableHead>Purchase Rate</TableHead><TableHead>Selling Rate (MRP)</TableHead><TableHead>Stock</TableHead><TableHead className="text-right pr-8 no-print">Actions</TableHead></TableRow></TableHeader>
                                 <TableBody>
                                     {filteredInventory.map(item => (
-                                        <TableRow key={item.id}>
+                                        <TableRow key={item.id} className="group transition-colors hover:bg-slate-50">
                                             <TableCell className="pl-8 py-4">
                                                 <div className="flex items-center gap-3">
                                                     <div className="relative w-10 h-10 rounded-xl overflow-hidden border bg-slate-50"><Image src={item.imageDataUri} fill alt="p" className="object-cover" unoptimized /></div>
                                                     <div><p className="font-bold italic uppercase">{item.name}</p><p className="text-[9px] font-mono opacity-50">{item.id.substring(0,8)}</p></div>
                                                 </div>
                                             </TableCell>
-                                            <TableCell><Badge variant="outline">{item.shelfNumber}</Badge></TableCell>
                                             <TableCell>
-                                                <div className="flex flex-col">
-                                                    <span className="text-primary font-black">MRP: ₹{item.mrp}</span>
-                                                    <span className="text-[10px] font-bold text-slate-400 uppercase">Cost: ₹{item.wholesalePrice}</span>
+                                                <Input 
+                                                    value={item.shelfNumber} 
+                                                    onChange={e => updateItem(item.id, { shelfNumber: e.target.value })}
+                                                    className="w-16 h-8 text-[10px] font-bold uppercase no-print"
+                                                />
+                                                <span className="hidden print:inline">{item.shelfNumber}</span>
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center gap-1">
+                                                    <span className="text-[10px] font-bold text-slate-400 no-print">₹</span>
+                                                    <Input 
+                                                        type="number"
+                                                        value={item.wholesalePrice} 
+                                                        onChange={e => updateItem(item.id, { wholesalePrice: parseFloat(e.target.value) || 0 })}
+                                                        className="w-24 h-8 font-bold no-print"
+                                                    />
+                                                    <span className="hidden print:inline">₹{item.wholesalePrice}</span>
                                                 </div>
                                             </TableCell>
                                             <TableCell>
-                                                <div className="flex items-center gap-3">
-                                                    <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500" onClick={() => recordMovement(item, -1, 'Sale')}><Minus className="h-4 w-4" /></Button>
+                                                <div className="flex items-center gap-1">
+                                                    <span className="text-[10px] font-bold text-primary no-print">₹</span>
+                                                    <Input 
+                                                        type="number"
+                                                        value={item.mrp} 
+                                                        onChange={e => updateItem(item.id, { mrp: parseFloat(e.target.value) || 0 })}
+                                                        className="w-24 h-8 font-black text-primary no-print"
+                                                    />
+                                                    <span className="hidden print:inline">₹{item.mrp}</span>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center gap-3 no-print">
+                                                    <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500" onClick={() => updateItem(item.id, { quantity: Math.max(0, item.quantity - 1) })}><Minus className="h-4 w-4" /></Button>
                                                     <span className={cn("font-black text-lg", item.quantity < 5 && "text-red-500")}>{item.quantity}</span>
-                                                    <Button size="icon" variant="ghost" className="h-8 w-8 text-green-500" onClick={() => recordMovement(item, 1, 'Purchase')}><Plus className="h-4 w-4" /></Button>
+                                                    <Button size="icon" variant="ghost" className="h-8 w-8 text-green-500" onClick={() => updateItem(item.id, { quantity: item.quantity + 1 })}><Plus className="h-4 w-4" /></Button>
                                                 </div>
+                                                <span className="hidden print:inline font-bold">{item.quantity}</span>
                                             </TableCell>
-                                            <TableCell className="text-right pr-8 space-x-2">
-                                                <Button variant="outline" size="sm" className="rounded-xl h-8 text-[10px] font-bold"><Printer className="h-3 w-3" /></Button>
+                                            <TableCell className="text-right pr-8 no-print space-x-2">
                                                 <Button variant="ghost" size="icon" className="text-red-300" onClick={() => deleteDocument('inventory', item.id)}><Trash2 className="h-4 w-4" /></Button>
                                             </TableCell>
                                         </TableRow>
@@ -222,7 +332,7 @@ export default function AdminInventoryPage() {
                         </CardContent>
                     </Card>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 no-print">
                          {Object.entries(shelfGroups).map(([shelf, items]) => (
                             <Card key={shelf} className="rounded-[32px] border-none shadow-lg bg-white overflow-hidden">
                                 <CardHeader className="bg-slate-50 border-b flex flex-row items-center justify-between py-4">
@@ -238,7 +348,7 @@ export default function AdminInventoryPage() {
 
             {/* BILL INTAKE DIALOG */}
             <Dialog open={isBillIntakeOpen} onOpenChange={setIsBillIntakeOpen}>
-                <DialogContent className="max-w-2xl rounded-[32px] p-8 border-none">
+                <DialogContent className="max-w-2xl rounded-[32px] p-8 border-none no-print">
                     <DialogHeader><DialogTitle className="text-2xl font-black italic uppercase text-slate-800">Admin Bill Intake</DialogTitle><DialogDescription>Match supplier bills to products across the platform.</DialogDescription></DialogHeader>
                     <div className="grid grid-cols-2 gap-6 py-6">
                         <div className="space-y-2">
@@ -263,6 +373,43 @@ export default function AdminInventoryPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* SCANNER DIALOG */}
+            <Dialog open={isScanning} onOpenChange={setIsScanning}>
+                <DialogContent className="max-w-sm rounded-[32px] p-6 no-print">
+                    <DialogHeader><DialogTitle className="text-center uppercase font-black">Admin Scanner</DialogTitle></DialogHeader>
+                    <div id="admin-reader" className="w-full aspect-square rounded-2xl overflow-hidden border-2 bg-slate-50"></div>
+                    <DialogFooter><Button variant="outline" className="w-full rounded-xl" onClick={() => setIsScanning(false)}>Cancel</Button></DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* QUICK SALE DIALOG */}
+            <Dialog open={!!selectedSaleItem} onOpenChange={(open) => !open && setSelectedSaleItem(null)}>
+                <DialogContent className="max-md rounded-[32px] p-8 no-print">
+                    <DialogHeader><DialogTitle className="text-2xl font-black italic uppercase">Admin Quick Sale</DialogTitle></DialogHeader>
+                    {selectedSaleItem && (
+                        <div className="space-y-6 pt-4">
+                            <div className="flex gap-4 p-4 bg-slate-50 rounded-2xl">
+                                <div className="relative h-16 w-16 rounded-xl overflow-hidden border bg-white"><Image src={selectedSaleItem.imageDataUri} fill alt="p" className="object-cover" unoptimized /></div>
+                                <div><p className="font-black italic uppercase text-slate-800">{selectedSaleItem.name}</p><p className="text-xs text-blue-600 font-bold">Available: {selectedSaleItem.quantity}</p></div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">Sell Quantity</Label><Input type="number" className="h-12 rounded-xl font-bold" value={saleQty} onChange={e => setSaleQty(Number(e.target.value))} /></div>
+                                <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">Unit Price (₹)</Label><Input type="number" className="h-12 rounded-xl font-bold" value={actualSellPrice} onChange={e => setSalePrice(Number(e.target.value))} /></div>
+                            </div>
+                            <Button className="w-full h-14 rounded-2xl font-black uppercase italic text-lg bg-blue-600" onClick={async () => { await updateItem(selectedSaleItem.id, { quantity: selectedSaleItem.quantity - saleQty }); setSelectedSaleItem(null); toast({ title: "Sale Recorded" }); }}>Confirm Transaction</Button>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
+
+            <style jsx global>{`
+                @media print {
+                  .no-print { display: none !important; }
+                  body { background: white !important; }
+                  .print-p-0 { padding: 0 !important; }
+                }
+            `}</style>
         </AppShell>
     );
 }
