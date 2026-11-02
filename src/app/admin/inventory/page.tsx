@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { AppShell } from '@/components/layout/app-shell';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,9 +24,6 @@ import { cn } from "@/lib/utils";
 import type { InventoryItem, StockMovement, MovementType } from '@/types/inventory';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
-import { format } from 'date-fns';
-import { Html5QrcodeScanner } from 'html5-qrcode';
-import * as XLSX from 'xlsx';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -40,12 +37,6 @@ export default function AdminInventoryPage() {
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [searchTerm, setSearchQuery] = useState('');
     const [activeView, setActiveView] = useState<'list' | 'shop-map'>('list');
-    
-    // Scanner & Sale State
-    const [isScanning, setIsScanning] = useState(false);
-    const [selectedSaleItem, setSelectedSaleItem] = useState<InventoryItem | null>(null);
-    const [saleQty, setSaleQty] = useState(1);
-    const [actualSellPrice, setSalePrice] = useState(0);
     
     // Bill Intake State
     const [isBillIntakeOpen, setIsBillIntakeOpen] = useState(false);
@@ -136,16 +127,6 @@ export default function AdminInventoryPage() {
         } catch (e) { return false; }
     };
 
-    const handleTextCommand = async (command: string) => {
-        if (!command.trim()) return;
-        setIsAnalyzing(true);
-        try {
-            const result = await parseInventoryCommand(command);
-            toast({ title: "AI Voice Summary", description: result.summary });
-        } catch (e) { toast({ variant: 'destructive', title: "Command Failed" }); }
-        finally { setIsAnalyzing(false); }
-    };
-
     const shelfGroups = useMemo(() => {
         const groups: Record<string, InventoryItem[]> = {};
         inventory.forEach(item => {
@@ -164,17 +145,13 @@ export default function AdminInventoryPage() {
                 <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
                     <Card className="bg-primary text-primary-foreground shadow-xl border-none md:col-span-1">
                         <CardHeader className="pb-2 flex flex-row justify-between items-center">
-                            <CardTitle className="text-[10px] font-black uppercase tracking-widest opacity-70">SaaS Intake</CardTitle>
+                            <CardTitle className="text-[10px] font-black uppercase tracking-widest opacity-70">Admin Tools</CardTitle>
                             <Sparkles className="h-4 w-4" />
                         </CardHeader>
                         <CardContent className="space-y-2">
-                             <Button size="sm" variant="secondary" className="w-full rounded-xl" onClick={() => document.getElementById('bulk-intake-admin')?.click()}>
-                                {isAnalyzing ? <Loader2 className="animate-spin h-4 w-4" /> : <Layers className="h-4 w-4 mr-2" />} Bulk Snap
-                             </Button>
                              <Button size="sm" variant="secondary" className="w-full rounded-xl" onClick={() => setIsBillIntakeOpen(true)}>
                                 <FileUp className="h-4 w-4 mr-2" /> Bill Intake
                              </Button>
-                             <input type="file" id="bulk-intake-admin" accept="image/*" capture="environment" className="hidden" />
                         </CardContent>
                     </Card>
 
@@ -185,20 +162,15 @@ export default function AdminInventoryPage() {
                         </Card>
                     </Link>
 
-                    <Card className="shadow-lg border-none bg-white h-full flex flex-col justify-center md:col-span-2">
-                        <CardHeader className="pb-2"><CardTitle className="text-[10px] font-black uppercase text-amber-600 tracking-widest">Broadcasts</CardTitle></CardHeader>
-                        <CardContent className="flex gap-2 pt-0">
-                            <Button variant="outline" size="sm" className="flex-1 rounded-xl h-10 border-amber-100 text-amber-600"><Sun className="h-3 w-3 mr-1"/> MORNING</Button>
-                            <Button variant="outline" size="sm" className="flex-1 rounded-xl h-10 border-indigo-100 text-indigo-600"><Moon className="h-3 w-3 mr-1"/> NIGHT</Button>
+                    <Card className="bg-slate-900 text-white shadow-xl border-none md:col-span-2">
+                        <CardHeader className="pb-2"><CardTitle className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Network Overview</CardTitle></CardHeader>
+                        <CardContent className="flex justify-between items-center">
+                            <div><p className="text-[10px] text-slate-500 uppercase font-bold">Global SKUs</p><p className="text-3xl font-black">{inventory.length}</p></div>
+                            <div><p className="text-[10px] text-slate-500 uppercase font-bold">Network Value</p><p className="text-2xl font-black italic">₹{inventory.reduce((sum, i) => sum + (i.mrp * i.quantity), 0).toLocaleString()}</p></div>
                         </CardContent>
                     </Card>
 
-                    <Card className="bg-slate-900 text-white shadow-xl border-none md:col-span-1">
-                        <CardHeader className="pb-2"><CardTitle className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Global SKUs</CardTitle></CardHeader>
-                        <CardContent><div className="text-3xl font-black">{inventory.length}</div></CardContent>
-                    </Card>
-
-                    <Card className="bg-slate-50 shadow-inner border-none flex flex-col justify-center p-4 md:col-span-1">
+                    <Card className="bg-slate-50 shadow-inner border-none flex flex-col justify-center p-4 md:col-span-2">
                         <p className="text-[8px] font-black uppercase text-slate-400 mb-1 text-center">View Mode</p>
                         <div className="flex bg-white rounded-xl p-1 border">
                             <Button variant={activeView === 'list' ? 'default' : 'ghost'} size="sm" className="flex-1 h-8 rounded-lg text-[10px] uppercase font-bold" onClick={() => setActiveView('list')}>List</Button>
@@ -207,11 +179,16 @@ export default function AdminInventoryPage() {
                     </Card>
                 </div>
 
+                <div className="relative px-2">
+                    <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Input placeholder="Search global inventory..." className="pl-12 h-12 rounded-2xl bg-white shadow-sm border-none font-bold" value={searchTerm} onChange={e => setSearchQuery(e.target.value)} />
+                </div>
+
                 {activeView === 'list' ? (
                     <Card className="rounded-[32px] overflow-hidden shadow-sm border-none bg-white">
                         <CardContent className="p-0">
                             <Table>
-                                <TableHeader className="bg-slate-50"><TableRow><TableHead className="pl-8">Product</TableHead><TableHead>Loc</TableHead><TableHead>Price (₹)</TableHead><TableHead>Stock</TableHead><TableHead className="text-right pr-8">Actions</TableHead></TableRow></TableHeader>
+                                <TableHeader className="bg-slate-50"><TableRow><TableHead className="pl-8">Product</TableHead><TableHead>Loc</TableHead><TableHead>Rate (Purchase/Sell)</TableHead><TableHead>Stock</TableHead><TableHead className="text-right pr-8">Actions</TableHead></TableRow></TableHeader>
                                 <TableBody>
                                     {filteredInventory.map(item => (
                                         <TableRow key={item.id}>
@@ -222,7 +199,12 @@ export default function AdminInventoryPage() {
                                                 </div>
                                             </TableCell>
                                             <TableCell><Badge variant="outline">{item.shelfNumber}</Badge></TableCell>
-                                            <TableCell><div className="font-black text-primary">₹{item.mrp}</div></TableCell>
+                                            <TableCell>
+                                                <div className="flex flex-col">
+                                                    <span className="text-primary font-black">MRP: ₹{item.mrp}</span>
+                                                    <span className="text-[10px] font-bold text-slate-400 uppercase">Cost: ₹{item.wholesalePrice}</span>
+                                                </div>
+                                            </TableCell>
                                             <TableCell>
                                                 <div className="flex items-center gap-3">
                                                     <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500" onClick={() => recordMovement(item, -1, 'Sale')}><Minus className="h-4 w-4" /></Button>
@@ -248,7 +230,7 @@ export default function AdminInventoryPage() {
                                     <div className="flex items-center gap-3"><div className="p-2 bg-primary/10 rounded-xl text-primary font-black italic">{shelf}</div><CardTitle className="text-sm font-black uppercase italic">Shelf {shelf}</CardTitle></div>
                                     <Badge className="bg-slate-900 text-[10px] font-black italic">Qty: {items.reduce((sum, i) => sum + i.quantity, 0)}</Badge>
                                 </CardHeader>
-                                <CardContent className="p-4 space-y-3">{items.slice(0, 3).map(item => (<div key={item.id} className="flex items-center gap-3 p-2 rounded-xl border border-transparent hover:border-slate-100"><Image src={item.imageDataUri} width={32} height={32} alt="p" className="rounded-lg object-cover" unoptimized /><div className="flex-1 min-w-0"><p className="text-[11px] font-black uppercase italic truncate">{item.name}</p><p className="text-[9px] font-bold text-primary">₹{item.mrp}</p></div></div>))}</CardContent>
+                                <CardContent className="p-4 space-y-3">{items.slice(0, 3).map(item => (<div key={item.id} className="flex items-center gap-3 p-2 rounded-xl border border-transparent hover:border-slate-100"><Image src={item.imageDataUri} width={32} height={32} alt="p" className="rounded-lg object-cover" unoptimized /><div className="flex-1 min-w-0"><p className="text-[11px] font-black uppercase italic truncate">{item.name}</p><p className="text-[9px] font-bold text-primary">MRP: ₹{item.mrp}</p></div></div>))}</CardContent>
                             </Card>
                         ))}
                     </div>
@@ -280,15 +262,6 @@ export default function AdminInventoryPage() {
                             {isProcessingBill ? <Loader2 className="animate-spin mr-2" /> : <Sparkles className="mr-2" />} Process Admin Intake
                         </Button>
                     </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            {/* SCANNER DIALOG */}
-            <Dialog open={isScanning} onOpenChange={setIsScanning}>
-                <DialogContent className="max-w-sm rounded-[32px] p-6">
-                    <DialogHeader><DialogTitle className="text-center uppercase font-black">Scan to Sell</DialogTitle></DialogHeader>
-                    <div id="reader" className="w-full aspect-square rounded-2xl overflow-hidden border-2 bg-slate-50"></div>
-                    <DialogFooter><Button variant="outline" className="w-full rounded-xl" onClick={() => setIsScanning(false)}>Cancel</Button></DialogFooter>
                 </DialogContent>
             </Dialog>
         </AppShell>
