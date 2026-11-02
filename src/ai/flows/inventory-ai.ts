@@ -1,7 +1,7 @@
 'use server';
 /**
  * @fileOverview AI flows for Inventory Intelligence.
- * Handles parsing voice/text commands, detecting items in photos, and bulk segregation.
+ * Handles parsing voice/text commands, detecting items in photos, and matching bills to products.
  */
 
 import { ai } from '@/ai/genkit';
@@ -82,4 +82,44 @@ export async function detectItemsInPhoto(imageDataUri: string, mode: 'sale' | 'a
       console.error("detectItemsInPhoto AI error:", error);
       return [];
   }
+}
+
+/**
+ * Parses a purchase bill and matches it to a product photo.
+ */
+export async function matchProductToBill(billDataUri: string, productDataUri: string) {
+    try {
+        const { output } = await ai.generate({
+            model: 'googleai/gemini-2.5-flash',
+            system: `You are an expert procurement analyst. 
+            TASK: 
+            1. Read the provided PURCHASE BILL image (Photo 1).
+            2. Identify the product shown in the PRODUCT PHOTO (Photo 2).
+            3. Find the matching line item on the bill.
+            4. Extract the Purchase Quantity, Wholesale Price (Unit Price), and Name.
+            
+            Return the details of the matched item only.`,
+            prompt: [
+                { text: "Image 1 is the Supplier Bill. Image 2 is the actual product. Identify the product from the bill." },
+                { media: { url: billDataUri, contentType: 'image/jpeg' } },
+                { media: { url: productDataUri, contentType: 'image/jpeg' } }
+            ],
+            output: {
+                schema: z.object({
+                    productName: z.string().describe("The name of the matched product on the bill"),
+                    quantity: z.number().describe("The quantity purchased as per bill"),
+                    wholesalePrice: z.number().describe("The unit purchase price from the bill"),
+                    mrp: z.number().describe("Suggested MRP based on purchase price (approx 100% margin if not found)"),
+                    category: z.string().describe("Suggested category"),
+                    supplierName: z.string().optional().describe("Name of the supplier from bill")
+                })
+            }
+        });
+
+        if (!output) throw new Error("Could not match product to bill.");
+        return output;
+    } catch (error: any) {
+        console.error("matchProductToBill AI error:", error);
+        throw new Error(`Bill processing failed: ${error.message}`);
+    }
 }

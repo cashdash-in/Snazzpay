@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -13,10 +12,11 @@ import {
     Loader2, Camera, Plus, Minus, Search, 
     ShieldCheck, Sparkles, Send, Mic, Trash2,
     X, PackagePlus, ImagePlus, Scan, Map as MapIcon, List, CheckCircle2,
-    Sun, Moon, Download, Printer, LayoutGrid, Layers, MessageSquare
+    Sun, Moon, Download, Printer, LayoutGrid, Layers, MessageSquare,
+    FileText, FileCheck
 } from 'lucide-react';
 import { getCollection, saveDocument, deleteDocument } from '@/services/firestore';
-import { parseInventoryCommand, detectItemsInPhoto } from '@/ai/flows/inventory-ai';
+import { parseInventoryCommand, detectItemsInPhoto, matchProductToBill } from '@/ai/flows/inventory-ai';
 import { analyzeInventoryItem } from '@/ai/flows/inventory-analyzer';
 import { v4 as uuidv4 } from 'uuid';
 import Image from 'next/image';
@@ -27,6 +27,7 @@ import Link from 'next/link';
 import { format } from 'date-fns';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import * as XLSX from 'xlsx';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 
 const MAX_IMAGE_SIZE_PX = 800;
 
@@ -42,6 +43,12 @@ export default function AdminInventoryPage() {
     const [isQrSearching, setIsQrSearching] = useState(false);
     const [textCommand, setTextCommand] = useState('');
     
+    // Bill Intake State
+    const [isBillIntakeOpen, setIsBillIntakeOpen] = useState(false);
+    const [billPhoto, setBillPhoto] = useState<string | null>(null);
+    const [productPhoto, setProductPhoto] = useState<string | null>(null);
+    const [isProcessingBill, setIsProcessingBill] = useState(false);
+
     const [detectedIntakeItems, setDetectedIntakeItems] = useState<{
         productName: string, 
         qty: number, 
@@ -298,6 +305,31 @@ export default function AdminInventoryPage() {
         } catch (e) { toast({ variant: 'destructive', title: "Delete Failed" }); }
     };
 
+    const handleBillIntake = async () => {
+        if (!billPhoto || !productPhoto) return;
+        setIsProcessingBill(true);
+        try {
+            const result = await matchProductToBill(billPhoto, productPhoto);
+            setDetectedIntakeItems([{
+                productName: result.productName,
+                qty: result.quantity,
+                mrp: result.mrp,
+                purchasePrice: result.wholesalePrice,
+                category: result.category,
+                imageDataUri: productPhoto,
+                needsCleanShot: false
+            }]);
+            toast({ title: "Bill Matched Successfully!" });
+            setIsBillIntakeOpen(false);
+            setBillPhoto(null);
+            setProductPhoto(null);
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Bill Error', description: error.message });
+        } finally {
+            setIsProcessingBill(false);
+        }
+    };
+
     const filteredInventory = inventory.filter(i => (i.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || (i.id || '').toLowerCase().includes(searchTerm.toLowerCase()) || (i.shelfNumber || '').toLowerCase().includes(searchTerm.toLowerCase()));
 
     if (!isMounted) return null;
@@ -312,10 +344,33 @@ export default function AdminInventoryPage() {
                              <Button size="sm" variant="secondary" className="w-full rounded-xl" onClick={() => document.getElementById('bulk-intake-capture')?.click()}>{isAnalyzing ? <Loader2 className="animate-spin h-4 w-4" /> : <Layers className="h-4 w-4 mr-2" />} Bulk Intake (Photo)</Button>
                              <div className="flex gap-2">
                                 <Button size="sm" variant="secondary" className="flex-1 rounded-xl" onClick={() => { const sr = (window as any).SpeechRecognition || (window as any).webkitRecognition; if(!sr) return; const r = new sr(); r.onstart = () => {}; r.onresult = (e: any) => handleTextCommand(e.results[0][0].transcript); r.onend = () => {}; r.start(); }}><Mic className="h-3 w-3 mr-1" /> Voice</Button>
-                                <Button size="sm" variant="secondary" className="flex-1 rounded-xl" onClick={() => document.getElementById('new-item-capture')?.click()}><Plus className="h-3 w-3 mr-1" /> New</Button>
+                                <Dialog open={isBillIntakeOpen} onOpenChange={setIsBillIntakeOpen}>
+                                    <DialogTrigger asChild>
+                                        <Button size="sm" variant="secondary" className="flex-1 rounded-xl"><FileText className="h-3 w-3 mr-1" /> Bill</Button>
+                                    </DialogTrigger>
+                                    <DialogContent className="rounded-[32px]">
+                                        <DialogHeader><DialogTitle className="font-black italic uppercase">Purchase Bill Intake</DialogTitle><DialogDescription>Upload the bill and the product photo to sync stock automatically.</DialogDescription></DialogHeader>
+                                        <div className="grid grid-cols-2 gap-4 py-4">
+                                            <div className="space-y-2">
+                                                <Label className="text-[10px] font-black uppercase">Step 1: Supplier Bill</Label>
+                                                <div className="relative aspect-square border-2 border-dashed rounded-2xl flex items-center justify-center bg-slate-50 overflow-hidden cursor-pointer" onClick={() => document.getElementById('bill-cam')?.click()}>
+                                                    {billPhoto ? <Image src={billPhoto} fill alt="bill" className="object-cover" /> : <FileUp className="h-8 w-8 text-slate-300" />}
+                                                </div>
+                                                <input id="bill-cam" type="file" accept="image/*" capture="environment" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if(f) setBillPhoto(await resizeImage(f)); }} />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label className="text-[10px] font-black uppercase">Step 2: Product SKU</Label>
+                                                <div className="relative aspect-square border-2 border-dashed rounded-2xl flex items-center justify-center bg-slate-50 overflow-hidden cursor-pointer" onClick={() => document.getElementById('prod-cam')?.click()}>
+                                                    {productPhoto ? <Image src={productPhoto} fill alt="prod" className="object-cover" /> : <Camera className="h-8 w-8 text-slate-300" />}
+                                                </div>
+                                                <input id="prod-cam" type="file" accept="image/*" capture="environment" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if(f) setProductPhoto(await resizeImage(f)); }} />
+                                            </div>
+                                        </div>
+                                        <DialogFooter><Button className="w-full h-12 rounded-2xl font-black uppercase italic" onClick={handleBillIntake} disabled={!billPhoto || !productPhoto || isProcessingBill}>{isProcessingBill ? <Loader2 className="animate-spin" /> : <FileCheck className="mr-2" />} Match & Sync</Button></DialogFooter>
+                                    </DialogContent>
+                                </Dialog>
                              </div>
                              <input type="file" id="bulk-intake-capture" accept="image/*" capture="environment" className="hidden" onChange={handleBulkIntakeCapture} />
-                             <input type="file" id="new-item-capture" accept="image/*" capture="environment" className="hidden" onChange={async (e) => { const file = e.target.files?.[0]; if(!file) return; setIsAnalyzing(true); try { const uri = await resizeImage(file); const aiData = await analyzeInventoryItem({ imageDataUri: uri }); handleCreateAndRecord(aiData.productName, 1, aiData.suggestedMRP, 0, 'Opening', aiData.category, uri); } finally { setIsAnalyzing(false); } }} />
                         </CardContent>
                     </Card>
                     <Link href="/admin/inventory/audit" className="contents">
@@ -421,4 +476,3 @@ export default function AdminInventoryPage() {
         </AppShell>
     );
 }
-
