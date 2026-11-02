@@ -109,6 +109,31 @@ export default function AdminInventoryPage() {
         });
     };
 
+    /**
+     * Magic AI Segregation: Crops individual items from a master photo
+     */
+    const cropImage = (base64: string, box: number[]): Promise<string> => {
+        return new Promise((resolve) => {
+            const img = new (window as any).Image();
+            img.onload = () => {
+                const [ymin, xmin, ymax, xmax] = box;
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                const width = (xmax - xmin) * img.width / 1000;
+                const height = (ymax - ymin) * img.height / 1000;
+                const startX = xmin * img.width / 1000;
+                const startY = ymin * img.height / 1000;
+                
+                canvas.width = width;
+                canvas.height = height;
+                ctx?.drawImage(img, startX, startY, width, height, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', 0.8));
+            };
+            img.src = base64;
+        });
+    };
+
     const handleBulkIntake = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -118,12 +143,23 @@ export default function AdminInventoryPage() {
             const detections = await detectItemsInPhoto(uri, 'intake');
             for (const d of detections) {
                 const id = uuidv4();
+                
+                // Segregate image if box is provided
+                let itemImage = uri;
+                if (d.box_2d) {
+                    try {
+                        itemImage = await cropImage(uri, d.box_2d);
+                    } catch (cropErr) {
+                        console.warn("Crop failed, using original:", cropErr);
+                    }
+                }
+
                 await saveDocument('inventory', {
                     id, storeId: 'admin', name: d.productName, quantity: d.count, mrp: 0, wholesalePrice: 0,
-                    category: d.category || 'General', shelfNumber: 'A1', imageDataUri: uri, lastUpdated: new Date().toISOString()
+                    category: d.category || 'General', shelfNumber: 'A1', imageDataUri: itemImage, lastUpdated: new Date().toISOString()
                 }, id);
             }
-            toast({ title: "Bulk Intake Complete" });
+            toast({ title: "Bulk Intake Complete", description: `Added ${detections.length} segregated items.` });
         } catch (e) {
             toast({ variant: 'destructive', title: "Intake Failed" });
         } finally {

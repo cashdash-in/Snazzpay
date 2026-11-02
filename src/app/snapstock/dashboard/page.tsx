@@ -125,6 +125,31 @@ export default function SnapStockPartnerDashboard() {
         });
     };
 
+    /**
+     * Magic AI Segregation: Crops individual items from a master photo
+     */
+    const cropImage = (base64: string, box: number[]): Promise<string> => {
+        return new Promise((resolve) => {
+            const img = new (window as any).Image();
+            img.onload = () => {
+                const [ymin, xmin, ymax, xmax] = box;
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                const width = (xmax - xmin) * img.width / 1000;
+                const height = (ymax - ymin) * img.height / 1000;
+                const startX = xmin * img.width / 1000;
+                const startY = ymin * img.height / 1000;
+                
+                canvas.width = width;
+                canvas.height = height;
+                ctx?.drawImage(img, startX, startY, width, height, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', 0.8));
+            };
+            img.src = base64;
+        });
+    };
+
     const handleBulkIntake = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -134,13 +159,24 @@ export default function SnapStockPartnerDashboard() {
             const detections = await detectItemsInPhoto(uri, 'intake');
             for (const d of detections) {
                 const id = uuidv4();
+                
+                // Segregate image if box is provided
+                let itemImage = uri;
+                if (d.box_2d) {
+                    try {
+                        itemImage = await cropImage(uri, d.box_2d);
+                    } catch (cropErr) {
+                        console.warn("Crop failed, using original:", cropErr);
+                    }
+                }
+
                 await saveDocument('inventory', {
                     id, storeId: partnerId, name: d.productName, quantity: d.count, mrp: 0, wholesalePrice: 0,
-                    category: d.category || 'General', shelfNumber: 'A1', imageDataUri: uri, lastUpdated: new Date().toISOString()
+                    category: d.category || 'General', shelfNumber: 'A1', imageDataUri: itemImage, lastUpdated: new Date().toISOString()
                 }, id);
             }
             await trackUsage();
-            toast({ title: "Bulk Intake Complete" });
+            toast({ title: "Bulk Intake Complete", description: `Added ${detections.length} segregated items.` });
             loadData();
         } catch (e) {
             toast({ variant: 'destructive', title: "Intake Failed" });
@@ -272,7 +308,7 @@ export default function SnapStockPartnerDashboard() {
                             <TableHeader className="bg-slate-50/50"><TableRow><TableHead className="pl-8">Product</TableHead><TableHead>Loc</TableHead><TableHead>Purchase Rate</TableHead><TableHead>Selling Rate (MRP)</TableHead><TableHead>Quantity</TableHead><TableHead className="text-right pr-8 no-print">Actions</TableHead></TableRow></TableHeader>
                             <TableBody>
                                 {filteredInventory.map(item => (
-                                    <TableRow key={item.id} className="group hover:bg-slate-50 transition-colors">
+                                    <TableRow key={item.id} className={cn(item.quantity === 0 && "bg-red-50/50")}>
                                         <TableCell className="pl-8 py-4"><div className="flex items-center gap-4"><div className="relative w-12 h-12 rounded-xl overflow-hidden border bg-slate-50"><Image src={item.imageDataUri} fill alt="p" className="object-cover" unoptimized /></div><div><p className="font-black uppercase italic text-sm text-slate-800">{item.name}</p><p className="text-[9px] font-mono opacity-50">{item.id.substring(0,8)}</p></div></div></TableCell>
                                         <TableCell>
                                             <Input 
@@ -365,7 +401,7 @@ export default function SnapStockPartnerDashboard() {
                 </DialogContent>
             </Dialog>
 
-            <Dialog open={isScanning} onOpenChange={setIsScanning}><DialogContent className="max-w-sm rounded-[32px] p-6 no-print"><DialogHeader><DialogTitle className="text-center uppercase font-black">Scan Product QR</DialogTitle></DialogHeader><div id="partner-reader" className="w-full aspect-square rounded-2xl overflow-hidden border-2 bg-slate-50"></div><DialogFooter><Button variant="outline" className="w-full rounded-xl" onClick={() => setIsScanning(false)}>Cancel</Button></DialogFooter></DialogContent></Dialog>
+            <Dialog open={isScanning} onOpenChange={setIsScanning}><DialogContent className="max-w-sm p-6 rounded-[32px] bg-white border-none"><DialogHeader><DialogTitle className="text-center uppercase font-black">Scan Product QR</DialogTitle></DialogHeader><div id="partner-reader" className="w-full aspect-square rounded-2xl overflow-hidden border-2 bg-slate-100 flex items-center justify-center"><p className="text-xs text-muted-foreground">Camera loading...</p></div><DialogFooter><Button variant="outline" className="w-full rounded-xl" onClick={() => setIsScanning(false)}>Cancel</Button></DialogFooter></DialogContent></Dialog>
 
             <Dialog open={!!selectedSaleItem} onOpenChange={(open) => !open && setSelectedSaleItem(null)}>
                 <DialogContent className="max-md rounded-[32px] p-8 no-print"><DialogHeader><DialogTitle className="text-2xl font-black italic uppercase">Confirm Sale</DialogTitle></DialogHeader>
