@@ -83,14 +83,20 @@ export default function SnapStockLicensesPage() {
     const stats = useMemo(() => {
         return {
             totalPartners: partners.length,
-            monthlyRevenue: partners.reduce((sum, p) => sum + (typeof p.revenueGenerated === 'number' ? p.revenueGenerated : 0), 0),
-            totalSnaps: partners.reduce((sum, p) => sum + (typeof p.snapUsage === 'number' ? p.snapUsage : 0), 0),
+            monthlyRevenue: partners.reduce((sum, p) => {
+                const val = typeof p.revenueGenerated === 'number' ? p.revenueGenerated : 0;
+                return sum + val;
+            }, 0),
+            totalSnaps: partners.reduce((sum, p) => {
+                const val = typeof p.snapUsage === 'number' ? p.snapUsage : 0;
+                return sum + val;
+            }, 0),
         };
     }, [partners]);
 
     const filteredPartners = partners.filter(p => 
-        p.storeName.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        p.ownerName.toLowerCase().includes(searchQuery.toLowerCase())
+        (p.storeName || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+        (p.ownerName || '').toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     const handleCreatePartner = async () => {
@@ -124,11 +130,15 @@ export default function SnapStockLicensesPage() {
         }
     };
 
-    const handleAction = async (partnerId: string, action: 'activate' | 'deactivate' | 'delete' | 'reset-trial') => {
+    const handleAction = async (partnerId: string, action: 'activate' | 'deactivate' | 'delete' | 'reset-trial' | 'copy-link') => {
         try {
             if (action === 'delete') {
                 await deleteDocument('snapstock_partners', partnerId);
                 toast({ title: "Partner Removed" });
+            } else if (action === 'copy-link') {
+                const link = `${window.location.origin}/snapstock/register`;
+                navigator.clipboard.writeText(link);
+                toast({ title: "Registration Link Copied" });
             } else {
                 let updates: Partial<SnapStockPartner> = {};
                 if (action === 'activate') updates = { status: 'Active' };
@@ -141,6 +151,11 @@ export default function SnapStockLicensesPage() {
         } catch (e) {
             toast({ variant: 'destructive', title: "Action Failed" });
         }
+    };
+
+    const renderNumericValue = (val: any) => {
+        if (typeof val === 'number') return val;
+        return 0; // Guard against internal command objects being rendered
     };
 
     return (
@@ -223,10 +238,10 @@ export default function SnapStockLicensesPage() {
                                             <Badge className={cn("font-black uppercase text-[9px]", p.status === 'Active' ? "bg-green-500" : "bg-blue-500")}>{p.status}</Badge>
                                         </TableCell>
                                         <TableCell className="font-mono text-xs font-black text-blue-600">
-                                            {typeof p.snapUsage === 'number' ? p.snapUsage : 0} Snaps
+                                            {renderNumericValue(p.snapUsage)} Snaps
                                         </TableCell>
                                         <TableCell className="font-black text-slate-700">
-                                            ₹{typeof p.revenueGenerated === 'number' ? p.revenueGenerated : 0}
+                                            ₹{renderNumericValue(p.revenueGenerated)}
                                         </TableCell>
                                         <TableCell className="text-right pr-8">
                                             <DropdownMenu>
@@ -234,6 +249,7 @@ export default function SnapStockLicensesPage() {
                                                 <DropdownMenuContent align="end" className="w-56 rounded-2xl p-2">
                                                     <DropdownMenuItem onClick={() => handleAction(p.id, 'activate')} className="rounded-xl font-bold uppercase text-[10px] gap-2"><CheckCircle className="h-4 w-4 text-green-500" /> Activate</DropdownMenuItem>
                                                     <DropdownMenuItem onClick={() => handleAction(p.id, 'reset-trial')} className="rounded-xl font-bold uppercase text-[10px] gap-2"><Clock className="h-4 w-4 text-blue-500" /> Reset Trial</DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleAction(p.id, 'copy-link')} className="rounded-xl font-bold uppercase text-[10px] gap-2"><Share2 className="h-4 w-4 text-indigo-500" /> Registration Link</DropdownMenuItem>
                                                     <DropdownMenuItem onClick={() => handleAction(p.id, 'deactivate')} className="rounded-xl font-bold uppercase text-[10px] gap-2"><Ban className="h-4 w-4 text-amber-500" /> Mark Expired</DropdownMenuItem>
                                                     <DropdownMenuItem onClick={() => handleAction(p.id, 'delete')} className="rounded-xl font-bold uppercase text-[10px] gap-2 text-destructive"><Trash2 className="h-4 w-4" /> Delete</DropdownMenuItem>
                                                 </DropdownMenuContent>

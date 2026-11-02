@@ -14,9 +14,11 @@ const sanitizeForFirestore = (data: any): any => {
     return data.map(sanitizeForFirestore);
   }
 
-  // If it's a specialized class instance (like a Firestore FieldValue), 
-  // don't try to walk its properties, just return it.
-  if (data.constructor && data.constructor.name !== 'Object') {
+  // Handle Firestore FieldValues (like increment, serverTimestamp)
+  // These are specialized objects that should not be traversed.
+  // In the web SDK, they usually have a specific constructor or internal flags.
+  const prototype = Object.getPrototypeOf(data);
+  if (prototype !== Object.prototype && prototype !== null) {
     return data;
   }
 
