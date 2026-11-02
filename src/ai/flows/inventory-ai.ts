@@ -85,39 +85,42 @@ export async function detectItemsInPhoto(imageDataUri: string, mode: 'sale' | 'a
 }
 
 /**
- * Parses a purchase bill and matches it to a product photo.
+ * Parses a purchase bill and matches it to multiple products in a group photo.
+ * Upgraded to handle multi-product matching and return boxes for auto-cropping.
  */
-export async function matchProductToBill(billDataUri: string, productDataUri: string) {
+export async function matchProductToBill(billDataUri: string, groupProductsDataUri: string) {
     try {
         const { output } = await ai.generate({
             model: 'googleai/gemini-2.5-flash',
-            system: `You are an expert procurement analyst. 
+            system: `You are an expert procurement and computer vision analyst. 
             TASK: 
-            1. Read the provided PURCHASE BILL image (Photo 1).
-            2. Identify the product shown in the PRODUCT PHOTO (Photo 2).
-            3. Find the matching line item on the bill.
-            4. Extract the Purchase Quantity, Wholesale Price (Unit Price), and Name.
+            1. Read the provided PURCHASE BILL image (Photo 1). List EVERY product mentioned on the bill.
+            2. Analyze the GROUP PRODUCT PHOTO (Photo 2) which contains all items from the bill.
+            3. For every product found on the bill, identify its exact location in Photo 2.
+            4. Provide the BOUNDING BOX [ymin, xmin, ymax, xmax] normalized 0-1000 for each item in Photo 2.
             
-            Return the details of the matched item only.`,
+            Return an array of matched items.`,
             prompt: [
-                { text: "Image 1 is the Supplier Bill. Image 2 is the actual product. Identify the product from the bill." },
+                { text: "Image 1 is the Supplier Bill. Image 2 contains the physical products listed on the bill. Match them all." },
                 { media: { url: billDataUri, contentType: 'image/jpeg' } },
-                { media: { url: productDataUri, contentType: 'image/jpeg' } }
+                { media: { url: groupProductsDataUri, contentType: 'image/jpeg' } }
             ],
             output: {
                 schema: z.object({
-                    productName: z.string().describe("The name of the matched product on the bill"),
-                    quantity: z.number().describe("The quantity purchased as per bill"),
-                    wholesalePrice: z.number().describe("The unit purchase price from the bill"),
-                    mrp: z.number().describe("Suggested MRP based on purchase price (approx 100% margin if not found)"),
-                    category: z.string().describe("Suggested category"),
-                    supplierName: z.string().optional().describe("Name of the supplier from bill")
+                    matches: z.array(z.object({
+                        productName: z.string().describe("The name of the product as found on the bill"),
+                        quantity: z.number().describe("The quantity purchased from bill"),
+                        wholesalePrice: z.number().describe("The unit purchase price from bill"),
+                        mrp: z.number().describe("Suggested MRP based on bill (approx 100% margin if not specified)"),
+                        category: z.string().describe("Suggested category"),
+                        box_2d: z.array(z.number()).describe("Bounding box in Photo 2 [ymin, xmin, ymax, xmax] normalized 0-1000")
+                    }))
                 })
             }
         });
 
-        if (!output) throw new Error("Could not match product to bill.");
-        return output;
+        if (!output || !output.matches) throw new Error("Could not match bill to products.");
+        return output.matches;
     } catch (error: any) {
         console.error("matchProductToBill AI error:", error);
         throw new Error(`Bill processing failed: ${error.message}`);

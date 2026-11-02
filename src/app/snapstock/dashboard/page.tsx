@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -128,6 +127,31 @@ export default function SnapStockPartnerDashboard() {
         });
     };
 
+    /**
+     * Magic AI Segregation: Crops individual items from a master photo
+     */
+    const cropImage = (base64: string, box: number[]): Promise<string> => {
+        return new Promise((resolve) => {
+            const img = new (window as any).Image();
+            img.onload = () => {
+                const [ymin, xmin, ymax, xmax] = box;
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                const width = (xmax - xmin) * img.width / 1000;
+                const height = (ymax - ymin) * img.height / 1000;
+                const startX = xmin * img.width / 1000;
+                const startY = ymin * img.height / 1000;
+                
+                canvas.width = width;
+                canvas.height = height;
+                ctx?.drawImage(img, startX, startY, width, height, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', 0.8));
+            };
+            img.src = base64;
+        });
+    };
+
     const handleUpdateImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file || !updatingImageId) return;
@@ -164,31 +188,6 @@ export default function SnapStockPartnerDashboard() {
         toast({ title: "Inventory Exported", description: "Your shop stock report has been downloaded." });
     };
 
-    /**
-     * Magic AI Segregation: Crops individual items from a master photo
-     */
-    const cropImage = (base64: string, box: number[]): Promise<string> => {
-        return new Promise((resolve) => {
-            const img = new (window as any).Image();
-            img.onload = () => {
-                const [ymin, xmin, ymax, xmax] = box;
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                
-                const width = (xmax - xmin) * img.width / 1000;
-                const height = (ymax - ymin) * img.height / 1000;
-                const startX = xmin * img.width / 1000;
-                const startY = ymin * img.height / 1000;
-                
-                canvas.width = width;
-                canvas.height = height;
-                ctx?.drawImage(img, startX, startY, width, height, 0, 0, width, height);
-                resolve(canvas.toDataURL('image/jpeg', 0.8));
-            };
-            img.src = base64;
-        });
-    };
-
     const handleBulkIntake = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -199,7 +198,6 @@ export default function SnapStockPartnerDashboard() {
             for (const d of detections) {
                 const id = uuidv4();
                 
-                // Segregate image if box is provided
                 let itemImage = uri;
                 if (d.box_2d) {
                     try {
@@ -229,14 +227,29 @@ export default function SnapStockPartnerDashboard() {
         if (!billPhoto || !productPhoto) return;
         setIsProcessingBill(true);
         try {
-            const result = await matchProductToBill(billPhoto, productPhoto);
-            const id = uuidv4();
-            await saveDocument('inventory', {
-                id, storeId: partnerId, name: result.productName, quantity: result.quantity, wholesalePrice: result.wholesalePrice, mrp: result.mrp,
-                category: result.category, shelfNumber: 'A1', imageDataUri: productPhoto, lastUpdated: new Date().toISOString()
-            }, id);
+            const matchedItems = await matchProductToBill(billPhoto, productPhoto);
+            
+            for (const result of matchedItems) {
+                const id = uuidv4();
+                
+                // Magic Segregation: Crop the specific item image from the group photo
+                let itemImage = productPhoto;
+                if (result.box_2d) {
+                    try {
+                        itemImage = await cropImage(productPhoto, result.box_2d);
+                    } catch (e) {
+                        console.warn("Failed to crop item:", result.productName);
+                    }
+                }
+
+                await saveDocument('inventory', {
+                    id, storeId: partnerId, name: result.productName, quantity: result.quantity, wholesalePrice: result.wholesalePrice, mrp: result.mrp,
+                    category: result.category, shelfNumber: 'A1', imageDataUri: itemImage, lastUpdated: new Date().toISOString()
+                }, id);
+            }
+
             await trackUsage();
-            toast({ title: "Bill Matched!" });
+            toast({ title: "Bill Matched!", description: `Added ${matchedItems.length} products with segregated images.` });
             setIsBillIntakeOpen(false);
             setBillPhoto(null); setProductPhoto(null);
             loadData();
@@ -450,8 +463,8 @@ export default function SnapStockPartnerDashboard() {
 
             {/* BILL INTAKE DIALOG */}
             <Dialog open={isBillIntakeOpen} onOpenChange={setIsBillIntakeOpen}>
-                <DialogContent className="max-w-2xl rounded-[32px] p-8 border-none no-print"><DialogHeader><DialogTitle className="text-2xl font-black italic uppercase text-slate-800">AI Bill Intake</DialogTitle><DialogDescription>Upload your supplier bill and the product photo to sync wholesale costs.</DialogDescription></DialogHeader>
-                    <div className="grid grid-cols-2 gap-6 py-6"><div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">1. Supplier Bill</Label><div className="relative aspect-[3/4] border-2 border-dashed rounded-2xl flex flex-col items-center justify-center bg-slate-50 cursor-pointer overflow-hidden" onClick={() => document.getElementById('bill-upload')?.click()}>{billPhoto ? <Image src={billPhoto} fill className="object-cover" alt="bill" /> : <><FileText className="h-8 w-8 text-slate-300" /><span className="text-[8px] font-bold uppercase mt-2">Upload Bill</span></>}</div><input type="file" id="bill-upload" accept="image/*" capture="environment" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if(f) setBillPhoto(await resizeImage(f)); }} /></div><div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">2. Product Photo</Label><div className="relative aspect-[3/4] border-2 border-dashed rounded-2xl flex flex-col items-center justify-center bg-slate-50 cursor-pointer overflow-hidden" onClick={() => document.getElementById('product-upload')?.click()}>{productPhoto ? <Image src={productPhoto} fill className="object-cover" alt="prod" /> : <><Camera className="h-8 w-8 text-slate-300" /><span className="text-[8px] font-bold uppercase mt-2">Upload Product</span></>}</div><input type="file" id="product-upload" accept="image/*" capture="environment" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if(f) setProductPhoto(await resizeImage(f)); }} /></div></div>
+                <DialogContent className="max-w-2xl rounded-[32px] p-8 border-none no-print"><DialogHeader><DialogTitle className="text-2xl font-black italic uppercase text-slate-800">AI Bill Intake</DialogTitle><DialogDescription>Upload your supplier bill and the GROUP PHOTO to sync wholesale costs.</DialogDescription></DialogHeader>
+                    <div className="grid grid-cols-2 gap-6 py-6"><div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">1. Supplier Bill</Label><div className="relative aspect-[3/4] border-2 border-dashed rounded-2xl flex flex-col items-center justify-center bg-slate-50 cursor-pointer overflow-hidden" onClick={() => document.getElementById('bill-upload')?.click()}>{billPhoto ? <Image src={billPhoto} fill className="object-cover" alt="bill" /> : <><FileText className="h-8 w-8 text-slate-300" /><span className="text-[8px] font-bold uppercase mt-2">Upload Bill</span></>}</div><input type="file" id="bill-upload" accept="image/*" capture="environment" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if(f) setBillPhoto(await resizeImage(f)); }} /></div><div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">2. Product GROUP PHOTO</Label><div className="relative aspect-[3/4] border-2 border-dashed rounded-2xl flex flex-col items-center justify-center bg-slate-50 cursor-pointer overflow-hidden" onClick={() => document.getElementById('product-upload')?.click()}>{productPhoto ? <Image src={productPhoto} fill className="object-cover" alt="prod" /> : <><Camera className="h-8 w-8 text-slate-300" /><span className="text-[8px] font-bold uppercase mt-2">Upload Group</span></>}</div><input type="file" id="product-upload" accept="image/*" capture="environment" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if(f) setProductPhoto(await resizeImage(f)); }} /></div></div>
                     <DialogFooter><Button className="w-full h-14 rounded-2xl font-black uppercase italic bg-blue-600 shadow-xl shadow-blue-900/20" onClick={handleProcessBill} disabled={isProcessingBill || !billPhoto || !productPhoto}>{isProcessingBill ? <Loader2 className="animate-spin mr-2" /> : <Sparkles className="mr-2" />} Match & Sync to Stock</Button></DialogFooter>
                 </DialogContent>
             </Dialog>
