@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -58,6 +57,7 @@ export default function SnapStockPartnerDashboard() {
 
     const trackUsage = useCallback(async () => {
         if (!partnerId) return;
+        // Increment Snap Usage for SaaS billing
         await saveDocument('snapstock_partners', { 
             snapUsage: increment(1) 
         }, partnerId);
@@ -274,12 +274,40 @@ export default function SnapStockPartnerDashboard() {
                     </Card>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in duration-500">
-                        {Object.entries(shelfGroups).map(([shelf, items]) => (
-                            <Card key={shelf} className="rounded-[32px] border-none shadow-lg bg-white overflow-hidden group hover:shadow-2xl transition-all">
-                                <CardHeader className="bg-slate-50 border-b flex flex-row items-center justify-between py-4 px-6"><div className="flex items-center gap-3"><div className="p-2 bg-blue-100 text-blue-600 rounded-xl font-black italic"><MapPin className="h-4 w-4" /></div><CardTitle className="text-sm font-black uppercase italic">Shelf {shelf}</CardTitle></div><Badge className="bg-slate-900 text-[10px] font-black italic">Stock: {items.reduce((sum, i) => sum + i.quantity, 0)}</Badge></CardHeader>
-                                <CardContent className="p-4 space-y-3"><div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden"><div className={cn("h-full transition-all duration-1000", items.length > 5 ? "bg-red-500" : "bg-blue-500")} style={{ width: `${Math.min(100, (items.length / 10) * 100)}%` }}></div></div>{items.slice(0, 3).map(item => (<div key={item.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100"><Image src={item.imageDataUri} width={32} height={32} alt="p" className="rounded-lg object-cover" unoptimized /><div className="flex-1 min-w-0"><p className="text-[10px] font-black uppercase italic truncate">{item.name}</p><p className="text-[8px] font-bold text-blue-500">₹{item.mrp}</p></div></div>))}{items.length > 3 && <p className="text-center text-[8px] font-black uppercase text-slate-400">+ {items.length - 3} more items</p></CardContent>
-                            </Card>
-                        ))}
+                        {Object.entries(shelfGroups).map(([shelf, items]) => {
+                            const shelfStock = items.reduce((sum, i) => sum + i.quantity, 0);
+                            const density = Math.min(100, (items.length / 10) * 100);
+                            return (
+                                <Card key={shelf} className="rounded-[32px] border-none shadow-lg bg-white overflow-hidden group hover:shadow-2xl transition-all">
+                                    <CardHeader className="bg-slate-50 border-b flex flex-row items-center justify-between py-4 px-6">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 bg-blue-100 text-blue-600 rounded-xl font-black italic"><MapPin className="h-4 w-4" /></div>
+                                            <CardTitle className="text-sm font-black uppercase italic">Shelf {shelf}</CardTitle>
+                                        </div>
+                                        <Badge className="bg-slate-900 text-[10px] font-black italic">Stock: {shelfStock}</Badge>
+                                    </CardHeader>
+                                    <CardContent className="p-4 space-y-3">
+                                        <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                                            <div className={cn("h-full transition-all duration-1000", items.length > 5 ? "bg-red-500" : "bg-blue-500")} 
+                                                 style={{ width: `${density}%` }}>
+                                            </div>
+                                        </div>
+                                        {items.slice(0, 3).map(item => (
+                                            <div key={item.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100">
+                                                <Image src={item.imageDataUri} width={32} height={32} alt="p" className="rounded-lg object-cover" unoptimized />
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-[10px] font-black uppercase italic truncate text-slate-800">{item.name}</p>
+                                                    <p className="text-[8px] font-bold text-blue-500">₹{item.mrp}</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                        {items.length > 3 && (
+                                            <p className="text-center text-[8px] font-black uppercase text-slate-400 pt-1">+ {items.length - 3} more articles</p>
+                                        )}
+                                    </CardContent>
+                                </Card>
+                            );
+                        })}
                     </div>
                 )}
             </main>
@@ -287,16 +315,16 @@ export default function SnapStockPartnerDashboard() {
             <Dialog open={isBillIntakeOpen} onOpenChange={setIsBillIntakeOpen}>
                 <DialogContent className="max-w-2xl rounded-[32px] p-8 border-none"><DialogHeader><DialogTitle className="text-2xl font-black italic uppercase text-slate-800">AI Bill Intake</DialogTitle><DialogDescription>Upload your supplier bill and the product photo to sync wholesale costs.</DialogDescription></DialogHeader>
                     <div className="grid grid-cols-2 gap-6 py-6"><div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">1. Supplier Bill</Label><div className="relative aspect-[3/4] border-2 border-dashed rounded-2xl flex flex-col items-center justify-center bg-slate-50 cursor-pointer overflow-hidden" onClick={() => document.getElementById('bill-upload')?.click()}>{billPhoto ? <Image src={billPhoto} fill className="object-cover" alt="bill" /> : <><FileText className="h-8 w-8 text-slate-300" /><span className="text-[8px] font-bold uppercase mt-2">Upload Bill</span></>}</div><input type="file" id="bill-upload" accept="image/*" capture="environment" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if(f) setBillPhoto(await resizeImage(f)); }} /></div><div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">2. Product Photo</Label><div className="relative aspect-[3/4] border-2 border-dashed rounded-2xl flex flex-col items-center justify-center bg-slate-50 cursor-pointer overflow-hidden" onClick={() => document.getElementById('product-upload')?.click()}>{productPhoto ? <Image src={productPhoto} fill className="object-cover" alt="prod" /> : <><Camera className="h-8 w-8 text-slate-300" /><span className="text-[8px] font-bold uppercase mt-2">Upload Product</span></>}</div><input type="file" id="product-upload" accept="image/*" capture="environment" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if(f) setProductPhoto(await resizeImage(f)); }} /></div></div>
-                    <DialogFooter><Button className="w-full h-14 rounded-2xl font-black uppercase italic bg-blue-600" onClick={handleProcessBill} disabled={isProcessingBill || !billPhoto || !productPhoto}>{isProcessingBill ? <Loader2 className="animate-spin mr-2" /> : <Sparkles className="mr-2" />} Match & Sync to Stock</Button></DialogFooter>
+                    <DialogFooter><Button className="w-full h-14 rounded-2xl font-black uppercase italic bg-blue-600 shadow-xl shadow-blue-900/20" onClick={handleProcessBill} disabled={isProcessingBill || !billPhoto || !productPhoto}>{isProcessingBill ? <Loader2 className="animate-spin mr-2" /> : <Sparkles className="mr-2" />} Match & Sync to Stock</Button></DialogFooter>
                 </DialogContent>
             </Dialog>
 
             <Dialog open={isScanning} onOpenChange={setIsScanning}><DialogContent className="max-w-sm rounded-[32px] p-6"><DialogHeader><DialogTitle className="text-center uppercase font-black">Scan Product QR</DialogTitle></DialogHeader><div id="partner-reader" className="w-full aspect-square rounded-2xl overflow-hidden border-2 bg-slate-50"></div><DialogFooter><Button variant="outline" className="w-full rounded-xl" onClick={() => setIsScanning(false)}>Cancel</Button></DialogFooter></DialogContent></Dialog>
 
             <Dialog open={!!selectedSaleItem} onOpenChange={(open) => !open && setSelectedSaleItem(null)}>
-                <DialogContent className="max-w-md rounded-[32px] p-8"><DialogHeader><DialogTitle className="text-2xl font-black italic uppercase">Confirm Sale</DialogTitle></DialogHeader>
+                <DialogContent className="max-md rounded-[32px] p-8"><DialogHeader><DialogTitle className="text-2xl font-black italic uppercase">Confirm Sale</DialogTitle></DialogHeader>
                     {selectedSaleItem && (
-                        <div className="space-y-6 pt-4"><div className="flex gap-4 p-4 bg-slate-50 rounded-2xl"><div className="relative h-16 w-16 rounded-xl overflow-hidden border bg-white"><Image src={selectedSaleItem.imageDataUri} fill alt="p" className="object-cover" unoptimized /></div><div><p className="font-black italic uppercase">{selectedSaleItem.name}</p><p className="text-xs text-primary font-bold">In Stock: {selectedSaleItem.quantity}</p></div></div><div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label className="text-[10px] font-black uppercase">Sell Qty</Label><Input type="number" value={saleQty} onChange={e => setSaleQty(Number(e.target.value))} /></div><div className="space-y-2"><Label className="text-[10px] font-black uppercase">Sell Price (₹)</Label><Input type="number" value={actualSellPrice} onChange={e => setSalePrice(Number(e.target.value))} /></div></div><Button className="w-full h-14 rounded-2xl font-black uppercase italic text-lg bg-blue-600" onClick={async () => { await updateItemQty(selectedSaleItem.id, -saleQty); setSelectedSaleItem(null); toast({ title: "Sale Recorded!" }); }}>Process Sale</Button></div>
+                        <div className="space-y-6 pt-4"><div className="flex gap-4 p-4 bg-slate-50 rounded-2xl"><div className="relative h-16 w-16 rounded-xl overflow-hidden border bg-white"><Image src={selectedSaleItem.imageDataUri} fill alt="p" className="object-cover" unoptimized /></div><div><p className="font-black italic uppercase text-slate-800">{selectedSaleItem.name}</p><p className="text-xs text-blue-600 font-bold">Available: {selectedSaleItem.quantity}</p></div></div><div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">Sell Quantity</Label><Input type="number" className="h-12 rounded-xl font-bold" value={saleQty} onChange={e => setSaleQty(Number(e.target.value))} /></div><div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">Unit Price (₹)</Label><Input type="number" className="h-12 rounded-xl font-bold" value={actualSellPrice} onChange={e => setSalePrice(Number(e.target.value))} /></div></div><Button className="w-full h-14 rounded-2xl font-black uppercase italic text-lg bg-blue-600 shadow-xl shadow-blue-900/20" onClick={async () => { await updateItemQty(selectedSaleItem.id, -saleQty); setSelectedSaleItem(null); toast({ title: "Sale Completed!" }); }}>Confirm Transaction</Button></div>
                     )}
                 </DialogContent>
             </Dialog>
