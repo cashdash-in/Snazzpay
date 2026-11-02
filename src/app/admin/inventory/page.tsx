@@ -12,7 +12,7 @@ import {
     Loader2, Camera, Plus, Minus, Search, 
     ShieldCheck, Sparkles, Send, Mic, Trash2,
     X, PackagePlus, ImagePlus, Scan, Map as MapIcon, List, CheckCircle2,
-    Sun, Moon, Download, Printer, LayoutGrid
+    Sun, Moon, Download, Printer, LayoutGrid, Layers, MessageSquare
 } from 'lucide-react';
 import { getCollection, saveDocument, deleteDocument } from '@/services/firestore';
 import { parseInventoryCommand, detectItemsInPhoto } from '@/ai/flows/inventory-ai';
@@ -41,7 +41,6 @@ export default function AdminInventoryPage() {
     
     const [isQrSearching, setIsQrSearching] = useState(false);
     const [isListening, setIsListening] = useState(false);
-    const [voiceTranscript, setVoiceTranscript] = useState('');
     const [textCommand, setTextCommand] = useState('');
     
     const [detectedIntakeItems, setDetectedIntakeItems] = useState<{
@@ -321,8 +320,8 @@ export default function AdminInventoryPage() {
                         </CardContent>
                     </Card>
                     <Link href="/admin/inventory/audit"><Card className="hover:bg-slate-50 transition-colors shadow-lg border-none cursor-pointer h-full"><CardHeader className="pb-2"><CardTitle className="text-[10px] font-black uppercase text-purple-600 tracking-widest">Visual Audit</CardTitle></CardHeader><CardContent className="flex items-center gap-4"><div className="p-2 bg-purple-100 text-purple-600 rounded-lg"><CheckCircle2 className="h-5 w-5" /></div><div className="text-xl font-bold italic">Shelf Check</div></CardContent></Card></Link>
-                    <Card className="shadow-lg border-none bg-white h-full flex flex-col justify-center"><CardHeader className="pb-2"><CardTitle className="text-[10px] font-black uppercase text-amber-600 tracking-widest">Broadcasts</CardTitle></CardHeader><CardContent className="flex gap-2 pt-0"><Button variant="outline" size="sm" className="flex-1 rounded-xl h-10 border-amber-100 text-amber-600" onClick={() => handleBroadcastReport('morning')}><Sun className="h-3 w-3 mr-1"/> MORNING</Button><Button variant="outline" size="sm" className="flex-1 rounded-xl h-10 border-indigo-100 text-indigo-600" onClick={() => handleBroadcastReport('night')}><Moon className="h-3 w-3 mr-1"/> NIGHT</Button></CardContent></Card>
-                    <Card className="bg-slate-900 text-white shadow-xl border-none relative group overflow-hidden" onClick={handleExportFullInventory}><div className="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer"><Download className="h-8 w-8 text-primary" /></div><CardHeader className="pb-2"><CardTitle className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Total SKUs</CardTitle></CardHeader><CardContent><div className="text-3xl font-black">{inventory.length}</div></CardContent></Card>
+                    <Card className="shadow-lg border-none bg-white h-full flex flex-col justify-center"><CardHeader className="pb-2"><CardTitle className="text-[10px] font-black uppercase text-amber-600 tracking-widest">Broadcasts</CardTitle></CardHeader><CardContent className="flex gap-2 pt-0"><Button variant="outline" size="sm" className="flex-1 rounded-xl h-10 border-amber-100 text-amber-600" onClick={() => handleBroadcastReport('morning')}><Sun className="h-3 w-3 mr-1"/> MORNING</Button><Button variant="outline" size="sm" className="flex-1 rounded-xl h-10 border-indigo-100 text-indigo-600" onClick={() => handleBroadcastReport('night')}><Moon className="h-3 w-3 mr-1"/> NIGHT</Button></CardContent>
+                    <Card className="bg-slate-900 text-white shadow-xl border-none relative group overflow-hidden" onClick={handleExportFullInventory}><div className="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer"><Download className="h-8 w-8 text-primary" /></div><CardHeader className="pb-2"><CardTitle className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Total SKUs</CardTitle></CardHeader><CardContent><div className="text-3xl font-black">{inventory.length}</div></CardContent>
                     <Card className="bg-slate-50 shadow-inner border-none flex flex-col justify-center p-4"><p className="text-[8px] font-black uppercase text-slate-400 mb-1">View Mode</p><div className="flex bg-white rounded-xl p-1 border"><Button variant={activeView === 'list' ? 'default' : 'ghost'} size="sm" className="flex-1 h-8 rounded-lg text-[10px] uppercase font-bold" onClick={() => setActiveView('list')}><List className="h-3 w-3 mr-1" /> List</Button><Button variant={activeView === 'shop-map' ? 'default' : 'ghost'} size="sm" className="flex-1 h-8 rounded-lg text-[10px] uppercase font-bold" onClick={() => setActiveView('shop-map')}><MapIcon className="h-3 w-3 mr-1" /> Map</Button></div></Card>
                 </div>
 
