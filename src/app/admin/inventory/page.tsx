@@ -336,15 +336,15 @@ export default function AdminInventoryPage() {
     return (
         <AppShell title="SnapStock AI Dashboard">
             <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                    <Card className="bg-primary text-primary-foreground shadow-xl border-none">
+                <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+                    <Card className="bg-primary text-primary-foreground shadow-xl border-none md:col-span-1">
                         <CardHeader className="pb-2 flex flex-row justify-between items-center">
                             <CardTitle className="text-[10px] font-black uppercase tracking-widest opacity-70">Stock Actions</CardTitle>
                             <Sparkles className="h-4 w-4" />
                         </CardHeader>
                         <CardContent className="space-y-2">
                              <Button size="sm" variant="secondary" className="w-full rounded-xl" onClick={() => document.getElementById('bulk-intake-capture')?.click()}>
-                                {isAnalyzing ? <Loader2 className="animate-spin h-4 w-4" /> : <Layers className="h-4 w-4 mr-2" />} Bulk Intake (Photo)
+                                {isAnalyzing ? <Loader2 className="animate-spin h-4 w-4" /> : <Layers className="h-4 w-4 mr-2" />} Bulk Intake
                              </Button>
                              <div className="flex gap-2">
                                 <Button size="sm" variant="secondary" className="flex-1 rounded-xl" onClick={() => { const sr = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition; if(!sr) return; const r = new sr(); r.onstart = () => {}; r.onresult = (e: any) => handleTextCommand(e.results[0][0].transcript); r.onend = () => {}; r.start(); }}><Mic className="h-3 w-3 mr-1" /> Voice</Button>
@@ -385,7 +385,7 @@ export default function AdminInventoryPage() {
                         </CardContent>
                     </Card>
 
-                    <Link href="/admin/inventory/audit" className="contents">
+                    <Link href="/admin/inventory/audit" className="md:col-span-1">
                         <Card className="hover:bg-slate-50 transition-colors shadow-lg border-none cursor-pointer h-full">
                             <CardHeader className="pb-2">
                                 <CardTitle className="text-[10px] font-black uppercase text-purple-600 tracking-widest">Visual Audit</CardTitle>
@@ -399,7 +399,7 @@ export default function AdminInventoryPage() {
                         </Card>
                     </Link>
 
-                    <Card className="shadow-lg border-none bg-white h-full flex flex-col justify-center">
+                    <Card className="shadow-lg border-none bg-white h-full flex flex-col justify-center md:col-span-2">
                         <CardHeader className="pb-2">
                             <CardTitle className="text-[10px] font-black uppercase text-amber-600 tracking-widest">Broadcasts</CardTitle>
                         </CardHeader>
@@ -409,8 +409,8 @@ export default function AdminInventoryPage() {
                         </CardContent>
                     </Card>
 
-                    <Card className="bg-slate-900 text-white shadow-xl border-none relative group overflow-hidden" onClick={handleExportFullInventory}>
-                        <div className="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
+                    <Card className="bg-slate-900 text-white shadow-xl border-none relative group overflow-hidden md:col-span-1 cursor-pointer" onClick={handleExportFullInventory}>
+                        <div className="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                             <Download className="h-8 w-8 text-primary" />
                         </div>
                         <CardHeader className="pb-2">
@@ -421,8 +421,8 @@ export default function AdminInventoryPage() {
                         </CardContent>
                     </Card>
 
-                    <Card className="bg-slate-50 shadow-inner border-none flex flex-col justify-center p-4">
-                        <p className="text-[8px] font-black uppercase text-slate-400 mb-1">View Mode</p>
+                    <Card className="bg-slate-50 shadow-inner border-none flex flex-col justify-center p-4 md:col-span-1">
+                        <p className="text-[8px] font-black uppercase text-slate-400 mb-1 text-center">View Mode</p>
                         <div className="flex bg-white rounded-xl p-1 border">
                             <Button variant={activeView === 'list' ? 'default' : 'ghost'} size="sm" className="flex-1 h-8 rounded-lg text-[10px] uppercase font-bold" onClick={() => setActiveView('list')}><List className="h-3 w-3 mr-1" /> List</Button>
                             <Button variant={activeView === 'shop-map' ? 'default' : 'ghost'} size="sm" className="flex-1 h-8 rounded-lg text-[10px] uppercase font-bold" onClick={() => setActiveView('shop-map')}><MapIcon className="h-3 w-3 mr-1" /> Map</Button>
