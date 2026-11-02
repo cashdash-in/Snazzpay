@@ -11,7 +11,7 @@ import {
     TrendingUp, UserPlus, 
     Search, Calendar, MoreVertical, Zap,
     Share2, Trash2, ShieldCheck, RefreshCw,
-    Clock, Link as LinkIcon, DollarSign
+    Clock, Link as LinkIcon, DollarSign, Ban, MapPin
 } from 'lucide-react';
 import { getCollection, saveDocument, deleteDocument } from '@/services/firestore';
 import { Badge } from '@/components/ui/badge';
@@ -36,6 +36,7 @@ type SnapStockPartner = {
     ownerName: string;
     email: string;
     phone: string;
+    address: string;
     plan: 'Basic' | 'SnapStock Pro' | 'Enterprise';
     status: 'Active' | 'Trial' | 'Expired';
     snapUsage: number;
@@ -56,6 +57,7 @@ export default function SnapStockLicensesPage() {
         ownerName: '',
         email: '',
         phone: '',
+        address: '',
         plan: 'SnapStock Pro' as SnapStockPartner['plan']
     });
 
@@ -73,7 +75,7 @@ export default function SnapStockLicensesPage() {
 
     useEffect(() => {
         loadPartners();
-    }, [toast]);
+    }, []);
 
     const stats = useMemo(() => {
         return {
@@ -89,8 +91,8 @@ export default function SnapStockLicensesPage() {
     );
 
     const handleCreatePartner = async () => {
-        if (!newPartner.storeName || !newPartner.ownerName || !newPartner.email) {
-            toast({ variant: 'destructive', title: "Details Required" });
+        if (!newPartner.storeName || !newPartner.ownerName || !newPartner.email || !newPartner.address) {
+            toast({ variant: 'destructive', title: "Details Required", description: "Please provide all details including the shop address." });
             return;
         }
 
@@ -112,7 +114,7 @@ export default function SnapStockLicensesPage() {
             await saveDocument('snapstock_partners', partnerData, id);
             setPartners(prev => [partnerData, ...prev]);
             toast({ title: "Partner Registered", description: `10-day trial activated for ${newPartner.storeName}.` });
-            setNewPartner({ storeName: '', ownerName: '', email: '', phone: '', plan: 'SnapStock Pro' });
+            setNewPartner({ storeName: '', ownerName: '', email: '', phone: '', address: '', plan: 'SnapStock Pro' });
         } catch (e) {
             toast({ variant: 'destructive', title: "Failed to save partner" });
         } finally {
@@ -208,7 +210,7 @@ export default function SnapStockLicensesPage() {
                                         <UserPlus className="mr-2 h-4 w-4"/> New Partner
                                     </Button>
                                 </DialogTrigger>
-                                <DialogContent className="rounded-[32px]">
+                                <DialogContent className="rounded-[32px] max-w-2xl">
                                     <DialogHeader>
                                         <DialogTitle className="text-2xl font-black italic uppercase">Register SnapStock Partner</DialogTitle>
                                         <DialogDescription>Manually add a shopkeeper to the SnapStock SaaS network.</DialogDescription>
@@ -230,6 +232,10 @@ export default function SnapStockLicensesPage() {
                                             <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">WhatsApp Phone</Label>
                                             <Input type="tel" value={newPartner.phone} onChange={e => setNewPartner({...newPartner, phone: e.target.value})} className="h-12 rounded-xl bg-slate-50" />
                                         </div>
+                                        <div className="md:col-span-2 space-y-2">
+                                            <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Complete Shop Address</Label>
+                                            <Input value={newPartner.address} onChange={e => setNewPartner({...newPartner, address: e.target.value})} className="h-12 rounded-xl bg-slate-50" placeholder="Street, Landmark, City, State, ZIP" />
+                                        </div>
                                     </div>
                                     <DialogFooter>
                                         <DialogClose asChild>
@@ -249,7 +255,7 @@ export default function SnapStockLicensesPage() {
                                     <TableHead className="pl-8">Store & Owner</TableHead>
                                     <TableHead>License Status</TableHead>
                                     <TableHead>Snap Usage</TableHead>
-                                    <TableHead>Joined At</TableHead>
+                                    <TableHead>Address</TableHead>
                                     <TableHead>Revenue</TableHead>
                                     <TableHead className="text-right pr-8">Actions</TableHead>
                                 </TableRow>
@@ -280,7 +286,12 @@ export default function SnapStockLicensesPage() {
                                                 <span className="font-mono text-xs font-black">{p.snapUsage} Snaps</span>
                                             </div>
                                         </TableCell>
-                                        <TableCell className="text-xs font-medium text-slate-500">{format(parseISO(p.joinedAt), 'PP')}</TableCell>
+                                        <TableCell>
+                                            <div className="flex items-center gap-1.5 max-w-[200px] truncate">
+                                                <MapPin className="h-3 w-3 text-slate-400 shrink-0" />
+                                                <span className="text-[10px] font-medium text-slate-500 italic">{p.address || 'Not Provided'}</span>
+                                            </div>
+                                        </TableCell>
                                         <TableCell className="font-black text-slate-700">₹{p.revenueGenerated}</TableCell>
                                         <TableCell className="text-right pr-8">
                                             <DropdownMenu>

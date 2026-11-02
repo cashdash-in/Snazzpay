@@ -9,7 +9,7 @@ import {
     Zap, Store, User, Mail, Phone, 
     ShieldCheck, Loader2, Sparkles,
     ImagePlus, ArrowRight, CheckCircle2,
-    Lock, FileText
+    Lock, FileText, MapPin
 } from "lucide-react";
 import Link from "next/link";
 import { useToast } from '@/hooks/use-toast';
@@ -31,6 +31,7 @@ export default function SnapStockRegistrationPage() {
         ownerName: '',
         email: '',
         phone: '',
+        address: '',
         gstNumber: '',
         password: ''
     });
@@ -46,8 +47,8 @@ export default function SnapStockRegistrationPage() {
 
     const handleSignup = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!formData.storeName || !formData.email || !formData.password) {
-            toast({ variant: 'destructive', title: "Missing Fields" });
+        if (!formData.storeName || !formData.email || !formData.password || !formData.address) {
+            toast({ variant: 'destructive', title: "Missing Fields", description: "Please fill out all required fields including address." });
             return;
         }
 
@@ -125,10 +126,24 @@ export default function SnapStockRegistrationPage() {
                                     </div>
 
                                     <div className="space-y-2">
+                                        <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Shop Address</Label>
+                                        <div className="relative">
+                                            <MapPin className="absolute left-3 top-3 h-4 w-4 text-slate-500" />
+                                            <Input 
+                                                required
+                                                placeholder="Complete Shop Address"
+                                                className="h-12 bg-white/5 border-white/10 rounded-2xl text-white pl-9"
+                                                value={formData.address}
+                                                onChange={e => setFormData({...formData, address: e.target.value})}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
                                         <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Shop Logo</Label>
                                         <div className="flex gap-4 items-center">
                                             <div 
-                                                className="w-16 h-16 rounded-2xl bg-white/5 border-2 border-dashed border-white/10 flex items-center justify-center overflow-hidden cursor-pointer hover:bg-white/10 transition-colors"
+                                                className="w-16 h-16 rounded-2xl bg-white/5 border-2 border-dashed border-white/10 flex items-center justify-center overflow-hidden relative cursor-pointer hover:bg-white/10 transition-colors"
                                                 onClick={() => document.getElementById('logo-upload')?.click()}
                                             >
                                                 {logoPreview ? <Image src={logoPreview} alt="logo" fill className="object-contain p-1" /> : <ImagePlus className="h-6 w-6 text-slate-600" />}
