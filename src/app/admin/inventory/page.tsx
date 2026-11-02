@@ -339,6 +339,26 @@ export default function AdminInventoryPage() {
         toast({ title: "Report Ready", description: "Excel downloaded & WhatsApp opening." });
     };
 
+    const handleExportFullInventory = () => {
+        const excelData = inventory.map(i => ({
+            'Marker ID': i.id,
+            'Product Name': i.name,
+            'Category': i.category,
+            'Shelf Location': i.shelfNumber,
+            'Quantity In Stock': i.quantity,
+            'Purchase Price (₹)': i.wholesalePrice,
+            'MRP (₹)': i.mrp,
+            'Inventory Value (₹)': i.quantity * i.mrp,
+            'Last Updated': i.lastUpdated ? format(new Date(i.lastUpdated), 'PPpp') : 'N/A'
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(excelData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Full Inventory");
+        XLSX.writeFile(wb, `Snazzify_Master_Inventory_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+        toast({ title: "Excel Downloaded", description: "Master inventory report is ready." });
+    };
+
     const startVoiceCapture = () => {
         const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitRecognition;
         if (!SpeechRecognition) { toast({ variant: 'destructive', title: "Speech Not Supported" }); return; }
@@ -397,7 +417,6 @@ export default function AdminInventoryPage() {
                                     <Button size="sm" variant="secondary" className="flex-1 rounded-xl" onClick={() => document.getElementById('new-item-capture')?.click()}><Plus className="h-3 w-3 mr-1" /> New</Button>
                                 </div>
                              </div>
-                             {/* capture="environment" added for camera access */}
                              <input type="file" id="bulk-intake-capture" accept="image/*" capture="environment" className="hidden" onChange={handleBulkIntakeCapture} />
                              <input type="file" id="new-item-capture" accept="image/*" capture="environment" className="hidden" onChange={handleNewProductCapture} />
                         </CardContent>
@@ -421,7 +440,10 @@ export default function AdminInventoryPage() {
                         </CardContent>
                     </Card>
 
-                    <Card className="bg-slate-900 text-white shadow-xl border-none">
+                    <Card className="bg-slate-900 text-white shadow-xl border-none relative group overflow-hidden">
+                         <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer" onClick={handleExportFullInventory}>
+                            <Download className="h-8 w-8 text-primary" />
+                         </div>
                          <CardHeader className="pb-2"><CardTitle className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Total SKUs</CardTitle></CardHeader>
                          <CardContent><div className="text-3xl font-black">{inventory.length}</div></CardContent>
                     </Card>

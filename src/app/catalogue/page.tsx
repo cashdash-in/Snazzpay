@@ -99,17 +99,18 @@ function CatalogueOrderPageContent() {
         const isFootwear = title.includes('shoe') || title.includes('sneaker') || title.includes('sandal') || title.includes('heel') || title.includes('bondi') || title.includes('clifton') || title.includes('hoka') || cat.includes('footwear') || cat.includes('shoe') || cat.includes('sneaker');
         const isEyewear = title.includes('glass') || title.includes('shade') || title.includes('spectacle') || cat.includes('eyewear') || cat.includes('glass');
         
-        const isMini = title.includes('mini') || desc.includes('mini') || title.includes('skirt') || desc.includes('skirt');
-        const isDress = title.includes('dress') || title.includes('frock') || cat.includes('dress') || cat.includes('frock');
-        const isKurti = title.includes('kurti') || title.includes('kurta') || cat.includes('kurti') || cat.includes('kurta');
-        const isSaree = (title.includes('saree') || title.includes('fabric') || cat.includes('saree') || cat.includes('fabric')) && !isMini && !isDress;
+        // Refined Exclusivity check
+        const isMini = title.includes('mini') || desc.includes('mini') || title.includes('skirt') || desc.includes('skirt') || title.includes('short');
+        const isDress = (title.includes('dress') || title.includes('frock') || cat.includes('dress') || cat.includes('frock')) && !isMini;
+        const isKurti = (title.includes('kurti') || title.includes('kurta') || cat.includes('kurti') || cat.includes('kurta')) && !isMini && !isDress;
+        const isSaree = (title.includes('saree') || title.includes('fabric') || cat.includes('saree') || cat.includes('fabric')) && !isMini && !isDress && !isKurti;
 
         if (isWatch) return { type: 'Accessory', hint: 'wrist', label: 'WRIST', isApparel: false };
         if (isFootwear) return { type: 'Footwear', hint: 'feet', label: 'FEET', isApparel: false };
         if (isEyewear) return { type: 'Eyewear', hint: 'face', label: 'FACE', isApparel: false };
         
         if (isMini) return { type: 'Western Wear', hint: 'selfie', label: 'SELFIE', isApparel: true };
-        if (isDress) return { type: 'Dress', hint: 'selfie', label: 'SELFIE', isApparel: true };
+        if (isDress) return { type: 'Western Dress', hint: 'selfie', label: 'SELFIE', isApparel: true };
         if (isKurti) return { type: 'Kurti', hint: 'selfie', label: 'SELFIE', isApparel: true };
         if (isSaree) return { type: 'Fabric', hint: 'selfie', label: 'SELFIE', isApparel: true };
         
@@ -151,7 +152,7 @@ function CatalogueOrderPageContent() {
                     
                     if (displayProduct.isEastIndianLugra) setSelectedDrapeStyle('East Indian Lugra');
                     else if (ctx.type === 'Western Wear') setSelectedDrapeStyle('Western Wear');
-                    else if (ctx.type === 'Dress') setSelectedDrapeStyle('Western Dress');
+                    else if (ctx.type === 'Western Dress') setSelectedDrapeStyle('Western Dress');
                     else if (ctx.type === 'Kurti') setSelectedDrapeStyle('Kurti');
                     else if (ctx.type === 'Fabric') setSelectedDrapeStyle('Standard Saree');
                     
@@ -358,7 +359,7 @@ function CatalogueOrderPageContent() {
                                                 <Select value={selectedDrapeStyle} onValueChange={(val: any) => setSelectedDrapeStyle(val)}>
                                                     <SelectTrigger className="h-10 bg-white/10 border-white/20 text-white rounded-xl text-xs font-bold"><SelectValue /></SelectTrigger>
                                                     <SelectContent>
-                                                        <SelectItem value="Western Wear">Westernwear (Mini/Skirt)</SelectItem>
+                                                        <SelectItem value="Western Wear">Westernwear (Short/Mini)</SelectItem>
                                                         <SelectItem value="Western Dress">Western Dress / Gown</SelectItem>
                                                         <SelectItem value="Kurti">Ethnic Kurti</SelectItem>
                                                         <SelectItem value="Standard Saree">Standard Saree</SelectItem>
@@ -387,7 +388,6 @@ function CatalogueOrderPageContent() {
                                                 <Button onClick={() => galleryInputRef.current?.click()} disabled={!hasConsented || isTryOnLoading} variant="secondary" className="bg-white/10 hover:bg-white/20 text-white border-white/10 rounded-xl h-12 font-bold"><ImagePlus className="mr-2 h-4 w-4" /> From Gallery</Button>
                                             </>
                                         )}
-                                        {/* capture="environment" for live camera */}
                                         <input ref={cameraInputRef} type="file" accept="image/*" capture="user" className="hidden" onChange={handleTryOnUpload} />
                                         <input ref={galleryInputRef} type="file" accept="image/*" className="hidden" onChange={handleTryOnUpload} />
                                     </div>

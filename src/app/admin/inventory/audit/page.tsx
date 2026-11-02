@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { AppShell } from '@/components/layout/app-shell';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Camera, ShieldCheck, Sparkles, CheckCircle2, AlertTriangle, RefreshCw, Layers, MapPin, LayoutGrid, Info } from 'lucide-react';
+import { Loader2, Camera, ShieldCheck, Sparkles, CheckCircle2, AlertTriangle, RefreshCw, Layers, MapPin, LayoutGrid, Info, FileSpreadsheet, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { getCollection, saveDocument } from '@/services/firestore';
 import { detectItemsInPhoto } from '@/ai/flows/inventory-ai';
@@ -15,6 +15,8 @@ import Image from 'next/image';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import * as XLSX from 'xlsx';
+import { format } from 'date-fns';
 
 export default function StockAuditPage() {
     const { toast } = useToast();
@@ -97,6 +99,28 @@ export default function StockAuditPage() {
         }
     };
 
+    const handleExportAudit = () => {
+        if (auditResults.length === 0) return;
+        
+        const excelData = auditResults.map(res => {
+            const diff = res.visualCount - res.product.quantity;
+            return {
+                'Shelf': res.product.shelfNumber || 'N/A',
+                'Product Name': res.product.name,
+                'System Qty': res.product.quantity,
+                'Visual Qty (AI)': res.visualCount,
+                'Discrepancy': diff,
+                'Status': diff === 0 ? 'MATCH' : (diff > 0 ? 'SURPLUS' : 'MISSING')
+            };
+        });
+
+        const ws = XLSX.utils.json_to_sheet(excelData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Shelf Audit");
+        XLSX.writeFile(wb, `Shelf_Audit_Report_${format(new Date(), 'yyyy-MM-dd_HHmm')}.xlsx`);
+        toast({ title: "Audit Exported", description: "Excel file has been downloaded." });
+    };
+
     const groupedAudit = useMemo(() => {
         const groups: Record<string, typeof auditResults> = {};
         auditResults.forEach(res => {
@@ -149,9 +173,16 @@ export default function StockAuditPage() {
                             <h2 className="text-3xl font-black italic uppercase tracking-tighter">Visual Shelf Check</h2>
                             <p className="text-slate-400 text-sm max-w-sm">Snap a photo of any shelf section. AI will count items and compare with your digital records.</p>
                         </div>
-                        <Button size="lg" className="h-16 px-10 rounded-2xl font-black uppercase italic text-lg shadow-2xl shadow-primary/20" onClick={() => document.getElementById('audit-cam-input')?.click()} disabled={isAnalyzing}>
-                            {isAnalyzing ? <Loader2 className="animate-spin mr-2" /> : <Camera className="mr-2 h-6 w-6" />} Start Shelf Scan
-                        </Button>
+                        <div className="flex gap-3">
+                            <Button size="lg" className="h-16 px-10 rounded-2xl font-black uppercase italic text-lg shadow-2xl shadow-primary/20" onClick={() => document.getElementById('audit-cam-input')?.click()} disabled={isAnalyzing}>
+                                {isAnalyzing ? <Loader2 className="animate-spin mr-2" /> : <Camera className="mr-2 h-6 w-6" />} Start Shelf Scan
+                            </Button>
+                            {auditResults.length > 0 && (
+                                <Button size="lg" variant="outline" className="h-16 px-10 rounded-2xl font-black uppercase italic text-lg border-white/10 text-white hover:bg-white/10" onClick={handleExportAudit}>
+                                    <FileSpreadsheet className="mr-2 h-6 w-6" /> Export Report
+                                </Button>
+                            )}
+                        </div>
                         <input id="audit-cam-input" type="file" accept="image/*" capture="environment" className="hidden" onChange={handleAuditPhoto} />
                     </CardContent>
                 </Card>
@@ -226,7 +257,7 @@ export default function StockAuditPage() {
                             <div className="flex gap-3 w-full sm:w-auto">
                                 <Button variant="outline" className="flex-1 sm:flex-none rounded-xl h-14 px-8 text-slate-400 border-white/10 hover:bg-white/5" onClick={() => setAuditResults([])}>Discard Audit</Button>
                                 <Button className="flex-2 sm:flex-none h-14 px-10 font-black uppercase italic rounded-xl shadow-2xl shadow-primary/20 bg-primary hover:bg-primary/90" onClick={handleApplyAdjustments} disabled={isProcessingAudit}>
-                                    {isProcessingAudit ? <Loader2 className="animate-spin mr-2" /> : <RefreshCw className="mr-2 h-5 w-5" />} Sync System with Visuals
+                                    {isProcessingAudit ? <Loader2 className="animate-spin mr-2 h-5 w-5" /> : <RefreshCw className="mr-2 h-5 w-5" />} Sync System with Visuals
                                 </Button>
                             </div>
                         </div>

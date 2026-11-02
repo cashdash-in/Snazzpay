@@ -13,33 +13,38 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing image data' }, { status: 400 });
     }
 
-    const garment = (input.productTitle || 'Apparel').toLowerCase();
-    const isWestern = garment.includes('skirt') || garment.includes('mini') || garment.includes('dress') || garment.includes('frock');
-    const styleMode = input.drapeStyle || (isWestern ? 'Western Wear' : 'Ethnic Wear');
+    const garmentTitle = (input.productTitle || 'Apparel').toLowerCase();
+    const isWestern = garmentTitle.includes('skirt') || garmentTitle.includes('mini') || garmentTitle.includes('dress') || garmentTitle.includes('frock') || garmentTitle.includes('jean') || garmentTitle.includes('top');
+    const isSaree = garmentTitle.includes('saree') || garmentTitle.includes('fabric') || garmentTitle.includes('lugra');
+    
+    const styleMode = input.drapeStyle || (isWestern ? 'Western Wear' : (isSaree ? 'Standard Saree' : 'Ethnic Wear'));
 
-    // SURGICAL RE-DRESS PROMPT - REFINED FOR VARIETY
+    // SURGICAL RE-DRESS PROMPT - REFINED FOR VARIETY & SILHOUETTE PRECISION
     const finalPrompt = `ACT AS AN ELITE FASHION STUDIO GENERATIVE FILL MASTER.
 
     TASK: PERFORM A 100% SURGICAL CLOTHING SUBSTITUTION ON THE PERSON IN THE FIRST PHOTO.
     
     MISSION PARAMETERS:
     1. CATEGORY ALIGNMENT (CRITICAL): 
-       - The target garment is a "${input.productTitle}".
-       - DRAPE STYLE: ${styleMode}.
+       - TARGET ITEM: "${input.productTitle}".
+       - STYLE MODE: ${styleMode}.
        - SILHOUETTE: ${input.garmentType || 'Apparel'}.
        - SLEEVES: ${input.sleeveLength || 'Standard'}.
-       - IF "Western Wear" or "Mini": Ensure a contemporary, short-length fit. Erase ALL original long ethnic wear.
-       - IF "Dress": Ensure a one-piece flow silhouette.
-       - IF "Saree" or "Lugra": Use traditional drape mechanics.
+       
+       SPECIFIC LOGIC:
+       - IF "Western Wear" or "Mini": Ensure a contemporary, short-length fit. Erase ALL original long ethnic wear. The result must be a modern western fit.
+       - IF "Western Dress": Ensure a clean one-piece flow silhouette.
+       - IF "Saree" or "Lugra": Use traditional drape mechanics based strictly on the fabric in the second photo.
+       - IF "Kurti": Create a knee-length or waist-length ethnic tunic fit.
 
     2. SURGICAL OBLITERATION: 
-       - Identify the exact area occupied by the person's current outfit.
-       - COMPLETELY ERASE and OBLITERATE original pixels. No blending with old colors.
+       - Identify the exact area occupied by the person's current outfit in photo 1.
+       - COMPLETELY ERASE and OBLITERATE original pixels of the existing clothing. No blending with old colors.
        - Use the second photo as the SOLE source for the new outfit's texture, pattern, and color.
        
     3. IDENTITY PRESERVATION: 
-       - Keep the person's face, hair, skin tone, and environment EXACTLY as they are.
-       - Match shadows and lighting of the new fabric to the background scene.
+       - Keep the person's face, hair, skin tone, hands, and environment EXACTLY as they are.
+       - Match shadows and lighting of the new garment to the background scene of the first photo.
 
     OUTPUT: RETURN ONLY THE FINAL GENERATED IMAGE. ZERO ORIGINAL CLOTHING PIXELS.`;
 

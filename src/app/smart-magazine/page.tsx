@@ -115,20 +115,20 @@ function SmartMagazineContent() {
         const cat = (p.category || '').toLowerCase();
         
         const isWatch = title.includes('watch') || cat.includes('watch');
-        const isShoes = title.includes('shoe') || title.includes('sneaker') || title.includes('sandal') || title.includes('footwear');
+        const isShoes = title.includes('shoe') || title.includes('sneaker') || title.includes('sandal') || title.includes('footwear') || title.includes('boot');
         const isEyewear = title.includes('glass') || title.includes('shade') || title.includes('spectacle') || cat.includes('eyewear');
         
-        const isMini = title.includes('mini') || desc.includes('mini') || title.includes('skirt') || desc.includes('skirt');
-        const isDress = title.includes('dress') || title.includes('frock') || cat.includes('dress') || cat.includes('frock');
-        const isKurti = title.includes('kurti') || title.includes('kurta') || cat.includes('kurti') || cat.includes('kurta');
-        const isSaree = (title.includes('saree') || title.includes('fabric') || cat.includes('saree') || cat.includes('fabric')) && !isMini && !isDress;
+        const isMini = title.includes('mini') || desc.includes('mini') || title.includes('skirt') || desc.includes('skirt') || title.includes('short');
+        const isDress = (title.includes('dress') || title.includes('frock') || cat.includes('dress') || cat.includes('frock')) && !isMini;
+        const isKurti = (title.includes('kurti') || title.includes('kurta') || cat.includes('kurti') || cat.includes('kurta')) && !isMini && !isDress;
+        const isSaree = (title.includes('saree') || title.includes('fabric') || cat.includes('saree') || cat.includes('fabric')) && !isMini && !isDress && !isKurti;
 
         if (isWatch) return { type: 'Accessory', hint: 'wrist', label: 'WRIST', isApparel: false };
         if (isShoes) return { type: 'Footwear', hint: 'feet', label: 'FEET', isApparel: false };
         if (isEyewear) return { type: 'Eyewear', hint: 'face', label: 'FACE', isApparel: false };
         
         if (isMini) return { type: 'Western Wear', hint: 'selfie', label: 'SELFIE', isApparel: true };
-        if (isDress) return { type: 'Dress', hint: 'selfie', label: 'SELFIE', isApparel: true };
+        if (isDress) return { type: 'Western Dress', hint: 'selfie', label: 'SELFIE', isApparel: true };
         if (isKurti) return { type: 'Kurti', hint: 'selfie', label: 'SELFIE', isApparel: true };
         if (isSaree) return { type: 'Fabric', hint: 'selfie', label: 'SELFIE', isApparel: true };
         
@@ -174,7 +174,7 @@ function SmartMagazineContent() {
         const ctx = getProductContext(product);
         if (product.isEastIndianLugra) setSelectedDrapeStyle('East Indian Lugra');
         else if (ctx.type === 'Western Wear') setSelectedDrapeStyle('Western Wear');
-        else if (ctx.type === 'Dress') setSelectedDrapeStyle('Western Dress');
+        else if (ctx.type === 'Western Dress') setSelectedDrapeStyle('Western Dress');
         else if (ctx.type === 'Kurti') setSelectedDrapeStyle('Kurti');
 
         try {
@@ -218,6 +218,33 @@ function SmartMagazineContent() {
         }
         if (discount > 0) catalogueParams.set('discount', discount.toString());
         router.push(`/catalogue?${catalogueParams.toString()}`);
+    };
+
+    const handleSendEnquiry = async () => {
+        if (!enquiryProduct || !enquiryForm.name || !enquiryForm.phone) { toast({ variant: 'destructive', title: "Details Required" }); return; }
+        setIsEnquiring(true);
+        try {
+            const leadId = uuidv4();
+            await saveDocument('leads', {
+                id: leadId, customerName: enquiryForm.name, contactNo: enquiryForm.phone, productOrdered: enquiryProduct.title, productId: enquiryProduct.id,
+                price: ((enquiryProduct as any).price || (enquiryProduct as any).costPrice).toString(), paymentStatus: 'Enquiry',
+                date: new Date().toISOString(), sellerId: magazine?.creatorId || 'admin', sellerName: magazine?.creatorName || 'Admin',
+                source: 'SmartMagazine', isRead: false, imageDataUris: enquiryProduct.imageDataUris,
+            }, leadId);
+            toast({ title: "Enquiry Sent!" });
+            setEnquiryProduct(null);
+        } catch (error) {
+            toast({ variant: 'destructive', title: "Failed" });
+        } finally {
+            setIsEnquiring(false);
+        }
+    };
+
+    const handleWhatsAppBusinessChat = () => {
+        if (!magazine) return;
+        const msg = `Hi! I'm visiting your collection: *${magazine.title}* and I'm interested in your products. \n\nReference: ${window.location.href}`;
+        const phone = sanitizePhoneNumber(magazine.contactNo || '919920320790');
+        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
     };
 
     if (!mounted || isLoading) return <div className="flex h-screen w-full items-center justify-center"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
@@ -279,7 +306,7 @@ function SmartMagazineContent() {
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-white/10">
                                         <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">Style Mode</Label><Select value={selectedDrapeStyle} onValueChange={(val: any) => setSelectedDrapeStyle(val)}>
                                                 <SelectTrigger className="h-10 bg-white/10 border-white/20 text-white rounded-xl text-xs font-bold"><SelectValue /></SelectTrigger>
-                                                <SelectContent><SelectItem value="Western Wear">Westernwear (Mini/Skirt)</SelectItem><SelectItem value="Western Dress">Western Dress</SelectItem><SelectItem value="Kurti">Ethnic Kurti</SelectItem><SelectItem value="Standard Saree">Standard Saree</SelectItem><SelectItem value="East Indian Lugra">East Indian Lugra</SelectItem></SelectContent>
+                                                <SelectContent><SelectItem value="Western Wear">Westernwear (Short/Mini)</SelectItem><SelectItem value="Western Dress">Western Dress</SelectItem><SelectItem value="Kurti">Ethnic Kurti</SelectItem><SelectItem value="Standard Saree">Standard Saree</SelectItem><SelectItem value="East Indian Lugra">East Indian Lugra</SelectItem></SelectContent>
                                         </Select></div>
                                         <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">Sleeves</Label><Select value={selectedSleeves} onValueChange={(val: any) => setSelectedSleeves(val)}>
                                                 <SelectTrigger className="h-10 bg-white/10 border-white/20 text-white rounded-xl text-xs font-bold"><SelectValue /></SelectTrigger>
@@ -296,6 +323,23 @@ function SmartMagazineContent() {
                     </Card>
                 )}
             </main>
+
+            <Dialog open={!!enquiryProduct} onOpenChange={(open) => !open && setEnquiryProduct(null)}>
+                <DialogContent className="rounded-[32px] p-8 border-none">
+                    <DialogHeader><DialogTitle className="text-2xl font-black italic uppercase">Product Enquiry</DialogTitle></DialogHeader>
+                    {enquiryProduct && (
+                        <div className="space-y-4 py-4">
+                            <div className="flex gap-4 p-3 bg-muted/50 rounded-xl">
+                                <div className="relative w-12 h-12 rounded-lg overflow-hidden shrink-0"><Image src={enquiryProduct.imageDataUris[0]} fill alt="p" className="object-cover" /></div>
+                                <div><p className="font-bold text-xs uppercase">{enquiryProduct.title}</p><p className="text-[10px] text-primary font-bold">₹{((enquiryProduct as any).price || (enquiryProduct as any).costPrice)}</p></div>
+                            </div>
+                            <div className="space-y-1"><Label className="text-[10px] font-black uppercase">Your Name</Label><Input value={enquiryForm.name} onChange={e => setEnquiryForm({...enquiryForm, name: e.target.value})} className="h-12 rounded-xl" /></div>
+                            <div className="space-y-1"><Label className="text-[10px] font-black uppercase">WhatsApp Number</Label><Input value={enquiryForm.phone} onChange={e => setEnquiryForm({...enquiryForm, phone: e.target.value})} className="h-12 rounded-xl" /></div>
+                        </div>
+                    )}
+                    <DialogFooter><Button onClick={handleSendEnquiry} className="w-full h-14 rounded-2xl font-black uppercase italic" disabled={isEnquiring}>{isEnquiring ? <Loader2 className="animate-spin"/> : "Send Request"}</Button></DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             <input ref={cameraInputRef} type="file" accept="image/*" capture="user" className="hidden" onChange={(e) => activeTryOnProduct && handleTryOnUpload(e, activeTryOnProduct)} />
             
