@@ -66,6 +66,7 @@ import {
   Image as LucideImage,
   UsersRound,
   LayoutTemplate,
+  Zap,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { getCookie } from 'cookies-next';
@@ -84,7 +85,7 @@ type MenuItem = {
 
 const adminCoreMenuItems: MenuItem[] = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/admin/inventory', label: 'Stock & P&L', icon: ClipboardList },
+  { href: '/admin/inventory', label: 'SnapStock AI', icon: Zap },
   { href: '/admin/wholesale-inquiries', label: 'Wholesale Requests', icon: ShoppingBasket, notificationKey: 'wholesale' },
   { href: '/mandates', label: 'Mandates', icon: WalletCards },
   { href: '/orders', label: 'Orders', icon: ShoppingCart, notificationKey: 'orders' as const },
@@ -379,10 +380,10 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
             </DropdownMenu>
           </div>
         </header>
-        <main className="flex-1 p-4 md:p-6 lg:p-8">
+        <main className="flex-1 p-4 md:p-6 lg:p-8 relative">
           {children}
-          <SellerGenee />
         </main>
+        <SellerGenee />
       </SidebarInset>
     </SidebarProvider>
   );
