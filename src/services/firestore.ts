@@ -3,13 +3,31 @@ import { db } from '@/lib/firebase';
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, DocumentData, writeBatch } from 'firebase/firestore';
 
 /**
- * Utility to recursively remove 'undefined' values from an object,
- * as Firestore does not support 'undefined'.
+ * Utility to recursively remove 'undefined' values from an object without 
+ * destroying Firestore FieldValue objects (like increment).
  */
 const sanitizeForFirestore = (data: any): any => {
-  return JSON.parse(JSON.stringify(data, (key, value) => {
-    return value === undefined ? null : value;
-  }));
+  if (data === undefined) return null;
+  if (data === null || typeof data !== 'object') return data;
+  
+  if (Array.isArray(data)) {
+    return data.map(sanitizeForFirestore);
+  }
+
+  // If it's a specialized class instance (like a Firestore FieldValue), 
+  // don't try to walk its properties, just return it.
+  if (data.constructor && data.constructor.name !== 'Object') {
+    return data;
+  }
+
+  const sanitized: any = {};
+  for (const key in data) {
+    if (Object.prototype.hasOwnProperty.call(data, key)) {
+      const value = data[key];
+      sanitized[key] = sanitizeForFirestore(value);
+    }
+  }
+  return sanitized;
 };
 
 export const getCollection = async <T>(collectionName: string): Promise<T[]> => {
@@ -47,7 +65,6 @@ export const saveDocument = async (collectionName: string, data: DocumentData, i
     if (!id) throw new Error("Document ID must be provided.");
     
     const docRef = doc(db, collectionName, id);
-    // Sanitize data to remove any 'undefined' values which cause Firestore to crash
     const sanitizedData = sanitizeForFirestore({ ...data, id });
     
     await setDoc(docRef, sanitizedData, { merge: true });

@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { AppShell } from '@/components/layout/app-shell';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -83,8 +83,8 @@ export default function SnapStockLicensesPage() {
     const stats = useMemo(() => {
         return {
             totalPartners: partners.length,
-            monthlyRevenue: partners.reduce((sum, p) => sum + p.revenueGenerated, 0),
-            totalSnaps: partners.reduce((sum, p) => sum + (p.snapUsage || 0), 0),
+            monthlyRevenue: partners.reduce((sum, p) => sum + (typeof p.revenueGenerated === 'number' ? p.revenueGenerated : 0), 0),
+            totalSnaps: partners.reduce((sum, p) => sum + (typeof p.snapUsage === 'number' ? p.snapUsage : 0), 0),
         };
     }, [partners]);
 
@@ -222,8 +222,12 @@ export default function SnapStockLicensesPage() {
                                         <TableCell>
                                             <Badge className={cn("font-black uppercase text-[9px]", p.status === 'Active' ? "bg-green-500" : "bg-blue-500")}>{p.status}</Badge>
                                         </TableCell>
-                                        <TableCell className="font-mono text-xs font-black text-blue-600">{p.snapUsage || 0} Snaps</TableCell>
-                                        <TableCell className="font-black text-slate-700">₹{p.revenueGenerated}</TableCell>
+                                        <TableCell className="font-mono text-xs font-black text-blue-600">
+                                            {typeof p.snapUsage === 'number' ? p.snapUsage : 0} Snaps
+                                        </TableCell>
+                                        <TableCell className="font-black text-slate-700">
+                                            ₹{typeof p.revenueGenerated === 'number' ? p.revenueGenerated : 0}
+                                        </TableCell>
                                         <TableCell className="text-right pr-8">
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
