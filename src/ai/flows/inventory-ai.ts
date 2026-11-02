@@ -44,16 +44,17 @@ export async function parseInventoryCommand(text: string) {
 
 /**
  * Uses vision to detect products and quantities from a photo of sold items or a shelf.
+ * Upgraded to return bounding boxes for auto-segregation.
  */
 export async function detectItemsInPhoto(imageDataUri: string, mode: 'sale' | 'audit' | 'intake' = 'sale') {
   let systemPrompt = "";
   
   if (mode === 'sale') {
-      systemPrompt = "Act as a professional retail checkout scanner. Identify every product visible in this photo on the counter and count their quantities. These items are currently being sold. Use common names like 'Rosary', 'Candle', 'Prayer Book'.";
+      systemPrompt = "Act as a professional retail checkout scanner. Identify every product visible in this photo on the counter and count their quantities. These items are currently being sold.";
   } else if (mode === 'audit') {
-      systemPrompt = "Act as a precise inventory auditor. Look at this shelf photo. Identify every distinct product and count exactly how many are present. Be very specific with product names (include colors/sizes if visible) to help match them to a database. Output exact counts.";
+      systemPrompt = "Act as a precise inventory auditor. Look at this shelf photo. Identify every distinct product and count exactly how many are present. Be very specific with product names (include colors/sizes if visible).";
   } else if (mode === 'intake') {
-      systemPrompt = "Act as an intake manager. Analyze this photo of newly purchased items. Segregate them by identifying each distinct product type and counting them accurately. These are new stocks being added to inventory. Group similar items together.";
+      systemPrompt = "Act as an intake manager. Analyze this photo of newly purchased items. IDENTIFY each distinct product and provide its BOUNDING BOX coordinates [ymin, xmin, ymax, xmax] normalized to 0-1000 so they can be cropped. Ensure every unique item type has a box.";
   }
 
   try {
@@ -69,7 +70,8 @@ export async function detectItemsInPhoto(imageDataUri: string, mode: 'sale' | 'a
                 productName: z.string().describe("The name of the identified product"),
                 count: z.number().describe("The number of units detected"),
                 category: z.string().describe("Suggested category"),
-                confidence: z.number().describe("AI confidence score (0-1)")
+                confidence: z.number().describe("AI confidence score (0-1)"),
+                box_2d: z.array(z.number()).optional().describe("Bounding box [ymin, xmin, ymax, xmax] normalized 0-1000")
             }))
           })
         }

@@ -43,15 +43,11 @@ export default function AdminInventoryPage() {
     const [isMounted, setIsMounted] = useState(false);
     const [activeView, setActiveView] = useState<'list' | 'shop-map'>('list');
     
-    // Scan/Search States
     const [isQrSearching, setIsQrSearching] = useState(false);
-    
-    // AI Interaction States
     const [isListening, setIsListening] = useState(false);
     const [voiceTranscript, setVoiceTranscript] = useState('');
     const [textCommand, setTextCommand] = useState('');
     
-    // Bulk Intake States
     const [detectedIntakeItems, setDetectedIntakeItems] = useState<{
         productName: string, 
         qty: number, 
@@ -66,7 +62,6 @@ export default function AdminInventoryPage() {
         setIsLoading(true);
         try {
             const stock = await getCollection<InventoryItem>('inventory');
-            // Strict sort: Newest Added first
             const sorted = (stock || []).sort((a, b) => {
                 const dateA = new Date(a.addedDate || a.lastUpdated || 0).getTime();
                 const dateB = new Date(b.addedDate || b.lastUpdated || 0).getTime();
@@ -177,6 +172,32 @@ export default function AdminInventoryPage() {
         });
     };
 
+    /**
+     * Helper to crop an image given normalized bounding boxes [ymin, xmin, ymax, xmax]
+     */
+    const cropImage = (base64: string, box: number[]): Promise<string> => {
+        return new Promise((resolve) => {
+            const img = new (window as any).Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const [ymin, xmin, ymax, xmax] = box;
+                
+                // Convert normalized 0-1000 to pixel coordinates
+                const left = (xmin / 1000) * img.width;
+                const top = (ymin / 1000) * img.height;
+                const width = ((xmax - xmin) / 1000) * img.width;
+                const height = ((ymax - ymin) / 1000) * img.height;
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(img, left, top, width, height, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', 0.8));
+            };
+            img.src = base64;
+        });
+    };
+
     const recordMovement = async (item: InventoryItem, qty: number, type: MovementType, note?: string) => {
         const now = new Date().toISOString();
         const newQty = item.quantity + qty;
@@ -238,19 +259,29 @@ export default function AdminInventoryPage() {
         try {
             const uri = await resizeImage(file);
             const detections = await detectItemsInPhoto(uri, 'intake');
+            
             if (detections.length === 0) {
                 toast({ variant: 'destructive', title: "Detection Failed" });
             } else {
-                setDetectedIntakeItems(detections.map(d => ({ 
-                    productName: d.productName, 
-                    qty: d.count, 
-                    mrp: 0, 
-                    purchasePrice: 0,
-                    category: d.category, 
-                    imageDataUri: uri,
-                    needsCleanShot: true 
-                })));
-                toast({ title: "Items Segregated!", description: "Please take individual photos for each item below." });
+                const segregatedItems = [];
+                for (const d of detections) {
+                    let itemImage = uri;
+                    if (d.box_2d) {
+                        // Magic AI Segregation: Auto-crop the item from the pile
+                        itemImage = await cropImage(uri, d.box_2d);
+                    }
+                    segregatedItems.push({
+                        productName: d.productName, 
+                        qty: d.count, 
+                        mrp: 0, 
+                        purchasePrice: 0,
+                        category: d.category, 
+                        imageDataUri: itemImage,
+                        needsCleanShot: d.box_2d ? false : true 
+                    });
+                }
+                setDetectedIntakeItems(segregatedItems);
+                toast({ title: "AI Segregation Complete!", description: "Products have been automatically cropped and identified." });
             }
         } catch (e) { toast({ variant: 'destructive', title: "Intake Error" }); }
         finally { setIsAnalyzing(false); e.target.value = ''; }
@@ -327,13 +358,11 @@ export default function AdminInventoryPage() {
             excelData = inventory.map(i => ({ Product: i.name, Category: i.category, Qty: i.quantity, MRP: i.mrp, Wholesale: i.wholesalePrice, Value: i.quantity * i.mrp, Shelf: i.shelfNumber }));
         }
         
-        // Excel Export
         const ws = XLSX.utils.json_to_sheet(excelData);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Report");
         XLSX.writeFile(wb, `${type.toUpperCase()}_Inventory_Report_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
 
-        // WhatsApp Broadcast
         const whatsappUrl = `https://wa.me/919920320790?text=${encodeURIComponent(message)}`;
         window.open(whatsappUrl, '_blank');
         toast({ title: "Report Ready", description: "Excel downloaded & WhatsApp opening." });
@@ -488,7 +517,7 @@ export default function AdminInventoryPage() {
                         <CardHeader>
                             <div className="flex justify-between items-center">
                                 <CardTitle className="text-lg flex items-center gap-2 italic font-black"><Sparkles className="text-primary"/> Confirm AI Segregation</CardTitle>
-                                <Badge className="bg-primary text-white">Capture individual clean shots below</Badge>
+                                <Badge className="bg-primary text-white italic">Items automatically cropped for your catalog</Badge>
                             </div>
                         </CardHeader>
                         <CardContent>
@@ -499,13 +528,13 @@ export default function AdminInventoryPage() {
                                         <Card key={idx} className={cn("p-4 bg-white rounded-2xl border-none shadow-sm flex flex-col gap-4", !match && "bg-amber-50/50 border border-amber-200")}>
                                             <div className="flex items-center gap-3">
                                                 <div className={cn(
-                                                    "relative h-20 w-20 shrink-0 rounded-xl overflow-hidden border-4 transition-all group",
-                                                    item.needsCleanShot ? "border-red-500 animate-pulse" : "border-slate-100"
+                                                    "relative h-24 w-24 shrink-0 rounded-xl overflow-hidden border-4 transition-all group",
+                                                    item.needsCleanShot ? "border-red-500 animate-pulse" : "border-slate-100 shadow-inner"
                                                 )}>
-                                                    {item.imageDataUri && <Image src={item.imageDataUri} fill alt="p" className="object-cover" unoptimized />}
+                                                    {item.imageDataUri && <Image src={item.imageDataUri} fill alt="p" className="object-contain p-1" unoptimized />}
                                                     <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer" onClick={() => document.getElementById(`indiv-photo-${idx}`)?.click()}>
                                                         <Camera className="h-6 w-6 text-white mb-1" />
-                                                        <span className="text-[8px] font-black text-white uppercase">Take Clean Shot</span>
+                                                        <span className="text-[8px] font-black text-white uppercase">Retake Clean Shot</span>
                                                     </div>
                                                     <input type="file" id={`indiv-photo-${idx}`} className="hidden" accept="image/*" capture="environment" onChange={(e) => handleIndividualIntakePhoto(idx, e)} />
                                                 </div>
@@ -516,8 +545,8 @@ export default function AdminInventoryPage() {
                                                         className="h-8 text-xs font-black uppercase italic p-0 bg-transparent border-none focus-visible:ring-0"
                                                     />
                                                     <div className="flex items-center gap-2 mt-1">
-                                                        <Badge variant={!match ? "secondary" : "outline"} className="text-[8px]">{!match ? "New Item" : "Match Found"}</Badge>
-                                                        {item.needsCleanShot && <span className="text-[8px] text-red-600 font-bold animate-pulse uppercase">Clean Photo Needed</span>}
+                                                        <Badge variant={!match ? "secondary" : "outline"} className="text-[8px]">{!match ? "New SKU" : "Stock Match"}</Badge>
+                                                        {!item.needsCleanShot && <span className="text-[8px] text-green-600 font-bold uppercase flex items-center gap-1"><CheckCircle2 className="h-2 w-2"/> Cropped</span>}
                                                     </div>
                                                 </div>
                                                 <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-300 hover:text-red-500" onClick={() => setDetectedIntakeItems(prev => prev.filter((_, i) => i !== idx))}><X className="h-4 w-4" /></Button>
@@ -562,9 +591,9 @@ export default function AdminInventoryPage() {
                             </div>
                         </CardContent>
                         <CardFooter className="gap-3">
-                            <Button variant="outline" className="flex-1 h-14 rounded-2xl text-slate-500 font-bold" onClick={() => setDetectedIntakeItems([])}>Discard All</Button>
+                            <Button variant="outline" className="flex-1 h-14 rounded-2xl text-slate-500 font-bold" onClick={() => setDetectedIntakeItems([])}>Discard Batch</Button>
                             <Button className="flex-2 h-14 rounded-2xl text-lg font-black uppercase italic shadow-2xl shadow-primary/20" onClick={finalizeBulkIntake} disabled={isAnalyzing}>
-                                {isAnalyzing ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <PackagePlus className="mr-2 h-4 w-4" />} Sync These Items
+                                {isAnalyzing ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <PackagePlus className="mr-2 h-4 w-4" />} Commit to Inventory
                             </Button>
                         </CardFooter>
                     </Card>

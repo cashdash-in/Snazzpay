@@ -208,6 +208,29 @@ function SmartMagazineContent() {
         }
     };
 
+    /**
+     * Robust helper to save the generated try-on result to the device.
+     */
+    const handleSaveLook = async () => {
+        if (!tryOnResult) return;
+        try {
+            const response = await fetch(tryOnResult);
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `my_snazzify_look_${Date.now()}.jpg`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+            toast({ title: "Look Saved!", description: "Check your downloads or gallery." });
+        } catch (err) {
+            console.error("Save failed:", err);
+            toast({ variant: 'destructive', title: "Save Failed", description: "Try long-pressing the image to save." });
+        }
+    };
+
     const handleOrderClick = (product: DisplayProduct) => {
         const catalogueParams = new URLSearchParams();
         catalogueParams.set('id', product.id);
@@ -316,7 +339,7 @@ function SmartMagazineContent() {
                                 )}
                                 <div className="grid grid-cols-2 gap-3">
                                     <Button onClick={() => cameraInputRef.current?.click()} disabled={!hasConsented || isTryOnLoading} className="bg-primary hover:bg-primary/90 text-white rounded-xl h-12 font-bold"><Camera className="mr-2 h-4 w-4" /> Retake Photo</Button>
-                                    <Button onClick={() => { const link = document.createElement('a'); link.href = tryOnResult!; link.download = `my_look.jpg`; link.click(); }} className="bg-white text-slate-900 hover:bg-slate-100 rounded-xl h-12 font-bold" disabled={!tryOnResult}><Download className="mr-2 h-4 w-4" /> Save Look</Button>
+                                    <Button onClick={handleSaveLook} className="bg-white text-slate-900 hover:bg-slate-100 rounded-xl h-12 font-bold" disabled={!tryOnResult}><Download className="mr-2 h-4 w-4" /> Save Look</Button>
                                 </div>
                             </div>
                         </div>
