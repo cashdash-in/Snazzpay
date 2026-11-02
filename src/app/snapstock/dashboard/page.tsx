@@ -11,7 +11,7 @@ import {
     Loader2, Sparkles, MessageSquare, Send,
     ShoppingBag, ShieldCheck, Clock, X, Plus, Minus,
     FileSpreadsheet, Trash2, DollarSign, FileText, FileUp,
-    MapPin, LayoutGrid, CheckCircle2, Printer
+    MapPin, LayoutGrid, CheckCircle2, Printer, ImagePlus
 } from 'lucide-react';
 import { getCollection, saveDocument, getDocument, deleteDocument } from '@/services/firestore';
 import { getCookie } from 'cookies-next';
@@ -53,6 +53,9 @@ export default function SnapStockPartnerDashboard() {
     const [billPhoto, setBillPhoto] = useState<string | null>(null);
     const [productPhoto, setProductPhoto] = useState<string | null>(null);
     const [isProcessingBill, setIsProcessingBill] = useState(false);
+
+    // Image Edit State
+    const [updatingImageId, setUpdatingImageId] = useState<string | null>(null);
 
     const partnerId = getCookie('snapstock_token') as string;
 
@@ -123,6 +126,42 @@ export default function SnapStockPartnerDashboard() {
             };
             reader.readAsDataURL(file);
         });
+    };
+
+    const handleUpdateImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !updatingImageId) return;
+
+        try {
+            const resizedUri = await resizeImage(file);
+            await updateItem(updatingImageId, { imageDataUri: resizedUri });
+            toast({ title: "Image Updated" });
+            loadData();
+        } catch (e) {
+            toast({ variant: 'destructive', title: "Upload Failed" });
+        } finally {
+            setUpdatingImageId(null);
+            e.target.value = '';
+        }
+    };
+
+    const exportToExcel = () => {
+        const data = inventory.map(item => ({
+            'Marker ID': item.id,
+            'Product Name': item.name,
+            'Category': item.category,
+            'Shelf': item.shelfNumber,
+            'Purchase Rate (₹)': item.wholesalePrice,
+            'Selling Rate (MRP) (₹)': item.mrp,
+            'Quantity': item.quantity,
+            'Last Sync': format(new Date(item.lastUpdated), 'PP p')
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Store Inventory");
+        XLSX.writeFile(wb, `${partner?.storeName}_Stock_Report_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+        toast({ title: "Inventory Exported", description: "Your shop stock report has been downloaded." });
     };
 
     /**
@@ -293,10 +332,14 @@ export default function SnapStockPartnerDashboard() {
                 </div>
                 
                 <input type="file" id="snap-intake-input" accept="image/*" capture="environment" className="hidden" onChange={handleBulkIntake} />
+                <input type="file" id="partner-image-update" accept="image/*" className="hidden" onChange={handleUpdateImage} />
 
                 <div className="flex flex-col md:flex-row gap-4 px-2 no-print">
-                    <div className="relative flex-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" /><Input placeholder="Search inventory..." className="pl-9 h-12 rounded-xl bg-white shadow-sm border-none font-bold" value={searchTerm} onChange={e => setSearchQuery(e.target.value)} /></div>
+                    <div className="relative flex-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" /><Input placeholder="Search inventory..." className="pl-9 h-12 rounded-xl bg-white shadow-sm border-none font-bold" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} /></div>
                     <div className="flex gap-2">
+                        <Button variant="outline" className="h-12 px-6 rounded-full bg-white shadow-sm font-black uppercase text-[10px] italic" onClick={exportToExcel}>
+                            <FileSpreadsheet className="mr-2 h-4 w-4" /> Export Report
+                        </Button>
                         <div className="flex bg-white rounded-full p-1 border shadow-sm"><Button variant={activeView === 'list' ? 'default' : 'ghost'} size="sm" className="h-8 px-4 rounded-full text-[10px] uppercase font-bold" onClick={() => setActiveView('list')}>List View</Button><Button variant={activeView === 'shop-map' ? 'default' : 'ghost'} size="sm" className="h-8 px-4 rounded-full text-[10px] uppercase font-bold" onClick={() => setActiveView('shop-map')}>Shop Map</Button></div>
                         <Button variant="outline" className="h-12 w-12 rounded-full bg-white shadow-sm" onClick={handlePrint}><Printer className="h-5 w-5"/></Button>
                     </div>
@@ -309,7 +352,20 @@ export default function SnapStockPartnerDashboard() {
                             <TableBody>
                                 {filteredInventory.map(item => (
                                     <TableRow key={item.id} className={cn(item.quantity === 0 && "bg-red-50/50")}>
-                                        <TableCell className="pl-8 py-4"><div className="flex items-center gap-4"><div className="relative w-12 h-12 rounded-xl overflow-hidden border bg-slate-50"><Image src={item.imageDataUri} fill alt="p" className="object-cover" unoptimized /></div><div><p className="font-black uppercase italic text-sm text-slate-800">{item.name}</p><p className="text-[9px] font-mono opacity-50">{item.id.substring(0,8)}</p></div></div></TableCell>
+                                        <TableCell className="pl-8 py-4">
+                                            <div className="flex items-center gap-4">
+                                                <div 
+                                                    className="relative w-12 h-12 rounded-xl overflow-hidden border bg-slate-50 cursor-pointer group/img"
+                                                    onClick={() => { setUpdatingImageId(item.id); document.getElementById('partner-image-update')?.click(); }}
+                                                >
+                                                    <Image src={item.imageDataUri} fill alt="p" className="object-cover group-hover/img:opacity-50 transition-opacity" unoptimized />
+                                                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity">
+                                                        <ImagePlus className="h-4 w-4 text-primary" />
+                                                    </div>
+                                                </div>
+                                                <div><p className="font-black uppercase italic text-sm text-slate-800">{item.name}</p><p className="text-[9px] font-mono opacity-50">{item.id.substring(0,8)}</p></div>
+                                            </div>
+                                        </TableCell>
                                         <TableCell>
                                             <Input 
                                                 value={item.shelfNumber} 
@@ -358,37 +414,36 @@ export default function SnapStockPartnerDashboard() {
                     </Card>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in duration-500 no-print">
-                        {Object.entries(shelfGroups).map(([shelf, items]) => {
-                            const shelfStock = items.reduce((sum, i) => sum + i.quantity, 0);
-                            const density = Math.min(100, (items.length / 10) * 100);
-                            return (
-                                <Card key={shelf} className="rounded-[32px] border-none shadow-lg bg-white overflow-hidden group hover:shadow-2xl transition-all">
-                                    <CardHeader className="bg-slate-50 border-b flex flex-row items-center justify-between py-4 px-6">
-                                        <div className="flex items-center gap-3">
-                                            <div className="p-2 bg-blue-100 text-blue-600 rounded-xl font-black italic"><MapPin className="h-4 w-4" /></div>
-                                            <CardTitle className="text-sm font-black uppercase italic">Shelf {shelf}</CardTitle>
+                        {Object.entries(shelfGroups).map(([shelf, items]) => (
+                            <Card key={shelf} className="rounded-[32px] border-none shadow-lg bg-white overflow-hidden group hover:shadow-2xl transition-all">
+                                <CardHeader className="bg-slate-50 border-b flex flex-row items-center justify-between py-4 px-6">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-blue-100 text-blue-600 rounded-xl font-black italic"><MapPin className="h-4 w-4" /></div>
+                                        <CardTitle className="text-sm font-black uppercase italic">Shelf {shelf}</CardTitle>
+                                    </div>
+                                    <Badge className="bg-slate-900 text-[10px] font-black italic">Stock: {items.reduce((sum, i) => sum + i.quantity, 0)}</Badge>
+                                </CardHeader>
+                                <CardContent className="p-4 space-y-3">
+                                    <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                                        <div className={cn("h-full transition-all duration-1000", items.length > 5 ? "bg-red-500" : "bg-blue-500")} 
+                                             style={{ width: `${Math.min(100, (items.length / 10) * 100)}%` }}>
                                         </div>
-                                        <Badge className="bg-slate-900 text-[10px] font-black italic">Stock: {shelfStock}</Badge>
-                                    </CardHeader>
-                                    <CardContent className="p-4 space-y-3">
-                                        <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                                            <div className={cn("h-full transition-all duration-1000", items.length > 5 ? "bg-red-500" : "bg-blue-500")} 
-                                                 style={{ width: `${density}%` }}>
+                                    </div>
+                                    {items.slice(0, 3).map(item => (
+                                        <div key={item.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100">
+                                            <div className="relative h-8 w-8 rounded-lg overflow-hidden border">
+                                                <Image src={item.imageDataUri} fill alt="p" className="object-cover" unoptimized />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-[10px] font-black uppercase italic truncate text-slate-800">{item.name}</p>
+                                                <p className="text-[8px] font-bold text-blue-500">₹{item.mrp}</p>
                                             </div>
                                         </div>
-                                        {items.slice(0, 3).map(item => (
-                                            <div key={item.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100">
-                                                <Image src={item.imageDataUri} width={32} height={32} alt="p" className="rounded-lg object-cover" unoptimized />
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="text-[10px] font-black uppercase italic truncate text-slate-800">{item.name}</p>
-                                                    <p className="text-[8px] font-bold text-blue-500">₹{item.mrp}</p>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </CardContent>
-                                </Card>
-                            );
-                        })}
+                                    ))}
+                                    {items.length > 3 && <p className="text-center text-[8px] font-black uppercase text-slate-400">+ {items.length - 3} more items</p>}
+                                </CardContent>
+                            </Card>
+                        ))}
                     </div>
                 )}
             </main>

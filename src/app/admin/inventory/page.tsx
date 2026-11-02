@@ -13,7 +13,8 @@ import {
     Loader2, Camera, Plus, Minus, Search, 
     ShieldCheck, Sparkles, Send, Mic, Trash2,
     X, PackagePlus, Scan, Map as MapIcon, List, CheckCircle2,
-    Printer, Layers, FileText, FileUp, Zap, DollarSign, MapPin
+    Printer, Layers, FileText, FileUp, Zap, DollarSign, MapPin,
+    FileSpreadsheet, ImagePlus
 } from 'lucide-react';
 import { getCollection, saveDocument, deleteDocument } from '@/services/firestore';
 import { parseInventoryCommand, detectItemsInPhoto, matchProductToBill } from '@/ai/flows/inventory-ai';
@@ -27,6 +28,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Html5QrcodeScanner } from 'html5-qrcode';
+import * as XLSX from 'xlsx';
 
 const MAX_IMAGE_SIZE_PX = 800;
 
@@ -49,6 +51,9 @@ export default function AdminInventoryPage() {
     const [billPhoto, setBillPhoto] = useState<string | null>(null);
     const [productPhoto, setProductPhoto] = useState<string | null>(null);
     const [isProcessingBill, setIsProcessingBill] = useState(false);
+
+    // Image Edit State
+    const [updatingImageId, setUpdatingImageId] = useState<string | null>(null);
 
     // REAL-TIME SYNC
     useEffect(() => {
@@ -107,6 +112,41 @@ export default function AdminInventoryPage() {
             };
             reader.readAsDataURL(file);
         });
+    };
+
+    const handleUpdateImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !updatingImageId) return;
+
+        try {
+            const resizedUri = await resizeImage(file);
+            await updateItem(updatingImageId, { imageDataUri: resizedUri });
+            toast({ title: "Image Updated" });
+        } catch (e) {
+            toast({ variant: 'destructive', title: "Upload Failed" });
+        } finally {
+            setUpdatingImageId(null);
+            e.target.value = '';
+        }
+    };
+
+    const exportToExcel = () => {
+        const data = inventory.map(item => ({
+            'Marker ID': item.id,
+            'Product Name': item.name,
+            'Category': item.category,
+            'Shelf': item.shelfNumber,
+            'Purchase Rate (₹)': item.wholesalePrice,
+            'Selling Rate (MRP) (₹)': item.mrp,
+            'Quantity': item.quantity,
+            'Last Sync': format(new Date(item.lastUpdated), 'PP p')
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Global Inventory");
+        XLSX.writeFile(wb, `Snazzify_Master_Inventory_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+        toast({ title: "Inventory Exported", description: "Your global stock report is ready." });
     };
 
     /**
@@ -292,6 +332,7 @@ export default function AdminInventoryPage() {
                         </div>
                     </Card>
                     <input type="file" id="admin-bulk-input" accept="image/*" capture="environment" className="hidden" onChange={handleBulkIntake} />
+                    <input type="file" id="image-update-input" accept="image/*" className="hidden" onChange={handleUpdateImage} />
                 </div>
 
                 <div className="relative px-2 no-print flex gap-4">
@@ -299,6 +340,9 @@ export default function AdminInventoryPage() {
                         <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                         <Input placeholder="Search global inventory..." className="pl-12 h-12 rounded-2xl bg-white shadow-sm border-none font-bold" value={searchTerm} onChange={e => setSearchQuery(e.target.value)} />
                     </div>
+                    <Button variant="outline" className="h-12 px-6 rounded-2xl bg-white shadow-sm font-black uppercase text-[10px] italic" onClick={exportToExcel}>
+                        <FileSpreadsheet className="mr-2 h-4 w-4" /> Master Export
+                    </Button>
                     <Button variant="outline" className="h-12 w-12 rounded-2xl bg-white shadow-sm" onClick={handlePrint}>
                         <Printer className="h-5 w-5" />
                     </Button>
@@ -314,7 +358,15 @@ export default function AdminInventoryPage() {
                                         <TableRow key={item.id} className="group transition-colors hover:bg-slate-50">
                                             <TableCell className="pl-8 py-4">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="relative w-10 h-10 rounded-xl overflow-hidden border bg-slate-50"><Image src={item.imageDataUri} fill alt="p" className="object-cover" unoptimized /></div>
+                                                    <div 
+                                                        className="relative w-10 h-10 rounded-xl overflow-hidden border bg-slate-50 cursor-pointer group/img"
+                                                        onClick={() => { setUpdatingImageId(item.id); document.getElementById('image-update-input')?.click(); }}
+                                                    >
+                                                        <Image src={item.imageDataUri} fill alt="p" className="object-cover group-hover/img:opacity-50 transition-opacity" unoptimized />
+                                                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity">
+                                                            <ImagePlus className="h-4 w-4 text-primary" />
+                                                        </div>
+                                                    </div>
                                                     <div><p className="font-bold italic uppercase">{item.name}</p><p className="text-[9px] font-mono opacity-50">{item.id.substring(0,8)}</p></div>
                                                 </div>
                                             </TableCell>
@@ -375,7 +427,19 @@ export default function AdminInventoryPage() {
                                     <div className="flex items-center gap-3"><div className="p-2 bg-primary/10 rounded-xl text-primary font-black italic">{shelf}</div><CardTitle className="text-sm font-black uppercase italic">Shelf {shelf}</CardTitle></div>
                                     <Badge className="bg-slate-900 text-[10px] font-black italic">Qty: {items.reduce((sum, i) => sum + i.quantity, 0)}</Badge>
                                 </CardHeader>
-                                <CardContent className="p-4 space-y-3">{items.slice(0, 3).map(item => (<div key={item.id} className="flex items-center gap-3 p-2 rounded-xl border border-transparent hover:border-slate-100"><Image src={item.imageDataUri} width={32} height={32} alt="p" className="rounded-lg object-cover" unoptimized /><div className="flex-1 min-w-0"><p className="text-[11px] font-black uppercase italic truncate">{item.name}</p><p className="text-[9px] font-bold text-primary">MRP: ₹{item.mrp}</p></div></div>))}</CardContent>
+                                <CardContent className="p-4 space-y-3">
+                                    {items.slice(0, 3).map(item => (
+                                        <div key={item.id} className="flex items-center gap-3 p-2 rounded-xl border border-transparent hover:border-slate-100">
+                                            <div className="relative h-8 w-8 rounded-lg overflow-hidden border">
+                                                <Image src={item.imageDataUri} fill alt="p" className="object-cover" unoptimized />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-[11px] font-black uppercase italic truncate">{item.name}</p>
+                                                <p className="text-[9px] font-bold text-primary">MRP: ₹{item.mrp}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </CardContent>
                             </Card>
                         ))}
                     </div>
