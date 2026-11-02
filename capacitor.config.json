@@ -1,0 +1,9 @@
+
+{
+  "appId": "com.snapstock.ai",
+  "appName": "SnapStock AI",
+  "webDir": "out",
+  "server": {
+    "androidScheme": "https"
+  }
+}

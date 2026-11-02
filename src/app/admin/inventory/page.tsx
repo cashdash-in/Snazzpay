@@ -11,8 +11,8 @@ import { useToast } from '@/hooks/use-toast';
 import { 
     Loader2, Camera, Plus, Minus, Search, 
     ShieldCheck, Sparkles, Send, Mic, Trash2,
-    X, PackagePlus, ImagePlus, Scan, Map as MapIcon, List, CheckCircle2,
-    Sun, Moon, Download, Printer, LayoutGrid, Layers, MessageSquare,
+    X, PackagePlus, Scan, Map as MapIcon, List, CheckCircle2,
+    Sun, Moon, Download, Printer, Layers, MessageSquare,
     FileText, FileCheck, FileUp, Zap
 } from 'lucide-react';
 import { getCollection, saveDocument, deleteDocument } from '@/services/firestore';
@@ -347,7 +347,7 @@ export default function AdminInventoryPage() {
                                 {isAnalyzing ? <Loader2 className="animate-spin h-4 w-4" /> : <Layers className="h-4 w-4 mr-2" />} Bulk Intake (Photo)
                              </Button>
                              <div className="flex gap-2">
-                                <Button size="sm" variant="secondary" className="flex-1 rounded-xl" onClick={() => { const sr = (window as any).SpeechRecognition || (window as any).webkitRecognition; if(!sr) return; const r = new sr(); r.onstart = () => {}; r.onresult = (e: any) => handleTextCommand(e.results[0][0].transcript); r.onend = () => {}; r.start(); }}><Mic className="h-3 w-3 mr-1" /> Voice</Button>
+                                <Button size="sm" variant="secondary" className="flex-1 rounded-xl" onClick={() => { const sr = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition; if(!sr) return; const r = new sr(); r.onstart = () => {}; r.onresult = (e: any) => handleTextCommand(e.results[0][0].transcript); r.onend = () => {}; r.start(); }}><Mic className="h-3 w-3 mr-1" /> Voice</Button>
                                 <Dialog open={isBillIntakeOpen} onOpenChange={setIsBillIntakeOpen}>
                                     <DialogTrigger asChild>
                                         <Button size="sm" variant="secondary" className="flex-1 rounded-xl"><FileText className="h-3 w-3 mr-1" /> Bill</Button>
@@ -475,7 +475,7 @@ export default function AdminInventoryPage() {
                                                 <input type="file" id={`indiv-photo-${idx}`} className="hidden" accept="image/*" capture="environment" onChange={async (e) => { const file = e.target.files?.[0]; if(file) { const uri = await resizeImage(file); setDetectedIntakeItems(prev => prev.map((it, i) => i === idx ? { ...it, imageDataUri: uri } : it)); } }} />
                                             </div>
                                             <div className="flex-1 min-w-0"><Input value={item.productName} onChange={e => setDetectedIntakeItems(prev => prev.map((it, i) => i === idx ? { ...it, productName: e.target.value } : it))} className="h-8 text-xs font-black uppercase italic p-0 bg-transparent border-none" /><Badge variant="outline" className="text-[8px] mt-1">NEW SKU</Badge></div>
-                                            <Button variant="ghost" size="icon" className="text-slate-300 hover:text-red-500" onClick={() => setDetectedIntakeItems(prev => prev.filter((_, i) => i !== idx))}><X className="h-4 w-4" /></Button>
+                                            <Button variant="ghost" size="icon" className="text-slate-300 hover:text-red-50" onClick={() => setDetectedIntakeItems(prev => prev.filter((_, i) => i !== idx))}><X className="h-4 w-4" /></Button>
                                         </div>
                                         <div className="grid grid-cols-3 gap-3">
                                             <div className="space-y-1"><Label className="text-[8px] font-black uppercase text-slate-400">Qty</Label><div className="flex items-center gap-2 bg-slate-50 rounded-lg px-2 py-1"><Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setDetectedIntakeItems(prev => prev.map((it, i) => i === idx ? { ...it, qty: it.qty - 1 } : it))}><Minus className="h-3 w-3" /></Button><span className="text-xs font-black">{item.qty}</span><Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setDetectedIntakeItems(prev => prev.map((it, i) => i === idx ? { ...it, qty: it.qty + 1 } : it))}><Plus className="h-3 w-3" /></Button></div></div>
