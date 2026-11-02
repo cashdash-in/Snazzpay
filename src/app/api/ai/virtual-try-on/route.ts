@@ -1,4 +1,3 @@
-
 import { NextResponse } from 'next/server';
 import { ai } from '@/ai/genkit';
 import { googleAI } from '@genkit-ai/google-genai';
@@ -14,10 +13,21 @@ export async function POST(request: Request) {
     }
 
     const garmentTitle = (input.productTitle || 'Apparel').toLowerCase();
-    const isWestern = garmentTitle.includes('skirt') || garmentTitle.includes('mini') || garmentTitle.includes('dress') || garmentTitle.includes('frock') || garmentTitle.includes('jean') || garmentTitle.includes('top');
+    
+    // Advanced Classification Logic
+    const isMini = garmentTitle.includes('mini') || garmentTitle.includes('skirt') || garmentTitle.includes('short');
+    const isWesternDress = (garmentTitle.includes('dress') || garmentTitle.includes('frock')) && !isMini;
+    const isKurti = garmentTitle.includes('kurti') || garmentTitle.includes('kurta');
     const isSaree = garmentTitle.includes('saree') || garmentTitle.includes('fabric') || garmentTitle.includes('lugra');
     
-    const styleMode = input.drapeStyle || (isWestern ? 'Western Wear' : (isSaree ? 'Standard Saree' : 'Ethnic Wear'));
+    let styleMode = input.drapeStyle;
+    if (!styleMode) {
+        if (isMini) styleMode = 'Western Wear';
+        else if (isWesternDress) styleMode = 'Western Dress';
+        else if (isKurti) styleMode = 'Kurti';
+        else if (isSaree) styleMode = 'Standard Saree';
+        else styleMode = 'Ethnic Wear';
+    }
 
     // SURGICAL RE-DRESS PROMPT - REFINED FOR VARIETY & SILHOUETTE PRECISION
     const finalPrompt = `ACT AS AN ELITE FASHION STUDIO GENERATIVE FILL MASTER.

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Suspense, useEffect, useState, useRef, useMemo, useCallback } from 'react';
@@ -115,7 +114,7 @@ function SmartMagazineContent() {
         const cat = (p.category || '').toLowerCase();
         
         const isWatch = title.includes('watch') || cat.includes('watch');
-        const isShoes = title.includes('shoe') || title.includes('sneaker') || title.includes('sandal') || title.includes('footwear') || title.includes('boot');
+        const isShoes = title.includes('shoe') || title.includes('sneaker') || title.includes('sandal') || title.includes('footwear');
         const isEyewear = title.includes('glass') || title.includes('shade') || title.includes('spectacle') || cat.includes('eyewear');
         
         const isMini = title.includes('mini') || desc.includes('mini') || title.includes('skirt') || desc.includes('skirt') || title.includes('short');
@@ -171,12 +170,6 @@ function SmartMagazineContent() {
         setTryOnResult(null);
         setTryOnProductId(product.id);
 
-        const ctx = getProductContext(product);
-        if (product.isEastIndianLugra) setSelectedDrapeStyle('East Indian Lugra');
-        else if (ctx.type === 'Western Wear') setSelectedDrapeStyle('Western Wear');
-        else if (ctx.type === 'Western Dress') setSelectedDrapeStyle('Western Dress');
-        else if (ctx.type === 'Kurti') setSelectedDrapeStyle('Kurti');
-
         try {
             const [personUri, productUri] = await Promise.all([
                 resizeImageForAI(file),
@@ -190,7 +183,7 @@ function SmartMagazineContent() {
                     personImageDataUri: personUri,
                     productImageDataUri: productUri,
                     productTitle: product.title,
-                    garmentType: ctx.type,
+                    garmentType: activeTryOnContext.type,
                     drapeStyle: selectedDrapeStyle,
                     sleeveLength: selectedSleeves
                 })
@@ -208,9 +201,6 @@ function SmartMagazineContent() {
         }
     };
 
-    /**
-     * Robust helper to save the generated try-on result to the device.
-     */
     const handleSaveLook = async () => {
         if (!tryOnResult) return;
         try {
@@ -226,8 +216,7 @@ function SmartMagazineContent() {
             window.URL.revokeObjectURL(url);
             toast({ title: "Look Saved!", description: "Check your downloads or gallery." });
         } catch (err) {
-            console.error("Save failed:", err);
-            toast({ variant: 'destructive', title: "Save Failed", description: "Try long-pressing the image to save." });
+            toast({ variant: 'destructive', title: "Save Failed", description: "Long-press the image to save." });
         }
     };
 
@@ -235,39 +224,9 @@ function SmartMagazineContent() {
         const catalogueParams = new URLSearchParams();
         catalogueParams.set('id', product.id);
         catalogueParams.set('return_url', typeof window !== 'undefined' ? window.location.href : '');
-        if (magazine?.creatorId) {
-            catalogueParams.set('sellerId', magazine.creatorId);
-            catalogueParams.set('sellerName', magazine.creatorName);
-        }
+        if (magazine?.creatorId) { catalogueParams.set('sellerId', magazine.creatorId); catalogueParams.set('sellerName', magazine.creatorName); }
         if (discount > 0) catalogueParams.set('discount', discount.toString());
         router.push(`/catalogue?${catalogueParams.toString()}`);
-    };
-
-    const handleSendEnquiry = async () => {
-        if (!enquiryProduct || !enquiryForm.name || !enquiryForm.phone) { toast({ variant: 'destructive', title: "Details Required" }); return; }
-        setIsEnquiring(true);
-        try {
-            const leadId = uuidv4();
-            await saveDocument('leads', {
-                id: leadId, customerName: enquiryForm.name, contactNo: enquiryForm.phone, productOrdered: enquiryProduct.title, productId: enquiryProduct.id,
-                price: ((enquiryProduct as any).price || (enquiryProduct as any).costPrice).toString(), paymentStatus: 'Enquiry',
-                date: new Date().toISOString(), sellerId: magazine?.creatorId || 'admin', sellerName: magazine?.creatorName || 'Admin',
-                source: 'SmartMagazine', isRead: false, imageDataUris: enquiryProduct.imageDataUris,
-            }, leadId);
-            toast({ title: "Enquiry Sent!" });
-            setEnquiryProduct(null);
-        } catch (error) {
-            toast({ variant: 'destructive', title: "Failed" });
-        } finally {
-            setIsEnquiring(false);
-        }
-    };
-
-    const handleWhatsAppBusinessChat = () => {
-        if (!magazine) return;
-        const msg = `Hi! I'm visiting your collection: *${magazine.title}* and I'm interested in your products. \n\nReference: ${window.location.href}`;
-        const phone = sanitizePhoneNumber(magazine.contactNo || '919920320790');
-        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
     };
 
     if (!mounted || isLoading) return <div className="flex h-screen w-full items-center justify-center"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
@@ -360,7 +319,7 @@ function SmartMagazineContent() {
                             <div className="space-y-1"><Label className="text-[10px] font-black uppercase">WhatsApp Number</Label><Input value={enquiryForm.phone} onChange={e => setEnquiryForm({...enquiryForm, phone: e.target.value})} className="h-12 rounded-xl" /></div>
                         </div>
                     )}
-                    <DialogFooter><Button onClick={handleSendEnquiry} className="w-full h-14 rounded-2xl font-black uppercase italic" disabled={isEnquiring}>{isEnquiring ? <Loader2 className="animate-spin"/> : "Send Request"}</Button></DialogFooter>
+                    <DialogFooter><Button onClick={async () => { if (!enquiryProduct || !enquiryForm.name || !enquiryForm.phone) return; setIsEnquiring(true); try { const id = uuidv4(); await saveDocument('leads', { id, customerName: enquiryForm.name, contactNo: enquiryForm.phone, productOrdered: enquiryProduct.title, productId: enquiryProduct.id, price: ((enquiryProduct as any).price || (enquiryProduct as any).costPrice).toString(), paymentStatus: 'Enquiry', date: new Date().toISOString(), sellerId: magazine?.creatorId || 'admin', sellerName: magazine?.creatorName || 'Admin', source: 'SmartMagazine', imageDataUris: enquiryProduct.imageDataUris }, id); toast({ title: "Enquiry Sent!" }); setEnquiryProduct(null); } finally { setIsEnquiring(false); } }} className="w-full h-14 rounded-2xl font-black uppercase italic" disabled={isEnquiring}>{isEnquiring ? <Loader2 className="animate-spin"/> : "Send Request"}</Button></DialogFooter>
                 </DialogContent>
             </Dialog>
 
@@ -368,7 +327,7 @@ function SmartMagazineContent() {
             
             <ProductGenee isOpen={isGeneeOpen} onOpenChange={setIsGeneeOpen} product={activeGeneeProduct} allProducts={products} storeName={magazine?.vendorTitle || magazine?.creatorName || 'Snazzify Store'} />
             
-            <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50"><Button onClick={handleWhatsAppBusinessChat} className="rounded-full h-16 px-10 bg-green-600 hover:bg-green-700 shadow-2xl font-black uppercase italic tracking-tighter text-white border-4 border-white transition-transform hover:scale-105 active:scale-95"><MessageCircle className="mr-2 h-6 w-6" /> Chat with Seller</Button></div>
+            <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50"><Button onClick={() => { if(!magazine) return; const phone = sanitizePhoneNumber(magazine.contactNo || '919920320790'); window.open(`https://wa.me/${phone}?text=${encodeURIComponent(`Hi! I'm visiting your collection: *${magazine.title}*`)}`, '_blank'); }} className="rounded-full h-16 px-10 bg-green-600 hover:bg-green-700 shadow-2xl font-black uppercase italic tracking-tighter text-white border-4 border-white transition-transform hover:scale-105 active:scale-95"><MessageCircle className="mr-2 h-6 w-6" /> Chat with Seller</Button></div>
         </div>
     );
 }

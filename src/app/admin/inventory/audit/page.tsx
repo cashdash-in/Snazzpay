@@ -1,11 +1,10 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import { AppShell } from '@/components/layout/app-shell';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Camera, ShieldCheck, Sparkles, CheckCircle2, AlertTriangle, RefreshCw, Layers, MapPin, LayoutGrid, Info, FileSpreadsheet, Download } from 'lucide-react';
+import { Loader2, Camera, ShieldCheck, CheckCircle2, RefreshCw, FileSpreadsheet } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { getCollection, saveDocument } from '@/services/firestore';
 import { detectItemsInPhoto } from '@/ai/flows/inventory-ai';
@@ -29,11 +28,8 @@ export default function StockAuditPage() {
         getCollection<InventoryItem>('inventory').then(data => setInventory(data || []));
     }, []);
 
-    // Advanced word-intersection fuzzy matcher
     const findProductMatch = (detectedName: string, items: InventoryItem[]) => {
         const dWords = new Set(detectedName.toLowerCase().split(/\s+/).filter(w => w.length > 2));
-        
-        // Stage 1: Exact or substring match
         const stage1 = items.find(i => {
             const name = i.name.toLowerCase();
             const detect = detectedName.toLowerCase();
@@ -41,16 +37,13 @@ export default function StockAuditPage() {
         });
         if (stage1) return stage1;
 
-        // Stage 2: Word intersection score
         let bestMatch = null;
         let highestScore = 0;
-
         for (const item of items) {
             const iWords = item.name.toLowerCase().split(/\s+/);
             const intersection = iWords.filter(w => dWords.has(w));
-            const score = intersection.length;
-            if (score > highestScore && score >= 1) {
-                highestScore = score;
+            if (intersection.length > highestScore && intersection.length >= 1) {
+                highestScore = intersection.length;
                 bestMatch = item;
             }
         }
@@ -60,65 +53,41 @@ export default function StockAuditPage() {
     const handleAuditPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
-        
         setIsAnalyzing(true);
-        setAuditResults([]);
-        
         try {
             const reader = new FileReader();
             reader.onload = async (ev) => {
                 const uri = ev.target?.result as string;
                 const detections = await detectItemsInPhoto(uri, 'audit');
-                
                 if (!detections || detections.length === 0) {
-                    toast({ variant: 'destructive', title: "No Items Found", description: "The AI couldn't detect any products in this photo." });
+                    toast({ variant: 'destructive', title: "No Items Found" });
                     setIsAnalyzing(false);
                     return;
                 }
-
                 const results = detections.map(d => {
                     const match = findProductMatch(d.productName, inventory);
                     return match ? { product: match, visualCount: d.count } : null;
                 }).filter(r => !!r) as { product: InventoryItem, visualCount: number }[];
-
-                if (results.length === 0) {
-                    toast({ variant: 'destructive', title: "No Matches", description: "AI detected items but they don't match your inventory list. Ensure items are already added to stock." });
-                } else {
-                    setAuditResults(results);
-                    toast({ 
-                        title: "Shelf Scan Complete", 
-                        description: `Analyzed ${results.length} items on the shelf.` 
-                    });
-                }
+                setAuditResults(results);
+                toast({ title: "Shelf Scan Complete" });
                 setIsAnalyzing(false);
             };
             reader.readAsDataURL(file);
-        } catch (e) {
-            toast({ variant: 'destructive', title: "Audit Failed" });
-            setIsAnalyzing(false);
-        }
+        } catch (e) { toast({ variant: 'destructive', title: "Audit Failed" }); setIsAnalyzing(false); }
     };
 
     const handleExportAudit = () => {
-        if (auditResults.length === 0) return;
-        
-        const excelData = auditResults.map(res => {
-            const diff = res.visualCount - res.product.quantity;
-            return {
-                'Shelf': res.product.shelfNumber || 'N/A',
-                'Product Name': res.product.name,
-                'System Qty': res.product.quantity,
-                'Visual Qty (AI)': res.visualCount,
-                'Discrepancy': diff,
-                'Status': diff === 0 ? 'MATCH' : (diff > 0 ? 'SURPLUS' : 'MISSING')
-            };
-        });
-
-        const ws = XLSX.utils.json_to_sheet(excelData);
+        const data = auditResults.map(res => ({
+            'Shelf': res.product.shelfNumber || 'N/A',
+            'Product': res.product.name,
+            'System Qty': res.product.quantity,
+            'Visual Qty': res.visualCount,
+            'Discrepancy': res.visualCount - res.product.quantity
+        }));
+        const ws = XLSX.utils.json_to_sheet(data);
         const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Shelf Audit");
-        XLSX.writeFile(wb, `Shelf_Audit_Report_${format(new Date(), 'yyyy-MM-dd_HHmm')}.xlsx`);
-        toast({ title: "Audit Exported", description: "Excel file has been downloaded." });
+        XLSX.utils.book_append_sheet(wb, ws, "Audit");
+        XLSX.writeFile(wb, `Shelf_Audit_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
     };
 
     const groupedAudit = useMemo(() => {
@@ -131,54 +100,22 @@ export default function StockAuditPage() {
         return groups;
     }, [auditResults]);
 
-    const handleApplyAdjustments = async () => {
-        setIsProcessingAudit(true);
-        try {
-            const now = new Date().toISOString();
-            for (const res of auditResults) {
-                const diff = res.visualCount - res.product.quantity;
-                if (diff !== 0) {
-                    const movement: StockMovement = {
-                        id: uuidv4(),
-                        productId: res.product.id,
-                        type: 'Adjustment',
-                        quantity: diff,
-                        date: now,
-                        note: `Shelf Audit [${res.product.shelfNumber}]: ${diff > 0 ? '+' : ''}${diff}`,
-                        previousStock: res.product.quantity,
-                        newStock: res.visualCount
-                    };
-                    await Promise.all([
-                        saveDocument('inventory', { ...res.product, quantity: res.visualCount, lastUpdated: now }, res.product.id),
-                        saveDocument('inventory_movements', movement, movement.id)
-                    ]);
-                }
-            }
-            toast({ title: "Inventory Reconciled!", description: "All system counts updated to match shelf visuals." });
-            setAuditResults([]);
-        } catch (e) {
-            toast({ variant: 'destructive', title: "Adjustment Failed" });
-        } finally {
-            setIsProcessingAudit(false);
-        }
-    };
-
     return (
         <AppShell title="Shelf-Wise Stock Audit">
             <div className="max-w-5xl mx-auto space-y-8">
-                <Card className="rounded-[32px] border-none shadow-xl bg-slate-900 text-white overflow-hidden">
-                    <CardContent className="p-8 md:p-12 flex flex-col items-center text-center gap-6">
-                        <div className="p-4 bg-primary/20 rounded-full border border-primary/20 animate-pulse"><ShieldCheck className="h-12 w-12 text-primary" /></div>
+                <Card className="rounded-[32px] bg-slate-900 text-white overflow-hidden">
+                    <CardContent className="p-8 flex flex-col items-center text-center gap-6">
+                        <div className="p-4 bg-primary/20 rounded-full animate-pulse"><ShieldCheck className="h-12 w-12 text-primary" /></div>
                         <div className="space-y-2">
                             <h2 className="text-3xl font-black italic uppercase tracking-tighter">Visual Shelf Check</h2>
-                            <p className="text-slate-400 text-sm max-w-sm">Snap a photo of any shelf section. AI will count items and compare with your digital records.</p>
+                            <p className="text-slate-400 text-sm">Snap a photo of any shelf. AI will count items and compare with system records.</p>
                         </div>
                         <div className="flex gap-3">
-                            <Button size="lg" className="h-16 px-10 rounded-2xl font-black uppercase italic text-lg shadow-2xl shadow-primary/20" onClick={() => document.getElementById('audit-cam-input')?.click()} disabled={isAnalyzing}>
+                            <Button size="lg" className="h-16 px-10 rounded-2xl font-black uppercase italic shadow-2xl" onClick={() => document.getElementById('audit-cam-input')?.click()} disabled={isAnalyzing}>
                                 {isAnalyzing ? <Loader2 className="animate-spin mr-2" /> : <Camera className="mr-2 h-6 w-6" />} Start Shelf Scan
                             </Button>
                             {auditResults.length > 0 && (
-                                <Button size="lg" variant="outline" className="h-16 px-10 rounded-2xl font-black uppercase italic text-lg border-white/10 text-white hover:bg-white/10" onClick={handleExportAudit}>
+                                <Button size="lg" variant="outline" className="h-16 px-10 rounded-2xl font-black uppercase italic border-white/10 text-white" onClick={handleExportAudit}>
                                     <FileSpreadsheet className="mr-2 h-6 w-6" /> Export Report
                                 </Button>
                             )}
@@ -188,56 +125,23 @@ export default function StockAuditPage() {
                 </Card>
 
                 {Object.entries(groupedAudit).map(([shelf, results]) => (
-                    <Card key={shelf} className="rounded-[32px] shadow-xl border-none overflow-hidden animate-in slide-in-from-bottom-4 duration-500 bg-white mb-6">
+                    <Card key={shelf} className="rounded-[32px] shadow-xl border-none overflow-hidden bg-white mb-6 animate-in slide-in-from-bottom-4">
                         <CardHeader className="bg-slate-50 border-b flex flex-row items-center justify-between py-6 px-8">
-                            <div className="flex items-center gap-4">
-                                <div className="p-3 bg-primary text-white rounded-2xl font-black italic shadow-lg">{shelf}</div>
-                                <div>
-                                    <CardTitle className="text-lg font-black italic uppercase">Shelf Discrepancy Report</CardTitle>
-                                    <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">Location: {shelf}</CardDescription>
-                                </div>
-                            </div>
-                            <Badge className="bg-slate-900 text-xs px-4 py-1">{results.length} Items Found</Badge>
+                            <div className="flex items-center gap-4"><div className="p-3 bg-primary text-white rounded-2xl font-black italic shadow-lg">{shelf}</div><CardTitle className="text-lg font-black italic uppercase">Discrepancy: {shelf}</CardTitle></div>
+                            <Badge className="bg-slate-900 text-xs px-4 py-1">{results.length} Matches Found</Badge>
                         </CardHeader>
                         <CardContent className="p-0">
                             <Table>
-                                <TableHeader className="bg-slate-50/50">
-                                    <TableRow>
-                                        <TableHead className="pl-8">Product Details</TableHead>
-                                        <TableHead className="text-center">System</TableHead>
-                                        <TableHead className="text-center text-primary font-black">Visual (AI)</TableHead>
-                                        <TableHead className="text-right pr-8">Status</TableHead>
-                                    </TableRow>
-                                </TableHeader>
+                                <TableHeader className="bg-slate-50/50"><TableRow><TableHead className="pl-8">Product</TableHead><TableHead className="text-center">System</TableHead><TableHead className="text-center text-primary font-black">Visual (AI)</TableHead><TableHead className="text-right pr-8">Status</TableHead></TableRow></TableHeader>
                                 <TableBody>
                                     {results.map(res => {
                                         const diff = res.visualCount - res.product.quantity;
                                         return (
-                                            <TableRow key={res.product.id} className={cn("hover:bg-slate-50 transition-colors", diff !== 0 && "bg-amber-50/20")}>
-                                                <TableCell className="pl-8">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="relative h-10 w-10 shrink-0 border rounded-lg overflow-hidden">
-                                                            <Image src={res.product.imageDataUri} fill alt="p" className="object-cover" unoptimized />
-                                                        </div>
-                                                        <div className="flex flex-col">
-                                                            <span className="font-bold uppercase text-xs italic">{res.product.name}</span>
-                                                            <span className="text-[9px] font-mono text-muted-foreground uppercase">ID: {res.product.id.substring(0,8)}</span>
-                                                        </div>
-                                                    </div>
-                                                </TableCell>
+                                            <TableRow key={res.product.id} className={cn("hover:bg-slate-50", diff !== 0 && "bg-amber-50/20")}>
+                                                <TableCell className="pl-8"><div className="flex items-center gap-3"><div className="relative h-10 w-10 border rounded-lg overflow-hidden"><Image src={res.product.imageDataUri} fill alt="p" className="object-cover" unoptimized /></div><span className="font-bold uppercase text-xs italic">{res.product.name}</span></div></TableCell>
                                                 <TableCell className="text-center font-bold text-slate-500">{res.product.quantity}</TableCell>
                                                 <TableCell className="text-center font-black text-primary text-lg">{res.visualCount}</TableCell>
-                                                <TableCell className="text-right pr-8">
-                                                    {diff === 0 ? (
-                                                        <Badge className="bg-green-500 text-[10px] font-black uppercase"><CheckCircle2 className="h-3 w-3 mr-1"/> Correct</Badge>
-                                                    ) : (
-                                                        <div className="flex flex-col items-end gap-1">
-                                                            <Badge variant="destructive" className="font-mono text-[10px] uppercase font-black bg-red-600">
-                                                                {diff > 0 ? 'Surplus' : 'Missing'}: {Math.abs(diff)}
-                                                            </Badge>
-                                                        </div>
-                                                    )}
-                                                </TableCell>
+                                                <TableCell className="text-right pr-8">{diff === 0 ? <Badge className="bg-green-500 text-[10px] font-black uppercase"><CheckCircle2 className="h-3 w-3 mr-1"/> Correct</Badge> : <Badge variant="destructive" className="font-mono text-[10px] uppercase font-black bg-red-600">{diff > 0 ? 'Surplus' : 'Missing'}: {Math.abs(diff)}</Badge>}</TableCell>
                                             </TableRow>
                                         );
                                     })}
@@ -246,23 +150,6 @@ export default function StockAuditPage() {
                         </CardContent>
                     </Card>
                 ))}
-
-                {auditResults.length > 0 && (
-                    <Card className="rounded-[32px] bg-slate-900 text-white p-8 shadow-2xl">
-                        <div className="flex flex-col sm:flex-row justify-between items-center gap-6">
-                            <div className="space-y-1">
-                                <p className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-primary"><RefreshCw className="h-4 w-4 animate-spin-slow" /> Global Sync Ready</p>
-                                <p className="text-[10px] text-slate-400 max-w-sm">Reconciliation will update system stock to match the visual reality found on your shelves.</p>
-                            </div>
-                            <div className="flex gap-3 w-full sm:w-auto">
-                                <Button variant="outline" className="flex-1 sm:flex-none rounded-xl h-14 px-8 text-slate-400 border-white/10 hover:bg-white/5" onClick={() => setAuditResults([])}>Discard Audit</Button>
-                                <Button className="flex-2 sm:flex-none h-14 px-10 font-black uppercase italic rounded-xl shadow-2xl shadow-primary/20 bg-primary hover:bg-primary/90" onClick={handleApplyAdjustments} disabled={isProcessingAudit}>
-                                    {isProcessingAudit ? <Loader2 className="animate-spin mr-2 h-5 w-5" /> : <RefreshCw className="mr-2 h-5 w-5" />} Sync System with Visuals
-                                </Button>
-                            </div>
-                        </div>
-                    </Card>
-                )}
             </div>
         </AppShell>
     );
