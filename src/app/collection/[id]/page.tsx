@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Suspense, useEffect, useState, useRef, useMemo, useCallback } from 'react';
@@ -108,21 +109,41 @@ function BrandedCollectionContent() {
         const isFootwear = title.includes('shoe') || title.includes('sneaker') || title.includes('sandal') || title.includes('heel') || title.includes('bondi') || title.includes('clifton') || title.includes('hoka') || cat.includes('footwear') || cat.includes('shoe') || cat.includes('sneaker');
         const isEyewear = title.includes('glass') || title.includes('shade') || title.includes('spectacle') || cat.includes('eyewear') || cat.includes('glass');
         
-        const isShirt = (title.includes('shirt') || title.includes('t-shirt') || cat.includes('shirt') || cat.includes('top')) && !title.includes('dress');
-        const isDress = title.includes('dress') || title.includes('frock') || cat.includes('dress') || cat.includes('frock');
-        const isKurti = title.includes('kurti') || title.includes('kurta') || cat.includes('kurti') || cat.includes('kurta');
-        const isSaree = title.includes('saree') || title.includes('lugra') || cat.includes('saree') || cat.includes('fabric');
+        const isMini = title.includes('mini') || (p.description || '').toLowerCase().includes('mini') || title.includes('skirt') || (p.description || '').toLowerCase().includes('skirt') || title.includes('short');
+        const isDress = (title.includes('dress') || title.includes('frock') || cat.includes('dress') || cat.includes('frock')) && !isMini;
+        const isKurti = (title.includes('kurti') || title.includes('kurta') || cat.includes('kurti') || cat.includes('kurta')) && !isMini && !isDress;
+        const isSaree = (title.includes('saree') || title.includes('fabric') || cat.includes('saree') || cat.includes('fabric')) && !isMini && !isDress && !isKurti;
 
         if (isWatch) return { type: 'Accessory', hint: 'wrist', label: 'WRIST', isApparel: false };
         if (isFootwear) return { type: 'Footwear', hint: 'feet', label: 'FEET', isApparel: false };
         if (isEyewear) return { type: 'Eyewear', hint: 'face', label: 'FACE', isApparel: false };
-        if (isShirt) return { type: 'Shirt', hint: 'selfie', label: 'SELFIE', isApparel: true };
-        if (isDress) return { type: 'Dress', hint: 'selfie', label: 'SELFIE', isApparel: true };
+        
+        if (isMini) return { type: 'Western Wear', hint: 'selfie', label: 'SELFIE', isApparel: true };
+        if (isDress) return { type: 'Western Dress', hint: 'selfie', label: 'SELFIE', isApparel: true };
         if (isKurti) return { type: 'Kurti', hint: 'selfie', label: 'SELFIE', isApparel: true };
         if (isSaree) return { type: 'Fabric', hint: 'selfie', label: 'SELFIE', isApparel: true };
         
         return { type: 'General', hint: 'selfie', label: 'SELFIE', isApparel: false };
     }, []);
+
+    const handleSaveLook = async () => {
+        if (!tryOnResult) return;
+        try {
+            const response = await fetch(tryOnResult);
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `my_snazzify_look_${Date.now()}.jpg`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+            toast({ title: "Look Saved!", description: "Check your downloads or gallery." });
+        } catch (err) {
+            toast({ variant: 'destructive', title: "Save Failed", description: "Long-press the image to save." });
+        }
+    };
 
     const activeTryOnProduct = useMemo(() => {
         return products.find(p => p.id === tryOnProductId) || null;
@@ -158,21 +179,16 @@ function BrandedCollectionContent() {
     };
 
     const handleTryOnUpload = async (e: React.ChangeEvent<HTMLInputElement>, product: DisplayProduct) => {
-        if (!hasConsented) { toast({ variant: 'destructive', title: "Consent Required" }); return; }
+        if (!hasConsented) {
+            toast({ variant: 'destructive', title: "Consent Required" });
+            return;
+        }
         const file = e.target.files?.[0];
         if (!file) return;
 
         setIsTryOnLoading(true);
         setTryOnResult(null);
         setTryOnProductId(product.id);
-
-        fetch('/api/track', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ event: 'tryOnAttempt' })
-        });
-        
-        const ctx = getProductContext(product);
 
         try {
             const [personUri, productUri] = await Promise.all([
@@ -187,7 +203,7 @@ function BrandedCollectionContent() {
                     personImageDataUri: personUri,
                     productImageDataUri: productUri,
                     productTitle: product.title,
-                    garmentType: ctx.type,
+                    garmentType: getProductContext(product).type,
                     drapeStyle: selectedDrapeStyle,
                     sleeveLength: selectedSleeves
                 })
@@ -199,15 +215,10 @@ function BrandedCollectionContent() {
                 toast({ variant: 'destructive', title: "Try-On Failed", description: result.error });
             } else if (result.generatedImageDataUri) {
                 setTryOnResult(result.generatedImageDataUri);
-                fetch('/api/track', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ event: 'tryOnSuccess' })
-                });
                 toast({ title: "Magic Mirror Ready!" });
             }
         } catch (err: any) {
-            toast({ variant: 'destructive', title: "Try-On Failed", description: err.message });
+            toast({ variant: 'destructive', title: "Try-On Failed" });
             setTryOnProductId(null);
         } finally {
             setIsTryOnLoading(false);
@@ -245,13 +256,6 @@ function BrandedCollectionContent() {
         } finally {
             setIsEnquiring(false);
         }
-    };
-
-    const handleWhatsAppBusinessChat = () => {
-        if (!magazine) return;
-        const msg = `Hi! I'm visiting your Branded Collection: *${magazine.title}* and I'm interested in buying. \n\nI want to:\n1️⃣ Browse Collection\n2️⃣ Check Availability\n3️⃣ Get Recommendation\n4️⃣ Talk to Human Agent\n\n*Reference:* ${window.location.href}`;
-        const phone = sanitizePhoneNumber(magazine.contactNo || '919920320790');
-        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
     };
 
     if (!mounted || isLoading) return <div className="flex h-screen w-full items-center justify-center"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>;
@@ -334,7 +338,7 @@ function BrandedCollectionContent() {
 
                                 <div className="absolute top-4 right-4 z-20">
                                     <Badge 
-                                        className="bg-white/95 text-primary font-black italic text-[10px] px-3 py-1 rounded-full shadow-lg flex items-center gap-1.5 cursor-pointer hover:scale-110 active:scale-95 transition-all animate-genee-flash"
+                                        className="bg-white/95 text-primary font-black italic text-[10px] px-3 py-1 rounded-full shadow-lg flex items-center gap-1.5 cursor-pointer hover:scale-110 active:scale-95 transition-all"
                                         onClick={() => { setActiveGeneeProduct(p); setIsGeneeOpen(true); }}
                                     >
                                         <Star className="h-2.5 w-2.5 fill-primary" /> ASK ME
@@ -360,7 +364,6 @@ function BrandedCollectionContent() {
                     )})}
                 </div>
 
-                {/* Shared Try-On Control Panel - Appears only when a product is being tried on */}
                 {activeTryOnProduct && (
                     <Card className="rounded-[24px] bg-slate-900 text-white p-6 shadow-2xl overflow-hidden relative border-none">
                         <div className="absolute top-0 right-0 p-4 opacity-10"><Sparkles className="h-20 w-20" /></div>
@@ -386,23 +389,21 @@ function BrandedCollectionContent() {
 
                                 {activeTryOnContext.isApparel && (
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-white/10">
-                                        {activeTryOnContext.type !== 'Shirt' && (
-                                            <div className="space-y-2">
-                                                <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Style Mode</Label>
-                                                <Select value={selectedDrapeStyle} onValueChange={(val: any) => setSelectedDrapeStyle(val)}>
-                                                    <SelectTrigger className="h-10 bg-white/10 border-white/20 text-white rounded-xl text-xs font-bold">
-                                                        <SelectValue />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="Western Wear">Western Fit (Mini/Tight Fit)</SelectItem>
-                                                        <SelectItem value="Western Dress">Modern Western Dress</SelectItem>
-                                                        <SelectItem value="Kurti">Traditional Kurti</SelectItem>
-                                                        <SelectItem value="Standard Saree">Standard Saree (Floor Length)</SelectItem>
-                                                        <SelectItem value="East Indian Lugra">East Indian Lugra (Authentic)</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                        )}
+                                        <div className="space-y-2">
+                                            <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Style Mode</Label>
+                                            <Select value={selectedDrapeStyle} onValueChange={(val: any) => setSelectedDrapeStyle(val)}>
+                                                <SelectTrigger className="h-10 bg-white/10 border-white/20 text-white rounded-xl text-xs font-bold">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="Western Wear">Western Fit (Mini/Tight Fit)</SelectItem>
+                                                    <SelectItem value="Western Dress">Modern Western Dress</SelectItem>
+                                                    <SelectItem value="Kurti">Traditional Kurti</SelectItem>
+                                                    <SelectItem value="Standard Saree">Standard Saree (Floor Length)</SelectItem>
+                                                    <SelectItem value="East Indian Lugra">East Indian Lugra (Authentic)</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
                                         
                                         <div className="space-y-2">
                                             <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Sleeves</Label>
@@ -425,12 +426,7 @@ function BrandedCollectionContent() {
                                         <div className="col-span-full space-y-3">
                                             <div className="grid grid-cols-2 gap-3">
                                                 <Button onClick={() => setTryOnResult(null)} variant="outline" className="w-full border-white/20 text-white hover:bg-white/10 rounded-xl h-12 font-bold"><RefreshCcw className="mr-2 h-4 w-4" /> Try Again</Button>
-                                                <Button onClick={() => {
-                                                    const link = document.createElement('a');
-                                                    link.href = tryOnResult!;
-                                                    link.download = `my_look_${activeTryOnProduct.id}.jpg`;
-                                                    link.click();
-                                                }} className="bg-white text-slate-900 hover:bg-slate-100 rounded-xl h-12 font-bold"><Download className="mr-2 h-4 w-4" /> Save Look</Button>
+                                                <Button onClick={handleSaveLook} className="bg-white text-slate-900 hover:bg-slate-100 rounded-xl h-12 font-bold"><Download className="mr-2 h-4 w-4" /> Save Look</Button>
                                             </div>
                                         </div>
                                     ) : (
@@ -448,8 +444,7 @@ function BrandedCollectionContent() {
                                                 variant="secondary" 
                                                 className="bg-white/10 hover:bg-white/20 text-white border-white/10 rounded-xl h-12 font-bold disabled:opacity-50"
                                             >
-                                                <ImagePlus className="mr-2 h-4 w-4" /> From Gallery
-                                            </Button>
+                                                <ImagePlus className="mr-2 h-4 w-4" /> From Gallery</Button>
                                         </>
                                     )}
                                     <input ref={cameraInputRef} type="file" accept="image/*" capture="user" className="hidden" onChange={(e) => activeTryOnProduct && handleTryOnUpload(e, activeTryOnProduct)} />
@@ -487,7 +482,7 @@ function BrandedCollectionContent() {
             />
 
             <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex gap-4">
-                <Button onClick={handleWhatsAppBusinessChat} className="rounded-full h-16 px-10 bg-green-600 hover:bg-green-700 shadow-2xl font-black uppercase italic tracking-tighter text-white border-4 border-white transition-transform hover:scale-105 active:scale-95">
+                <Button onClick={() => { if(!magazine) return; const phone = sanitizePhoneNumber(magazine.contactNo || '919920320790'); window.open(`https://wa.me/${phone}?text=${encodeURIComponent(`Hi! I'm visiting your Branded Collection: *${magazine.title}*`)}`, '_blank'); }} className="rounded-full h-16 px-10 bg-green-600 hover:bg-green-700 shadow-2xl font-black uppercase italic tracking-tighter text-white border-4 border-white transition-transform hover:scale-105 active:scale-95">
                     <MessageCircle className="mr-2 h-6 w-6" /> Chat with Seller
                 </Button>
             </div>

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -19,8 +20,7 @@ import { parseInventoryCommand, detectItemsInPhoto } from '@/ai/flows/inventory-
 import { analyzeInventoryItem } from '@/ai/flows/inventory-analyzer';
 import { v4 as uuidv4 } from 'uuid';
 import Image from 'next/image';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { cn, sanitizePhoneNumber } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import type { InventoryItem, StockMovement, MovementType } from '@/types/inventory';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
@@ -40,7 +40,6 @@ export default function AdminInventoryPage() {
     const [activeView, setActiveView] = useState<'list' | 'shop-map'>('list');
     
     const [isQrSearching, setIsQrSearching] = useState(false);
-    const [isListening, setIsListening] = useState(false);
     const [textCommand, setTextCommand] = useState('');
     
     const [detectedIntakeItems, setDetectedIntakeItems] = useState<{
@@ -319,10 +318,31 @@ export default function AdminInventoryPage() {
                              <input type="file" id="new-item-capture" accept="image/*" capture="environment" className="hidden" onChange={async (e) => { const file = e.target.files?.[0]; if(!file) return; setIsAnalyzing(true); try { const uri = await resizeImage(file); const aiData = await analyzeInventoryItem({ imageDataUri: uri }); handleCreateAndRecord(aiData.productName, 1, aiData.suggestedMRP, 0, 'Opening', aiData.category, uri); } finally { setIsAnalyzing(false); } }} />
                         </CardContent>
                     </Card>
-                    <Link href="/admin/inventory/audit"><Card className="hover:bg-slate-50 transition-colors shadow-lg border-none cursor-pointer h-full"><CardHeader className="pb-2"><CardTitle className="text-[10px] font-black uppercase text-purple-600 tracking-widest">Visual Audit</CardTitle></CardHeader><CardContent className="flex items-center gap-4"><div className="p-2 bg-purple-100 text-purple-600 rounded-lg"><CheckCircle2 className="h-5 w-5" /></div><div className="text-xl font-bold italic">Shelf Check</div></CardContent></Card></Link>
-                    <Card className="shadow-lg border-none bg-white h-full flex flex-col justify-center"><CardHeader className="pb-2"><CardTitle className="text-[10px] font-black uppercase text-amber-600 tracking-widest">Broadcasts</CardTitle></CardHeader><CardContent className="flex gap-2 pt-0"><Button variant="outline" size="sm" className="flex-1 rounded-xl h-10 border-amber-100 text-amber-600" onClick={() => handleBroadcastReport('morning')}><Sun className="h-3 w-3 mr-1"/> MORNING</Button><Button variant="outline" size="sm" className="flex-1 rounded-xl h-10 border-indigo-100 text-indigo-600" onClick={() => handleBroadcastReport('night')}><Moon className="h-3 w-3 mr-1"/> NIGHT</Button></CardContent>
-                    <Card className="bg-slate-900 text-white shadow-xl border-none relative group overflow-hidden" onClick={handleExportFullInventory}><div className="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer"><Download className="h-8 w-8 text-primary" /></div><CardHeader className="pb-2"><CardTitle className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Total SKUs</CardTitle></CardHeader><CardContent><div className="text-3xl font-black">{inventory.length}</div></CardContent>
-                    <Card className="bg-slate-50 shadow-inner border-none flex flex-col justify-center p-4"><p className="text-[8px] font-black uppercase text-slate-400 mb-1">View Mode</p><div className="flex bg-white rounded-xl p-1 border"><Button variant={activeView === 'list' ? 'default' : 'ghost'} size="sm" className="flex-1 h-8 rounded-lg text-[10px] uppercase font-bold" onClick={() => setActiveView('list')}><List className="h-3 w-3 mr-1" /> List</Button><Button variant={activeView === 'shop-map' ? 'default' : 'ghost'} size="sm" className="flex-1 h-8 rounded-lg text-[10px] uppercase font-bold" onClick={() => setActiveView('shop-map')}><MapIcon className="h-3 w-3 mr-1" /> Map</Button></div></Card>
+                    <Link href="/admin/inventory/audit" className="contents">
+                        <Card className="hover:bg-slate-50 transition-colors shadow-lg border-none cursor-pointer h-full">
+                            <CardHeader className="pb-2"><CardTitle className="text-[10px] font-black uppercase text-purple-600 tracking-widest">Visual Audit</CardTitle></CardHeader>
+                            <CardContent className="flex items-center gap-4"><div className="p-2 bg-purple-100 text-purple-600 rounded-lg"><CheckCircle2 className="h-5 w-5" /></div><div className="text-xl font-bold italic">Shelf Check</div></CardContent>
+                        </Card>
+                    </Link>
+                    <Card className="shadow-lg border-none bg-white h-full flex flex-col justify-center">
+                        <CardHeader className="pb-2"><CardTitle className="text-[10px] font-black uppercase text-amber-600 tracking-widest">Broadcasts</CardTitle></CardHeader>
+                        <CardContent className="flex gap-2 pt-0">
+                            <Button variant="outline" size="sm" className="flex-1 rounded-xl h-10 border-amber-100 text-amber-600" onClick={() => handleBroadcastReport('morning')}><Sun className="h-3 w-3 mr-1"/> MORNING</Button>
+                            <Button variant="outline" size="sm" className="flex-1 rounded-xl h-10 border-indigo-100 text-indigo-600" onClick={() => handleBroadcastReport('night')}><Moon className="h-3 w-3 mr-1"/> NIGHT</Button>
+                        </CardContent>
+                    </Card>
+                    <Card className="bg-slate-900 text-white shadow-xl border-none relative group overflow-hidden" onClick={handleExportFullInventory}>
+                        <div className="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer"><Download className="h-8 w-8 text-primary" /></div>
+                        <CardHeader className="pb-2"><CardTitle className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Total SKUs</CardTitle></CardHeader>
+                        <CardContent><div className="text-3xl font-black">{inventory.length}</div></CardContent>
+                    </Card>
+                    <Card className="bg-slate-50 shadow-inner border-none flex flex-col justify-center p-4">
+                        <p className="text-[8px] font-black uppercase text-slate-400 mb-1">View Mode</p>
+                        <div className="flex bg-white rounded-xl p-1 border">
+                            <Button variant={activeView === 'list' ? 'default' : 'ghost'} size="sm" className="flex-1 h-8 rounded-lg text-[10px] uppercase font-bold" onClick={() => setActiveView('list')}><List className="h-3 w-3 mr-1" /> List</Button>
+                            <Button variant={activeView === 'shop-map' ? 'default' : 'ghost'} size="sm" className="flex-1 h-8 rounded-lg text-[10px] uppercase font-bold" onClick={() => setActiveView('shop-map')}><MapIcon className="h-3 w-3 mr-1" /> Map</Button>
+                        </div>
+                    </Card>
                 </div>
 
                 <div className="flex flex-col md:flex-row gap-4">
@@ -387,6 +407,18 @@ export default function AdminInventoryPage() {
                     </div>
                 )}
             </div>
+            {isQrSearching && (
+                <div id="qr-search-reader" className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+                     <div className="bg-white p-6 rounded-[32px] w-full max-w-sm">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="font-bold">Scan Product QR</h3>
+                            <Button variant="ghost" size="icon" onClick={() => setIsQrSearching(false)}><X /></Button>
+                        </div>
+                        <div id="qr-search-reader-container" className="rounded-xl overflow-hidden aspect-square"></div>
+                     </div>
+                </div>
+            )}
         </AppShell>
     );
 }
+

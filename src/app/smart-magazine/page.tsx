@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Suspense, useEffect, useState, useRef, useMemo, useCallback } from 'react';
@@ -110,14 +111,13 @@ function SmartMagazineContent() {
     const getProductContext = useCallback((p: DisplayProduct) => {
         if (!p) return { type: 'General', hint: 'selfie', label: 'SELFIE', isApparel: false };
         const title = p.title.toLowerCase();
-        const desc = (p.description || '').toLowerCase();
         const cat = (p.category || '').toLowerCase();
         
         const isWatch = title.includes('watch') || cat.includes('watch');
         const isShoes = title.includes('shoe') || title.includes('sneaker') || title.includes('sandal') || title.includes('footwear');
         const isEyewear = title.includes('glass') || title.includes('shade') || title.includes('spectacle') || cat.includes('eyewear');
         
-        const isMini = title.includes('mini') || desc.includes('mini') || title.includes('skirt') || desc.includes('skirt') || title.includes('short');
+        const isMini = title.includes('mini') || (p.description || '').toLowerCase().includes('mini') || title.includes('skirt') || (p.description || '').toLowerCase().includes('skirt') || title.includes('short');
         const isDress = (title.includes('dress') || title.includes('frock') || cat.includes('dress') || cat.includes('frock')) && !isMini;
         const isKurti = (title.includes('kurti') || title.includes('kurta') || cat.includes('kurti') || cat.includes('kurta')) && !isMini && !isDress;
         const isSaree = (title.includes('saree') || title.includes('fabric') || cat.includes('saree') || cat.includes('fabric')) && !isMini && !isDress && !isKurti;
@@ -183,7 +183,7 @@ function SmartMagazineContent() {
                     personImageDataUri: personUri,
                     productImageDataUri: productUri,
                     productTitle: product.title,
-                    garmentType: activeTryOnContext.type,
+                    garmentType: getProductContext(product).type,
                     drapeStyle: selectedDrapeStyle,
                     sleeveLength: selectedSleeves
                 })
