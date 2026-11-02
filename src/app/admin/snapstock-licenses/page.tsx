@@ -11,7 +11,8 @@ import {
     TrendingUp, UserPlus, 
     Search, Calendar, MoreVertical, Zap,
     Share2, Trash2, ShieldCheck, RefreshCw,
-    Clock, Link as LinkIcon, DollarSign, Ban, MapPin
+    Clock, Link as LinkIcon, DollarSign, Ban, MapPin,
+    MessageSquare
 } from 'lucide-react';
 import { getCollection, saveDocument, deleteDocument } from '@/services/firestore';
 import { Badge } from '@/components/ui/badge';
