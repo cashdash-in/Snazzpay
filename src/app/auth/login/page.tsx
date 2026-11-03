@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, Suspense } from 'react';
@@ -79,8 +78,6 @@ function LoginForm() {
             
             const rawRedirect = searchParams.get('redirectedFrom');
             
-            // STRICT PATH NORMALIZATION: Prevents SecurityError on client-side replaceState
-            // URLs starting with // are interpreted as new origins by the History API.
             if (rawRedirect) {
                  const cleanPath = rawRedirect.replace(/\/+/g, '/');
                  if (cleanPath.startsWith('/') && !cleanPath.startsWith('//')) {

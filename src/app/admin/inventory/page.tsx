@@ -495,7 +495,6 @@ export default function AdminInventoryPage() {
                     </DialogContent>
                 </Dialog>
 
-                {/* SCANNER DIALOG */}
                 <Dialog open={isScanning} onOpenChange={setIsScanning}>
                     <DialogContent className="max-w-sm rounded-[32px] p-6 no-print">
                         <DialogHeader><DialogTitle className="text-center uppercase font-black">Mobile Scanner</DialogTitle></DialogHeader>
@@ -504,7 +503,6 @@ export default function AdminInventoryPage() {
                     </DialogContent>
                 </Dialog>
 
-                {/* QUICK SALE DIALOG */}
                 <Dialog open={!!selectedSaleItem} onOpenChange={(open) => !open && setSelectedSaleItem(null)}>
                     <DialogContent className="max-md rounded-[32px] p-8 no-print">
                         <DialogHeader><DialogTitle className="text-2xl font-black italic uppercase">Admin Quick Sale</DialogTitle></DialogHeader>
