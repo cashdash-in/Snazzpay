@@ -186,7 +186,7 @@ export default function ZiptallyLicensesPage() {
                             <div className="text-4xl font-black italic text-slate-900">{stats.totalSnaps}</div>
                             <Zap className="h-10 w-10 text-blue-500 opacity-20" />
                         </CardContent>
-                    </Card>
+                    </div>
                 </div>
 
                 <Card className="rounded-[32px] shadow-sm border-none bg-white overflow-hidden">

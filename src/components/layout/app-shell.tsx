@@ -122,16 +122,6 @@ const adminConfigMenuItems: MenuItem[] = [
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
-const partnerMenuItems: MenuItem[] = [
-    { href: '/ziptally/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { href: '/ziptally/audit', label: 'Shelf Audit', icon: ShieldCheck },
-    { href: '/ai-product-uploader', label: 'AI Product Uploader', icon: Sparkles },
-    { href: '/share/magazine', label: 'Smart Magazine', icon: BookOpen },
-    { href: '/orders', label: 'Orders', icon: ShoppingCart },
-    { href: '/leads', label: 'Leads', icon: Users },
-    { href: '/settings', label: 'Settings', icon: Settings },
-];
-
 const sellerMenuItems: MenuItem[] = [
     { href: '/seller/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/seller/leads', label: 'Leads', icon: Users, notificationKey: 'leads' as const },
@@ -238,11 +228,7 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
       case 'collaborator':
         return { core: collaboratorMenuItems, growth: [], config: [] };
       case 'snapstock_partner':
-        return { 
-          core: partnerMenuItems, 
-          growth: [], 
-          config: [] 
-        };
+        return { core: [], growth: [], config: [] }; // No sidebar for shopkeepers
       default: // Admin view
         return {
             core: adminCoreMenuItems,
@@ -260,82 +246,93 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
 
   return (
     <SidebarProvider>
-      <Sidebar>
-        <SidebarHeader className="p-4">
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shrink-0">
-                <Zap className="w-6 h-6 text-white fill-current" />
+      {!isPartner && (
+        <Sidebar>
+            <SidebarHeader className="p-4">
+            <div className="flex items-center gap-2">
+                <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shrink-0">
+                    <Zap className="w-6 h-6 text-white fill-current" />
+                </div>
+                <div className="flex flex-col">
+                <h1 className="text-xl font-black italic tracking-tighter text-sidebar-foreground uppercase leading-none">{logoText}</h1>
+                <span className="text-[7px] font-bold uppercase tracking-widest text-primary">{taglineText}</span>
+                </div>
             </div>
-            <div className="flex flex-col">
-              <h1 className="text-xl font-black italic tracking-tighter text-sidebar-foreground uppercase leading-none">{logoText}</h1>
-              <span className="text-[7px] font-bold uppercase tracking-widest text-primary">{taglineText}</span>
-            </div>
-          </div>
-        </SidebarHeader>
-        <SidebarContent>
-          <SidebarMenu>
-            {core.map((item) => {
-              const count = item.notificationKey ? notificationCounts[item.notificationKey] : 0;
-              return (
-              <SidebarMenuItem key={item.label}>
-                <Link href={item.href}>
-                  <SidebarMenuButton
-                    isActive={pathname === item.href}
-                    tooltip={item.label}
-                  >
-                    <item.icon />
-                    <span className="flex-grow">{item.label}</span>
-                     {count > 0 && <Badge className="h-5">{count}</Badge>}
-                  </SidebarMenuButton>
-                </Link>
-              </SidebarMenuItem>
-            )})}
-          </SidebarMenu>
+            </SidebarHeader>
+            <SidebarContent>
+            <SidebarMenu>
+                {core.map((item) => {
+                const count = item.notificationKey ? notificationCounts[item.notificationKey] : 0;
+                return (
+                <SidebarMenuItem key={item.label}>
+                    <Link href={item.href}>
+                    <SidebarMenuButton
+                        isActive={pathname === item.href}
+                        tooltip={item.label}
+                    >
+                        <item.icon />
+                        <span className="flex-grow">{item.label}</span>
+                        {count > 0 && <Badge className="h-5">{count}</Badge>}
+                    </SidebarMenuButton>
+                    </Link>
+                </SidebarMenuItem>
+                )})}
+            </SidebarMenu>
 
-          {growth && growth.length > 0 && <SidebarSeparator />}
-          
-          <SidebarMenu>
-            {growth && growth.map((item) => (
-              <SidebarMenuItem key={item.label}>
-                <Link href={item.href}>
-                  <SidebarMenuButton
-                    isActive={pathname.startsWith(item.href)}
-                    tooltip={item.label}
-                  >
-                    <item.icon />
-                    <span>{item.label}</span>
-                  </SidebarMenuButton>
-                </Link>
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-          
-          {config && config.length > 0 && <SidebarSeparator />}
+            {growth && growth.length > 0 && <SidebarSeparator />}
+            
+            <SidebarMenu>
+                {growth && growth.map((item) => (
+                <SidebarMenuItem key={item.label}>
+                    <Link href={item.href}>
+                    <SidebarMenuButton
+                        isActive={pathname.startsWith(item.href)}
+                        tooltip={item.label}
+                    >
+                        <item.icon />
+                        <span>{item.label}</span>
+                    </SidebarMenuButton>
+                    </Link>
+                </SidebarMenuItem>
+                ))}
+            </SidebarMenu>
+            
+            {config && config.length > 0 && <SidebarSeparator />}
 
-          <SidebarMenu>
-             {config && config.map((item) => (
-              <SidebarMenuItem key={item.label}>
-                <Link href={item.href}>
-                  <SidebarMenuButton
-                    isActive={pathname === item.href}
-                    tooltip={item.label}
-                  >
-                    <item.icon />
-                    <span>{item.label}</span>
-                  </SidebarMenuButton>
-                </Link>
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        </SidebarContent>
-        <SidebarFooter>
-        </SidebarFooter>
-      </Sidebar>
+            <SidebarMenu>
+                {config && config.map((item) => (
+                <SidebarMenuItem key={item.label}>
+                    <Link href={item.href}>
+                    <SidebarMenuButton
+                        isActive={pathname === item.href}
+                        tooltip={item.label}
+                    >
+                        <item.icon />
+                        <span>{item.label}</span>
+                    </SidebarMenuButton>
+                    </Link>
+                </SidebarMenuItem>
+                ))}
+            </SidebarMenu>
+            </SidebarContent>
+            <SidebarFooter>
+            </SidebarFooter>
+        </Sidebar>
+      )}
       <SidebarInset>
-        <header className="flex h-16 items-center justify-between border-b bg-card px-4 md:px-6 sticky top-0 z-30">
+        <header className={cn(
+            "flex h-16 items-center justify-between border-b bg-card px-4 md:px-6 sticky top-0 z-30",
+            isPartner && "bg-slate-900 text-white border-white/5"
+        )}>
           <div className="flex items-center gap-4">
-            <SidebarTrigger className="md:hidden" />
-            <h2 className="text-xl font-semibold text-card-foreground">{title}</h2>
+            {!isPartner && <SidebarTrigger className="md:hidden" />}
+            {isPartner && (
+                <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg"><Zap className="h-5 w-5 text-white" /></div>
+                    <h2 className="text-xl font-black italic tracking-tighter uppercase">{title}</h2>
+                </div>
+            )}
+            {!isPartner && <h2 className="text-xl font-semibold text-card-foreground">{title}</h2>}
           </div>
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" onClick={() => router.refresh()}>
@@ -406,11 +403,14 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
           </div>
         </header>
         
-        <main className="flex-1 p-4 md:p-6 lg:p-8 pb-24 md:pb-8 relative">
+        <main className={cn(
+            "flex-1 p-4 md:p-6 lg:p-8 pb-24 md:pb-8 relative",
+            isPartner && "bg-slate-50"
+        )}>
           {children}
         </main>
 
-        {mounted && (
+        {mounted && !isPartner && (
             <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t flex items-center justify-around px-2 z-50">
                 <Link href="/" className={cn("flex flex-col items-center gap-1", pathname === '/' ? "text-primary" : "text-slate-400")}>
                     <LayoutDashboard className="h-5 w-5" />

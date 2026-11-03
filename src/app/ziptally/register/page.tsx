@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -189,7 +188,7 @@ export default function ZiptallyRegistrationPage() {
                         </div>
                     </div>
 
-                    <Card className="rounded-[40px] border-white/5 bg-slate-900/80 backdrop-blur-2xl shadow-2xl overflow-hidden">
+                    <Card className="rounded-[40px] border-white/5 bg-slate-900/80 backdrop-blur-2xl shadow-2xl overflow-hidden border">
                         <div className="grid grid-cols-1 md:grid-cols-2">
                             <div className="p-8 md:p-12 space-y-6">
                                 <h3 className="text-white font-black italic uppercase tracking-widest text-sm flex items-center gap-2 border-b border-white/5 pb-4">
@@ -215,7 +214,7 @@ export default function ZiptallyRegistrationPage() {
                                             {logoPreview ? <Image src={logoPreview} alt="logo" fill className="object-contain p-1" /> : <ImagePlus className="h-6 w-6 text-slate-600" />}
                                         </div>
                                         <div className="flex-1 space-y-1">
-                                            <Button type="button" variant="outline" size="sm" className="h-8 rounded-lg text-[10px] uppercase font-bold" onClick={() => document.getElementById('logo-upload')?.click()}>Upload Shop Logo</Button>
+                                            <Button type="button" variant="outline" size="sm" className="h-8 rounded-lg text-[10px] uppercase font-bold text-white border-white/20" onClick={() => document.getElementById('logo-upload')?.click()}>Upload Shop Logo</Button>
                                             <p className="text-[9px] text-slate-400 uppercase tracking-widest">Appears on reports</p>
                                         </div>
                                         <input type="file" id="logo-upload" accept="image/*" className="hidden" onChange={handleLogoUpload} />
@@ -248,7 +247,7 @@ export default function ZiptallyRegistrationPage() {
                         </div>
                     </Card>
 
-                    <Card className="rounded-[40px] border-white/5 bg-slate-900/80 p-8 md:p-12 shadow-2xl">
+                    <Card className="rounded-[40px] border-white/5 bg-slate-900/80 p-8 md:p-12 shadow-2xl border">
                         <CardContent className="space-y-8 p-0">
                             <div className="bg-slate-950/50 rounded-[32px] p-8 border border-white/5">
                                 <h4 className="text-white font-black italic uppercase text-xs mb-6 flex items-center gap-2 tracking-widest">
@@ -278,10 +277,10 @@ export default function ZiptallyRegistrationPage() {
 
                 <div className="text-center space-y-6">
                     <p className="text-slate-200 text-sm font-bold uppercase tracking-widest">
-                        Existing Partner? <Link href="/ziptally/login" className="text-blue-500 hover:text-blue-400 transition-colors">Log in to your terminal</Link>
+                        Existing Partner? <Link href="/ziptally/login" className="text-blue-500 hover:text-blue-400 transition-colors underline">Log in to your terminal</Link>
                     </p>
                     <div className="flex items-center justify-center gap-3 text-[10px] font-black text-slate-700 uppercase tracking-[0.3em]">
-                        <ShieldCheck className="h-4 w-4" /> Secure Licensing powered by Ziptally AI
+                        <ShieldCheck className="h-4 w-4 text-blue-500" /> Secure Licensing powered by Ziptally AI
                     </div>
                 </div>
             </div>
