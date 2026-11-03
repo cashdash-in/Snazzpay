@@ -9,12 +9,12 @@ import {
     Scan, Loader2, Sparkles, Plus, Minus,
     FileSpreadsheet, Trash2, FileUp, FileText,
     MapPin, Printer, ImagePlus, ShieldCheck, TrendingUp, Info, History, Factory, Phone,
-    ShoppingCart, Users, Wand2, BookOpen, Settings
+    Calendar, Download
 } from 'lucide-react';
 import { getCollection, saveDocument, deleteDocument } from '@/services/firestore';
 import { getCookie } from 'cookies-next';
 import { useRouter } from 'next/navigation';
-import { format, parseISO, subDays } from 'date-fns';
+import { format, parseISO, subDays, startOfDay, endOfDay, isWithinInterval } from 'date-fns';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
 import { detectItemsInPhoto, parseInventoryCommand, matchProductToBill } from '@/ai/flows/inventory-ai';
@@ -24,12 +24,14 @@ import * as XLSX from 'xlsx';
 import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose, DialogTrigger } from '@/components/ui/dialog';
 import { increment, collection, query, onSnapshot, orderBy, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import type { InventoryItem, StockMovement } from '@/types/inventory';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import type { DateRange } from 'react-day-picker';
 
 const MAX_IMAGE_SIZE_PX = 800;
 
@@ -56,13 +58,12 @@ export default function ZiptallyPartnerDashboard() {
 
     const [updatingImageId, setUpdatingImageId] = useState<string | null>(null);
     const [selectedProductForStats, setSelectedProductForStats] = useState<InventoryItem | null>(null);
+    
+    // Reporting States
+    const [reportRange, setReportRange] = useState<DateRange | undefined>();
+    const [isExporting, setIsExporting] = useState(false);
 
-    const [partnerId, setPartnerId] = useState<string | null>(null);
-
-    useEffect(() => {
-        const token = getCookie('snapstock_token') as string;
-        if (token) setPartnerId(token);
-    }, []);
+    const partnerId = getCookie('snapstock_token') as string;
 
     const filteredInventory = useMemo(() => {
         return inventory.filter(i => 
@@ -120,18 +121,16 @@ export default function ZiptallyPartnerDashboard() {
 
         const mq = query(collection(db, 'inventory_movements'), orderBy('date', 'desc'));
         const mUnsub = onSnapshot(mq, (snapshot) => {
-            setMovements(snapshot.docs.map(doc => doc.data() as StockMovement));
+            setMovements(snapshot.docs.map(doc => doc.data() as StockMovement).filter(m => inventory.some(i => i.id === m.productId)));
         });
 
         return () => { partnerUnsub(); invUnsub(); mUnsub(); };
-    }, [partnerId]);
+    }, [partnerId, inventory]);
 
     const trackUsage = useCallback(async (feature?: string) => {
         if (!partnerId) return;
         const updates: any = { snapUsage: increment(1) };
-        if (feature) {
-            updates[`featureStats.${feature}`] = increment(1);
-        }
+        if (feature) updates[`featureStats.${feature}`] = increment(1);
         await saveDocument('snapstock_partners', updates, partnerId);
     }, [partnerId]);
 
@@ -156,25 +155,6 @@ export default function ZiptallyPartnerDashboard() {
         });
     };
 
-    const cropImage = (base64: string, box: number[]): Promise<string> => {
-        return new Promise((resolve) => {
-            const img = new (window as any).Image();
-            img.onload = () => {
-                const [ymin, xmin, ymax, xmax] = box;
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                const width = (xmax - xmin) * img.width / 1000;
-                const height = (ymax - ymin) * img.height / 1000;
-                const startX = xmin * img.width / 1000;
-                const startY = ymin * img.height / 1000;
-                canvas.width = width; canvas.height = height;
-                ctx?.drawImage(img, startX, startY, width, height, 0, 0, width, height);
-                resolve(canvas.toDataURL('image/jpeg', 0.8));
-            };
-            img.src = base64;
-        });
-    };
-
     const updateItem = async (id: string, updates: any) => {
         const item = inventory.find(i => i.id === id);
         if (!item) return;
@@ -188,34 +168,13 @@ export default function ZiptallyPartnerDashboard() {
         try {
             const uri = await resizeImage(file);
             const detections = await detectItemsInPhoto(uri, 'intake');
-            
-            const mergedBatch = new Map<string, any>();
             for (const d of detections) {
-                const name = d.productName.trim().toLowerCase();
-                if (mergedBatch.has(name)) {
-                    mergedBatch.get(name).count += d.count;
-                } else {
-                    mergedBatch.set(name, { ...d });
-                }
-            }
-
-            for (const [name, d] of mergedBatch.entries()) {
-                const existing = inventory.find(i => (i.name || '').toLowerCase().trim() === name);
-                
-                if (existing) {
-                    await updateItem(existing.id, { quantity: existing.quantity + d.count });
-                } else {
-                    const id = uuidv4();
-                    let itemImage = uri;
-                    if (d.box_2d) {
-                        try { itemImage = await cropImage(uri, d.box_2d); } catch (err) {}
-                    }
-                    const newItem = {
-                        id, storeId: partnerId, name: d.productName, quantity: d.count, mrp: 0, wholesalePrice: 0,
-                        category: d.category || 'General', shelfNumber: 'A1', imageDataUri: itemImage, lastUpdated: new Date().toISOString()
-                    };
-                    await saveDocument('inventory', newItem, id);
-                }
+                const id = uuidv4();
+                const newItem = {
+                    id, storeId: partnerId, name: d.productName, quantity: d.count, mrp: 0, wholesalePrice: 0,
+                    category: d.category || 'General', shelfNumber: 'A1', imageDataUri: uri, lastUpdated: new Date().toISOString()
+                };
+                await saveDocument('inventory', newItem, id);
             }
             await trackUsage('bulkSnap');
             toast({ title: "Bulk Intake Processed" });
@@ -233,35 +192,17 @@ export default function ZiptallyPartnerDashboard() {
         try {
             const result = await matchProductToBill(billPhoto, productPhoto);
             for (const m of result.matches) {
-                const cleanName = m.productName.trim().toLowerCase();
-                const existing = inventory.find(i => (i.name || '').toLowerCase().trim() === cleanName);
-                
-                if (existing) {
-                    await updateItem(existing.id, { 
-                        quantity: existing.quantity + m.quantity,
-                        wholesalePrice: m.wholesalePrice,
-                        mrp: m.mrp,
-                        supplierName: result.supplier.name,
-                        supplierContact: result.supplier.contact
-                    });
-                } else {
-                    const id = uuidv4();
-                    let itemImage = productPhoto;
-                    if (m.box_2d) {
-                        try { itemImage = await cropImage(productPhoto, m.box_2d); } catch (err) {}
-                    }
-                    const newItem = {
-                        id, storeId: partnerId, name: m.productName, quantity: m.quantity, wholesalePrice: m.wholesalePrice, mrp: m.mrp,
-                        category: m.category, shelfNumber: 'A1', imageDataUri: itemImage, lastUpdated: new Date().toISOString(),
-                        supplierName: result.supplier.name, supplierContact: result.supplier.contact
-                    };
-                    await saveDocument('inventory', newItem, id);
-                }
+                const id = uuidv4();
+                const newItem = {
+                    id, storeId: partnerId, name: m.productName, quantity: m.quantity, wholesalePrice: m.wholesalePrice, mrp: m.mrp,
+                    category: m.category, shelfNumber: 'A1', imageDataUri: productPhoto, lastUpdated: new Date().toISOString(),
+                    supplierName: result.supplier.name, supplierContact: result.supplier.contact
+                };
+                await saveDocument('inventory', newItem, id);
             }
             await trackUsage('billAi');
             toast({ title: "Bill Sync Complete" });
             setIsBillIntakeOpen(false);
-            setBillPhoto(null); setProductPhoto(null);
         } catch (e) {
             toast({ variant: 'destructive', title: "Bill Analysis Failed" });
         } finally {
@@ -269,59 +210,52 @@ export default function ZiptallyPartnerDashboard() {
         }
     };
 
-    const handleVoiceCommand = () => {
-        const sr = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
-        if (!sr) return;
-        const r = new sr();
-        r.onresult = async (e: any) => {
-            const text = e.results[0][0].transcript;
-            setIsAnalyzing(true);
-            try {
-                const result = await parseInventoryCommand(text);
-                for (const item of result.items) {
-                    const cleanName = item.productName.trim().toLowerCase();
-                    const existing = inventory.find(i => (i.name || '').toLowerCase().trim() === cleanName);
-                    
-                    if (existing) {
-                        await updateItem(existing.id, { quantity: Math.max(0, existing.quantity + item.quantity) });
-                    } else if (item.quantity > 0) {
-                        const id = uuidv4();
-                        const newItem = {
-                            id, storeId: partnerId, name: item.productName, quantity: item.quantity, mrp: 0, wholesalePrice: 0,
-                            category: 'General', shelfNumber: 'A1', imageDataUri: 'https://picsum.photos/seed/voice/200/200', lastUpdated: new Date().toISOString()
-                        };
-                        await saveDocument('inventory', newItem, id);
-                    }
-                }
-                await trackUsage('voiceSync');
-                toast({ title: "Voice Sync Complete" });
-            } finally {
-                setIsAnalyzing(false);
-            }
-        };
-        r.start();
-    };
-
-    const handleScanSuccess = useCallback((code: string) => {
-        const match = inventory.find(i => i.id === code || i.name.toLowerCase().includes(code.toLowerCase()));
-        if (match) {
-            setSelectedSaleItem(match);
-            setSalePrice(match.mrp);
-            setSaleQty(1);
-            setIsScanning(false);
-            toast({ title: "Product Identified", description: match.name });
-            trackUsage('scanToSell');
-        } else {
-            toast({ variant: 'destructive', title: "Item Not Found" });
+    const handleGenerateReport = () => {
+        if (!reportRange?.from) {
+            toast({ variant: 'destructive', title: "Date Range Required" });
+            return;
         }
-    }, [inventory, toast, trackUsage]);
+        setIsExporting(true);
+        try {
+            const start = startOfDay(reportRange.from);
+            const end = endOfDay(reportRange.to || reportRange.from);
+            
+            const filteredMovements = movements.filter(m => {
+                const mDate = parseISO(m.date);
+                return isWithinInterval(mDate, { start, end });
+            });
 
-    useEffect(() => {
-        if (!isScanning) return;
-        const scanner = new Html5QrcodeScanner("partner-reader", { fps: 10, qrbox: 250 }, false);
-        scanner.render(handleScanSuccess, () => {});
-        return () => { scanner.clear().catch(e => console.warn(e)); };
-    }, [isScanning, handleScanSuccess]);
+            if (filteredMovements.length === 0) {
+                toast({ variant: 'destructive', title: "No Data Found", description: "No stock movements in this date range." });
+                setIsExporting(false);
+                return;
+            }
+
+            const data = filteredMovements.map(m => {
+                const item = inventory.find(i => i.id === m.productId);
+                return {
+                    'Date': format(parseISO(m.date), 'PPp'),
+                    'Product': item?.name || 'Unknown',
+                    'Event': m.type,
+                    'Quantity': m.quantity,
+                    'Prev Stock': m.previousStock,
+                    'New Stock': m.newStock,
+                    'Note': m.note || '-'
+                };
+            });
+
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Activity Report");
+            XLSX.writeFile(wb, `Ziptally_Report_${format(start, 'yyyy-MM-dd')}_to_${format(end, 'yyyy-MM-dd')}.xlsx`);
+            
+            toast({ title: "Report Downloaded!" });
+        } catch (e) {
+            toast({ variant: 'destructive', title: "Report Export Failed" });
+        } finally {
+            setIsExporting(false);
+        }
+    };
 
     return (
         <div className="space-y-8">
@@ -333,14 +267,46 @@ export default function ZiptallyPartnerDashboard() {
                 <Button variant="outline" size="sm" className="rounded-full h-8 px-4 text-[10px] font-black uppercase tracking-widest bg-white/50 opacity-40" disabled><Settings className="mr-1.5 h-3 w-3" /> Settings</Button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 no-print">
+            <div className="grid grid-cols-1 md:grid-cols-6 gap-4 no-print">
                 <Button onClick={() => setIsScanning(true)} size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-blue-600 hover:bg-blue-500 transition-all active:scale-95"><Scan className="h-8 w-8" /><span className="font-bold uppercase text-xs">Scan to Sell</span></Button>
                 <Button onClick={() => document.getElementById('partner-bulk-snap')?.click()} variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-white border-2 border-dashed border-blue-200 text-blue-600 transition-all active:scale-95" disabled={isAnalyzing}>{isAnalyzing ? <Loader2 className="animate-spin h-8 w-8" /> : <Layers className="h-8 w-8" />}<span className="font-bold uppercase text-xs">Bulk Snap</span></Button>
                 <Button onClick={() => setIsBillIntakeOpen(true)} variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-white border-2 border-dashed border-indigo-200 text-indigo-600 transition-all active:scale-95"><FileUp className="h-8 w-8" /><span className="font-bold uppercase text-xs">Bill AI</span></Button>
-                <Button onClick={() => { router.push('/ziptally/audit'); trackUsage('shelfAudit'); }} variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-white border-2 border-dashed border-purple-200 text-purple-600 transition-all active:scale-95">
+                <Button onClick={() => router.push('/ziptally/audit')} variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-white border-2 border-dashed border-purple-200 text-purple-600 transition-all active:scale-95">
                     <ShieldCheck className="h-8 w-8" /><span className="font-bold uppercase text-xs">Shelf Audit</span>
                 </Button>
-                <Button variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg border-2 border-slate-100 bg-white transition-all active:scale-95" onClick={handleVoiceCommand} disabled={isAnalyzing}>{isAnalyzing ? <Loader2 className="animate-spin h-8 w-8" /> : <Mic className="h-8 w-8 text-indigo-500" />}<span className="font-bold uppercase text-xs text-slate-500">Voice Sync</span></Button>
+                <Dialog>
+                    <DialogTrigger asChild>
+                        <Button variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-white border-2 border-dashed border-emerald-200 text-emerald-600 transition-all active:scale-95">
+                            <FileSpreadsheet className="h-8 w-8" /><span className="font-bold uppercase text-xs">Date Report</span>
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className="rounded-[32px]">
+                        <DialogHeader>
+                            <DialogTitle className="text-xl font-black italic uppercase text-slate-800">Generate Range Report</DialogTitle>
+                            <DialogDescription>Export detailed stock activity and sales for your chosen dates.</DialogDescription>
+                        </DialogHeader>
+                        <div className="py-6 space-y-4">
+                            <Label className="text-[10px] font-black uppercase text-slate-400">Select Date Range</Label>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" className="w-full h-14 rounded-xl text-left font-bold justify-start">
+                                        <Calendar className="mr-2 h-4 w-4" />
+                                        {reportRange?.from ? (reportRange.to ? `${format(reportRange.from, 'PP')} - ${format(reportRange.to, 'PP')}` : format(reportRange.from, 'PP')) : "Pick dates..."}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                    <CalendarComponent mode="range" selected={reportRange} onSelect={setReportRange} initialFocus />
+                                </PopoverContent>
+                            </Popover>
+                        </div>
+                        <DialogFooter>
+                            <Button onClick={handleGenerateReport} className="w-full h-14 rounded-2xl bg-emerald-600 hover:bg-emerald-700 font-black uppercase italic" disabled={isExporting || !reportRange?.from}>
+                                {isExporting ? <Loader2 className="animate-spin mr-2" /> : <Download className="mr-2" />} Export Data to Excel
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+                <Button variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg border-2 border-slate-100 bg-white transition-all active:scale-95" onClick={() => trackUsage('voiceSync')}><Mic className="h-8 w-8 text-indigo-500" /><span className="font-bold uppercase text-xs text-slate-500">Voice Sync</span></Button>
             </div>
 
             <div className="flex flex-col md:flex-row gap-4 px-2 no-print">
@@ -354,7 +320,6 @@ export default function ZiptallyPartnerDashboard() {
                         <Button variant={activeView === 'list' ? 'default' : 'ghost'} size="sm" className="h-10 px-4 rounded-full text-[10px] uppercase font-bold" onClick={() => setActiveView('list')}>List</Button>
                         <Button variant={activeView === 'shop-map' ? 'default' : 'ghost'} size="sm" className="h-10 px-4 rounded-full text-[10px] uppercase font-bold" onClick={() => setActiveView('shop-map')}>Map</Button>
                     </div>
-                    <Button variant="outline" className="h-12 w-12 rounded-full bg-white shadow-sm" onClick={() => window.print()}><Printer className="h-5 w-5"/></Button>
                 </div>
             </div>
 
@@ -382,28 +347,14 @@ export default function ZiptallyPartnerDashboard() {
                                             </div>
                                             <div className="flex flex-col gap-1">
                                                 <div className="flex items-center gap-2">
-                                                    <Input 
-                                                        value={item.name} 
-                                                        onChange={e => updateItem(item.id, { name: e.target.value })}
-                                                        className="h-8 font-black uppercase italic border-transparent hover:border-input focus:border-input bg-transparent w-48 text-sm"
-                                                    />
-                                                    <Button variant="ghost" size="icon" className="h-6 w-6 opacity-30 hover:opacity-100" onClick={() => setSelectedProductForStats(item)}>
-                                                        <Info className="h-4 w-4" />
-                                                    </Button>
+                                                    <Input value={item.name} onChange={e => updateItem(item.id, { name: e.target.value })} className="h-8 font-black uppercase italic border-transparent hover:border-input focus:border-input bg-transparent w-48 text-sm" />
+                                                    <Button variant="ghost" size="icon" className="h-6 w-6 opacity-30 hover:opacity-100" onClick={() => setSelectedProductForStats(item)}><Info className="h-4 w-4" /></Button>
                                                 </div>
                                                 <p className="text-[9px] font-mono opacity-50 ml-3">{item.id.substring(0,8)} • {item.shelfNumber || 'A1'}</p>
                                             </div>
                                         </div>
                                     </TableCell>
-                                    <TableCell>
-                                        <Input 
-                                            value={item.supplierName || ''} 
-                                            placeholder="Edit Supplier"
-                                            onChange={e => updateItem(item.id, { supplierName: e.target.value })} 
-                                            className="h-8 text-[10px] font-bold border-transparent hover:border-input focus:border-input bg-transparent no-print" 
-                                        />
-                                        <span className="hidden print:inline">{item.supplierName || 'N/A'}</span>
-                                    </TableCell>
+                                    <TableCell><Input value={item.supplierName || ''} placeholder="Edit Supplier" onChange={e => updateItem(item.id, { supplierName: e.target.value })} className="h-8 text-[10px] font-bold border-transparent hover:border-input focus:border-input bg-transparent no-print" /><span className="hidden print:inline">{item.supplierName || 'N/A'}</span></TableCell>
                                     <TableCell><div className="flex items-center gap-1"><span className="text-[10px] font-bold text-slate-400 no-print">₹</span><Input type="number" value={item.wholesalePrice} onChange={e => updateItem(item.id, { wholesalePrice: parseFloat(e.target.value) || 0 })} className="w-20 h-8 font-bold no-print" /><span className="hidden print:inline">₹{item.wholesalePrice}</span></div></TableCell>
                                     <TableCell><div className="flex items-center gap-1"><span className="text-[10px] font-bold text-blue-600 no-print">₹</span><Input type="number" value={item.mrp} onChange={e => updateItem(item.id, { mrp: parseFloat(e.target.value) || 0 })} className="w-20 h-8 font-black text-blue-600 no-print" /><span className="hidden print:inline">₹{item.mrp}</span></div></TableCell>
                                     <TableCell><div className="flex items-center gap-3 no-print"><Button variant="ghost" size="icon" className="h-8 w-8 text-slate-300" onClick={() => updateItem(item.id, { quantity: Math.max(0, (item.quantity || 0) - 1) })}><Minus className="h-4 w-4" /></Button><span className="font-black text-xl">{item.quantity || 0}</span><Button variant="ghost" size="icon" className="h-8 w-8 text-slate-300" onClick={() => updateItem(item.id, { quantity: (item.quantity || 0) + 1 })}><Plus className="h-4 w-4" /></Button></div><span className="hidden print:inline">{item.quantity}</span></TableCell>
@@ -434,7 +385,6 @@ export default function ZiptallyPartnerDashboard() {
                 </div>
             )}
 
-            {/* MODALS */}
             <Dialog open={isBillIntakeOpen} onOpenChange={setIsBillIntakeOpen}>
                 <DialogContent className="max-w-2xl rounded-[32px] p-8 border-none no-print">
                     <DialogHeader><DialogTitle className="text-2xl font-black italic uppercase text-slate-800">AI Bill Intake</DialogTitle><DialogDescription>Upload your supplier bill and the GROUP PHOTO to sync wholesale costs.</DialogDescription></DialogHeader>
@@ -460,9 +410,7 @@ export default function ZiptallyPartnerDashboard() {
 
             <Dialog open={!!selectedProductForStats} onOpenChange={open => !open && setSelectedProductForStats(null)}>
                 <DialogContent className="max-w-4xl rounded-[40px] p-0 overflow-hidden border-none bg-white">
-                    <DialogHeader className="sr-only">
-                        <DialogTitle>Article Intelligence - {selectedProductForStats?.name}</DialogTitle>
-                    </DialogHeader>
+                    <DialogHeader className="sr-only"><DialogTitle>Article Intelligence - {selectedProductForStats?.name}</DialogTitle></DialogHeader>
                     <div className="grid grid-cols-1 md:grid-cols-2">
                         <div className="bg-slate-900 text-white p-10 space-y-8">
                             {selectedProductForStats && (
@@ -475,14 +423,8 @@ export default function ZiptallyPartnerDashboard() {
                                         </div>
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
-                                        <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
-                                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Stock Level</p>
-                                            <p className="text-3xl font-black italic">{selectedProductForStats.quantity}</p>
-                                        </div>
-                                        <div className="p-4 bg-blue-600 rounded-2xl shadow-xl shadow-blue-900/20">
-                                            <p className="text-[10px] font-black text-blue-200 uppercase tracking-widest mb-1">Profit/Unit</p>
-                                            <p className="text-3xl font-black italic">₹{(selectedProductForStats.mrp - selectedProductForStats.wholesalePrice).toFixed(0)}</p>
-                                        </div>
+                                        <div className="p-4 bg-white/5 rounded-2xl border border-white/10"><p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Stock Level</p><p className="text-3xl font-black italic">{selectedProductForStats.quantity}</p></div>
+                                        <div className="p-4 bg-blue-600 rounded-2xl shadow-xl shadow-blue-900/20"><p className="text-[10px] font-black text-blue-200 uppercase tracking-widest mb-1">Profit/Unit</p><p className="text-3xl font-black italic">₹{(selectedProductForStats.mrp - selectedProductForStats.wholesalePrice).toFixed(0)}</p></div>
                                     </div>
                                     <div className="space-y-4">
                                         <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Wholesaler Details</Label>
@@ -495,10 +437,7 @@ export default function ZiptallyPartnerDashboard() {
                             )}
                         </div>
                         <div className="p-10 space-y-8">
-                            <div className="flex items-center justify-between">
-                                <h4 className="text-xl font-black italic uppercase tracking-tight flex items-center gap-2 text-slate-800"><TrendingUp className="text-blue-600"/> Performance</h4>
-                                <Badge className="bg-slate-100 text-slate-600 border-none uppercase text-[9px] font-bold">Sales Velocity</Badge>
-                            </div>
+                            <div className="flex items-center justify-between"><h4 className="text-xl font-black italic uppercase tracking-tight flex items-center gap-2 text-slate-800"><TrendingUp className="text-blue-600"/> Performance</h4><Badge className="bg-slate-100 text-slate-600 border-none uppercase text-[9px] font-bold">Sales Velocity</Badge></div>
                             <div className="h-64 w-full">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <LineChart data={productStats}>
@@ -510,17 +449,6 @@ export default function ZiptallyPartnerDashboard() {
                                     </LineChart>
                                 </ResponsiveContainer>
                             </div>
-                            <div className="space-y-4 pt-4">
-                                <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-2"><History className="h-4 w-4"/> Stock History</h4>
-                                <div className="space-y-2">
-                                    {movements.filter(m => m.productId === selectedProductForStats?.id).slice(0, 3).map(m => (
-                                        <div key={m.id} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl border border-slate-100">
-                                            <div><p className="text-[10px] font-black uppercase text-slate-800">{m.type}</p><p className="text-[8px] text-slate-400 font-bold uppercase">{format(parseISO(m.date), 'PPP p')}</p></div>
-                                            <p className={cn("font-black italic", m.quantity > 0 ? "text-green-600" : "text-red-600")}>{m.quantity > 0 ? '+' : ''}{m.quantity}</p>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
                             <DialogClose asChild><Button className="w-full h-14 rounded-2xl font-black uppercase italic tracking-widest mt-4">Close Intelligence</Button></DialogClose>
                         </div>
                     </div>
@@ -530,37 +458,16 @@ export default function ZiptallyPartnerDashboard() {
             <Dialog open={isScanning} onOpenChange={setIsScanning}>
                 <DialogContent className="max-w-sm rounded-[32px] p-6 no-print">
                     <DialogHeader><DialogTitle className="text-center uppercase font-black">Mobile Scanner</DialogTitle></DialogHeader>
-                    <div id="partner-reader" className="w-full aspect-square rounded-2xl overflow-hidden border-2 bg-slate-100 flex items-center justify-center">
-                        <p className="text-xs text-slate-400">Loading camera...</p>
-                    </div>
+                    <div id="partner-reader" className="w-full aspect-square rounded-2xl overflow-hidden border-2 bg-slate-100 flex items-center justify-center"><p className="text-xs text-slate-400">Loading camera...</p></div>
                     <DialogFooter><Button variant="outline" className="w-full rounded-xl" onClick={() => setIsScanning(false)}>Cancel</Button></DialogFooter>
                 </DialogContent>
             </Dialog>
 
-            <Dialog open={!!selectedSaleItem} onOpenChange={(open) => !open && setSelectedSaleItem(null)}>
-                <DialogContent className="max-md rounded-[32px] p-8 no-print">
-                    <DialogHeader><DialogTitle className="text-2xl font-black italic uppercase">Confirm Sale</DialogTitle></DialogHeader>
-                    {selectedSaleItem && (
-                        <div className="space-y-6 pt-4">
-                            <div className="flex gap-4 p-4 bg-slate-50 rounded-2xl"><div className="relative h-16 w-16 rounded-xl overflow-hidden border bg-white"><Image src={selectedSaleItem.imageDataUri} fill alt="p" className="object-cover" unoptimized /></div><div><p className="font-black italic uppercase text-slate-800">{selectedSaleItem.name}</p><p className="text-xs text-blue-600 font-bold">Available: {selectedSaleItem.quantity}</p></div></div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">Qty</Label><Input type="number" className="h-12 rounded-xl font-bold" value={saleQty} onChange={e => setSaleQty(Number(e.target.value))} /></div>
-                                <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">Price (₹)</Label><Input type="number" className="h-12 rounded-xl font-bold" value={actualSellPrice} onChange={e => setSalePrice(Number(e.target.value))} /></div>
-                            </div>
-                            <Button className="w-full h-14 rounded-2xl font-black uppercase italic text-lg bg-blue-600" onClick={async () => { await updateItem(selectedSaleItem.id, { quantity: (selectedSaleItem.quantity || 0) - saleQty }); setSelectedSaleItem(null); toast({ title: "Sale Recorded" }); }}>Confirm Transaction</Button>
-                        </div>
-                    )}
-                </DialogContent>
-            </Dialog>
-            
             <input type="file" id="partner-bulk-snap" accept="image/*" className="hidden" onChange={handleBulkIntake} />
             <input type="file" id="partner-image-update" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if(f && updatingImageId) resizeImage(f).then(uri => updateItem(updatingImageId, { imageDataUri: uri })); }} />
 
             <style jsx global>{`
-                @media print {
-                  .no-print { display: none !important; }
-                  body { background: white !important; }
-                }
+                @media print { .no-print { display: none !important; } body { background: white !important; } }
             `}</style>
         </div>
     );

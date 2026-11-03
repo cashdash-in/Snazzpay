@@ -21,7 +21,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { 
     Dialog, DialogContent, 
-    DialogHeader, DialogTitle, DialogTrigger, 
+    DialogHeader, DialogTitle, 
     DialogFooter, DialogClose 
 } from '@/components/ui/dialog';
 import { 
@@ -146,7 +146,7 @@ export default function ZiptallyLicensesPage() {
 
         try {
             await saveDocument('snapstock_partners', partnerData, id);
-            toast({ title: "Partner Registered & Activated" });
+            toast({ title: "Partner Activated" });
             setNewPartner({ storeName: '', ownerName: '', email: '', phone: '', address: '', password: '', plan: 'Standard Pro' });
         } catch (e) {
             toast({ variant: 'destructive', title: "Save Failed" });
@@ -183,7 +183,6 @@ export default function ZiptallyLicensesPage() {
     return (
         <AppShell title="Ziptally Admin Central">
             <div className="space-y-8">
-                {/* Stats Row */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <Card className="bg-slate-900 text-white border-none shadow-xl">
                         <CardHeader className="pb-2">
@@ -205,7 +204,7 @@ export default function ZiptallyLicensesPage() {
                     </Card>
                     <Card className="bg-emerald-600 text-white border-none shadow-xl">
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-[10px] font-black uppercase text-emerald-100 tracking-widest">Total Subscription Revenue</CardTitle>
+                            <CardTitle className="text-[10px] font-black uppercase text-emerald-100 tracking-widest">Subscription Revenue</CardTitle>
                         </CardHeader>
                         <CardContent className="flex justify-between items-end">
                             <div className="text-4xl font-black italic">₹{stats.monthlyRevenue.toLocaleString()}</div>
@@ -227,7 +226,6 @@ export default function ZiptallyLicensesPage() {
                     <CardHeader className="flex flex-col md:flex-row justify-between items-center bg-slate-50 border-b py-6 px-8 gap-4">
                         <div>
                             <CardTitle className="font-black italic uppercase tracking-tighter">Licensed Network</CardTitle>
-                            <CardDescription className="text-xs uppercase font-bold tracking-widest">Managing Ziptally AI Partners</CardDescription>
                         </div>
                         <div className="flex flex-wrap gap-2 justify-center">
                              <div className="relative">
@@ -242,7 +240,7 @@ export default function ZiptallyLicensesPage() {
                                 </DialogTrigger>
                                 <DialogContent className="rounded-[32px] max-w-2xl">
                                     <DialogHeader>
-                                        <DialogTitle className="text-2xl font-black italic uppercase">Register Ziptally Partner</DialogTitle>
+                                        <DialogTitle className="text-2xl font-black italic uppercase text-slate-800">Register Ziptally Partner</DialogTitle>
                                     </DialogHeader>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-6">
                                         <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">Store Name</Label><Input value={newPartner.storeName} onChange={e => setNewPartner({...newPartner, storeName: e.target.value})} className="h-12 rounded-xl bg-slate-50" /></div>
@@ -265,7 +263,7 @@ export default function ZiptallyLicensesPage() {
                     </CardHeader>
                     <CardContent className="p-0">
                         <Table>
-                            <TableHeader><TableRow><TableHead className="pl-8">Store & Owner</TableHead><TableHead>Plan</TableHead><TableHead>Status</TableHead><TableHead>Snap Usage</TableHead><TableHead>Revenue</TableHead><TableHead className="text-right pr-8">Actions</TableHead></TableRow></TableHeader>
+                            <TableHeader><TableRow><TableHead className="pl-8">Store & Owner</TableHead><TableHead>Plan</TableHead><TableHead>Status</TableHead><TableHead>Usage</TableHead><TableHead>Revenue</TableHead><TableHead className="text-right pr-8">Actions</TableHead></TableRow></TableHeader>
                             <TableBody>
                                 {isLoading ? (
                                     <TableRow><TableCell colSpan={6} className="text-center py-20"><Loader2 className="animate-spin h-8 w-8 mx-auto text-primary" /></TableCell></TableRow>
@@ -284,24 +282,13 @@ export default function ZiptallyLicensesPage() {
                                             </button>
                                         </TableCell>
                                         <TableCell>
-                                            <Badge variant="outline" className={cn(
-                                                "uppercase text-[9px] font-black",
-                                                p.plan?.includes('Elite') ? "bg-amber-50 text-amber-700 border-amber-200" :
-                                                p.plan?.includes('Trial') ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
-                                                "bg-blue-50 text-blue-700 border-blue-200"
-                                            )}>
-                                                {p.plan || 'Standard Pro'}
-                                            </Badge>
+                                            <Badge variant="outline" className="uppercase text-[9px] font-black">{p.plan || 'Standard Pro'}</Badge>
                                         </TableCell>
                                         <TableCell>
-                                            <Badge className={cn("font-black uppercase text-[9px]", p.status === 'Active' ? "bg-green-50 text-green-700" : p.status === 'Trial' ? "bg-blue-50 text-blue-600" : "bg-red-50 text-red-600")}>{p.status}</Badge>
+                                            <Badge className={cn("font-black uppercase text-[9px]", p.status === 'Active' ? "bg-green-50 text-green-700" : "bg-blue-50 text-blue-600")}>{p.status}</Badge>
                                         </TableCell>
-                                        <TableCell className="font-mono text-xs font-black text-blue-600">
-                                            {p.snapUsage || 0} Snaps
-                                        </TableCell>
-                                        <TableCell className="font-bold text-sm text-green-600">
-                                            ₹{(p.revenueGenerated || 0).toLocaleString()}
-                                        </TableCell>
+                                        <TableCell className="font-mono text-xs font-black text-blue-600">{p.snapUsage || 0} Snaps</TableCell>
+                                        <TableCell className="font-bold text-sm text-green-600">₹{(p.revenueGenerated || 0).toLocaleString()}</TableCell>
                                         <TableCell className="text-right pr-8">
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
@@ -322,7 +309,6 @@ export default function ZiptallyLicensesPage() {
                 </Card>
             </div>
 
-            {/* Partner Detail Dialog */}
             <Dialog open={!!selectedPartnerForDetail} onOpenChange={(open) => !open && setSelectedPartnerForDetail(null)}>
                 <DialogContent className="max-w-2xl rounded-[32px] p-0 overflow-hidden border-none shadow-2xl">
                     <DialogHeader className="sr-only">
@@ -341,23 +327,18 @@ export default function ZiptallyLicensesPage() {
                                 </div>
                             </div>
                             <div className="p-8 space-y-8 bg-white">
-                                <div className="grid grid-cols-2 gap-6">
+                                <div className="grid grid-cols-2 gap-6 text-slate-800">
                                     <div className="space-y-1">
                                         <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Contact Identity</p>
-                                        <div className="space-y-1">
-                                            <p className="text-sm font-bold flex items-center gap-2 text-slate-700"><Phone className="h-3.5 w-3.5" /> {selectedPartnerForDetail.phone}</p>
-                                            <p className="text-sm font-bold flex items-center gap-2 text-slate-700"><Mail className="h-3.5 w-3.5" /> {selectedPartnerForDetail.email}</p>
-                                        </div>
+                                        <p className="text-sm font-bold flex items-center gap-2"><Phone className="h-3.5 w-3.5" /> {selectedPartnerForDetail.phone}</p>
+                                        <p className="text-sm font-bold flex items-center gap-2"><Mail className="h-3.5 w-3.5" /> {selectedPartnerForDetail.email}</p>
                                     </div>
                                     <div className="space-y-1">
-                                        <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">License Data</p>
-                                        <div className="space-y-1">
-                                            <p className="text-sm font-bold flex items-center gap-2 text-slate-700"><Clock className="h-3.5 w-3.5" /> Joined {format(new Date(selectedPartnerForDetail.joinedAt), 'PP')}</p>
-                                            <p className="text-sm font-bold flex items-center gap-2 text-slate-700"><TrendingUp className="h-3.5 w-3.5" /> ₹{(selectedPartnerForDetail.revenueGenerated || 0).toLocaleString()} Total Paid</p>
-                                        </div>
+                                        <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Usage Data</p>
+                                        <p className="text-sm font-bold flex items-center gap-2"><Clock className="h-3.5 w-3.5" /> Joined {format(new Date(selectedPartnerForDetail.joinedAt), 'PP')}</p>
+                                        <p className="text-sm font-bold flex items-center gap-2"><Zap className="h-3.5 w-3.5 text-blue-500" /> {selectedPartnerForDetail.snapUsage} Total Snaps</p>
                                     </div>
                                 </div>
-
                                 <div className="space-y-3 pt-6 border-t">
                                     <div className="flex justify-between items-end">
                                         <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Live Business Location</p>
@@ -368,18 +349,6 @@ export default function ZiptallyLicensesPage() {
                                     <div className="p-4 bg-slate-50 rounded-2xl border-2 border-slate-100 flex items-start gap-3">
                                         <MapPin className="h-5 w-5 text-primary mt-0.5 shrink-0" />
                                         <p className="text-sm font-bold text-slate-800 leading-relaxed italic uppercase">{selectedPartnerForDetail.address}</p>
-                                    </div>
-                                </div>
-
-                                <div className="space-y-4 pt-6 border-t">
-                                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Feature Popularity (Usage Count)</p>
-                                    <div className="grid grid-cols-3 gap-3">
-                                        {Object.entries(selectedPartnerForDetail.featureStats || {}).map(([key, val]) => (
-                                            <div key={key} className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex flex-col items-center gap-1">
-                                                <p className="text-[8px] font-black uppercase text-slate-500 text-center">{key.replace(/([A-Z])/g, ' $1')}</p>
-                                                <p className="text-lg font-black italic text-blue-600">{val}</p>
-                                            </div>
-                                        ))}
                                     </div>
                                 </div>
                             </div>
