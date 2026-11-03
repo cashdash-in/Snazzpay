@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -57,8 +56,23 @@ export default function SnapStockPartnerDashboard() {
 
     // SCROLL TO TOP ON LOAD
     useEffect(() => {
-        window.scrollTo(0, 0);
+        if (typeof window !== 'undefined') window.scrollTo(0, 0);
     }, []);
+
+    // MEMOIZED FILTERS (Declared early to prevent ReferenceError)
+    const filteredInventory = useMemo(() => {
+        return inventory.filter(i => (i.name || '').toLowerCase().includes(searchTerm.toLowerCase()));
+    }, [inventory, searchTerm]);
+
+    const shelfGroups = useMemo(() => {
+        const groups: Record<string, any[]> = {};
+        inventory.forEach(item => {
+            const s = item.shelfNumber || 'A1';
+            if (!groups[s]) groups[s] = [];
+            groups[s].push(item);
+        });
+        return groups;
+    }, [inventory]);
 
     // LIVE DATA SYNC
     useEffect(() => {
@@ -79,28 +93,6 @@ export default function SnapStockPartnerDashboard() {
 
         return () => { partnerUnsub(); invUnsub(); };
     }, [partnerId]);
-
-    // SCANNER SETUP
-    useEffect(() => {
-        if (!isScanning) return;
-        const timer = setTimeout(() => {
-            const scanner = new Html5QrcodeScanner("partner-reader", { fps: 10, qrbox: 250 }, false);
-            scanner.render((decodedText) => {
-                const item = inventory.find(i => i.id === decodedText || i.name.toLowerCase() === decodedText.toLowerCase());
-                if (item) {
-                    setSelectedSaleItem(item);
-                    setSalePrice(item.mrp);
-                    setSaleQty(1);
-                    setIsScanning(false);
-                    scanner.clear().catch(console.warn);
-                } else {
-                    toast({ variant: 'destructive', title: "SKU Not Found" });
-                }
-            }, () => {});
-            return () => { scanner.clear().catch(() => {}); };
-        }, 100);
-        return () => clearTimeout(timer);
-    }, [isScanning, inventory, toast]);
 
     // HELPERS
     const trackUsage = useCallback(async () => {
@@ -155,7 +147,6 @@ export default function SnapStockPartnerDashboard() {
         await trackUsage();
     };
 
-    // ACTION HANDLERS
     const handleBulkIntake = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -167,15 +158,16 @@ export default function SnapStockPartnerDashboard() {
             const sessionGroups = new Map<string, any>();
             for (const d of detections) {
                 const cleanName = d.productName.trim();
-                if (sessionGroups.has(cleanName)) {
-                    sessionGroups.get(cleanName).count += d.count;
+                const key = cleanName.toLowerCase();
+                if (sessionGroups.has(key)) {
+                    sessionGroups.get(key).count += d.count;
                 } else {
-                    sessionGroups.set(cleanName, { ...d });
+                    sessionGroups.set(key, { ...d });
                 }
             }
 
-            for (const [name, d] of sessionGroups.entries()) {
-                const existing = inventory.find(i => i.name.toLowerCase().trim() === name.toLowerCase());
+            for (const [key, d] of sessionGroups.entries()) {
+                const existing = inventory.find(i => i.name.toLowerCase().trim() === key);
                 if (existing) {
                     await updateItem(existing.id, { quantity: (existing.quantity || 0) + d.count });
                 } else {
@@ -209,15 +201,16 @@ export default function SnapStockPartnerDashboard() {
             const sessionGroups = new Map<string, any>();
             for (const m of matchedItems) {
                 const cleanName = m.productName.trim();
-                if (sessionGroups.has(cleanName)) {
-                    sessionGroups.get(cleanName).quantity += m.quantity;
+                const key = cleanName.toLowerCase();
+                if (sessionGroups.has(key)) {
+                    sessionGroups.get(key).quantity += m.quantity;
                 } else {
-                    sessionGroups.set(cleanName, { ...m });
+                    sessionGroups.set(key, { ...m });
                 }
             }
 
-            for (const [name, result] of sessionGroups.entries()) {
-                const existing = inventory.find(i => i.name.toLowerCase().trim() === result.productName.toLowerCase().trim());
+            for (const [key, result] of sessionGroups.entries()) {
+                const existing = inventory.find(i => i.name.toLowerCase().trim() === key);
                 if (existing) {
                     await updateItem(existing.id, { 
                         quantity: (existing.quantity || 0) + result.quantity,
@@ -239,6 +232,7 @@ export default function SnapStockPartnerDashboard() {
             await trackUsage();
             toast({ title: "Bill Sync Complete" });
             setIsBillIntakeOpen(false);
+            setBillPhoto(null); setProductPhoto(null);
         } catch (e) {
             toast({ variant: 'destructive', title: "Bill Analysis Failed" });
         } finally {
@@ -275,21 +269,6 @@ export default function SnapStockPartnerDashboard() {
         };
         r.start();
     };
-
-    // MEMOIZED FILTERS (Declared before usage in JSX)
-    const filteredInventory = useMemo(() => {
-        return inventory.filter(i => (i.name || '').toLowerCase().includes(searchTerm.toLowerCase()));
-    }, [inventory, searchTerm]);
-
-    const shelfGroups = useMemo(() => {
-        const groups: Record<string, any[]> = {};
-        inventory.forEach(item => {
-            const s = item.shelfNumber || 'A1';
-            if (!groups[s]) groups[s] = [];
-            groups[s].push(item);
-        });
-        return groups;
-    }, [inventory]);
 
     const renderNumericValue = (val: any) => {
         if (typeof val === 'number') return val;

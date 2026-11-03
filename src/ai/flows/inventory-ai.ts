@@ -86,29 +86,30 @@ export async function detectItemsInPhoto(imageDataUri: string, mode: 'sale' | 'a
 
 /**
  * Parses a purchase bill and matches it to multiple products in a group photo.
- * Upgraded to handle multi-product matching and return boxes for auto-cropping.
+ * Upgraded to prioritize exact string extraction from the bill for 100% precision.
  */
 export async function matchProductToBill(billDataUri: string, groupProductsDataUri: string) {
     try {
         const { output } = await ai.generate({
             model: 'googleai/gemini-2.5-flash',
-            system: `You are an expert procurement and computer vision analyst. 
-            TASK: 
-            1. Read the provided PURCHASE BILL image (Photo 1). List EVERY product mentioned on the bill.
-            2. Analyze the GROUP PRODUCT PHOTO (Photo 2) which contains all items from the bill.
-            3. For every product found on the bill, identify its exact location in Photo 2.
-            4. Provide the BOUNDING BOX [ymin, xmin, ymax, xmax] normalized 0-1000 for each item in Photo 2.
+            system: `You are an elite OCR and computer vision analyst specializing in retail logistics.
+            CRITICAL INSTRUCTION: You must extract the EXACT product names from the PURCHASE BILL (Photo 1). Do not summarize, rename, or generalize them. If the bill says "Dell Latitude 5420", you MUST return that exact string, not just "Laptop".
             
-            Return an array of matched items.`,
+            TASK: 
+            1. READ BILL: High-Fidelity Extraction. Perform deep OCR on Photo 1. Extract every line item with its EXACT original text.
+            2. MATCH PHOTO: Analyze Photo 2 (Group Product Photo). Locate every physical item that corresponds to the bill entries.
+            3. SPATIAL MAPPING: Provide the BOUNDING BOX [ymin, xmin, ymax, xmax] normalized 0-1000 for each item as seen in Photo 2.
+            
+            Return a strictly structured JSON array of matched items.`,
             prompt: [
-                { text: "Image 1 is the Supplier Bill. Image 2 contains the physical products listed on the bill. Match them all." },
+                { text: "Image 1 is the Supplier Bill. Image 2 contains the physical products listed on the bill. Match them precisely using the exact names from the bill." },
                 { media: { url: billDataUri, contentType: 'image/jpeg' } },
                 { media: { url: groupProductsDataUri, contentType: 'image/jpeg' } }
             ],
             output: {
                 schema: z.object({
                     matches: z.array(z.object({
-                        productName: z.string().describe("The name of the product as found on the bill"),
+                        productName: z.string().describe("The EXACT name of the product as printed on the bill"),
                         quantity: z.number().describe("The quantity purchased from bill"),
                         wholesalePrice: z.number().describe("The unit purchase price from bill"),
                         mrp: z.number().describe("Suggested MRP based on bill (approx 100% margin if not specified)"),
