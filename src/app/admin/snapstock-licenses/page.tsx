@@ -12,7 +12,7 @@ import {
     Search, MoreVertical, Zap,
     Trash2, Ban, Clock,
     Lock, MessageSquare, MapPin, ExternalLink,
-    MousePointer2, Info, Users
+    MousePointer2, Info, Users, Phone, Mail
 } from 'lucide-react';
 import { getCollection, saveDocument, deleteDocument } from '@/services/firestore';
 import { Badge } from '@/components/ui/badge';
