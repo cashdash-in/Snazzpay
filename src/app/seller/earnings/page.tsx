@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -22,6 +21,7 @@ import type { DateRange } from 'react-day-picker';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import * as XLSX from 'xlsx';
+import { cn } from "@/lib/utils";
 
 type ProductProfitData = {
     productId: string;
@@ -78,8 +78,10 @@ export default function SellerEarningsPage() {
         const end = endOfDay(dateRange.to || dateRange.from);
 
         const displayOrders = orders.filter(o => {
-            const oDate = parseISO(o.date);
-            return isWithinInterval(oDate, { start, end });
+            try {
+                const oDate = parseISO(o.date);
+                return isWithinInterval(oDate, { start, end });
+            } catch (e) { return false; }
         });
 
         const profitMap = new Map<string, ProductProfitData>();

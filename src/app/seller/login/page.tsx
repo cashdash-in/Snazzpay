@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -16,6 +15,7 @@ import { FirebaseError } from 'firebase/app';
 import { Checkbox } from '@/components/ui/checkbox';
 import { getCollection } from '@/services/firestore';
 import type { SellerUser } from '@/app/seller-accounts/page';
+import { sanitizePhoneNumber } from '@/lib/utils';
 
 export default function SellerLoginPage() {
     const { toast } = useToast();
@@ -46,7 +46,8 @@ export default function SellerLoginPage() {
             // Check if loginId is a phone number and try to find the corresponding email
             if (!loginId.includes('@')) {
                 const sellers = await getCollection<SellerUser>('seller_users');
-                const seller = sellers.find(s => s.phone === loginId);
+                const cleanInputPhone = sanitizePhoneNumber(loginId);
+                const seller = sellers.find(s => sanitizePhoneNumber(s.phone || '') === cleanInputPhone);
                 if (seller) {
                     userEmail = seller.email;
                 } else {
@@ -69,8 +70,11 @@ export default function SellerLoginPage() {
             }
 
             toast({ title: "Seller Login Successful", description: "Redirecting to seller dashboard." });
-            router.push('/seller/dashboard');
-            router.refresh();
+            
+            // Wait for cookie to propagate
+            setTimeout(() => {
+                window.location.href = '/seller/dashboard';
+            }, 100);
 
         } catch (error: any) {
              let errorMessage = 'An unexpected error occurred during login.';
@@ -139,7 +143,7 @@ export default function SellerLoginPage() {
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4">
                     <Button className="w-full" onClick={handleLogin} disabled={isLoading}>
-                        {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Logging In...</> : "Login"}
+                        {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Login"}
                     </Button>
                     <p className="text-xs text-center text-muted-foreground">
                         Don't have an account?{" "}
