@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -29,6 +30,7 @@ import { db } from '@/lib/firebase';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import type { InventoryItem, StockMovement } from '@/types/inventory';
 import { AppShell } from '@/components/layout/app-shell';
+import { Html5QrcodeScanner } from 'html5-qrcode';
 
 const MAX_IMAGE_SIZE_PX = 800;
 
@@ -56,7 +58,12 @@ export default function ZiptallyPartnerDashboard() {
     const [updatingImageId, setUpdatingImageId] = useState<string | null>(null);
     const [selectedProductForStats, setSelectedProductForStats] = useState<InventoryItem | null>(null);
 
-    const partnerId = getCookie('snapstock_token') as string;
+    const [partnerId, setPartnerId] = useState<string | null>(null);
+
+    useEffect(() => {
+        const token = getCookie('snapstock_token') as string;
+        if (token) setPartnerId(token);
+    }, []);
 
     const filteredInventory = useMemo(() => {
         return inventory.filter(i => 
@@ -169,12 +176,11 @@ export default function ZiptallyPartnerDashboard() {
         const item = inventory.find(i => i.id === id);
         if (!item) return;
         await saveDocument('inventory', { ...item, ...updates, lastUpdated: new Date().toISOString() }, id);
-        await trackUsage();
     };
 
     const handleBulkIntake = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (!file) return;
+        if (!file || !partnerId) return;
         setIsAnalyzing(true);
         try {
             const uri = await resizeImage(file);
@@ -219,7 +225,7 @@ export default function ZiptallyPartnerDashboard() {
     };
 
     const handleProcessBill = async () => {
-        if (!billPhoto || !productPhoto) return;
+        if (!billPhoto || !productPhoto || !partnerId) return;
         setIsProcessingBill(true);
         try {
             const result = await matchProductToBill(billPhoto, productPhoto);
@@ -292,6 +298,26 @@ export default function ZiptallyPartnerDashboard() {
         };
         r.start();
     };
+
+    const handleScanSuccess = useCallback((code: string) => {
+        const match = inventory.find(i => i.id === code || i.name.toLowerCase().includes(code.toLowerCase()));
+        if (match) {
+            setSelectedSaleItem(match);
+            setSalePrice(match.mrp);
+            setSaleQty(1);
+            setIsScanning(false);
+            toast({ title: "Product Identified", description: match.name });
+        } else {
+            toast({ variant: 'destructive', title: "Item Not Found" });
+        }
+    }, [inventory, toast]);
+
+    useEffect(() => {
+        if (!isScanning) return;
+        const scanner = new Html5QrcodeScanner("partner-reader", { fps: 10, qrbox: 250 }, false);
+        scanner.render(handleScanSuccess, () => {});
+        return () => { scanner.clear().catch(e => console.warn(e)); };
+    }, [isScanning, handleScanSuccess]);
 
     return (
         <AppShell title={partner?.storeName || 'Ziptally Partner'}>
@@ -367,8 +393,8 @@ export default function ZiptallyPartnerDashboard() {
                                             />
                                             <span className="hidden print:inline">{item.supplierName || 'N/A'}</span>
                                         </TableCell>
-                                        <TableCell><div className="flex items-center gap-1"><span className="text-[10px] font-bold text-slate-400 no-print">₹</span><Input type="number" value={item.wholesalePrice} onChange={e => updateItem(item.id, { wholesalePrice: parseFloat(item.wholesalePrice) || 0 })} className="w-20 h-8 font-bold no-print" /><span className="hidden print:inline">₹{item.wholesalePrice}</span></div></TableCell>
-                                        <TableCell><div className="flex items-center gap-1"><span className="text-[10px] font-bold text-blue-600 no-print">₹</span><Input type="number" value={item.mrp} onChange={e => updateItem(item.id, { mrp: parseFloat(item.mrp) || 0 })} className="w-20 h-8 font-black text-blue-600 no-print" /><span className="hidden print:inline">₹{item.mrp}</span></div></TableCell>
+                                        <TableCell><div className="flex items-center gap-1"><span className="text-[10px] font-bold text-slate-400 no-print">₹</span><Input type="number" value={item.wholesalePrice} onChange={e => updateItem(item.id, { wholesalePrice: parseFloat(e.target.value) || 0 })} className="w-20 h-8 font-bold no-print" /><span className="hidden print:inline">₹{item.wholesalePrice}</span></div></TableCell>
+                                        <TableCell><div className="flex items-center gap-1"><span className="text-[10px] font-bold text-blue-600 no-print">₹</span><Input type="number" value={item.mrp} onChange={e => updateItem(item.id, { mrp: parseFloat(e.target.value) || 0 })} className="w-20 h-8 font-black text-blue-600 no-print" /><span className="hidden print:inline">₹{item.mrp}</span></div></TableCell>
                                         <TableCell><div className="flex items-center gap-3 no-print"><Button variant="ghost" size="icon" className="h-8 w-8 text-slate-300" onClick={() => updateItem(item.id, { quantity: Math.max(0, (item.quantity || 0) - 1) })}><Minus className="h-4 w-4" /></Button><span className="font-black text-xl">{item.quantity || 0}</span><Button variant="ghost" size="icon" className="h-8 w-8 text-slate-300" onClick={() => updateItem(item.id, { quantity: (item.quantity || 0) + 1 })}><Plus className="h-4 w-4" /></Button></div><span className="hidden print:inline">{item.quantity}</span></TableCell>
                                         <TableCell className="text-right pr-8 no-print"><Button variant="ghost" size="icon" className="text-slate-200" onClick={() => deleteDocument('inventory', item.id)}><Trash2 className="h-4 w-4" /></Button></TableCell>
                                     </TableRow>
@@ -397,7 +423,6 @@ export default function ZiptallyPartnerDashboard() {
                     </div>
                 )}
 
-                {/* MODALS */}
                 <Dialog open={isBillIntakeOpen} onOpenChange={setIsBillIntakeOpen}>
                     <DialogContent className="max-w-2xl rounded-[32px] p-8 border-none no-print">
                         <DialogHeader><DialogTitle className="text-2xl font-black italic uppercase text-slate-800">AI Bill Intake</DialogTitle><DialogDescription>Upload your supplier bill and the GROUP PHOTO to sync wholesale costs.</DialogDescription></DialogHeader>
@@ -487,16 +512,16 @@ export default function ZiptallyPartnerDashboard() {
                     </DialogContent>
                 </Dialog>
 
-                {/* SCANNER DIALOG */}
                 <Dialog open={isScanning} onOpenChange={setIsScanning}>
                     <DialogContent className="max-w-sm rounded-[32px] p-6 no-print">
                         <DialogHeader><DialogTitle className="text-center uppercase font-black">Mobile Scanner</DialogTitle></DialogHeader>
-                        <div id="partner-reader" className="w-full aspect-square rounded-2xl overflow-hidden border-2 bg-slate-50"></div>
+                        <div id="partner-reader" className="w-full aspect-square rounded-2xl overflow-hidden border-2 bg-slate-100 flex items-center justify-center">
+                            <p className="text-xs text-slate-400">Loading camera...</p>
+                        </div>
                         <DialogFooter><Button variant="outline" className="w-full rounded-xl" onClick={() => setIsScanning(false)}>Cancel</Button></DialogFooter>
                     </DialogContent>
                 </Dialog>
 
-                {/* QUICK SALE DIALOG */}
                 <Dialog open={!!selectedSaleItem} onOpenChange={(open) => !open && setSelectedSaleItem(null)}>
                     <DialogContent className="max-md rounded-[32px] p-8 no-print">
                         <DialogHeader><DialogTitle className="text-2xl font-black italic uppercase">Confirm Sale</DialogTitle></DialogHeader>

@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,10 +31,8 @@ export default function ZiptallyLoginPage() {
         const cleanPassword = password.trim();
 
         try {
-            // Using the standardized collection name
             const partners = await getCollection<any>('snapstock_partners');
-            console.log("[Ziptally Login] Checking partners database...");
-
+            
             const user = partners.find(p => {
                 const storedEmail = (p.email || '').toLowerCase().trim();
                 const storedPhone = (p.phone || '').trim();
@@ -47,14 +46,12 @@ export default function ZiptallyLoginPage() {
                     return;
                 }
 
-                // Set multiple cookies to ensure middleware and sidebar are in sync
                 setCookie('snapstock_token', user.id, { maxAge: 60 * 60 * 24 * 7 });
                 setCookie('userRole', 'snapstock_partner', { maxAge: 60 * 60 * 24 * 7 });
                 setCookie('firebaseAuthToken', 'ziptally_authenticated', { maxAge: 60 * 60 * 24 * 7 });
                 
                 toast({ title: "Welcome to Ziptally!", description: `Success! Accessing ${user.storeName}` });
                 
-                // Use window.location for a hard refresh to ensure AppShell role sync
                 window.location.href = '/ziptally/dashboard';
             } else {
                 toast({ 
@@ -73,7 +70,6 @@ export default function ZiptallyLoginPage() {
 
     return (
         <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 relative overflow-hidden">
-            {/* Background Glow */}
             <div className="absolute inset-0 opacity-10 pointer-events-none">
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[100%] h-[100%] bg-blue-600 rounded-full blur-[180px]"></div>
             </div>

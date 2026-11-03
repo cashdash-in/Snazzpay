@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { AppShell } from '@/components/layout/app-shell';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -28,6 +29,7 @@ import * as XLSX from 'xlsx';
 import { useRouter } from 'next/navigation';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { format, parseISO, subDays } from 'date-fns';
+import { Html5QrcodeScanner } from 'html5-qrcode';
 
 const MAX_IMAGE_SIZE_PX = 800;
 
@@ -108,6 +110,26 @@ export default function AdminInventoryPage() {
 
         return () => { unsubscribe(); mUnsub(); };
     }, []);
+
+    const handleScanSuccess = useCallback((code: string) => {
+        const match = inventory.find(i => i.id === code || i.name.toLowerCase().includes(code.toLowerCase()));
+        if (match) {
+            setSelectedSaleItem(match);
+            setSalePrice(match.mrp);
+            setSaleQty(1);
+            setIsScanning(false);
+            toast({ title: "Product identified" });
+        } else {
+            toast({ variant: 'destructive', title: "Product not found" });
+        }
+    }, [inventory, toast]);
+
+    useEffect(() => {
+        if (!isScanning) return;
+        const scanner = new Html5QrcodeScanner("admin-reader", { fps: 10, qrbox: 250 }, false);
+        scanner.render(handleScanSuccess, () => {});
+        return () => { scanner.clear().catch(e => console.warn(e)); };
+    }, [isScanning, handleScanSuccess]);
 
     const resizeImage = (file: File): Promise<string> => {
         return new Promise((resolve) => {
@@ -405,7 +427,6 @@ export default function AdminInventoryPage() {
                     </div>
                 )}
 
-                {/* MODALS */}
                 <Dialog open={isBillIntakeOpen} onOpenChange={setIsBillIntakeOpen}>
                     <DialogContent className="max-w-2xl rounded-[32px] p-8 border-none no-print">
                         <DialogHeader><DialogTitle className="text-2xl font-black italic uppercase text-slate-800">Admin Bill Intake</DialogTitle></DialogHeader>
