@@ -1,4 +1,3 @@
-
 'use client';
 import type {FC, PropsWithChildren} from 'react';
 import {
@@ -170,11 +169,13 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
   const router = useRouter();
   const { user, signOut } = useAuth();
   
+  const [mounted, setMounted] = useState(false);
   const [role, setRole] = useState<string | undefined>(undefined);
   const [notificationCounts, setNotificationCounts] = useState({ orders: 0, leads: 0, wholesale: 0 });
 
   useEffect(() => {
-    setRole(getCookie('userRole'));
+    setMounted(true);
+    setRole(getCookie('userRole') as string);
     
     const fetchCounts = async () => {
         if (!user) return;
@@ -217,8 +218,10 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
   }, [pathname, user]);
 
   const getMenuItems = () => {
-    const currentRole = getCookie('userRole');
-    switch (currentRole) {
+    // Return empty menus during SSR to avoid hydration mismatch
+    if (!mounted) return { core: [], growth: [], config: [] };
+
+    switch (role) {
       case 'seller':
         return { core: sellerMenuItems, growth: [], config: [] };
       case 'vendor':
@@ -399,29 +402,31 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
         </main>
 
         {/* Mobile Bottom Nav */}
-        <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t flex items-center justify-around px-2 z-50">
-            <Link href="/" className={cn("flex flex-col items-center gap-1", pathname === '/' ? "text-primary" : "text-slate-400")}>
-                <LayoutDashboard className="h-5 w-5" />
-                <span className="text-[10px] font-black uppercase tracking-tighter">Home</span>
-            </Link>
-            <Link href="/admin/inventory" className={cn("flex flex-col items-center gap-1", pathname === '/admin/inventory' ? "text-primary" : "text-slate-400")}>
-                <Zap className="h-5 w-5" />
-                <span className="text-[10px] font-black uppercase tracking-tighter">Stock</span>
-            </Link>
-             <div className="relative -top-6">
-                <Button className="h-14 w-14 rounded-full shadow-2xl shadow-primary/40 border-4 border-white" onClick={() => router.push('/ai-product-uploader')}>
-                    <Sparkles className="h-6 w-6" />
-                </Button>
+        {mounted && (
+            <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t flex items-center justify-around px-2 z-50">
+                <Link href="/" className={cn("flex flex-col items-center gap-1", pathname === '/' ? "text-primary" : "text-slate-400")}>
+                    <LayoutDashboard className="h-5 w-5" />
+                    <span className="text-[10px] font-black uppercase tracking-tighter">Home</span>
+                </Link>
+                <Link href="/admin/inventory" className={cn("flex flex-col items-center gap-1", pathname === '/admin/inventory' ? "text-primary" : "text-slate-400")}>
+                    <Zap className="h-5 w-5" />
+                    <span className="text-[10px] font-black uppercase tracking-tighter">Stock</span>
+                </Link>
+                <div className="relative -top-6">
+                    <Button className="h-14 w-14 rounded-full shadow-2xl shadow-primary/40 border-4 border-white" onClick={() => router.push('/ai-product-uploader')}>
+                        <Sparkles className="h-6 w-6" />
+                    </Button>
+                </div>
+                <Link href="/orders" className={cn("flex flex-col items-center gap-1", pathname === '/orders' ? "text-primary" : "text-slate-400")}>
+                    <ShoppingCart className="h-5 w-5" />
+                    <span className="text-[10px] font-black uppercase tracking-tighter">Orders</span>
+                </Link>
+                <Link href="/settings" className={cn("flex flex-col items-center gap-1", pathname === '/settings' ? "text-primary" : "text-slate-400")}>
+                    <Settings className="h-5 w-5" />
+                    <span className="text-[10px] font-black uppercase tracking-tighter">Settings</span>
+                </Link>
             </div>
-            <Link href="/orders" className={cn("flex flex-col items-center gap-1", pathname === '/orders' ? "text-primary" : "text-slate-400")}>
-                <ShoppingCart className="h-5 w-5" />
-                <span className="text-[10px] font-black uppercase tracking-tighter">Orders</span>
-            </Link>
-            <Link href="/settings" className={cn("flex flex-col items-center gap-1", pathname === '/settings' ? "text-primary" : "text-slate-400")}>
-                <Settings className="h-5 w-5" />
-                <span className="text-[10px] font-black uppercase tracking-tighter">Settings</span>
-            </Link>
-        </div>
+        )}
 
         <SellerGenee />
       </SidebarInset>

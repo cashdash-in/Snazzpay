@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -29,6 +28,7 @@ import { increment, collection, query, onSnapshot, orderBy, doc } from 'firebase
 import { db } from '@/lib/firebase';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import type { InventoryItem, StockMovement } from '@/types/inventory';
+import { AppShell } from '@/components/layout/app-shell';
 
 const MAX_IMAGE_SIZE_PX = 800;
 
@@ -294,19 +294,8 @@ export default function ZiptallyPartnerDashboard() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 flex flex-col">
-            <header className="bg-slate-900 text-white p-4 md:px-8 flex justify-between items-center sticky top-0 z-50 shadow-xl no-print">
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/20"><Zap className="h-6 w-6 text-white fill-current" /></div>
-                    <div><h1 className="text-xl font-black italic uppercase tracking-tighter">{partner?.storeName || 'Ziptally'}</h1><p className="text-[10px] text-blue-400 font-bold uppercase tracking-widest mt-1">Zip your Stock with AI</p></div>
-                </div>
-                <div className="flex items-center gap-4">
-                     <Badge variant="outline" className="text-blue-400 border-blue-400/30 uppercase text-[9px] font-black h-6">Usage: {typeof partner?.snapUsage === 'number' ? partner.snapUsage : 0} Snaps</Badge>
-                     <Button variant="ghost" size="sm" onClick={() => router.push('/ziptally/login')} className="text-slate-400 hover:text-white uppercase font-black text-[10px]">Logout</Button>
-                </div>
-            </header>
-
-            <main className="flex-1 p-4 md:p-8 space-y-8 max-w-7xl mx-auto w-full pb-32">
+        <AppShell title={partner?.storeName || 'Ziptally Partner'}>
+            <div className="space-y-8 max-w-7xl mx-auto w-full">
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-4 no-print">
                     <Button onClick={() => setIsScanning(true)} size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-blue-600 hover:bg-blue-500"><Scan className="h-8 w-8" /><span className="font-bold uppercase text-xs">Scan to Sell</span></Button>
                     <Button onClick={() => document.getElementById('partner-bulk-snap')?.click()} variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-white border-2 border-dashed border-blue-200 text-blue-600" disabled={isAnalyzing}>{isAnalyzing ? <Loader2 className="animate-spin h-8 w-8" /> : <Layers className="h-8 w-8" />}<span className="font-bold uppercase text-xs">Bulk Snap</span></Button>
@@ -523,8 +512,8 @@ export default function ZiptallyPartnerDashboard() {
                         )}
                     </DialogContent>
                 </Dialog>
-            </main>
-
+            </div>
+            
             <input type="file" id="partner-bulk-snap" accept="image/*" className="hidden" onChange={handleBulkIntake} />
             <input type="file" id="partner-image-update" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if(f && updatingImageId) resizeImage(f).then(uri => updateItem(updatingImageId, { imageDataUri: uri })); }} />
 
@@ -534,6 +523,6 @@ export default function ZiptallyPartnerDashboard() {
                   body { background: white !important; }
                 }
             `}</style>
-        </div>
+        </AppShell>
     );
 }
