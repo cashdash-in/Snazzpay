@@ -428,7 +428,9 @@ export default function AdminInventoryPage() {
 
                 <Dialog open={isBillIntakeOpen} onOpenChange={setIsBillIntakeOpen}>
                     <DialogContent className="max-w-2xl rounded-[32px] p-8 border-none no-print">
-                        <DialogHeader><DialogTitle className="text-2xl font-black italic uppercase text-slate-800">Admin Bill Intake</DialogTitle></DialogHeader>
+                        <DialogHeader>
+                            <DialogTitle className="text-2xl font-black italic uppercase text-slate-800">Admin Bill Intake</DialogTitle>
+                        </DialogHeader>
                         <div className="grid grid-cols-2 gap-6 py-6">
                             <div className="space-y-2">
                                 <Label className="text-[10px] font-black uppercase text-slate-400">Supplier Bill</Label>
@@ -451,6 +453,9 @@ export default function AdminInventoryPage() {
 
                 <Dialog open={!!selectedProductForStats} onOpenChange={open => !open && setSelectedProductForStats(null)}>
                     <DialogContent className="max-w-4xl rounded-[40px] p-0 overflow-hidden border-none bg-white">
+                        <DialogHeader className="sr-only">
+                            <DialogTitle>Product Intelligence - {selectedProductForStats?.name}</DialogTitle>
+                        </DialogHeader>
                         <div className="grid grid-cols-1 md:grid-cols-2">
                             <div className="bg-slate-900 text-white p-10 space-y-8">
                                 {selectedProductForStats && (

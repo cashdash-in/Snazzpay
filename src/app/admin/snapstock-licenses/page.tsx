@@ -242,7 +242,9 @@ export default function ZiptallyLicensesPage() {
                                     </Button>
                                 </DialogTrigger>
                                 <DialogContent className="rounded-[32px] max-w-2xl">
-                                    <DialogHeader><DialogTitle className="text-2xl font-black italic uppercase">Register Ziptally Partner</DialogTitle></DialogHeader>
+                                    <DialogHeader>
+                                        <DialogTitle className="text-2xl font-black italic uppercase">Register Ziptally Partner</DialogTitle>
+                                    </DialogHeader>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-6">
                                         <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">Store Name</Label><Input value={newPartner.storeName} onChange={e => setNewPartner({...newPartner, storeName: e.target.value})} className="h-12 rounded-xl bg-slate-50" /></div>
                                         <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">Owner Name</Label><Input value={newPartner.ownerName} onChange={e => setNewPartner({...newPartner, ownerName: e.target.value})} className="h-12 rounded-xl bg-slate-50" /></div>
@@ -321,6 +323,9 @@ export default function ZiptallyLicensesPage() {
             {/* Partner Detail Dialog */}
             <Dialog open={!!selectedPartnerForDetail} onOpenChange={(open) => !open && setSelectedPartnerForDetail(null)}>
                 <DialogContent className="max-w-2xl rounded-[32px] p-0 overflow-hidden border-none shadow-2xl">
+                    <DialogHeader className="sr-only">
+                        <DialogTitle>Partner Information - {selectedPartnerForDetail?.storeName}</DialogTitle>
+                    </DialogHeader>
                     {selectedPartnerForDetail && (
                         <div className="flex flex-col">
                             <div className="bg-slate-900 p-8 text-white">
