@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -12,7 +13,7 @@ import {
     Lock, FileText, MapPin, 
     Star, CreditCard
 } from "lucide-react";
-import { useRouter } from 'next/navigation';
+import useRouter from 'next/navigation';
 import Link from 'next/link';
 import { saveDocument } from '@/services/firestore';
 import { v4 as uuidv4 } from 'uuid';
@@ -56,7 +57,6 @@ const plans = [
 
 export default function ZiptallyRegistrationPage() {
     const { toast } = useToast();
-    const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
     const [logoPreview, setLogoPreview] = useState<string | null>(null);
     const [selectedPlan, setSelectedPlan] = useState<PlanType>('monthly');
@@ -191,7 +191,7 @@ export default function ZiptallyRegistrationPage() {
                 description: `Success! Your ${plan.name} has been activated.` 
             });
             
-            router.push('/ziptally/login');
+            window.location.href = '/ziptally/login';
         } catch (error) {
             toast({ variant: 'destructive', title: "Database Error" });
             setIsLoading(false);
