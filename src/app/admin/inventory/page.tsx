@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { AppShell } from '@/components/layout/app-shell';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,7 +12,7 @@ import {
     Loader2, Camera, Plus, Minus, Search, 
     Sparkles, Mic, Trash2, Scan,
     Printer, FileUp, FileText, ImagePlus, FileSpreadsheet,
-    MapPin, Layers
+    MapPin, Layers, ShieldCheck
 } from 'lucide-react';
 import { getCollection, saveDocument, deleteDocument } from '@/services/firestore';
 import { parseInventoryCommand, detectItemsInPhoto, matchProductToBill } from '@/ai/flows/inventory-ai';
@@ -22,16 +22,17 @@ import { cn } from "@/lib/utils";
 import type { InventoryItem } from '@/types/inventory';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { collection, query, orderBy, onSnapshot, doc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import * as XLSX from 'xlsx';
-import { format } from 'date-fns';
+import { useRouter } from 'next/navigation';
 
 const MAX_IMAGE_SIZE_PX = 800;
 
 export default function AdminInventoryPage() {
     const { toast } = useToast();
+    const router = useRouter();
     const [inventory, setInventory] = useState<InventoryItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -275,10 +276,13 @@ export default function AdminInventoryPage() {
                     </Button>
                     <Button onClick={() => document.getElementById('admin-bulk-input')?.click()} variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-white border-2 border-dashed border-blue-200 text-blue-600" disabled={isAnalyzing}>
                         {isAnalyzing ? <Loader2 className="animate-spin h-8 w-8" /> : <Layers className="h-8 w-8" />}
-                        <span className="font-bold uppercase text-xs">Bulk Intake</span>
+                        <span className="font-bold uppercase text-xs">Bulk Snap</span>
                     </Button>
                     <Button onClick={() => setIsBillIntakeOpen(true)} variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-white border-2 border-dashed border-indigo-200 text-indigo-600">
                         <FileUp className="h-8 w-8" /><span className="font-bold uppercase text-xs">Bill AI</span>
+                    </Button>
+                    <Button onClick={() => router.push('/admin/inventory/audit')} variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-white border-2 border-dashed border-purple-200 text-purple-600">
+                        <ShieldCheck className="h-8 w-8" /><span className="font-bold uppercase text-xs">Shelf Audit</span>
                     </Button>
                     <Button variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg border-2 border-slate-100 bg-white" onClick={handleVoiceCommand} disabled={isAnalyzing}>
                         <Mic className="h-8 w-8 text-indigo-500" /><span className="font-bold uppercase text-xs text-slate-500">Voice Sync</span>
@@ -286,12 +290,6 @@ export default function AdminInventoryPage() {
                     <Card className="bg-slate-900 text-white shadow-xl border-none p-4 flex flex-col justify-center text-center">
                         <p className="text-[10px] text-slate-500 uppercase font-bold">Total SKUs</p>
                         <p className="text-3xl font-black">{inventory.length}</p>
-                    </Card>
-                    <Card className="bg-slate-50 shadow-inner border-none p-4">
-                        <div className="flex bg-white rounded-xl p-1 border">
-                            <Button variant={activeView === 'list' ? 'default' : 'ghost'} size="sm" className="flex-1 h-8 rounded-lg text-[10px] uppercase font-bold" onClick={() => setActiveView('list')}>List</Button>
-                            <Button variant={activeView === 'shop-map' ? 'default' : 'ghost'} size="sm" className="flex-1 h-8 rounded-lg text-[10px] uppercase font-bold" onClick={() => setActiveView('shop-map')}>Map</Button>
-                        </div>
                     </Card>
                 </div>
 
@@ -306,6 +304,10 @@ export default function AdminInventoryPage() {
                     }}>
                         <FileSpreadsheet className="mr-2 h-4 w-4" /> Export Master
                     </Button>
+                    <div className="flex bg-white rounded-full p-1 border shadow-sm h-12">
+                        <Button variant={activeView === 'list' ? 'default' : 'ghost'} size="sm" className="h-10 px-4 rounded-full text-[10px] uppercase font-bold" onClick={() => setActiveView('list')}>List</Button>
+                        <Button variant={activeView === 'shop-map' ? 'default' : 'ghost'} size="sm" className="h-10 px-4 rounded-full text-[10px] uppercase font-bold" onClick={() => setActiveView('shop-map')}>Map</Button>
+                    </div>
                     <Button variant="outline" className="h-12 w-12 rounded-2xl bg-white shadow-sm" onClick={() => window.print()}><Printer className="h-5 w-5"/></Button>
                 </div>
 

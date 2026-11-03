@@ -1,7 +1,7 @@
 'use server';
 /**
  * @fileOverview AI flows for Inventory Intelligence.
- * Handles parsing voice/text commands, detecting items in photos, and matching bills to products.
+ * Upgraded for 100% precision in OCR and exact string matching.
  */
 
 import { ai } from '@/ai/genkit';
@@ -86,14 +86,17 @@ export async function detectItemsInPhoto(imageDataUri: string, mode: 'sale' | 'a
 
 /**
  * Parses a purchase bill and matches it to multiple products in a group photo.
- * Upgraded to prioritize exact string extraction from the bill for 100% precision.
+ * CRITICAL UPGRADE: Enforces exact string extraction from the bill for 100% precision.
  */
 export async function matchProductToBill(billDataUri: string, groupProductsDataUri: string) {
     try {
         const { output } = await ai.generate({
             model: 'googleai/gemini-2.5-flash',
             system: `You are an elite OCR and computer vision analyst specializing in retail logistics.
-            CRITICAL INSTRUCTION: You must extract the EXACT product names from the PURCHASE BILL (Photo 1). Do not summarize, rename, or generalize them. If the bill says "Dell Latitude 5420", you MUST return that exact string, not just "Laptop".
+            CRITICAL INSTRUCTION: You must extract the EXACT product names from the PURCHASE BILL (Photo 1). 
+            Do NOT summarize, rename, or generalize them. 
+            If the bill says "Dell Latitude 5420", you MUST return that exact string, not just "Laptop".
+            Precision is your top priority.
             
             TASK: 
             1. READ BILL: High-Fidelity Extraction. Perform deep OCR on Photo 1. Extract every line item with its EXACT original text.

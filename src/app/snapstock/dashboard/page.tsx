@@ -8,7 +8,7 @@ import {
     Zap, Camera, Layers, Mic, Search, 
     Scan, Loader2, Sparkles, Plus, Minus,
     FileSpreadsheet, Trash2, FileUp, FileText,
-    MapPin, Printer, ImagePlus
+    MapPin, Printer, ImagePlus, ShieldCheck
 } from 'lucide-react';
 import { getCollection, saveDocument, deleteDocument } from '@/services/firestore';
 import { getCookie } from 'cookies-next';
@@ -59,7 +59,7 @@ export default function SnapStockPartnerDashboard() {
         if (typeof window !== 'undefined') window.scrollTo(0, 0);
     }, []);
 
-    // MEMOIZED FILTERS (Declared early to prevent ReferenceError)
+    // MEMOIZED FILTERS
     const filteredInventory = useMemo(() => {
         return inventory.filter(i => (i.name || '').toLowerCase().includes(searchTerm.toLowerCase()));
     }, [inventory, searchTerm]);
@@ -293,8 +293,10 @@ export default function SnapStockPartnerDashboard() {
                     <Button onClick={() => setIsScanning(true)} size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-blue-600 hover:bg-blue-500"><Scan className="h-8 w-8" /><span className="font-bold uppercase text-xs">Scan to Sell</span></Button>
                     <Button onClick={() => document.getElementById('partner-bulk-snap')?.click()} variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-white border-2 border-dashed border-blue-200 text-blue-600" disabled={isAnalyzing}>{isAnalyzing ? <Loader2 className="animate-spin h-8 w-8" /> : <Layers className="h-8 w-8" />}<span className="font-bold uppercase text-xs">Bulk Snap</span></Button>
                     <Button onClick={() => setIsBillIntakeOpen(true)} variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-white border-2 border-dashed border-indigo-200 text-indigo-600"><FileUp className="h-8 w-8" /><span className="font-bold uppercase text-xs">Bill AI</span></Button>
+                    <Button onClick={() => router.push('/snapstock/audit')} variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-white border-2 border-dashed border-purple-200 text-purple-600">
+                        <ShieldCheck className="h-8 w-8" /><span className="font-bold uppercase text-xs">Shelf Audit</span>
+                    </Button>
                     <Button variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg border-2 border-slate-100 bg-white" onClick={handleVoiceCommand} disabled={isAnalyzing}>{isAnalyzing ? <Loader2 className="animate-spin h-8 w-8" /> : <Mic className="h-8 w-8 text-indigo-500" />}<span className="font-bold uppercase text-xs text-slate-500">Voice Sync</span></Button>
-                    <Card className="h-24 rounded-[24px] shadow-sm border-none bg-white p-4 flex flex-col justify-center text-center"><p className="text-[10px] font-black uppercase text-slate-400 mb-1">Stock Value</p><p className="text-2xl font-black italic">₹{inventory.reduce((sum, i) => sum + ((i.mrp || 0) * (i.quantity || 0)), 0).toLocaleString()}</p></Card>
                 </div>
 
                 <div className="flex flex-col md:flex-row gap-4 px-2 no-print">
@@ -304,9 +306,9 @@ export default function SnapStockPartnerDashboard() {
                             const ws = XLSX.utils.json_to_sheet(inventory.map(i => ({ Product: i.name, Shelf: i.shelfNumber, Stock: i.quantity, Purchase: i.wholesalePrice, MRP: i.mrp })));
                             const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Stock"); XLSX.writeFile(wb, "Inventory.xlsx");
                         }}><FileSpreadsheet className="mr-2 h-4 w-4" /> Export Excel</Button>
-                        <div className="flex bg-white rounded-full p-1 border shadow-sm">
-                            <Button variant={activeView === 'list' ? 'default' : 'ghost'} size="sm" className="h-8 px-4 rounded-full text-[10px] uppercase font-bold" onClick={() => setActiveView('list')}>List</Button>
-                            <Button variant={activeView === 'shop-map' ? 'default' : 'ghost'} size="sm" className="h-8 px-4 rounded-full text-[10px] uppercase font-bold" onClick={() => setActiveView('shop-map')}>Map</Button>
+                        <div className="flex bg-white rounded-full p-1 border shadow-sm h-12">
+                            <Button variant={activeView === 'list' ? 'default' : 'ghost'} size="sm" className="h-10 px-4 rounded-full text-[10px] uppercase font-bold" onClick={() => setActiveView('list')}>List</Button>
+                            <Button variant={activeView === 'shop-map' ? 'default' : 'ghost'} size="sm" className="h-10 px-4 rounded-full text-[10px] uppercase font-bold" onClick={() => setActiveView('shop-map')}>Map</Button>
                         </div>
                         <Button variant="outline" className="h-12 w-12 rounded-full bg-white shadow-sm" onClick={() => window.print()}><Printer className="h-5 w-5"/></Button>
                     </div>
