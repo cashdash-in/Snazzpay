@@ -8,12 +8,10 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { 
-    Loader2, Gem, CheckCircle, XCircle, 
+    Loader2, Gem, CheckCircle, 
     TrendingUp, UserPlus, 
-    Search, Calendar, MoreVertical, Zap,
-    Share2, Trash2, ShieldCheck, RefreshCw,
-    Clock, Link as LinkIcon, DollarSign, Ban, MapPin,
-    MessageSquare
+    Search, MoreVertical, Zap,
+    Share2, Trash2, Ban, Clock
 } from 'lucide-react';
 import { getCollection, saveDocument, deleteDocument } from '@/services/firestore';
 import { Badge } from '@/components/ui/badge';
@@ -21,7 +19,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { 
-    Dialog, DialogContent, DialogDescription, 
+    Dialog, DialogContent, 
     DialogHeader, DialogTitle, DialogTrigger, 
     DialogFooter, DialogClose 
 } from '@/components/ui/dialog';
@@ -30,7 +28,7 @@ import {
     DropdownMenuItem, DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
-import { addDays, format, parseISO } from 'date-fns';
+import { addDays } from 'date-fns';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
@@ -155,7 +153,7 @@ export default function SnapStockLicensesPage() {
 
     const renderNumericValue = (val: any) => {
         if (typeof val === 'number') return val;
-        return 0; // Guard against internal command objects being rendered
+        return 0; // Robust safeguard against corrupt data objects
     };
 
     return (
@@ -235,7 +233,7 @@ export default function SnapStockLicensesPage() {
                                             <div className="text-[10px] text-muted-foreground font-bold">{p.ownerName} • {p.email}</div>
                                         </TableCell>
                                         <TableCell>
-                                            <Badge className={cn("font-black uppercase text-[9px]", p.status === 'Active' ? "bg-green-50" : p.status === 'Trial' ? "bg-blue-50 text-blue-600" : "bg-red-50 text-red-600")}>{p.status}</Badge>
+                                            <Badge className={cn("font-black uppercase text-[9px]", p.status === 'Active' ? "bg-green-50 text-green-700" : p.status === 'Trial' ? "bg-blue-50 text-blue-600" : "bg-red-50 text-red-600")}>{p.status}</Badge>
                                         </TableCell>
                                         <TableCell className="font-mono text-xs font-black text-blue-600">
                                             {renderNumericValue(p.snapUsage)} Snaps

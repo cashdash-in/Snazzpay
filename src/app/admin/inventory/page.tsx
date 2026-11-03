@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { AppShell } from '@/components/layout/app-shell';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useToast } from '@/hooks/use-toast';
 import { 
     Loader2, Camera, Plus, Minus, Search, 
-    Sparkles, Mic, Trash2, PackagePlus, Scan,
+    Sparkles, Mic, Trash2, Scan,
     Printer, FileUp, FileText, ImagePlus, FileSpreadsheet,
     MapPin, Layers
 } from 'lucide-react';
@@ -73,7 +73,7 @@ export default function AdminInventoryPage() {
                     setSalePrice(item.mrp);
                     setSaleQty(1);
                     setIsScanning(false);
-                    scanner.clear();
+                    scanner.clear().catch(console.warn);
                 } else {
                     toast({ variant: 'destructive', title: "SKU Not Found" });
                 }
@@ -137,7 +137,6 @@ export default function AdminInventoryPage() {
             const uri = await resizeImage(file);
             const detections = await detectItemsInPhoto(uri, 'intake');
             
-            // Group by name for merge logic
             const sessionGroups = new Map<string, any>();
             for (const d of detections) {
                 const cleanName = d.productName.trim();
@@ -149,14 +148,14 @@ export default function AdminInventoryPage() {
             }
 
             for (const [name, d] of sessionGroups.entries()) {
-                const existing = inventory.find(i => i.name.toLowerCase() === name.toLowerCase());
+                const existing = inventory.find(i => i.name.toLowerCase().trim() === name.toLowerCase());
                 if (existing) {
-                    await updateItem(existing.id, { quantity: existing.quantity + d.count });
+                    await updateItem(existing.id, { quantity: (existing.quantity || 0) + d.count });
                 } else {
                     const id = uuidv4();
                     let itemImage = uri;
                     if (d.box_2d) {
-                        try { itemImage = await cropImage(uri, d.box_2d); } catch (e) {}
+                        try { itemImage = await cropImage(uri, d.box_2d); } catch (err) {}
                     }
                     await saveDocument('inventory', {
                         id, storeId: 'admin', name: d.productName, quantity: d.count, mrp: 0, wholesalePrice: 0,
@@ -178,11 +177,22 @@ export default function AdminInventoryPage() {
         setIsProcessingBill(true);
         try {
             const matchedItems = await matchProductToBill(billPhoto, productPhoto);
-            for (const result of matchedItems) {
-                const existing = inventory.find(i => i.name.toLowerCase() === result.productName.toLowerCase());
+            
+            const sessionGroups = new Map<string, any>();
+            for (const m of matchedItems) {
+                const cleanName = m.productName.trim();
+                if (sessionGroups.has(cleanName)) {
+                    sessionGroups.get(cleanName).quantity += m.quantity;
+                } else {
+                    sessionGroups.set(cleanName, { ...m });
+                }
+            }
+
+            for (const [name, result] of sessionGroups.entries()) {
+                const existing = inventory.find(i => i.name.toLowerCase().trim() === result.productName.toLowerCase().trim());
                 if (existing) {
                     await updateItem(existing.id, { 
-                        quantity: existing.quantity + result.quantity,
+                        quantity: (existing.quantity || 0) + result.quantity,
                         wholesalePrice: result.wholesalePrice,
                         mrp: result.mrp
                     });
@@ -190,7 +200,7 @@ export default function AdminInventoryPage() {
                     const id = uuidv4();
                     let itemImage = productPhoto;
                     if (result.box_2d) {
-                        try { itemImage = await cropImage(productPhoto, result.box_2d); } catch (e) {}
+                        try { itemImage = await cropImage(productPhoto, result.box_2d); } catch (err) {}
                     }
                     await saveDocument('inventory', {
                         id, storeId: 'admin', name: result.productName, quantity: result.quantity, wholesalePrice: result.wholesalePrice, mrp: result.mrp,
@@ -218,9 +228,9 @@ export default function AdminInventoryPage() {
             try {
                 const result = await parseInventoryCommand(text);
                 for (const item of result.items) {
-                    const existing = inventory.find(i => i.name.toLowerCase() === item.productName.toLowerCase());
+                    const existing = inventory.find(i => i.name.toLowerCase().trim() === item.productName.toLowerCase().trim());
                     if (existing) {
-                        await updateItem(existing.id, { quantity: Math.max(0, existing.quantity + item.quantity) });
+                        await updateItem(existing.id, { quantity: Math.max(0, (existing.quantity || 0) + item.quantity) });
                     } else if (item.quantity > 0) {
                         const id = uuidv4();
                         await saveDocument('inventory', {
@@ -329,9 +339,9 @@ export default function AdminInventoryPage() {
                                         <TableCell><div className="flex items-center gap-1"><span className="text-[10px] font-bold text-primary no-print">₹</span><Input type="number" value={item.mrp} onChange={e => updateItem(item.id, { mrp: parseFloat(e.target.value) || 0 })} className="w-24 h-8 font-black text-primary no-print" /><span className="hidden print:inline">₹{item.mrp}</span></div></TableCell>
                                         <TableCell>
                                             <div className="flex items-center gap-3 no-print">
-                                                <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500" onClick={() => updateItem(item.id, { quantity: Math.max(0, item.quantity - 1) })}><Minus className="h-4 w-4" /></Button>
-                                                <span className={cn("font-black text-lg", item.quantity < 5 && "text-red-500")}>{item.quantity}</span>
-                                                <Button size="icon" variant="ghost" className="h-8 w-8 text-green-500" onClick={() => updateItem(item.id, { quantity: item.quantity + 1 })}><Plus className="h-4 w-4" /></Button>
+                                                <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500" onClick={() => updateItem(item.id, { quantity: Math.max(0, (item.quantity || 0) - 1) })}><Minus className="h-4 w-4" /></Button>
+                                                <span className={cn("font-black text-lg", (item.quantity || 0) < 5 && "text-red-500")}>{item.quantity || 0}</span>
+                                                <Button size="icon" variant="ghost" className="h-8 w-8 text-green-500" onClick={() => updateItem(item.id, { quantity: (item.quantity || 0) + 1 })}><Plus className="h-4 w-4" /></Button>
                                             </div>
                                             <span className="hidden print:inline font-bold">{item.quantity}</span>
                                         </TableCell>
@@ -347,7 +357,7 @@ export default function AdminInventoryPage() {
                             <Card key={shelf} className="rounded-[32px] border-none shadow-lg bg-white overflow-hidden">
                                 <CardHeader className="bg-slate-50 border-b flex flex-row items-center justify-between py-4">
                                     <div className="flex items-center gap-3"><div className="p-2 bg-primary/10 rounded-xl text-primary font-black italic">{shelf}</div><CardTitle className="text-sm font-black uppercase italic">Shelf {shelf}</CardTitle></div>
-                                    <Badge className="bg-slate-900 text-[10px] font-black italic">Qty: {items.reduce((sum: number, i: any) => sum + i.quantity, 0)}</Badge>
+                                    <Badge className="bg-slate-900 text-[10px] font-black italic">Qty: {items.reduce((sum: number, i: any) => sum + (i.quantity || 0), 0)}</Badge>
                                 </CardHeader>
                                 <CardContent className="p-4 space-y-3">
                                     {items.slice(0, 3).map((item: any) => (
@@ -400,7 +410,7 @@ export default function AdminInventoryPage() {
                                 <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">Qty</Label><Input type="number" className="h-12 rounded-xl font-bold" value={saleQty} onChange={e => setSaleQty(Number(e.target.value))} /></div>
                                 <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">Price (₹)</Label><Input type="number" className="h-12 rounded-xl font-bold" value={actualSellPrice} onChange={e => setSalePrice(Number(e.target.value))} /></div>
                             </div>
-                            <Button className="w-full h-14 rounded-2xl font-black uppercase italic text-lg bg-blue-600" onClick={async () => { await updateItem(selectedSaleItem.id, { quantity: selectedSaleItem.quantity - saleQty }); setSelectedSaleItem(null); toast({ title: "Sale Recorded" }); }}>Confirm Transaction</Button>
+                            <Button className="w-full h-14 rounded-2xl font-black uppercase italic text-lg bg-blue-600" onClick={async () => { await updateItem(selectedSaleItem.id, { quantity: (selectedSaleItem.quantity || 0) - saleQty }); setSelectedSaleItem(null); toast({ title: "Sale Recorded" }); }}>Confirm Transaction</Button>
                         </div>
                     )}
                 </DialogContent>

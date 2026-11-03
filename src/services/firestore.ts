@@ -13,9 +13,9 @@ const sanitizeForFirestore = (data: any): any => {
     return data.map(sanitizeForFirestore);
   }
 
-  // Detect if it's a Firestore FieldValue or other specialized class
-  if (data.constructor && data.constructor.name !== 'Object') {
-      return data; // Return FieldValue (increment, serverTimestamp) as is
+  // Preserve Firestore FieldValues (like increment, serverTimestamp)
+  if (data.constructor && data.constructor.name !== 'Object' && data.constructor.name !== 'Array') {
+      return data; 
   }
 
   const sanitized: any = {};
@@ -104,8 +104,6 @@ export const sendMessage = async (chatId: string, senderId: string, content: any
     if (!db) return;
     const messagesRef = collection(db, `chats/${chatId}/messages`);
     const messageData = { chatId, senderId, content, timestamp: new Date() };
-    const newDoc = doc(messagesRef);
-    await setDoc(newDoc, messageData);
+    await setDoc(doc(messagesRef), messageData);
     await updateDoc(doc(db, 'chats', chatId), { lastMessage: content, lastMessageTimestamp: new Date() });
-    return newDoc.id;
 };
