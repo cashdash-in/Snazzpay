@@ -122,6 +122,16 @@ const adminConfigMenuItems: MenuItem[] = [
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
+const partnerMenuItems: MenuItem[] = [
+    { href: '/ziptally/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/ziptally/audit', label: 'Shelf Audit', icon: ShieldCheck },
+    { href: '/ai-product-uploader', label: 'AI Product Uploader', icon: Sparkles },
+    { href: '/share/magazine', label: 'Smart Magazine', icon: BookOpen },
+    { href: '/orders', label: 'Orders', icon: ShoppingCart },
+    { href: '/leads', label: 'Leads', icon: Users },
+    { href: '/settings', label: 'Settings', icon: Settings },
+];
+
 const sellerMenuItems: MenuItem[] = [
     { href: '/seller/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/seller/leads', label: 'Leads', icon: Users, notificationKey: 'leads' as const },
@@ -218,7 +228,6 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
   }, [pathname, user]);
 
   const getMenuItems = () => {
-    // Return empty menus during SSR to avoid hydration mismatch
     if (!mounted) return { core: [], growth: [], config: [] };
 
     switch (role) {
@@ -230,10 +239,7 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
         return { core: collaboratorMenuItems, growth: [], config: [] };
       case 'snapstock_partner':
         return { 
-          core: [
-            { href: '/ziptally/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-            { href: '/ziptally/audit', label: 'Shelf Audit', icon: ShieldCheck },
-          ], 
+          core: partnerMenuItems, 
           growth: [], 
           config: [] 
         };
