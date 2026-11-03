@@ -12,7 +12,7 @@ import {
     Search, MoreVertical, Zap,
     Trash2, Ban, Clock,
     Lock, MessageSquare, MapPin, ExternalLink,
-    BarChart3, MousePointer2, Info, Users
+    MousePointer2, Info, Users
 } from 'lucide-react';
 import { getCollection, saveDocument, deleteDocument } from '@/services/firestore';
 import { Badge } from '@/components/ui/badge';
@@ -41,7 +41,7 @@ type ZiptallyPartner = {
     phone: string;
     address: string;
     password?: string;
-    plan: 'Trial' | 'Standard Pro' | 'Annual Elite';
+    plan: string;
     status: 'Active' | 'Trial' | 'Expired';
     snapUsage: number;
     revenueGenerated: number;
@@ -71,7 +71,7 @@ export default function ZiptallyLicensesPage() {
         phone: '',
         address: '',
         password: '',
-        plan: 'Standard Pro' as ZiptallyPartner['plan']
+        plan: 'Standard Pro'
     });
 
     useEffect(() => {
@@ -114,8 +114,7 @@ export default function ZiptallyLicensesPage() {
             totalPartners: partners.length,
             monthlyRevenue: partners.reduce((sum, p) => sum + (p.revenueGenerated || 0), 0),
             totalSnaps: partners.reduce((sum, p) => sum + (p.snapUsage || 0), 0),
-            topFeature: sortedFeatures[0],
-            allFeatureStats: featureTotals
+            topFeature: sortedFeatures[0]
         };
     }, [partners]);
 
@@ -206,20 +205,20 @@ export default function ZiptallyLicensesPage() {
                     </Card>
                     <Card className="bg-emerald-600 text-white border-none shadow-xl">
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-[10px] font-black uppercase text-emerald-100 tracking-widest">Most Used Feature</CardTitle>
+                            <CardTitle className="text-[10px] font-black uppercase text-emerald-100 tracking-widest">Total Subscription Revenue</CardTitle>
                         </CardHeader>
                         <CardContent className="flex justify-between items-end">
-                            <div className="text-xl font-black uppercase italic truncate">{stats.topFeature ? stats.topFeature[0].replace(/([A-Z])/g, ' $1') : 'N/A'}</div>
-                            <MousePointer2 className="h-8 w-8 text-white opacity-30" />
+                            <div className="text-4xl font-black italic">₹{stats.monthlyRevenue.toLocaleString()}</div>
+                            <TrendingUp className="h-10 w-10 text-white opacity-30" />
                         </CardContent>
                     </Card>
                     <Card className="bg-white shadow-lg border-none">
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Avg Settle Time</CardTitle>
+                            <CardTitle className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Most Used Feature</CardTitle>
                         </CardHeader>
                         <CardContent className="flex justify-between items-end">
-                            <div className="text-4xl font-black italic text-slate-900">12m</div>
-                            <TrendingUp className="h-10 w-10 text-blue-500 opacity-20" />
+                            <div className="text-xl font-black uppercase italic truncate">{stats.topFeature ? stats.topFeature[0].replace(/([A-Z])/g, ' $1') : 'N/A'}</div>
+                            <MousePointer2 className="h-8 w-8 text-blue-500 opacity-20" />
                         </CardContent>
                     </Card>
                 </div>
@@ -266,7 +265,7 @@ export default function ZiptallyLicensesPage() {
                     </CardHeader>
                     <CardContent className="p-0">
                         <Table>
-                            <TableHeader><TableRow><TableHead className="pl-8">Store & Owner</TableHead><TableHead>Plan</TableHead><TableHead>Status</TableHead><TableHead>Snap Usage</TableHead><TableHead className="text-right pr-8">Actions</TableHead></TableRow></TableHeader>
+                            <TableHeader><TableRow><TableHead className="pl-8">Store & Owner</TableHead><TableHead>Plan</TableHead><TableHead>Status</TableHead><TableHead>Snap Usage</TableHead><TableHead>Revenue</TableHead><TableHead className="text-right pr-8">Actions</TableHead></TableRow></TableHeader>
                             <TableBody>
                                 {isLoading ? (
                                     <TableRow><TableCell colSpan={6} className="text-center py-20"><Loader2 className="animate-spin h-8 w-8 mx-auto text-primary" /></TableCell></TableRow>
@@ -287,8 +286,8 @@ export default function ZiptallyLicensesPage() {
                                         <TableCell>
                                             <Badge variant="outline" className={cn(
                                                 "uppercase text-[9px] font-black",
-                                                p.plan === 'Annual Elite' ? "bg-amber-50 text-amber-700 border-amber-200" :
-                                                p.plan === 'Trial' ? "bg-slate-50 text-slate-500 border-slate-200" :
+                                                p.plan?.includes('Elite') ? "bg-amber-50 text-amber-700 border-amber-200" :
+                                                p.plan?.includes('Trial') ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
                                                 "bg-blue-50 text-blue-700 border-blue-200"
                                             )}>
                                                 {p.plan || 'Standard Pro'}
@@ -299,6 +298,9 @@ export default function ZiptallyLicensesPage() {
                                         </TableCell>
                                         <TableCell className="font-mono text-xs font-black text-blue-600">
                                             {p.snapUsage || 0} Snaps
+                                        </TableCell>
+                                        <TableCell className="font-bold text-sm text-green-600">
+                                            ₹{(p.revenueGenerated || 0).toLocaleString()}
                                         </TableCell>
                                         <TableCell className="text-right pr-8">
                                             <DropdownMenu>
@@ -343,15 +345,15 @@ export default function ZiptallyLicensesPage() {
                                     <div className="space-y-1">
                                         <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Contact Identity</p>
                                         <div className="space-y-1">
-                                            <p className="text-sm font-bold flex items-center gap-2 text-slate-700"><MessageSquare className="h-3.5 w-3.5" /> {selectedPartnerForDetail.phone}</p>
-                                            <p className="text-sm font-bold flex items-center gap-2 text-slate-700"><Lock className="h-3.5 w-3.5" /> {selectedPartnerForDetail.email}</p>
+                                            <p className="text-sm font-bold flex items-center gap-2 text-slate-700"><Phone className="h-3.5 w-3.5" /> {selectedPartnerForDetail.phone}</p>
+                                            <p className="text-sm font-bold flex items-center gap-2 text-slate-700"><Mail className="h-3.5 w-3.5" /> {selectedPartnerForDetail.email}</p>
                                         </div>
                                     </div>
                                     <div className="space-y-1">
                                         <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">License Data</p>
                                         <div className="space-y-1">
                                             <p className="text-sm font-bold flex items-center gap-2 text-slate-700"><Clock className="h-3.5 w-3.5" /> Joined {format(new Date(selectedPartnerForDetail.joinedAt), 'PP')}</p>
-                                            <p className="text-sm font-bold flex items-center gap-2 text-slate-700"><TrendingUp className="h-3.5 w-3.5" /> {selectedPartnerForDetail.snapUsage} Snaps Used</p>
+                                            <p className="text-sm font-bold flex items-center gap-2 text-slate-700"><TrendingUp className="h-3.5 w-3.5" /> ₹{(selectedPartnerForDetail.revenueGenerated || 0).toLocaleString()} Total Paid</p>
                                         </div>
                                     </div>
                                 </div>

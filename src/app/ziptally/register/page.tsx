@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,10 +10,8 @@ import {
     ShieldCheck, Loader2, Sparkles,
     ImagePlus, CheckCircle2,
     Lock, FileText, MapPin, 
-    Star
+    Star, CreditCard
 } from "lucide-react";
-import Link from "next/link";
-import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { saveDocument } from '@/services/firestore';
 import { v4 as uuidv4 } from 'uuid';
@@ -21,6 +19,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { addDays } from 'date-fns';
+import { useToast } from '@/hooks/use-toast';
 
 type PlanType = 'trial' | 'monthly' | 'annual';
 
@@ -29,6 +28,7 @@ const plans = [
         id: 'trial' as PlanType,
         name: '5-Day Fast Trial',
         price: 'FREE',
+        amount: 0,
         duration: 5,
         features: ['Full AI Access', 'Inventory Mapping', '50 Free Snaps'],
         color: 'bg-gradient-to-br from-emerald-500 to-teal-600 border-emerald-400 text-white'
@@ -37,6 +37,7 @@ const plans = [
         id: 'monthly' as PlanType,
         name: 'Standard Pro',
         price: '₹599',
+        amount: 599,
         duration: 30,
         features: ['Bulk Bill Intake', 'Daily P&L Report', '500 Snaps/mo'],
         color: 'bg-gradient-to-br from-blue-600 to-indigo-700 border-blue-400 text-white'
@@ -45,6 +46,7 @@ const plans = [
         id: 'annual' as PlanType,
         name: 'Annual Elite',
         price: '₹4,999',
+        amount: 4999,
         duration: 365,
         features: ['Priority AI Processing', 'Unlimited Inventory', '6000 Snaps/year'],
         color: 'bg-gradient-to-br from-amber-400 to-orange-600 border-amber-300 text-white'
@@ -58,6 +60,7 @@ export default function ZiptallyRegistrationPage() {
     const [logoPreview, setLogoPreview] = useState<string | null>(null);
     const [selectedPlan, setSelectedPlan] = useState<PlanType>('monthly');
     const [agreedToTerms, setAgreedToTerms] = useState(false);
+    const [razorpayKeyId, setRazorpayKeyId] = useState<string | null>(null);
     
     const [formData, setFormData] = useState({
         storeName: '',
@@ -68,6 +71,18 @@ export default function ZiptallyRegistrationPage() {
         gstNumber: '',
         password: ''
     });
+
+    useEffect(() => {
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.async = true;
+        document.body.appendChild(script);
+
+        fetch('/api/get-key')
+            .then(res => res.json())
+            .then(data => setRazorpayKeyId(data.keyId))
+            .catch(console.error);
+    }, []);
 
     const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -91,21 +106,78 @@ export default function ZiptallyRegistrationPage() {
             return;
         }
 
+        const planDetails = plans.find(p => p.id === selectedPlan);
+        if (!planDetails) return;
+
+        if (planDetails.amount > 0) {
+            if (!razorpayKeyId) {
+                toast({ variant: 'destructive', title: "Payment Error", description: "Payment gateway is not ready. Try again in a moment." });
+                return;
+            }
+            await initiatePaidRegistration(planDetails);
+        } else {
+            await finalizeRegistration(planDetails);
+        }
+    };
+
+    const initiatePaidRegistration = async (plan: typeof plans[0]) => {
+        setIsLoading(true);
+        try {
+            const response = await fetch('/api/create-mandate-order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    amount: plan.amount, 
+                    productName: `Ziptally ${plan.name} License`,
+                    name: formData.ownerName,
+                    email: formData.email,
+                    contact: formData.phone || '9999999999',
+                    isAuthorization: false 
+                }),
+            });
+            const result = await response.json();
+
+            const options = {
+                key: razorpayKeyId,
+                amount: plan.amount * 100,
+                currency: "INR",
+                name: "Ziptally AI",
+                description: `${plan.name} Subscription`,
+                order_id: result.order_id,
+                handler: async (paymentResponse: any) => {
+                    await finalizeRegistration(plan, paymentResponse.razorpay_payment_id);
+                },
+                prefill: {
+                    name: formData.ownerName,
+                    email: formData.email,
+                    contact: formData.phone
+                },
+                theme: { color: "#3b82f6" },
+                modal: { ondismiss: () => setIsLoading(false) }
+            };
+            const rzp = new (window as any).Razorpay(options);
+            rzp.open();
+        } catch (err) {
+            toast({ variant: 'destructive', title: 'Payment Initialization Failed' });
+            setIsLoading(false);
+        }
+    };
+
+    const finalizeRegistration = async (plan: typeof plans[0], paymentId?: string) => {
         setIsLoading(true);
         const id = `ZIP-${uuidv4().substring(0, 8).toUpperCase()}`;
-        
-        const planDetails = plans.find(p => p.id === selectedPlan);
-        const expiryDate = addDays(new Date(), planDetails?.duration || 30).toISOString();
+        const expiryDate = addDays(new Date(), plan.duration).toISOString();
         
         try {
             const partnerData = {
                 id,
                 ...formData,
                 logoDataUri: logoPreview,
-                status: selectedPlan === 'trial' ? 'Trial' : 'Active',
-                planType: selectedPlan,
+                status: plan.id === 'trial' ? 'Trial' : 'Active',
+                plan: plan.name,
                 snapUsage: 0,
-                revenueGenerated: 0,
+                revenueGenerated: plan.amount,
+                paymentId: paymentId || null,
                 joinedAt: new Date().toISOString(),
                 trialExpiresAt: expiryDate,
                 licenseExpiry: expiryDate,
@@ -114,14 +186,13 @@ export default function ZiptallyRegistrationPage() {
             await saveDocument('snapstock_partners', partnerData, id);
             
             toast({ 
-                title: "Welcome to Ziptally AI!", 
-                description: `Your ${planDetails?.name} has been activated.` 
+                title: "Registration Successful!", 
+                description: `Welcome to Ziptally AI! Your ${plan.name} is now active.` 
             });
             
             router.push('/ziptally/login');
         } catch (error) {
-            toast({ variant: 'destructive', title: "Registration Failed" });
-        } finally {
+            toast({ variant: 'destructive', title: "Database Error", description: "Failed to save your account. Contact support." });
             setIsLoading(false);
         }
     };
@@ -268,8 +339,8 @@ export default function ZiptallyRegistrationPage() {
                             </div>
 
                             <Button type="submit" className="w-full h-20 text-2xl font-black uppercase italic rounded-[32px] bg-blue-600 hover:bg-blue-500 shadow-2xl shadow-blue-900/40 transform hover:scale-[1.02] transition-all" disabled={isLoading}>
-                                {isLoading ? <Loader2 className="animate-spin mr-3 h-8 w-8" /> : <Zap className="mr-3 h-8 w-8" />}
-                                Launch My Ziptally AI
+                                {isLoading ? <Loader2 className="animate-spin mr-3 h-8 w-8" /> : (selectedPlan === 'trial' ? <Zap className="mr-3 h-8 w-8" /> : <CreditCard className="mr-3 h-8 w-8" />)}
+                                {selectedPlan === 'trial' ? 'Start Free Trial' : `Pay & Activate ${plans.find(p=>p.id === selectedPlan)?.name}`}
                             </Button>
                         </CardContent>
                     </Card>
@@ -280,7 +351,7 @@ export default function ZiptallyRegistrationPage() {
                         Existing Partner? <Link href="/ziptally/login" className="text-blue-500 hover:text-blue-400 transition-colors underline">Log in to your terminal</Link>
                     </p>
                     <div className="flex items-center justify-center gap-3 text-[10px] font-black text-slate-700 uppercase tracking-[0.3em]">
-                        <ShieldCheck className="h-4 w-4 text-blue-500" /> Secure Licensing powered by Ziptally AI
+                        <ShieldCheck className="h-3 w-3 text-blue-500" /> Secure Licensing powered by Ziptally AI
                     </div>
                 </div>
             </div>
