@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -61,7 +60,8 @@ export default function SnapStockPartnerDashboard() {
     const filteredInventory = useMemo(() => {
         return inventory.filter(i => 
             (i.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (i.supplierName || '').toLowerCase().includes(searchTerm.toLowerCase())
+            (i.supplierName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (i.id || '').toLowerCase().includes(searchTerm.toLowerCase())
         );
     }, [inventory, searchTerm]);
 
@@ -389,6 +389,7 @@ export default function SnapStockPartnerDashboard() {
                     </div>
                 )}
 
+                {/* BILL INTAKE DIALOG */}
                 <Dialog open={isBillIntakeOpen} onOpenChange={setIsBillIntakeOpen}>
                     <DialogContent className="max-w-2xl rounded-[32px] p-8 border-none no-print">
                         <DialogHeader><DialogTitle className="text-2xl font-black italic uppercase text-slate-800">AI Bill Intake</DialogTitle><DialogDescription>Upload your supplier bill and the GROUP PHOTO to sync wholesale costs.</DialogDescription></DialogHeader>
@@ -412,6 +413,7 @@ export default function SnapStockPartnerDashboard() {
                     </DialogContent>
                 </Dialog>
 
+                {/* PRODUCT STATS DIALOG */}
                 <Dialog open={!!selectedProductForStats} onOpenChange={open => !open && setSelectedProductForStats(null)}>
                     <DialogContent className="max-w-4xl rounded-[40px] p-0 overflow-hidden border-none bg-white">
                         <div className="grid grid-cols-1 md:grid-cols-2">
@@ -478,6 +480,7 @@ export default function SnapStockPartnerDashboard() {
                     </DialogContent>
                 </Dialog>
 
+                {/* SCANNER DIALOG */}
                 <Dialog open={isScanning} onOpenChange={setIsScanning}>
                     <DialogContent className="max-w-sm rounded-[32px] p-6 no-print">
                         <DialogHeader><DialogTitle className="text-center uppercase font-black">Mobile Scanner</DialogTitle></DialogHeader>
@@ -486,6 +489,7 @@ export default function SnapStockPartnerDashboard() {
                     </DialogContent>
                 </Dialog>
 
+                {/* QUICK SALE DIALOG */}
                 <Dialog open={!!selectedSaleItem} onOpenChange={(open) => !open && setSelectedSaleItem(null)}>
                     <DialogContent className="max-md rounded-[32px] p-8 no-print">
                         <DialogHeader><DialogTitle className="text-2xl font-black italic uppercase">Confirm Sale</DialogTitle></DialogHeader>

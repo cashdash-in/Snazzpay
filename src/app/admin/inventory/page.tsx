@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -75,7 +74,8 @@ export default function AdminInventoryPage() {
     const filteredInventory = useMemo(() => {
         return inventory.filter(i => 
             (i.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (i.supplierName || '').toLowerCase().includes(searchTerm.toLowerCase())
+            (i.supplierName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (i.id || '').toLowerCase().includes(searchTerm.toLowerCase())
         );
     }, [inventory, searchTerm]);
 
