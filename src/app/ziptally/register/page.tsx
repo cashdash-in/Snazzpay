@@ -13,6 +13,7 @@ import {
     Star, CreditCard
 } from "lucide-react";
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { saveDocument } from '@/services/firestore';
 import { v4 as uuidv4 } from 'uuid';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -31,7 +32,7 @@ const plans = [
         amount: 0,
         duration: 5,
         features: ['Full AI Access', 'Inventory Mapping', '50 Free Snaps'],
-        color: 'bg-gradient-to-br from-emerald-500 to-teal-600 border-emerald-400 text-white'
+        color: 'bg-slate-100 border-slate-200 text-slate-800'
     },
     {
         id: 'monthly' as PlanType,
@@ -40,7 +41,7 @@ const plans = [
         amount: 599,
         duration: 30,
         features: ['Bulk Bill Intake', 'Daily P&L Report', '500 Snaps/mo'],
-        color: 'bg-gradient-to-br from-blue-600 to-indigo-700 border-blue-400 text-white'
+        color: 'bg-blue-600 border-blue-400 text-white'
     },
     {
         id: 'annual' as PlanType,
@@ -49,7 +50,7 @@ const plans = [
         amount: 4999,
         duration: 365,
         features: ['Priority AI Processing', 'Unlimited Inventory', '6000 Snaps/year'],
-        color: 'bg-gradient-to-br from-amber-400 to-orange-600 border-amber-300 text-white'
+        color: 'bg-indigo-600 border-indigo-400 text-white'
     }
 ];
 
@@ -111,7 +112,7 @@ export default function ZiptallyRegistrationPage() {
 
         if (planDetails.amount > 0) {
             if (!razorpayKeyId) {
-                toast({ variant: 'destructive', title: "Payment Error", description: "Payment gateway is not ready. Try again in a moment." });
+                toast({ variant: 'destructive', title: "Payment Error", description: "Payment gateway is not ready." });
                 return;
             }
             await initiatePaidRegistration(planDetails);
@@ -142,7 +143,7 @@ export default function ZiptallyRegistrationPage() {
                 amount: plan.amount * 100,
                 currency: "INR",
                 name: "Ziptally AI",
-                description: `${plan.name} Subscription`,
+                description: `${plan.name} License Fee`,
                 order_id: result.order_id,
                 handler: async (paymentResponse: any) => {
                     await finalizeRegistration(plan, paymentResponse.razorpay_payment_id);
@@ -158,7 +159,7 @@ export default function ZiptallyRegistrationPage() {
             const rzp = new (window as any).Razorpay(options);
             rzp.open();
         } catch (err) {
-            toast({ variant: 'destructive', title: 'Payment Initialization Failed' });
+            toast({ variant: 'destructive', title: 'Payment Failed' });
             setIsLoading(false);
         }
     };
@@ -186,13 +187,13 @@ export default function ZiptallyRegistrationPage() {
             await saveDocument('snapstock_partners', partnerData, id);
             
             toast({ 
-                title: "Registration Successful!", 
-                description: `Welcome to Ziptally AI! Your ${plan.name} is now active.` 
+                title: "Welcome to Ziptally!", 
+                description: `Success! Your ${plan.name} has been activated.` 
             });
             
             router.push('/ziptally/login');
         } catch (error) {
-            toast({ variant: 'destructive', title: "Database Error", description: "Failed to save your account. Contact support." });
+            toast({ variant: 'destructive', title: "Database Error" });
             setIsLoading(false);
         }
     };

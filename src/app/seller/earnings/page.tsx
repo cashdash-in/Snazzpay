@@ -10,7 +10,7 @@ import { getCollection } from '@/services/firestore';
 import { 
     Loader2, DollarSign, TrendingUp, TrendingDown, 
     BarChart3, Calendar as CalendarIcon, Download, 
-    Package, ArrowRight, Percent, PieChart 
+    Package, ArrowRight, Percent, PieChart, ShieldCheck
 } from 'lucide-react';
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { format, subMonths, isWithinInterval, startOfDay, endOfDay, parseISO } from 'date-fns';
@@ -161,7 +161,6 @@ export default function SellerEarningsPage() {
     return (
         <AppShell title="Profit & Loss Statement">
             <div className="space-y-8">
-                {/* Header Actions */}
                 <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-6 rounded-[24px] shadow-sm border">
                     <div className="space-y-1">
                         <h2 className="text-xl font-black italic uppercase tracking-tighter">Business Intelligence</h2>
@@ -193,7 +192,6 @@ export default function SellerEarningsPage() {
                     </div>
                 </div>
 
-                {/* Summary Row */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <Card className="rounded-[24px] border-none shadow-lg bg-blue-600 text-white overflow-hidden">
                         <CardHeader className="pb-2">
@@ -240,7 +238,6 @@ export default function SellerEarningsPage() {
                     </Card>
                 </div>
 
-                {/* Main Table */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <Card className="lg:col-span-2 rounded-[32px] overflow-hidden shadow-sm border-none bg-white">
                         <CardHeader className="bg-slate-50 border-b flex flex-row items-center justify-between">
