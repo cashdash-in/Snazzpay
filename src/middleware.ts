@@ -63,6 +63,22 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // PROTECT SELLER ROUTES
+  if (pathname.startsWith('/seller') && !pathname.startsWith('/seller/login')) {
+      if (!token) {
+          return NextResponse.redirect(new URL('/seller/login', request.url));
+      }
+      return NextResponse.next();
+  }
+
+  // PROTECT VENDOR ROUTES
+  if (pathname.startsWith('/vendor') && !pathname.startsWith('/vendor/login')) {
+      if (!token) {
+          return NextResponse.redirect(new URL('/vendor/login', request.url));
+      }
+      return NextResponse.next();
+  }
+
   // PROTECT STAFF ROUTES
   if (pathname.startsWith('/staff') && !pathname.startsWith('/staff/login')) {
       if (!token || userRole !== 'staff') {
@@ -71,7 +87,7 @@ export function middleware(request: NextRequest) {
       return NextResponse.next();
   }
 
-  // PROTECT ADMIN ROUTES
+  // PROTECT ADMIN ROUTES (Anything else that requires auth)
   if (!token) {
     const loginUrl = new URL('/auth/login', request.url);
     const safeRedirectPath = pathname.replace(/\/+/g, '/');
