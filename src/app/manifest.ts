@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'Ziptally AI - Smart Inventory',
     short_name: 'Ziptally',
-    description: 'AI-Powered Inventory Intelligence for Modern Retail',
+    description: 'AI-Powered Inventory Intelligence - Zip your Stock with AI',
     start_url: '/',
     display: 'standalone',
     background_color: '#5a31f4',

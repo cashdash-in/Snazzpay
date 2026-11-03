@@ -88,7 +88,7 @@ type MenuItem = {
 const adminCoreMenuItems: MenuItem[] = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/inventory', label: 'Ziptally Dash', icon: Zap },
-  { href: '/admin/snapstock-licenses', label: 'SaaS Partners', icon: Gem },
+  { href: '/admin/snapstock-licenses', label: 'License Hub', icon: Gem },
   { href: '/admin/wholesale-inquiries', label: 'Wholesale Requests', icon: ShoppingBasket, notificationKey: 'wholesale' },
   { href: '/mandates', label: 'Mandates', icon: WalletCards },
   { href: '/orders', label: 'Orders', icon: ShoppingCart, notificationKey: 'orders' as const },
@@ -225,7 +225,14 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
       case 'collaborator':
         return { core: collaboratorMenuItems, growth: [], config: [] };
       case 'snapstock_partner':
-        return { core: [], growth: [], config: [] }; // Partners have their own specialized dashboard
+        return { 
+          core: [
+            { href: '/ziptally/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+            { href: '/ziptally/audit', label: 'Shelf Audit', icon: ShieldCheck },
+          ], 
+          growth: [], 
+          config: [] 
+        };
       default: // Admin view
         return {
             core: adminCoreMenuItems,
@@ -242,10 +249,13 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
       <Sidebar>
         <SidebarHeader className="p-4">
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" className="text-primary bg-primary-foreground hover:bg-primary-foreground/90 rounded-lg shrink-0">
-                <Zap className="w-6 h-6 fill-primary" />
-            </Button>
-            <h1 className="text-2xl font-black italic tracking-tighter text-sidebar-foreground uppercase">Ziptally</h1>
+            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shrink-0">
+                <Zap className="w-6 h-6 text-white fill-current" />
+            </div>
+            <div className="flex flex-col">
+              <h1 className="text-xl font-black italic tracking-tighter text-sidebar-foreground uppercase leading-none">Ziptally</h1>
+              <span className="text-[7px] font-bold uppercase tracking-widest text-primary">Zip your Stock with AI</span>
+            </div>
           </div>
         </SidebarHeader>
         <SidebarContent>

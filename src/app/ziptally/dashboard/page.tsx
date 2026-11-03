@@ -296,8 +296,8 @@ export default function ZiptallyPartnerDashboard() {
         <div className="min-h-screen bg-slate-50 flex flex-col">
             <header className="bg-slate-900 text-white p-4 md:px-8 flex justify-between items-center sticky top-0 z-50 shadow-xl no-print">
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/20"><Zap className="h-6 w-6 text-white" /></div>
-                    <div><h1 className="text-xl font-black italic uppercase tracking-tighter">{partner?.storeName || 'Ziptally'}</h1><p className="text-[10px] text-blue-400 font-bold uppercase tracking-widest mt-1">Partner Portal</p></div>
+                    <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/20"><Zap className="h-6 w-6 text-white fill-current" /></div>
+                    <div><h1 className="text-xl font-black italic uppercase tracking-tighter">{partner?.storeName || 'Ziptally'}</h1><p className="text-[10px] text-blue-400 font-bold uppercase tracking-widest mt-1">Zip your Stock with AI</p></div>
                 </div>
                 <div className="flex items-center gap-4">
                      <Badge variant="outline" className="text-blue-400 border-blue-400/30 uppercase text-[9px] font-black h-6">Usage: {typeof partner?.snapUsage === 'number' ? partner.snapUsage : 0} Snaps</Badge>
@@ -501,7 +501,7 @@ export default function ZiptallyPartnerDashboard() {
                 <Dialog open={isScanning} onOpenChange={setIsScanning}>
                     <DialogContent className="max-w-sm rounded-[32px] p-6 no-print">
                         <DialogHeader><DialogTitle className="text-center uppercase font-black">Mobile Scanner</DialogTitle></DialogHeader>
-                        <div id="partner-reader" className="w-full aspect-square rounded-2xl overflow-hidden border-2 bg-slate-50" />
+                        <div id="partner-reader" className="w-full aspect-square rounded-2xl overflow-hidden border-2 bg-slate-50"></div>
                         <DialogFooter><Button variant="outline" className="w-full rounded-xl" onClick={() => setIsScanning(false)}>Cancel</Button></DialogFooter>
                     </DialogContent>
                 </Dialog>

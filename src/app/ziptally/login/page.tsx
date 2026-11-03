@@ -34,6 +34,7 @@ export default function ZiptallyLoginPage() {
             if (user && user.password === password) {
                 setCookie('snapstock_token', user.id);
                 setCookie('userRole', 'snapstock_partner');
+                setCookie('firebaseAuthToken', 'ziptally_authenticated'); // Mock for middleware
                 
                 toast({ title: "Welcome to Ziptally!", description: `Logged in as ${user.storeName}` });
                 router.push('/ziptally/dashboard');
@@ -56,10 +57,10 @@ export default function ZiptallyLoginPage() {
             <div className="w-full max-w-sm relative z-10 space-y-6">
                 <div className="text-center space-y-2">
                     <div className="w-20 h-20 bg-blue-600 rounded-[24px] flex items-center justify-center mx-auto shadow-2xl rotate-3">
-                        <Zap className="h-10 w-10 text-white" />
+                        <Zap className="h-10 w-10 text-white fill-current" />
                     </div>
                     <h1 className="text-3xl font-black italic uppercase tracking-tighter text-white pt-4">Ziptally Portal</h1>
-                    <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">SaaS Partner Access</p>
+                    <p className="text-blue-400 text-[10px] font-black uppercase tracking-[0.2em] italic">Zip your Stock with AI</p>
                 </div>
 
                 <Card className="rounded-[32px] border-white/5 bg-slate-800/50 backdrop-blur-xl shadow-2xl">
@@ -68,7 +69,7 @@ export default function ZiptallyLoginPage() {
                             <div className="space-y-2">
                                 <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Email / Mobile</Label>
                                 <div className="relative">
-                                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
                                     <Input 
                                         required
                                         className="h-12 bg-white/5 border-white/10 rounded-2xl text-white pl-9"
@@ -80,7 +81,7 @@ export default function ZiptallyLoginPage() {
                             <div className="space-y-2">
                                 <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Password</Label>
                                 <div className="relative">
-                                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
                                     <Input 
                                         required
                                         type="password"

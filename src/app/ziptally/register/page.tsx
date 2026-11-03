@@ -116,7 +116,7 @@ export default function ZiptallyRegistrationPage() {
             await saveDocument('snapstock_partners', partnerData, id);
             
             toast({ 
-                title: "Welcome to Ziptally!", 
+                title: "Welcome to Ziptally AI!", 
                 description: `Your ${planDetails?.name} has been activated.` 
             });
             
@@ -137,14 +137,14 @@ export default function ZiptallyRegistrationPage() {
 
             <div className="w-full max-w-4xl relative z-10 space-y-8">
                 <div className="text-center space-y-4">
-                    <div className="w-20 h-20 bg-blue-600 rounded-[28px] flex items-center justify-center mx-auto shadow-2xl rotate-3 mb-6">
-                        <Zap className="h-10 w-10 text-white" />
+                    <div className="w-24 h-24 bg-blue-600 rounded-[32px] flex items-center justify-center mx-auto shadow-2xl rotate-3 mb-6">
+                        <Zap className="h-12 w-12 text-white fill-current" />
                     </div>
                     <h1 className="text-4xl md:text-7xl font-black italic uppercase tracking-tighter text-white">
-                        Smarter Retail with <span className="text-blue-500">Ziptally AI</span>
+                        Ziptally <span className="text-blue-500">AI</span>
                     </h1>
-                    <p className="text-slate-400 text-lg max-w-lg mx-auto font-medium">
-                        The ultimate AI-powered inventory system. Register your store and start tracking in seconds.
+                    <p className="text-blue-400 text-lg md:text-2xl font-black uppercase tracking-[0.2em] italic">
+                        Zip your Stock with AI
                     </p>
                 </div>
 
