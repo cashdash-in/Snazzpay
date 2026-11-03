@@ -13,7 +13,7 @@ import {
     Lock, FileText, MapPin, 
     Star, CreditCard
 } from "lucide-react";
-import useRouter from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { saveDocument } from '@/services/firestore';
 import { v4 as uuidv4 } from 'uuid';
@@ -57,6 +57,7 @@ const plans = [
 
 export default function ZiptallyRegistrationPage() {
     const { toast } = useToast();
+    const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
     const [logoPreview, setLogoPreview] = useState<string | null>(null);
     const [selectedPlan, setSelectedPlan] = useState<PlanType>('monthly');
@@ -79,10 +80,23 @@ export default function ZiptallyRegistrationPage() {
         script.async = true;
         document.body.appendChild(script);
 
-        fetch('/api/get-key')
-            .then(res => res.json())
-            .then(data => setRazorpayKeyId(data.keyId))
-            .catch(console.error);
+        const fetchKey = async () => {
+            try {
+                const res = await fetch('/api/get-key');
+                const data = await res.json();
+                if (data.keyId) {
+                    setRazorpayKeyId(data.keyId);
+                } else if (process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID) {
+                    setRazorpayKeyId(process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID);
+                }
+            } catch (e) {
+                console.error("Key fetch error:", e);
+                if (process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID) {
+                    setRazorpayKeyId(process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID);
+                }
+            }
+        };
+        fetchKey();
     }, []);
 
     const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -112,7 +126,11 @@ export default function ZiptallyRegistrationPage() {
 
         if (planDetails.amount > 0) {
             if (!razorpayKeyId) {
-                toast({ variant: 'destructive', title: "Payment Error", description: "Payment gateway is not ready." });
+                toast({ 
+                    variant: 'destructive', 
+                    title: "Payment Error", 
+                    description: "Payment gateway is not ready. Please check your NEXT_PUBLIC_RAZORPAY_KEY_ID environment variable." 
+                });
                 return;
             }
             await initiatePaidRegistration(planDetails);

@@ -49,9 +49,9 @@ type LimitIncreaseRequest = {
 };
 
 type DiscountRule = {
-    id: string; // e.g., 'collection_12345', 'vendor_MyVendor', 'product_67890'
+    id: string;
     type: 'collection' | 'vendor' | 'product';
-    name: string; // Name of the collection, vendor, or product
+    name: string;
     discount: number;
 };
 
@@ -83,13 +83,9 @@ function DiscountManager() {
                 getCollection<DiscountRule>('discounts'),
             ]);
 
-            if (!collectionsRes.ok || !vendorsRes.ok || !productsRes.ok) {
-                 throw new Error('Failed to fetch Shopify data. Check API keys.');
-            }
-
-            const shopifyCollections = await collectionsRes.json();
-            const shopifyVendors = await vendorsRes.json();
-            const shopifyProducts = await productsRes.json();
+            const shopifyCollections = collectionsRes.ok ? await collectionsRes.json() : [];
+            const shopifyVendors = vendorsRes.ok ? await vendorsRes.json() : [];
+            const shopifyProducts = productsRes.ok ? await productsRes.json() : [];
 
             setCollections(shopifyCollections);
             setVendors(shopifyVendors);
@@ -193,9 +189,9 @@ function DiscountManager() {
             <CardContent>
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
                     <TabsList className="grid w-full grid-cols-3">
-                        <TabsTrigger value="collection" className="text-[10px] font-bold uppercase">By Collection</TabsTrigger>
-                        <TabsTrigger value="vendor" className="text-[10px] font-bold uppercase">By Vendor</TabsTrigger>
-                        <TabsTrigger value="product" className="text-[10px] font-bold uppercase">By Product</TabsTrigger>
+                        <TabsTrigger value="collection" className="text-[10px] font-black uppercase">Collection</TabsTrigger>
+                        <TabsTrigger value="vendor" className="text-[10px] font-black uppercase">Vendor</TabsTrigger>
+                        <TabsTrigger value="product" className="text-[10px] font-black uppercase">Product</TabsTrigger>
                     </TabsList>
                     <TabsContent value="collection" className="mt-4 space-y-4">
                         <div className="relative">
@@ -204,7 +200,7 @@ function DiscountManager() {
                         </div>
                         <div className="flex gap-4 items-end">
                             <div className="flex-grow space-y-2">
-                                <Label>Collection</Label>
+                                <Label className="text-[9px] uppercase font-black text-slate-400">Collection</Label>
                                 <Select onValueChange={setSelectedCollection} value={selectedCollection}>
                                     <SelectTrigger><SelectValue placeholder="Select a collection..." /></SelectTrigger>
                                     <SelectContent>
@@ -215,10 +211,10 @@ function DiscountManager() {
                                 </Select>
                             </div>
                             <div className="space-y-2">
-                                <Label>Discount (%)</Label>
+                                <Label className="text-[9px] uppercase font-black text-slate-400">Discount (%)</Label>
                                 <Input type="number" value={collectionDiscount || ''} onChange={e => setCollectionDiscount(parseFloat(e.target.value))} className="w-28" />
                             </div>
-                            <Button onClick={() => handleSaveDiscount('collection')}><Save className="mr-2 h-4 w-4" /> Save</Button>
+                            <Button onClick={() => handleSaveDiscount('collection')} className="h-10 px-4 font-bold"><Save className="mr-2 h-4 w-4" /> Save</Button>
                         </div>
                     </TabsContent>
                     <TabsContent value="vendor" className="mt-4 space-y-4">
@@ -228,7 +224,7 @@ function DiscountManager() {
                         </div>
                          <div className="flex gap-4 items-end">
                             <div className="flex-grow space-y-2">
-                                <Label>Vendor</Label>
+                                <Label className="text-[9px] uppercase font-black text-slate-400">Vendor</Label>
                                 <Select onValueChange={setSelectedVendor} value={selectedVendor}>
                                     <SelectTrigger><SelectValue placeholder="Select a vendor..." /></SelectTrigger>
                                     <SelectContent>
@@ -239,10 +235,10 @@ function DiscountManager() {
                                 </Select>
                             </div>
                             <div className="space-y-2">
-                                <Label>Discount (%)</Label>
+                                <Label className="text-[9px] uppercase font-black text-slate-400">Discount (%)</Label>
                                 <Input type="number" value={vendorDiscount || ''} onChange={e => setVendorDiscount(parseFloat(e.target.value))} className="w-28" />
                             </div>
-                            <Button onClick={() => handleSaveDiscount('vendor')}><Save className="mr-2 h-4 w-4" /> Save</Button>
+                            <Button onClick={() => handleSaveDiscount('vendor')} className="h-10 px-4 font-bold"><Save className="mr-2 h-4 w-4" /> Save</Button>
                         </div>
                     </TabsContent>
                     <TabsContent value="product" className="mt-4 space-y-4">
@@ -252,7 +248,7 @@ function DiscountManager() {
                         </div>
                          <div className="flex gap-4 items-end">
                             <div className="flex-grow space-y-2">
-                                <Label>Product</Label>
+                                <Label className="text-[9px] uppercase font-black text-slate-400">Product</Label>
                                 <Select onValueChange={handleProductSelectAndSwitch} value={selectedProduct}>
                                     <SelectTrigger><SelectValue placeholder="Select a product..." /></SelectTrigger>
                                     <SelectContent>
@@ -263,13 +259,31 @@ function DiscountManager() {
                                 </Select>
                             </div>
                             <div className="space-y-2">
-                                <Label>Discount (%)</Label>
+                                <Label className="text-[9px] uppercase font-black text-slate-400">Discount (%)</Label>
                                 <Input type="number" value={productDiscount || ''} onChange={e => setProductDiscount(parseFloat(e.target.value))} className="w-28" />
                             </div>
-                            <Button onClick={() => handleSaveDiscount('product')}><Save className="mr-2 h-4 w-4" /> Save</Button>
+                            <Button onClick={() => handleSaveDiscount('product')} className="h-10 px-4 font-bold"><Save className="mr-2 h-4 w-4" /> Save</Button>
                         </div>
                     </TabsContent>
                 </Tabs>
+                
+                <div className="mt-8">
+                    <h4 className="text-sm font-black uppercase text-slate-400 mb-4">Active Discount Rules</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {discounts.map(rule => (
+                            <div key={rule.id} className="p-4 border-2 rounded-2xl flex justify-between items-center bg-slate-50 shadow-sm">
+                                <div className="space-y-0.5">
+                                    <Badge variant="outline" className="text-[8px] font-black uppercase">{rule.type}</Badge>
+                                    <p className="font-bold text-xs truncate max-w-[150px]">{rule.name}</p>
+                                    <p className="text-lg font-black text-primary">{rule.discount}% OFF</p>
+                                </div>
+                                <Button variant="ghost" size="icon" className="text-red-300 hover:text-red-500" onClick={() => handleDeleteDiscount(rule.id)}>
+                                    <Percent className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
             </CardContent>
         </Card>
     );
@@ -312,7 +326,7 @@ export default function BillingPage() {
                     name: seller.companyName,
                     totalValue,
                     commission,
-                    aiUploads: perms?.id ? usageCount : 0, // Placeholder
+                    aiUploads: 0,
                     aiUploadLimit: perms?.aiUploadLimit || 50,
                 };
             });
@@ -328,7 +342,7 @@ export default function BillingPage() {
                     name: vendor.name,
                     totalValue,
                     commission,
-                    productDrops: perms?.id ? usageCount : 0, // Placeholder
+                    productDrops: 0,
                     productDropLimit: perms?.productDropLimit || 50,
                 };
             });
@@ -347,19 +361,6 @@ export default function BillingPage() {
     useEffect(() => {
         loadBillingData();
     }, [loadBillingData]);
-
-    const handleFieldChange = (id: string, field: keyof UsageStat, value: string, type: 'seller' | 'vendor') => {
-        const listToUpdate = type === 'seller' ? sellerUsage : vendorUsage;
-        const setList = type === 'seller' ? setSellerUsage : setVendorUsage;
-
-        const updatedList = listToUpdate.map(item => {
-            if (item.id === id) {
-                return { ...item, [field]: parseFloat(value) || 0 };
-            }
-            return item;
-        });
-        setList(updatedList);
-    };
 
     const handleSave = async (id: string, type: 'seller' | 'vendor') => {
         const listToUpdate = type === 'seller' ? sellerUsage : vendorUsage;
@@ -394,11 +395,11 @@ export default function BillingPage() {
         <AppShell title="Billing & Usage">
             <Tabs defaultValue="sellers">
                 <TabsList className="grid w-full grid-cols-5 max-w-4xl mx-auto">
-                    <TabsTrigger value="discounts" className="text-[10px] font-bold uppercase"><Tag className="mr-1.5 h-3 w-3" /> Discounts</TabsTrigger>
-                    <TabsTrigger value="sellers" className="text-[10px] font-bold uppercase">Sellers</TabsTrigger>
-                    <TabsTrigger value="vendors" className="text-[10px] font-bold uppercase">Vendors</TabsTrigger>
-                    <TabsTrigger value="collaborators" className="text-[10px] font-bold uppercase">Partners</TabsTrigger>
-                    <TabsTrigger value="requests" className="text-[10px] font-bold uppercase">Limits <Badge className="ml-1 h-4 min-w-4 p-0 text-[8px]">{limitRequests.filter(r=> r.status === 'Pending Approval').length}</Badge></TabsTrigger>
+                    <TabsTrigger value="discounts" className="text-[10px] font-black uppercase"><Tag className="mr-1.5 h-3 w-3" /> Rules</TabsTrigger>
+                    <TabsTrigger value="sellers" className="text-[10px] font-black uppercase">Sellers</TabsTrigger>
+                    <TabsTrigger value="vendors" className="text-[10px] font-black uppercase">Vendors</TabsTrigger>
+                    <TabsTrigger value="collaborators" className="text-[10px] font-black uppercase">Partners</TabsTrigger>
+                    <TabsTrigger value="requests" className="text-[10px] font-black uppercase">Limits <Badge className="ml-1 h-4 min-w-4 p-0 text-[8px]">{limitRequests.filter(r=> r.status === 'Pending Approval').length}</Badge></TabsTrigger>
                 </TabsList>
                 <TabsContent value="discounts" className="mt-4">
                    <DiscountManager />
@@ -434,8 +435,69 @@ export default function BillingPage() {
                         </CardContent>
                     </Card>
                 </TabsContent>
+                <TabsContent value="vendors" className="mt-4">
+                    <Card>
+                        <CardHeader><CardTitle>Vendor Performance</CardTitle></CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Vendor</TableHead>
+                                        <TableHead>Drops</TableHead>
+                                        <TableHead>Revenue</TableHead>
+                                        <TableHead className="text-right">Actions</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {vendorUsage.map(v => (
+                                        <TableRow key={v.id}>
+                                            <TableCell className="font-bold">{v.name}</TableCell>
+                                            <TableCell className="text-xs">{v.productDropLimit} Cap</TableCell>
+                                            <TableCell className="font-medium">₹{v.totalValue.toFixed(2)}</TableCell>
+                                            <TableCell className="text-right"><Button size="sm" variant="outline" onClick={() => handleSave(v.id, 'vendor')}><Save className="h-4 w-4"/></Button></TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+                 <TabsContent value="collaborators" className="mt-4">
+                    <CollaboratorBillingPage />
+                </TabsContent>
+                <TabsContent value="requests" className="mt-4">
+                    <Card>
+                        <CardHeader><CardTitle>Limit Increase Requests</CardTitle></CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>User</TableHead>
+                                        <TableHead>Request</TableHead>
+                                        <TableHead>Amount</TableHead>
+                                        <TableHead>Status</TableHead>
+                                        <TableHead className="text-right">Action</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {limitRequests.map(req => (
+                                        <TableRow key={req.id}>
+                                            <TableCell className="font-medium">{req.userName}</TableCell>
+                                            <TableCell className="text-xs uppercase font-bold">{req.featureType} +{req.increaseAmount}</TableCell>
+                                            <TableCell className="font-bold">₹{req.cost}</TableCell>
+                                            <TableCell><Badge variant={req.status === 'Approved' ? 'default' : 'secondary'}>{req.status}</Badge></TableCell>
+                                            <TableCell className="text-right">
+                                                {req.status === 'Pending Approval' && <Button size="sm" onClick={() => handleApproveRequest(req)}>Approve</Button>}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                    {limitRequests.length === 0 && <TableRow><TableCell colSpan={5} className="text-center py-8">No requests found.</TableCell></TableRow>}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
             </Tabs>
         </AppShell>
     );
 }
-
