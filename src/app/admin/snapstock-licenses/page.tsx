@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { AppShell } from '@/components/layout/app-shell';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -11,7 +11,8 @@ import {
     TrendingUp, UserPlus, 
     Search, MoreVertical, Zap,
     Trash2, Ban, Clock,
-    Lock, MessageSquare
+    Lock, MessageSquare, MapPin, ExternalLink,
+    BarChart3, MousePointer2, Info
 } from 'lucide-react';
 import { getCollection, saveDocument, deleteDocument } from '@/services/firestore';
 import { Badge } from '@/components/ui/badge';
@@ -40,12 +41,19 @@ type ZiptallyPartner = {
     phone: string;
     address: string;
     password?: string;
-    plan: 'Basic' | 'Ziptally Pro' | 'Enterprise';
+    plan: 'Trial' | 'Standard Pro' | 'Annual Elite';
     status: 'Active' | 'Trial' | 'Expired';
     snapUsage: number;
     revenueGenerated: number;
     joinedAt: string;
     trialExpiresAt?: string;
+    featureStats?: {
+        scanToSell?: number;
+        bulkSnap?: number;
+        billAi?: number;
+        shelfAudit?: number;
+        voiceSync?: number;
+    };
 };
 
 export default function ZiptallyLicensesPage() {
@@ -54,6 +62,7 @@ export default function ZiptallyLicensesPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [isSaving, setIsSaving] = useState(false);
+    const [selectedPartnerForDetail, setSelectedPartnerForDetail] = useState<ZiptallyPartner | null>(null);
 
     const [newPartner, setNewPartner] = useState({
         storeName: '',
@@ -62,7 +71,7 @@ export default function ZiptallyLicensesPage() {
         phone: '',
         address: '',
         password: '',
-        plan: 'Ziptally Pro' as ZiptallyPartner['plan']
+        plan: 'Standard Pro' as ZiptallyPartner['plan']
     });
 
     useEffect(() => {
@@ -81,16 +90,32 @@ export default function ZiptallyLicensesPage() {
     }, []);
 
     const stats = useMemo(() => {
+        const featureTotals = {
+            scanToSell: 0,
+            bulkSnap: 0,
+            billAi: 0,
+            shelfAudit: 0,
+            voiceSync: 0
+        };
+
+        partners.forEach(p => {
+            if (p.featureStats) {
+                featureTotals.scanToSell += (p.featureStats.scanToSell || 0);
+                featureTotals.bulkSnap += (p.featureStats.bulkSnap || 0);
+                featureTotals.billAi += (p.featureStats.billAi || 0);
+                featureTotals.shelfAudit += (p.featureStats.shelfAudit || 0);
+                featureTotals.voiceSync += (p.featureStats.voiceSync || 0);
+            }
+        });
+
+        const sortedFeatures = Object.entries(featureTotals).sort((a, b) => b[1] - a[1]);
+
         return {
             totalPartners: partners.length,
-            monthlyRevenue: partners.reduce((sum, p) => {
-                const val = typeof p.revenueGenerated === 'number' ? p.revenueGenerated : 0;
-                return sum + val;
-            }, 0),
-            totalSnaps: partners.reduce((sum, p) => {
-                const val = typeof p.snapUsage === 'number' ? p.snapUsage : 0;
-                return sum + val;
-            }, 0),
+            monthlyRevenue: partners.reduce((sum, p) => sum + (p.revenueGenerated || 0), 0),
+            totalSnaps: partners.reduce((sum, p) => sum + (p.snapUsage || 0), 0),
+            topFeature: sortedFeatures[0],
+            allFeatureStats: featureTotals
         };
     }, [partners]);
 
@@ -101,7 +126,7 @@ export default function ZiptallyLicensesPage() {
 
     const handleCreatePartner = async () => {
         if (!newPartner.storeName || !newPartner.ownerName || !newPartner.email || !newPartner.password) {
-            toast({ variant: 'destructive', title: "Details Required", description: "Store name, owner name, email, and password are required." });
+            toast({ variant: 'destructive', title: "Details Required" });
             return;
         }
 
@@ -116,13 +141,14 @@ export default function ZiptallyLicensesPage() {
             snapUsage: 0,
             revenueGenerated: 0,
             joinedAt: new Date().toISOString(),
-            trialExpiresAt: trialExpiry
+            trialExpiresAt: trialExpiry,
+            featureStats: { scanToSell: 0, bulkSnap: 0, billAi: 0, shelfAudit: 0, voiceSync: 0 }
         };
 
         try {
             await saveDocument('snapstock_partners', partnerData, id);
             toast({ title: "Partner Registered & Activated" });
-            setNewPartner({ storeName: '', ownerName: '', email: '', phone: '', address: '', password: '', plan: 'Ziptally Pro' });
+            setNewPartner({ storeName: '', ownerName: '', email: '', phone: '', address: '', password: '', plan: 'Standard Pro' });
         } catch (e) {
             toast({ variant: 'destructive', title: "Save Failed" });
         } finally {
@@ -130,25 +156,24 @@ export default function ZiptallyLicensesPage() {
         }
     };
 
-    const handleAction = async (partnerId: string, action: 'activate' | 'deactivate' | 'delete' | 'reset-trial' | 'whatsapp-access') => {
-        const partner = partners.find(p => p.id === partnerId);
+    const handleAction = async (pId: string, action: 'activate' | 'deactivate' | 'delete' | 'reset-trial' | 'whatsapp-access') => {
+        const partner = partners.find(p => p.id === pId);
         if (!partner) return;
 
         try {
             if (action === 'delete') {
-                await deleteDocument('snapstock_partners', partnerId);
+                await deleteDocument('snapstock_partners', pId);
                 toast({ title: "Partner Removed" });
             } else if (action === 'whatsapp-access') {
                 const msg = `Hi ${partner.ownerName}, your Ziptally AI dashboard is ready!\n\nStore: ${partner.storeName}\nLogin: ${partner.email}\nPassword: ${partner.password || 'Contact Admin'}\n\nAccess here: ${window.location.origin}/ziptally/login\n\nZip your Stock with AI! ✨`;
                 window.open(`https://wa.me/${sanitizePhoneNumber(partner.phone)}?text=${encodeURIComponent(msg)}`, '_blank');
-                toast({ title: "Opening WhatsApp..." });
             } else {
                 let updates: Partial<ZiptallyPartner> = {};
                 if (action === 'activate') updates = { status: 'Active' };
                 if (action === 'deactivate') updates = { status: 'Expired' };
                 if (action === 'reset-trial') updates = { status: 'Trial', trialExpiresAt: addDays(new Date(), 10).toISOString() };
 
-                await saveDocument('snapstock_partners', updates, partnerId);
+                await saveDocument('snapstock_partners', updates, pId);
                 toast({ title: "License Updated" });
             }
         } catch (e) {
@@ -157,34 +182,44 @@ export default function ZiptallyLicensesPage() {
     };
 
     return (
-        <AppShell title="Ziptally License Hub">
+        <AppShell title="Ziptally Admin Central">
             <div className="space-y-8">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Stats Row */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <Card className="bg-slate-900 text-white border-none shadow-xl">
                         <CardHeader className="pb-2">
                             <CardTitle className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Active SaaS Partners</CardTitle>
                         </CardHeader>
                         <CardContent className="flex justify-between items-end">
                             <div className="text-4xl font-black italic">{stats.totalPartners}</div>
-                            <Gem className="h-10 w-10 text-primary opacity-50" />
+                            <Users className="h-10 w-10 text-blue-500 opacity-50" />
                         </CardContent>
                     </Card>
                     <Card className="bg-blue-600 text-white border-none shadow-xl">
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-[10px] font-black uppercase text-blue-100 tracking-widest">SaaS Payouts</CardTitle>
+                            <CardTitle className="text-[10px] font-black uppercase text-blue-100 tracking-widest">Global Snap Usage</CardTitle>
                         </CardHeader>
                         <CardContent className="flex justify-between items-end">
-                            <div className="text-4xl font-black italic">₹{stats.monthlyRevenue.toLocaleString()}</div>
-                            <TrendingUp className="h-10 w-10 text-white opacity-30" />
+                            <div className="text-4xl font-black italic">{stats.totalSnaps}</div>
+                            <Zap className="h-10 w-10 text-white opacity-30" />
+                        </CardContent>
+                    </Card>
+                    <Card className="bg-emerald-600 text-white border-none shadow-xl">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-[10px] font-black uppercase text-emerald-100 tracking-widest">Most Used Feature</CardTitle>
+                        </CardHeader>
+                        <CardContent className="flex justify-between items-end">
+                            <div className="text-xl font-black uppercase italic truncate">{stats.topFeature ? stats.topFeature[0].replace(/([A-Z])/g, ' $1') : 'N/A'}</div>
+                            <MousePointer2 className="h-8 w-8 text-white opacity-30" />
                         </CardContent>
                     </Card>
                     <Card className="bg-white shadow-lg border-none">
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Network Snap Usage</CardTitle>
+                            <CardTitle className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Avg Settle Time</CardTitle>
                         </CardHeader>
                         <CardContent className="flex justify-between items-end">
-                            <div className="text-4xl font-black italic text-slate-900">{stats.totalSnaps}</div>
-                            <Zap className="h-10 w-10 text-blue-500 opacity-20" />
+                            <div className="text-4xl font-black italic text-slate-900">12m</div>
+                            <TrendingUp className="h-10 w-10 text-blue-500 opacity-20" />
                         </CardContent>
                     </Card>
                 </div>
@@ -229,24 +264,39 @@ export default function ZiptallyLicensesPage() {
                     </CardHeader>
                     <CardContent className="p-0">
                         <Table>
-                            <TableHeader><TableRow><TableHead className="pl-8">Store & Owner</TableHead><TableHead>Status</TableHead><TableHead>Snap Usage</TableHead><TableHead>Revenue</TableHead><TableHead className="text-right pr-8">Actions</TableHead></TableRow></TableHeader>
+                            <TableHeader><TableRow><TableHead className="pl-8">Store & Owner</TableHead><TableHead>Plan</TableHead><TableHead>Status</TableHead><TableHead>Snap Usage</TableHead><TableHead className="text-right pr-8">Actions</TableHead></TableRow></TableHeader>
                             <TableBody>
                                 {isLoading ? (
                                     <TableRow><TableCell colSpan={6} className="text-center py-20"><Loader2 className="animate-spin h-8 w-8 mx-auto text-primary" /></TableCell></TableRow>
                                 ) : filteredPartners.map(p => (
                                     <TableRow key={p.id} className="group hover:bg-slate-50 transition-colors">
                                         <TableCell className="pl-8 py-5">
-                                            <div className="font-black uppercase italic text-sm">{p.storeName}</div>
-                                            <div className="text-[10px] text-muted-foreground font-bold">{p.ownerName} • {p.email}</div>
+                                            <button 
+                                                onClick={() => setSelectedPartnerForDetail(p)}
+                                                className="text-left group/btn"
+                                            >
+                                                <div className="font-black uppercase italic text-sm group-hover/btn:text-blue-600 transition-colors flex items-center gap-2">
+                                                    {p.storeName}
+                                                    <Info className="h-3 w-3 opacity-0 group-hover/btn:opacity-100" />
+                                                </div>
+                                                <div className="text-[10px] text-muted-foreground font-bold">{p.ownerName} • {p.email}</div>
+                                            </button>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge variant="outline" className={cn(
+                                                "uppercase text-[9px] font-black",
+                                                p.plan === 'Annual Elite' ? "bg-amber-50 text-amber-700 border-amber-200" :
+                                                p.plan === 'Trial' ? "bg-slate-50 text-slate-500 border-slate-200" :
+                                                "bg-blue-50 text-blue-700 border-blue-200"
+                                            )}>
+                                                {p.plan || 'Standard Pro'}
+                                            </Badge>
                                         </TableCell>
                                         <TableCell>
                                             <Badge className={cn("font-black uppercase text-[9px]", p.status === 'Active' ? "bg-green-50 text-green-700" : p.status === 'Trial' ? "bg-blue-50 text-blue-600" : "bg-red-50 text-red-600")}>{p.status}</Badge>
                                         </TableCell>
                                         <TableCell className="font-mono text-xs font-black text-blue-600">
                                             {p.snapUsage || 0} Snaps
-                                        </TableCell>
-                                        <TableCell className="font-black text-slate-700">
-                                            ₹{p.revenueGenerated || 0}
                                         </TableCell>
                                         <TableCell className="text-right pr-8">
                                             <DropdownMenu>
@@ -267,6 +317,72 @@ export default function ZiptallyLicensesPage() {
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Partner Detail Dialog */}
+            <Dialog open={!!selectedPartnerForDetail} onOpenChange={(open) => !open && setSelectedPartnerForDetail(null)}>
+                <DialogContent className="max-w-2xl rounded-[32px] p-0 overflow-hidden border-none shadow-2xl">
+                    {selectedPartnerForDetail && (
+                        <div className="flex flex-col">
+                            <div className="bg-slate-900 p-8 text-white">
+                                <div className="flex justify-between items-start">
+                                    <div className="space-y-1">
+                                        <Badge className="bg-blue-600 mb-2 uppercase text-[9px] font-black italic">Partner Profile</Badge>
+                                        <h3 className="text-3xl font-black italic uppercase tracking-tighter">{selectedPartnerForDetail.storeName}</h3>
+                                        <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">{selectedPartnerForDetail.ownerName}</p>
+                                    </div>
+                                    <Badge variant="outline" className="text-emerald-400 border-emerald-400/30 font-black italic">{selectedPartnerForDetail.plan}</Badge>
+                                </div>
+                            </div>
+                            <div className="p-8 space-y-8 bg-white">
+                                <div className="grid grid-cols-2 gap-6">
+                                    <div className="space-y-1">
+                                        <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Contact Identity</p>
+                                        <div className="space-y-1">
+                                            <p className="text-sm font-bold flex items-center gap-2 text-slate-700"><MessageSquare className="h-3.5 w-3.5" /> {selectedPartnerForDetail.phone}</p>
+                                            <p className="text-sm font-bold flex items-center gap-2 text-slate-700"><Lock className="h-3.5 w-3.5" /> {selectedPartnerForDetail.email}</p>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">License Data</p>
+                                        <div className="space-y-1">
+                                            <p className="text-sm font-bold flex items-center gap-2 text-slate-700"><Clock className="h-3.5 w-3.5" /> Joined {format(new Date(selectedPartnerForDetail.joinedAt), 'PP')}</p>
+                                            <p className="text-sm font-bold flex items-center gap-2 text-slate-700"><TrendingUp className="h-3.5 w-3.5" /> {selectedPartnerForDetail.snapUsage} Snaps Used</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-3 pt-6 border-t">
+                                    <div className="flex justify-between items-end">
+                                        <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Live Business Location</p>
+                                        <Button variant="ghost" size="sm" className="h-7 text-[10px] font-black uppercase text-blue-600 gap-1 hover:bg-blue-50" onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedPartnerForDetail.address)}`, '_blank')}>
+                                            <ExternalLink className="h-3 w-3" /> Map View
+                                        </Button>
+                                    </div>
+                                    <div className="p-4 bg-slate-50 rounded-2xl border-2 border-slate-100 flex items-start gap-3">
+                                        <MapPin className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+                                        <p className="text-sm font-bold text-slate-800 leading-relaxed italic uppercase">{selectedPartnerForDetail.address}</p>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-4 pt-6 border-t">
+                                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Feature Popularity (Usage Count)</p>
+                                    <div className="grid grid-cols-3 gap-3">
+                                        {Object.entries(selectedPartnerForDetail.featureStats || {}).map(([key, val]) => (
+                                            <div key={key} className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex flex-col items-center gap-1">
+                                                <p className="text-[8px] font-black uppercase text-slate-500 text-center">{key.replace(/([A-Z])/g, ' $1')}</p>
+                                                <p className="text-lg font-black italic text-blue-600">{val}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                            <DialogFooter className="p-6 bg-slate-50 border-t">
+                                <DialogClose asChild><Button className="w-full h-12 rounded-xl font-black uppercase italic">Close Intelligence Profile</Button></DialogClose>
+                            </DialogFooter>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
         </AppShell>
     );
 }

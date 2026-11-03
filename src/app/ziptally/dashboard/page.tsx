@@ -126,9 +126,13 @@ export default function ZiptallyPartnerDashboard() {
         return () => { partnerUnsub(); invUnsub(); mUnsub(); };
     }, [partnerId]);
 
-    const trackUsage = useCallback(async () => {
+    const trackUsage = useCallback(async (feature?: string) => {
         if (!partnerId) return;
-        await saveDocument('snapstock_partners', { snapUsage: increment(1) }, partnerId);
+        const updates: any = { snapUsage: increment(1) };
+        if (feature) {
+            updates[`featureStats.${feature}`] = increment(1);
+        }
+        await saveDocument('snapstock_partners', updates, partnerId);
     }, [partnerId]);
 
     const resizeImage = (file: File): Promise<string> => {
@@ -213,7 +217,7 @@ export default function ZiptallyPartnerDashboard() {
                     await saveDocument('inventory', newItem, id);
                 }
             }
-            await trackUsage();
+            await trackUsage('bulkSnap');
             toast({ title: "Bulk Intake Processed" });
         } catch (e) {
             toast({ variant: 'destructive', title: "Intake Failed" });
@@ -254,7 +258,7 @@ export default function ZiptallyPartnerDashboard() {
                     await saveDocument('inventory', newItem, id);
                 }
             }
-            await trackUsage();
+            await trackUsage('billAi');
             toast({ title: "Bill Sync Complete" });
             setIsBillIntakeOpen(false);
             setBillPhoto(null); setProductPhoto(null);
@@ -289,7 +293,7 @@ export default function ZiptallyPartnerDashboard() {
                         await saveDocument('inventory', newItem, id);
                     }
                 }
-                await trackUsage();
+                await trackUsage('voiceSync');
                 toast({ title: "Voice Sync Complete" });
             } finally {
                 setIsAnalyzing(false);
@@ -306,10 +310,11 @@ export default function ZiptallyPartnerDashboard() {
             setSaleQty(1);
             setIsScanning(false);
             toast({ title: "Product Identified", description: match.name });
+            trackUsage('scanToSell');
         } else {
             toast({ variant: 'destructive', title: "Item Not Found" });
         }
-    }, [inventory, toast]);
+    }, [inventory, toast, trackUsage]);
 
     useEffect(() => {
         if (!isScanning) return;
@@ -329,13 +334,13 @@ export default function ZiptallyPartnerDashboard() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4 no-print">
-                <Button onClick={() => setIsScanning(true)} size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-blue-600 hover:bg-blue-500"><Scan className="h-8 w-8" /><span className="font-bold uppercase text-xs">Scan to Sell</span></Button>
-                <Button onClick={() => document.getElementById('partner-bulk-snap')?.click()} variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-white border-2 border-dashed border-blue-200 text-blue-600" disabled={isAnalyzing}>{isAnalyzing ? <Loader2 className="animate-spin h-8 w-8" /> : <Layers className="h-8 w-8" />}<span className="font-bold uppercase text-xs">Bulk Snap</span></Button>
-                <Button onClick={() => setIsBillIntakeOpen(true)} variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-white border-2 border-dashed border-indigo-200 text-indigo-600"><FileUp className="h-8 w-8" /><span className="font-bold uppercase text-xs">Bill AI</span></Button>
-                <Button onClick={() => router.push('/ziptally/audit')} variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-white border-2 border-dashed border-purple-200 text-purple-600">
+                <Button onClick={() => setIsScanning(true)} size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-blue-600 hover:bg-blue-500 transition-all active:scale-95"><Scan className="h-8 w-8" /><span className="font-bold uppercase text-xs">Scan to Sell</span></Button>
+                <Button onClick={() => document.getElementById('partner-bulk-snap')?.click()} variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-white border-2 border-dashed border-blue-200 text-blue-600 transition-all active:scale-95" disabled={isAnalyzing}>{isAnalyzing ? <Loader2 className="animate-spin h-8 w-8" /> : <Layers className="h-8 w-8" />}<span className="font-bold uppercase text-xs">Bulk Snap</span></Button>
+                <Button onClick={() => setIsBillIntakeOpen(true)} variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-white border-2 border-dashed border-indigo-200 text-indigo-600 transition-all active:scale-95"><FileUp className="h-8 w-8" /><span className="font-bold uppercase text-xs">Bill AI</span></Button>
+                <Button onClick={() => { router.push('/ziptally/audit'); trackUsage('shelfAudit'); }} variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-white border-2 border-dashed border-purple-200 text-purple-600 transition-all active:scale-95">
                     <ShieldCheck className="h-8 w-8" /><span className="font-bold uppercase text-xs">Shelf Audit</span>
                 </Button>
-                <Button variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg border-2 border-slate-100 bg-white" onClick={handleVoiceCommand} disabled={isAnalyzing}>{isAnalyzing ? <Loader2 className="animate-spin h-8 w-8" /> : <Mic className="h-8 w-8 text-indigo-500" />}<span className="font-bold uppercase text-xs text-slate-500">Voice Sync</span></Button>
+                <Button variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg border-2 border-slate-100 bg-white transition-all active:scale-95" onClick={handleVoiceCommand} disabled={isAnalyzing}>{isAnalyzing ? <Loader2 className="animate-spin h-8 w-8" /> : <Mic className="h-8 w-8 text-indigo-500" />}<span className="font-bold uppercase text-xs text-slate-500">Voice Sync</span></Button>
             </div>
 
             <div className="flex flex-col md:flex-row gap-4 px-2 no-print">
@@ -371,9 +376,9 @@ export default function ZiptallyPartnerDashboard() {
                                 <TableRow key={item.id} className="group hover:bg-slate-50">
                                     <TableCell className="pl-8 py-4">
                                         <div className="flex items-center gap-4">
-                                            <div className="relative w-12 h-12 rounded-xl overflow-hidden border cursor-pointer" onClick={() => { setUpdatingImageId(item.id); document.getElementById('partner-image-update')?.click(); }}>
+                                            <div className="relative w-12 h-12 rounded-xl overflow-hidden border cursor-pointer group/img" onClick={() => { setUpdatingImageId(item.id); document.getElementById('partner-image-update')?.click(); }}>
                                                 <Image src={item.imageDataUri} fill alt="p" className="object-cover" unoptimized />
-                                                <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 bg-black/20 transition-opacity"><ImagePlus className="h-4 w-4 text-white" /></div>
+                                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/img:opacity-100 bg-black/20 transition-opacity"><ImagePlus className="h-4 w-4 text-white" /></div>
                                             </div>
                                             <div className="flex flex-col gap-1">
                                                 <div className="flex items-center gap-2">
@@ -399,8 +404,8 @@ export default function ZiptallyPartnerDashboard() {
                                         />
                                         <span className="hidden print:inline">{item.supplierName || 'N/A'}</span>
                                     </TableCell>
-                                    <TableCell><div className="flex items-center gap-1"><span className="text-[10px] font-bold text-slate-400 no-print">₹</span><Input type="number" value={item.wholesalePrice} onChange={e => updateItem(item.id, { wholesalePrice: parseFloat(item.wholesalePrice) || 0 })} className="w-20 h-8 font-bold no-print" /><span className="hidden print:inline">₹{item.wholesalePrice}</span></div></TableCell>
-                                    <TableCell><div className="flex items-center gap-1"><span className="text-[10px] font-bold text-blue-600 no-print">₹</span><Input type="number" value={item.mrp} onChange={e => updateItem(item.id, { mrp: parseFloat(item.mrp) || 0 })} className="w-20 h-8 font-black text-blue-600 no-print" /><span className="hidden print:inline">₹{item.mrp}</span></div></TableCell>
+                                    <TableCell><div className="flex items-center gap-1"><span className="text-[10px] font-bold text-slate-400 no-print">₹</span><Input type="number" value={item.wholesalePrice} onChange={e => updateItem(item.id, { wholesalePrice: parseFloat(e.target.value) || 0 })} className="w-20 h-8 font-bold no-print" /><span className="hidden print:inline">₹{item.wholesalePrice}</span></div></TableCell>
+                                    <TableCell><div className="flex items-center gap-1"><span className="text-[10px] font-bold text-blue-600 no-print">₹</span><Input type="number" value={item.mrp} onChange={e => updateItem(item.id, { mrp: parseFloat(e.target.value) || 0 })} className="w-20 h-8 font-black text-blue-600 no-print" /><span className="hidden print:inline">₹{item.mrp}</span></div></TableCell>
                                     <TableCell><div className="flex items-center gap-3 no-print"><Button variant="ghost" size="icon" className="h-8 w-8 text-slate-300" onClick={() => updateItem(item.id, { quantity: Math.max(0, (item.quantity || 0) - 1) })}><Minus className="h-4 w-4" /></Button><span className="font-black text-xl">{item.quantity || 0}</span><Button variant="ghost" size="icon" className="h-8 w-8 text-slate-300" onClick={() => updateItem(item.id, { quantity: (item.quantity || 0) + 1 })}><Plus className="h-4 w-4" /></Button></div><span className="hidden print:inline">{item.quantity}</span></TableCell>
                                     <TableCell className="text-right pr-8 no-print"><Button variant="ghost" size="icon" className="text-slate-200" onClick={() => deleteDocument('inventory', item.id)}><Trash2 className="h-4 w-4" /></Button></TableCell>
                                 </TableRow>
