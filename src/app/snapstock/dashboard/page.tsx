@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -266,6 +265,10 @@ export default function SnapStockPartnerDashboard() {
         };
         r.start();
     };
+
+    const filteredInventory = useMemo(() => {
+        return inventory.filter(i => (i.name || '').toLowerCase().includes(searchTerm.toLowerCase()));
+    }, [inventory, searchTerm]);
 
     const shelfGroups = useMemo(() => {
         const groups: Record<string, any[]> = {};

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -264,7 +263,18 @@ export default function AdminInventoryPage() {
         XLSX.writeFile(wb, `Global_Inventory_Report_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
     };
 
-    const filteredInventory = inventory.filter(i => (i.name || '').toLowerCase().includes(searchTerm.toLowerCase()));
+    const filteredInventory = useMemo(() => {
+        return inventory.filter(i => (i.name || '').toLowerCase().includes(searchTerm.toLowerCase()));
+    }, [inventory, searchTerm]);
+
+    const shelfGroups = useMemo(() => {
+        return inventory.reduce((acc: Record<string, InventoryItem[]>, i) => { 
+            const s = i.shelfNumber || 'A1'; 
+            if(!acc[s]) acc[s] = []; 
+            acc[s].push(i); 
+            return acc; 
+        }, {});
+    }, [inventory]);
 
     return (
         <AppShell title="Global Inventory Dashboard">
@@ -353,14 +363,14 @@ export default function AdminInventoryPage() {
                     </Card>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 no-print">
-                         {Object.entries(inventory.reduce((acc: any, i) => { const s = i.shelfNumber || 'A1'; if(!acc[s]) acc[s] = []; acc[s].push(i); return acc; }, {})).map(([shelf, items]: [string, any]) => (
+                         {Object.entries(shelfGroups).map(([shelf, items]) => (
                             <Card key={shelf} className="rounded-[32px] border-none shadow-lg bg-white overflow-hidden">
-                                <CardHeader className="bg-slate-50 border-b flex flex-row items-center justify-between py-4">
+                                <CardHeader className="bg-slate-50 border-b flex flex-row items-center justify-between py-4 px-6">
                                     <div className="flex items-center gap-3"><div className="p-2 bg-primary/10 rounded-xl text-primary font-black italic">{shelf}</div><CardTitle className="text-sm font-black uppercase italic">Shelf {shelf}</CardTitle></div>
-                                    <Badge className="bg-slate-900 text-[10px] font-black italic">Qty: {items.reduce((sum: number, i: any) => sum + (i.quantity || 0), 0)}</Badge>
+                                    <Badge className="bg-slate-900 text-[10px] font-black italic">Qty: {items.reduce((sum, i) => sum + (i.quantity || 0), 0)}</Badge>
                                 </CardHeader>
                                 <CardContent className="p-4 space-y-3">
-                                    {items.slice(0, 3).map((item: any) => (
+                                    {items.slice(0, 3).map((item) => (
                                         <div key={item.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 transition-colors">
                                             <div className="relative h-8 w-8 rounded-lg overflow-hidden border"><Image src={item.imageDataUri} fill alt="p" className="object-cover" unoptimized /></div>
                                             <div className="flex-1 min-w-0"><p className="text-[11px] font-black uppercase italic truncate">{item.name}</p><p className="text-[9px] font-bold text-primary">MRP: ₹{item.mrp}</p></div>
