@@ -31,7 +31,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn, sanitizePhoneNumber } from '@/lib/utils';
 import { addDays, format } from 'date-fns';
-import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 type ZiptallyPartner = {
