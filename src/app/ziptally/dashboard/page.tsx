@@ -57,30 +57,6 @@ export default function ZiptallyPartnerDashboard() {
 
     const partnerId = getCookie('snapstock_token') as string;
 
-    useEffect(() => {
-        if (!partnerId || !db) return;
-        
-        const partnerUnsub = onSnapshot(doc(db, 'snapstock_partners', partnerId), (doc) => {
-            if(doc.exists()) setPartner(doc.data());
-        });
-
-        const q = query(collection(db, 'inventory'), orderBy('lastUpdated', 'desc'));
-        const invUnsub = onSnapshot(q, (snapshot) => {
-            const storeInventory = snapshot.docs
-                .map(doc => doc.data() as InventoryItem)
-                .filter(i => i.storeId === partnerId);
-            setInventory(storeInventory);
-            setIsLoading(false);
-        });
-
-        const mq = query(collection(db, 'inventory_movements'), orderBy('date', 'desc'));
-        const mUnsub = onSnapshot(mq, (snapshot) => {
-            setMovements(snapshot.docs.map(doc => doc.data() as StockMovement));
-        });
-
-        return () => { partnerUnsub(); invUnsub(); mUnsub(); };
-    }, [partnerId]);
-
     const filteredInventory = useMemo(() => {
         return inventory.filter(i => 
             (i.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -118,6 +94,30 @@ export default function ZiptallyPartnerDashboard() {
             };
         });
     }, [selectedProductForStats, movements]);
+
+    useEffect(() => {
+        if (!partnerId || !db) return;
+        
+        const partnerUnsub = onSnapshot(doc(db, 'snapstock_partners', partnerId), (doc) => {
+            if(doc.exists()) setPartner(doc.data());
+        });
+
+        const q = query(collection(db, 'inventory'), orderBy('lastUpdated', 'desc'));
+        const invUnsub = onSnapshot(q, (snapshot) => {
+            const storeInventory = snapshot.docs
+                .map(doc => doc.data() as InventoryItem)
+                .filter(i => i.storeId === partnerId);
+            setInventory(storeInventory);
+            setIsLoading(false);
+        });
+
+        const mq = query(collection(db, 'inventory_movements'), orderBy('date', 'desc'));
+        const mUnsub = onSnapshot(mq, (snapshot) => {
+            setMovements(snapshot.docs.map(doc => doc.data() as StockMovement));
+        });
+
+        return () => { partnerUnsub(); invUnsub(); mUnsub(); };
+    }, [partnerId]);
 
     const trackUsage = useCallback(async () => {
         if (!partnerId) return;
@@ -497,6 +497,7 @@ export default function ZiptallyPartnerDashboard() {
                     </DialogContent>
                 </Dialog>
 
+                {/* SCANNER DIALOG */}
                 <Dialog open={isScanning} onOpenChange={setIsScanning}>
                     <DialogContent className="max-w-sm rounded-[32px] p-6 no-print">
                         <DialogHeader><DialogTitle className="text-center uppercase font-black">Mobile Scanner</DialogTitle></DialogHeader>
@@ -505,6 +506,7 @@ export default function ZiptallyPartnerDashboard() {
                     </DialogContent>
                 </Dialog>
 
+                {/* QUICK SALE DIALOG */}
                 <Dialog open={!!selectedSaleItem} onOpenChange={(open) => !open && setSelectedSaleItem(null)}>
                     <DialogContent className="max-md rounded-[32px] p-8 no-print">
                         <DialogHeader><DialogTitle className="text-2xl font-black italic uppercase">Confirm Sale</DialogTitle></DialogHeader>

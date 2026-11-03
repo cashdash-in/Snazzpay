@@ -224,6 +224,8 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
         return { core: vendorMenuItems, growth: [], config: [] };
       case 'collaborator':
         return { core: collaboratorMenuItems, growth: [], config: [] };
+      case 'snapstock_partner':
+        return { core: [], growth: [], config: [] }; // Partners have their own specialized dashboard
       default: // Admin view
         return {
             core: adminCoreMenuItems,
@@ -240,8 +242,8 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
       <Sidebar>
         <SidebarHeader className="p-4">
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" className="text-primary bg-primary-foreground hover:bg-primary-foreground/90 rounded-lg">
-                <ShieldCheck className="w-6 h-6" />
+            <Button variant="ghost" size="icon" className="text-primary bg-primary-foreground hover:bg-primary-foreground/90 rounded-lg shrink-0">
+                <Zap className="w-6 h-6 fill-primary" />
             </Button>
             <h1 className="text-2xl font-black italic tracking-tighter text-sidebar-foreground uppercase">Ziptally</h1>
           </div>

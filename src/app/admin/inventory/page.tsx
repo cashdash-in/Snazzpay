@@ -54,23 +54,6 @@ export default function AdminInventoryPage() {
     const [updatingImageId, setUpdatingImageId] = useState<string | null>(null);
     const [selectedProductForStats, setSelectedProductForStats] = useState<InventoryItem | null>(null);
 
-    useEffect(() => {
-        if (!db) return;
-        const q = query(collection(db, 'inventory'), orderBy('lastUpdated', 'desc'));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const data = snapshot.docs.map(doc => ({ ...doc.data() } as InventoryItem));
-            setInventory(data);
-            setIsLoading(false);
-        });
-
-        const mq = query(collection(db, 'inventory_movements'), orderBy('date', 'desc'));
-        const mUnsub = onSnapshot(mq, (snapshot) => {
-            setMovements(snapshot.docs.map(doc => doc.data() as StockMovement));
-        });
-
-        return () => { unsubscribe(); mUnsub(); };
-    }, []);
-
     const filteredInventory = useMemo(() => {
         return inventory.filter(i => 
             (i.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -108,6 +91,23 @@ export default function AdminInventoryPage() {
             };
         });
     }, [selectedProductForStats, movements]);
+
+    useEffect(() => {
+        if (!db) return;
+        const q = query(collection(db, 'inventory'), orderBy('lastUpdated', 'desc'));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const data = snapshot.docs.map(doc => ({ ...doc.data() } as InventoryItem));
+            setInventory(data);
+            setIsLoading(false);
+        });
+
+        const mq = query(collection(db, 'inventory_movements'), orderBy('date', 'desc'));
+        const mUnsub = onSnapshot(mq, (snapshot) => {
+            setMovements(snapshot.docs.map(doc => doc.data() as StockMovement));
+        });
+
+        return () => { unsubscribe(); mUnsub(); };
+    }, []);
 
     const resizeImage = (file: File): Promise<string> => {
         return new Promise((resolve) => {
@@ -287,7 +287,7 @@ export default function AdminInventoryPage() {
                     <Button onClick={() => setIsBillIntakeOpen(true)} variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-white border-2 border-dashed border-indigo-200 text-indigo-600">
                         <FileUp className="h-8 w-8" /><span className="font-bold uppercase text-xs">Bill AI</span>
                     </Button>
-                    <Button onClick={() => router.push('/admin/inventory/audit')} variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-white border-2 border-dashed border-purple-200 text-purple-600">
+                    <Button onClick={() => router.push('/ziptally/audit')} variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-white border-2 border-dashed border-purple-200 text-purple-600">
                         <ShieldCheck className="h-8 w-8" /><span className="font-bold uppercase text-xs">Shelf Audit</span>
                     </Button>
                     <Button variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg border-2 border-slate-100 bg-white" onClick={handleVoiceCommand} disabled={isAnalyzing}>
@@ -495,6 +495,7 @@ export default function AdminInventoryPage() {
                     </DialogContent>
                 </Dialog>
 
+                {/* SCANNER DIALOG */}
                 <Dialog open={isScanning} onOpenChange={setIsScanning}>
                     <DialogContent className="max-w-sm rounded-[32px] p-6 no-print">
                         <DialogHeader><DialogTitle className="text-center uppercase font-black">Mobile Scanner</DialogTitle></DialogHeader>
@@ -503,6 +504,7 @@ export default function AdminInventoryPage() {
                     </DialogContent>
                 </Dialog>
 
+                {/* QUICK SALE DIALOG */}
                 <Dialog open={!!selectedSaleItem} onOpenChange={(open) => !open && setSelectedSaleItem(null)}>
                     <DialogContent className="max-md rounded-[32px] p-8 no-print">
                         <DialogHeader><DialogTitle className="text-2xl font-black italic uppercase">Admin Quick Sale</DialogTitle></DialogHeader>

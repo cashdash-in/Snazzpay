@@ -22,7 +22,7 @@ import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
-import { addDays, addYears } from 'date-fns';
+import { addDays } from 'date-fns';
 
 type PlanType = 'trial' | 'monthly' | 'annual';
 
@@ -259,7 +259,7 @@ export default function ZiptallyRegistrationPage() {
                                 <div className="flex items-center space-x-3 mt-6 p-3 bg-white/5 rounded-xl border border-white/10">
                                     <Checkbox id="usage-terms" checked={agreedToTerms} onCheckedChange={(val) => setAgreedToTerms(val as boolean)} className="border-white/50" />
                                     <Label htmlFor="usage-terms" className="text-[10px] font-black uppercase italic text-white cursor-pointer">
-                                        I Agree to the SaaS License & Usage Policy
+                                        I Agree to the Ziptally SaaS License & Usage Policy
                                     </Label>
                                 </div>
                             </div>

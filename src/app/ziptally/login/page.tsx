@@ -68,7 +68,7 @@ export default function ZiptallyLoginPage() {
                             <div className="space-y-2">
                                 <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Email / Mobile</Label>
                                 <div className="relative">
-                                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                     <Input 
                                         required
                                         className="h-12 bg-white/5 border-white/10 rounded-2xl text-white pl-9"
@@ -80,7 +80,7 @@ export default function ZiptallyLoginPage() {
                             <div className="space-y-2">
                                 <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Password</Label>
                                 <div className="relative">
-                                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                     <Input 
                                         required
                                         type="password"

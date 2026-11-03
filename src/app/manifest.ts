@@ -2,9 +2,9 @@ import { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Ziptally AI - Secure COD',
+    name: 'Ziptally AI - Smart Inventory',
     short_name: 'Ziptally',
-    description: 'AI-Powered Inventory & Secure COD for Modern Sellers',
+    description: 'AI-Powered Inventory Intelligence for Modern Retail',
     start_url: '/',
     display: 'standalone',
     background_color: '#5a31f4',
