@@ -10,7 +10,8 @@ import {
     Loader2, Gem, CheckCircle, 
     TrendingUp, UserPlus, 
     Search, MoreVertical, Zap,
-    Share2, Trash2, Ban, Clock
+    Share2, Trash2, Ban, Clock,
+    Lock
 } from 'lucide-react';
 import { getCollection, saveDocument, deleteDocument } from '@/services/firestore';
 import { Badge } from '@/components/ui/badge';
@@ -38,6 +39,7 @@ type ZiptallyPartner = {
     email: string;
     phone: string;
     address: string;
+    password?: string;
     plan: 'Basic' | 'Ziptally Pro' | 'Enterprise';
     status: 'Active' | 'Trial' | 'Expired';
     snapUsage: number;
@@ -59,6 +61,7 @@ export default function ZiptallyLicensesPage() {
         email: '',
         phone: '',
         address: '',
+        password: '',
         plan: 'Ziptally Pro' as ZiptallyPartner['plan']
     });
 
@@ -97,8 +100,8 @@ export default function ZiptallyLicensesPage() {
     );
 
     const handleCreatePartner = async () => {
-        if (!newPartner.storeName || !newPartner.ownerName || !newPartner.email || !newPartner.address) {
-            toast({ variant: 'destructive', title: "Details Required" });
+        if (!newPartner.storeName || !newPartner.ownerName || !newPartner.email || !newPartner.password) {
+            toast({ variant: 'destructive', title: "Details Required", description: "Store name, owner name, email, and password are required." });
             return;
         }
 
@@ -109,7 +112,7 @@ export default function ZiptallyLicensesPage() {
         const partnerData: ZiptallyPartner = {
             id,
             ...newPartner,
-            status: 'Trial',
+            status: 'Active',
             snapUsage: 0,
             revenueGenerated: 0,
             joinedAt: new Date().toISOString(),
@@ -118,8 +121,8 @@ export default function ZiptallyLicensesPage() {
 
         try {
             await saveDocument('snapstock_partners', partnerData, id);
-            toast({ title: "Partner Registered" });
-            setNewPartner({ storeName: '', ownerName: '', email: '', phone: '', address: '', plan: 'Ziptally Pro' });
+            toast({ title: "Partner Registered & Activated" });
+            setNewPartner({ storeName: '', ownerName: '', email: '', phone: '', address: '', password: '', plan: 'Ziptally Pro' });
         } catch (e) {
             toast({ variant: 'destructive', title: "Save Failed" });
         } finally {
@@ -206,6 +209,13 @@ export default function ZiptallyLicensesPage() {
                                         <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">Store Name</Label><Input value={newPartner.storeName} onChange={e => setNewPartner({...newPartner, storeName: e.target.value})} className="h-12 rounded-xl bg-slate-50" /></div>
                                         <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">Owner Name</Label><Input value={newPartner.ownerName} onChange={e => setNewPartner({...newPartner, ownerName: e.target.value})} className="h-12 rounded-xl bg-slate-50" /></div>
                                         <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">Email</Label><Input type="email" value={newPartner.email} onChange={e => setNewPartner({...newPartner, email: e.target.value})} className="h-12 rounded-xl bg-slate-50" /></div>
+                                        <div className="space-y-2">
+                                            <Label className="text-[10px] font-black uppercase text-slate-400">Login Password</Label>
+                                            <div className="relative">
+                                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
+                                                <Input type="text" value={newPartner.password} onChange={e => setNewPartner({...newPartner, password: e.target.value})} className="h-12 rounded-xl bg-slate-50 pl-9" placeholder="Set a temporary password" />
+                                            </div>
+                                        </div>
                                         <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">Phone</Label><Input type="tel" value={newPartner.phone} onChange={e => setNewPartner({...newPartner, phone: e.target.value})} className="h-12 rounded-xl bg-slate-50" /></div>
                                         <div className="md:col-span-2 space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">Shop Address</Label><Input value={newPartner.address} onChange={e => setNewPartner({...newPartner, address: e.target.value})} className="h-12 rounded-xl bg-slate-50" /></div>
                                     </div>

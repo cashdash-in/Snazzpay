@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -33,6 +32,12 @@ export default function ZiptallyLoginPage() {
             const user = partners.find(p => p.email === loginId || p.phone === loginId);
 
             if (user && user.password === password) {
+                // Ensure account isn't rejected
+                if (user.status === 'rejected') {
+                    toast({ variant: 'destructive', title: "Access Denied", description: "Your license has been rejected or suspended." });
+                    return;
+                }
+
                 setCookie('snapstock_token', user.id);
                 setCookie('userRole', 'snapstock_partner');
                 setCookie('firebaseAuthToken', 'ziptally_authenticated'); // Mock for middleware
@@ -40,7 +45,7 @@ export default function ZiptallyLoginPage() {
                 toast({ title: "Welcome to Ziptally!", description: `Logged in as ${user.storeName}` });
                 router.push('/ziptally/dashboard');
             } else {
-                toast({ variant: 'destructive', title: "Login Failed", description: "Invalid credentials or license not active." });
+                toast({ variant: 'destructive', title: "Login Failed", description: "Invalid credentials. Please check your login and password." });
             }
         } catch (error) {
             toast({ variant: 'destructive', title: "System Error" });
@@ -55,7 +60,7 @@ export default function ZiptallyLoginPage() {
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[100%] h-[100%] bg-blue-600 rounded-full blur-[180px]"></div>
             </div>
 
-            <div className="w-full max-w-sm relative z-10 space-y-6">
+            <div className="w-full max-w-sm relative z-10 space-y-6 text-white">
                 <div className="text-center space-y-2">
                     <div className="w-20 h-20 bg-blue-600 rounded-[24px] flex items-center justify-center mx-auto shadow-2xl rotate-3">
                         <Zap className="h-10 w-10 text-white fill-current" />
@@ -68,7 +73,7 @@ export default function ZiptallyLoginPage() {
                     <form onSubmit={handleLogin}>
                         <CardContent className="p-8 space-y-4">
                             <div className="space-y-2">
-                                <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Email / Mobile</Label>
+                                <Label className="text-[10px] font-black uppercase text-slate-200 tracking-widest ml-1">Email / Mobile</Label>
                                 <div className="relative">
                                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
                                     <Input 
@@ -80,7 +85,7 @@ export default function ZiptallyLoginPage() {
                                 </div>
                             </div>
                             <div className="space-y-2">
-                                <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Password</Label>
+                                <Label className="text-[10px] font-black uppercase text-slate-200 tracking-widest ml-1">Password</Label>
                                 <div className="relative">
                                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
                                     <Input 
@@ -105,7 +110,7 @@ export default function ZiptallyLoginPage() {
                 </Card>
 
                 <div className="flex items-center justify-center gap-2 text-[9px] font-black text-slate-600 uppercase tracking-[0.2em]">
-                    <ShieldCheck className="h-3 w-3" /> Licensed by Ziptally AI
+                    <ShieldCheck className="h-3 w-3 text-blue-500" /> Licensed by Ziptally AI
                 </div>
             </div>
         </div>

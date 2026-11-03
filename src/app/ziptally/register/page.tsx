@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -135,7 +134,7 @@ export default function ZiptallyRegistrationPage() {
                 <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-indigo-600 rounded-full blur-[150px]"></div>
             </div>
 
-            <div className="w-full max-w-5xl relative z-10 space-y-12">
+            <div className="w-full max-w-5xl relative z-10 space-y-12 text-white">
                 <div className="text-center space-y-4">
                     <div className="w-24 h-24 bg-blue-600 rounded-[32px] flex items-center justify-center mx-auto shadow-2xl rotate-3 mb-8">
                         <Zap className="h-12 w-12 text-white fill-current" />
@@ -198,14 +197,14 @@ export default function ZiptallyRegistrationPage() {
                                 </h3>
                                 <div className="space-y-4">
                                     <div className="space-y-2">
-                                        <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Store Name</Label>
+                                        <Label className="text-[10px] font-black uppercase text-slate-200 tracking-widest ml-1">Store Name</Label>
                                         <div className="relative">
                                             <Store className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
                                             <Input required placeholder="e.g. Metro Electronics" className="h-12 bg-white/5 border-white/10 rounded-2xl text-white pl-9 font-bold" value={formData.storeName} onChange={e => setFormData({...formData, storeName: e.target.value})} />
                                         </div>
                                     </div>
                                     <div className="space-y-2">
-                                        <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Shop Address</Label>
+                                        <Label className="text-[10px] font-black uppercase text-slate-200 tracking-widest ml-1">Shop Address</Label>
                                         <div className="relative">
                                             <MapPin className="absolute left-3 top-3 h-4 w-4 text-slate-500" />
                                             <Input required placeholder="Complete Street Address" className="h-12 bg-white/5 border-white/10 rounded-2xl text-white pl-9 font-bold" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} />
@@ -213,11 +212,11 @@ export default function ZiptallyRegistrationPage() {
                                     </div>
                                     <div className="flex gap-4 items-center pt-2">
                                         <div className="w-20 h-20 rounded-2xl bg-white/5 border-2 border-dashed border-white/10 flex items-center justify-center overflow-hidden relative cursor-pointer" onClick={() => document.getElementById('logo-upload')?.click()}>
-                                            {logoPreview ? <Image src={logoPreview} alt="logo" fill className="object-contain p-1" /> : <ImagePlus className="h-8 w-8 text-slate-600" />}
+                                            {logoPreview ? <Image src={logoPreview} alt="logo" fill className="object-contain p-1" /> : <ImagePlus className="h-6 w-6 text-slate-600" />}
                                         </div>
                                         <div className="flex-1 space-y-1">
-                                            <Button type="button" variant="outline" size="sm" className="h-8 rounded-lg text-[10px] uppercase font-bold" onClick={() => document.getElementById('logo-upload')?.click()}>Upload Logo</Button>
-                                            <p className="text-[9px] text-slate-500 uppercase tracking-widest">Appears on reports</p>
+                                            <Button type="button" variant="outline" size="sm" className="h-8 rounded-lg text-[10px] uppercase font-bold" onClick={() => document.getElementById('logo-upload')?.click()}>Upload Shop Logo</Button>
+                                            <p className="text-[9px] text-slate-400 uppercase tracking-widest">Appears on reports</p>
                                         </div>
                                         <input type="file" id="logo-upload" accept="image/*" className="hidden" onChange={handleLogoUpload} />
                                     </div>
@@ -230,15 +229,15 @@ export default function ZiptallyRegistrationPage() {
                                 </h3>
                                 <div className="space-y-4">
                                     <div className="space-y-2">
-                                        <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Owner Name</Label>
+                                        <Label className="text-[10px] font-black uppercase text-slate-200 tracking-widest ml-1">Owner Name</Label>
                                         <Input required className="h-12 bg-white/5 border-white/10 rounded-2xl text-white font-bold" value={formData.ownerName} onChange={e => setFormData({...formData, ownerName: e.target.value})} />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Email / Mobile</Label>
+                                        <Label className="text-[10px] font-black uppercase text-slate-200 tracking-widest ml-1">Email / Mobile</Label>
                                         <Input required className="h-12 bg-white/5 border-white/10 rounded-2xl text-white font-bold" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Login Password</Label>
+                                        <Label className="text-[10px] font-black uppercase text-slate-200 tracking-widest ml-1">Login Password</Label>
                                         <div className="relative">
                                             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
                                             <Input required type="password" placeholder="Min 6 characters" className="h-12 bg-white/5 border-white/10 rounded-2xl text-white pl-9 font-bold" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
@@ -255,7 +254,7 @@ export default function ZiptallyRegistrationPage() {
                                 <h4 className="text-white font-black italic uppercase text-xs mb-6 flex items-center gap-2 tracking-widest">
                                     <FileText className="h-5 w-5 text-blue-500"/> Licensing & Usage Terms
                                 </h4>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-[11px] text-slate-400 leading-relaxed font-bold uppercase tracking-wider">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-[11px] text-slate-300 leading-relaxed font-bold uppercase tracking-wider">
                                     <p className="flex gap-3"><span className="text-blue-500">01</span> Data remains 100% your property.</p>
                                     <p className="flex gap-3"><span className="text-blue-500">02</span> AI Snaps are non-refundable.</p>
                                     <p className="flex gap-3"><span className="text-blue-500">03</span> No long-term contracts. Cancel anytime.</p>
@@ -278,8 +277,8 @@ export default function ZiptallyRegistrationPage() {
                 </form>
 
                 <div className="text-center space-y-6">
-                    <p className="text-slate-500 text-sm font-bold uppercase tracking-widest">
-                        Already a Partner? <Link href="/ziptally/login" className="text-blue-500 hover:text-blue-400 transition-colors">Log in to your terminal</Link>
+                    <p className="text-slate-400 text-sm font-bold uppercase tracking-widest">
+                        Existing Partner? <Link href="/ziptally/login" className="text-blue-500 hover:text-blue-400 transition-colors">Log in to your terminal</Link>
                     </p>
                     <div className="flex items-center justify-center gap-3 text-[10px] font-black text-slate-700 uppercase tracking-[0.3em]">
                         <ShieldCheck className="h-4 w-4" /> Secure Licensing powered by Snazzify AI
