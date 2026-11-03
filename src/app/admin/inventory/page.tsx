@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -163,9 +164,19 @@ export default function AdminInventoryPage() {
             const uri = await resizeImage(file);
             const detections = await detectItemsInPhoto(uri, 'intake');
             
+            // PRE-SYNC MERGE: Combine duplicates within the detection batch
+            const mergedBatch = new Map<string, any>();
             for (const d of detections) {
-                const cleanName = d.productName.trim();
-                const existing = inventory.find(i => i.name.toLowerCase().trim() === cleanName.toLowerCase());
+                const name = d.productName.trim().toLowerCase();
+                if (mergedBatch.has(name)) {
+                    mergedBatch.get(name).count += d.count;
+                } else {
+                    mergedBatch.set(name, { ...d });
+                }
+            }
+
+            for (const [name, d] of mergedBatch.entries()) {
+                const existing = inventory.find(i => i.name.toLowerCase().trim() === name);
                 
                 if (existing) {
                     await updateItem(existing.id, { quantity: existing.quantity + d.count });
@@ -197,8 +208,8 @@ export default function AdminInventoryPage() {
         try {
             const result = await matchProductToBill(billPhoto, productPhoto);
             for (const m of result.matches) {
-                const cleanName = m.productName.trim();
-                const existing = inventory.find(i => i.name.toLowerCase().trim() === cleanName.toLowerCase());
+                const cleanName = m.productName.trim().toLowerCase();
+                const existing = inventory.find(i => i.name.toLowerCase().trim() === cleanName);
                 
                 if (existing) {
                     await updateItem(existing.id, { 
@@ -242,8 +253,8 @@ export default function AdminInventoryPage() {
             try {
                 const result = await parseInventoryCommand(text);
                 for (const item of result.items) {
-                    const cleanName = item.productName.trim();
-                    const existing = inventory.find(i => i.name.toLowerCase().trim() === cleanName.toLowerCase());
+                    const cleanName = item.productName.trim().toLowerCase();
+                    const existing = inventory.find(i => i.name.toLowerCase().trim() === cleanName);
                     
                     if (existing) {
                         await updateItem(existing.id, { quantity: Math.max(0, existing.quantity + item.quantity) });
@@ -335,9 +346,18 @@ export default function AdminInventoryPage() {
                                                     <Image src={item.imageDataUri} fill alt="p" className="object-cover group-hover/img:opacity-50 transition-opacity" unoptimized />
                                                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity"><ImagePlus className="h-4 w-4 text-primary" /></div>
                                                 </div>
-                                                <div className="cursor-pointer" onClick={() => setSelectedProductForStats(item)}>
-                                                    <p className="font-bold italic uppercase flex items-center gap-1 hover:text-primary transition-colors">{item.name} <Info className="h-3 w-3 opacity-30"/></p>
-                                                    <p className="text-[9px] font-mono opacity-50">{item.id.substring(0,8)} • {item.shelfNumber || 'A1'}</p>
+                                                <div className="flex flex-col gap-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <Input 
+                                                            value={item.name} 
+                                                            onChange={e => updateItem(item.id, { name: e.target.value })}
+                                                            className="h-8 font-bold italic uppercase border-transparent hover:border-input focus:border-input bg-transparent w-48"
+                                                        />
+                                                        <Button variant="ghost" size="icon" className="h-6 w-6 opacity-30 hover:opacity-100" onClick={() => setSelectedProductForStats(item)}>
+                                                            <Info className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                    <p className="text-[9px] font-mono opacity-50 ml-3">{item.id.substring(0,8)} • {item.shelfNumber || 'A1'}</p>
                                                 </div>
                                             </div>
                                         </TableCell>
