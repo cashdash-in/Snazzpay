@@ -10,8 +10,7 @@ import {
     ShieldCheck, Loader2, Sparkles,
     ImagePlus, CheckCircle2,
     Lock, FileText, MapPin, 
-    Clock, Calendar, Star,
-    AlertCircle
+    Star
 } from "lucide-react";
 import Link from "next/link";
 import { useToast } from '@/hooks/use-toast';
@@ -254,7 +253,7 @@ export default function ZiptallyRegistrationPage() {
                                 <h4 className="text-white font-black italic uppercase text-xs mb-6 flex items-center gap-2 tracking-widest">
                                     <FileText className="h-5 w-5 text-blue-500"/> Licensing & Usage Terms
                                 </h4>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-[11px] text-slate-300 leading-relaxed font-bold uppercase tracking-wider">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-[11px] text-slate-200 leading-relaxed font-bold uppercase tracking-wider">
                                     <p className="flex gap-3"><span className="text-blue-500">01</span> Data remains 100% your property.</p>
                                     <p className="flex gap-3"><span className="text-blue-500">02</span> AI Snaps are non-refundable.</p>
                                     <p className="flex gap-3"><span className="text-blue-500">03</span> No long-term contracts. Cancel anytime.</p>
@@ -277,11 +276,11 @@ export default function ZiptallyRegistrationPage() {
                 </form>
 
                 <div className="text-center space-y-6">
-                    <p className="text-slate-400 text-sm font-bold uppercase tracking-widest">
+                    <p className="text-slate-200 text-sm font-bold uppercase tracking-widest">
                         Existing Partner? <Link href="/ziptally/login" className="text-blue-500 hover:text-blue-400 transition-colors">Log in to your terminal</Link>
                     </p>
                     <div className="flex items-center justify-center gap-3 text-[10px] font-black text-slate-700 uppercase tracking-[0.3em]">
-                        <ShieldCheck className="h-4 w-4" /> Secure Licensing powered by Snazzify AI
+                        <ShieldCheck className="h-4 w-4" /> Secure Licensing powered by Ziptally AI
                     </div>
                 </div>
             </div>

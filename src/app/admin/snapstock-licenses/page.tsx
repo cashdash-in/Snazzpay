@@ -11,7 +11,7 @@ import {
     TrendingUp, UserPlus, 
     Search, MoreVertical, Zap,
     Share2, Trash2, Ban, Clock,
-    Lock
+    Lock, MessageSquare
 } from 'lucide-react';
 import { getCollection, saveDocument, deleteDocument } from '@/services/firestore';
 import { Badge } from '@/components/ui/badge';
@@ -27,7 +27,7 @@ import {
     DropdownMenu, DropdownMenuContent, 
     DropdownMenuItem, DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
-import { cn } from '@/lib/utils';
+import { cn, sanitizePhoneNumber } from '@/lib/utils';
 import { addDays } from 'date-fns';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -130,15 +130,18 @@ export default function ZiptallyLicensesPage() {
         }
     };
 
-    const handleAction = async (partnerId: string, action: 'activate' | 'deactivate' | 'delete' | 'reset-trial' | 'copy-link') => {
+    const handleAction = async (partnerId: string, action: 'activate' | 'deactivate' | 'delete' | 'reset-trial' | 'whatsapp-access') => {
+        const partner = partners.find(p => p.id === partnerId);
+        if (!partner) return;
+
         try {
             if (action === 'delete') {
                 await deleteDocument('snapstock_partners', partnerId);
                 toast({ title: "Partner Removed" });
-            } else if (action === 'copy-link') {
-                const link = `${window.location.origin}/ziptally/register`;
-                navigator.clipboard.writeText(link);
-                toast({ title: "Registration Link Copied" });
+            } else if (action === 'whatsapp-access') {
+                const msg = `Hi ${partner.ownerName}, your Ziptally AI dashboard is ready!\n\nStore: ${partner.storeName}\nLogin: ${partner.email}\nPassword: ${partner.password || 'Contact Admin'}\n\nAccess here: ${window.location.origin}/ziptally/login\n\nZip your Stock with AI! ✨`;
+                window.open(`https://wa.me/${sanitizePhoneNumber(partner.phone)}?text=${encodeURIComponent(msg)}`, '_blank');
+                toast({ title: "Opening WhatsApp..." });
             } else {
                 let updates: Partial<ZiptallyPartner> = {};
                 if (action === 'activate') updates = { status: 'Active' };
@@ -249,9 +252,9 @@ export default function ZiptallyLicensesPage() {
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end" className="w-56 rounded-2xl p-2">
-                                                    <DropdownMenuItem onClick={() => handleAction(p.id, 'activate')} className="rounded-xl font-bold uppercase text-[10px] gap-2"><CheckCircle className="h-4 w-4 text-green-500" /> Activate</DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => handleAction(p.id, 'reset-trial')} className="rounded-xl font-bold uppercase text-[10px] gap-2"><Clock className="h-4 w-4 text-blue-500" /> Reset Trial</DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => handleAction(p.id, 'copy-link')} className="rounded-xl font-bold uppercase text-[10px] gap-2"><Share2 className="h-4 w-4 text-indigo-500" /> Registration Link</DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleAction(p.id, 'whatsapp-access')} className="rounded-xl font-bold uppercase text-[10px] gap-2"><MessageSquare className="h-4 w-4 text-green-500" /> WhatsApp Access</DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleAction(p.id, 'activate')} className="rounded-xl font-bold uppercase text-[10px] gap-2"><CheckCircle className="h-4 w-4 text-blue-500" /> Mark Active</DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleAction(p.id, 'reset-trial')} className="rounded-xl font-bold uppercase text-[10px] gap-2"><Clock className="h-4 w-4 text-purple-500" /> Reset Trial</DropdownMenuItem>
                                                     <DropdownMenuItem onClick={() => handleAction(p.id, 'deactivate')} className="rounded-xl font-bold uppercase text-[10px] gap-2"><Ban className="h-4 w-4 text-amber-500" /> Mark Expired</DropdownMenuItem>
                                                     <DropdownMenuItem onClick={() => handleAction(p.id, 'delete')} className="rounded-xl font-bold uppercase text-[10px] gap-2 text-destructive"><Trash2 className="h-4 w-4" /> Delete</DropdownMenuItem>
                                                 </DropdownMenuContent>

@@ -6,9 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { 
-    Zap, Store, Mail, Phone, 
+    Zap, Mail, 
     ShieldCheck, Loader2, Lock,
-    ArrowRight, Star
 } from "lucide-react";
 import Link from "next/link";
 import { useToast } from '@/hooks/use-toast';
@@ -27,14 +26,18 @@ export default function ZiptallyLoginPage() {
         e.preventDefault();
         setIsLoading(true);
 
+        const cleanLoginId = loginId.trim().toLowerCase();
+        const cleanPassword = password.trim();
+
         try {
             const partners = await getCollection<any>('snapstock_partners');
-            const user = partners.find(p => p.email === loginId || p.phone === loginId);
+            const user = partners.find(p => p.email?.toLowerCase() === cleanLoginId || p.phone === loginId.trim());
 
-            if (user && user.password === password) {
+            if (user && user.password === cleanPassword) {
                 // Ensure account isn't rejected
                 if (user.status === 'rejected') {
                     toast({ variant: 'destructive', title: "Access Denied", description: "Your license has been rejected or suspended." });
+                    setIsLoading(false);
                     return;
                 }
 
@@ -46,21 +49,21 @@ export default function ZiptallyLoginPage() {
                 router.push('/ziptally/dashboard');
             } else {
                 toast({ variant: 'destructive', title: "Login Failed", description: "Invalid credentials. Please check your login and password." });
+                setIsLoading(false);
             }
         } catch (error) {
             toast({ variant: 'destructive', title: "System Error" });
-        } finally {
             setIsLoading(false);
         }
     };
 
     return (
-        <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4 relative overflow-hidden">
+        <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 relative overflow-hidden">
             <div className="absolute inset-0 opacity-10 pointer-events-none">
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[100%] h-[100%] bg-blue-600 rounded-full blur-[180px]"></div>
             </div>
 
-            <div className="w-full max-w-sm relative z-10 space-y-6 text-white">
+            <div className="w-full max-w-sm relative z-10 space-y-6">
                 <div className="text-center space-y-2">
                     <div className="w-20 h-20 bg-blue-600 rounded-[24px] flex items-center justify-center mx-auto shadow-2xl rotate-3">
                         <Zap className="h-10 w-10 text-white fill-current" />
@@ -69,7 +72,7 @@ export default function ZiptallyLoginPage() {
                     <p className="text-blue-400 text-[10px] font-black uppercase tracking-[0.2em] italic">Zip your Stock with AI</p>
                 </div>
 
-                <Card className="rounded-[32px] border-white/5 bg-slate-800/50 backdrop-blur-xl shadow-2xl">
+                <Card className="rounded-[32px] border-white/5 bg-slate-900/80 backdrop-blur-xl shadow-2xl overflow-hidden">
                     <form onSubmit={handleLogin}>
                         <CardContent className="p-8 space-y-4">
                             <div className="space-y-2">
@@ -78,7 +81,7 @@ export default function ZiptallyLoginPage() {
                                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
                                     <Input 
                                         required
-                                        className="h-12 bg-white/5 border-white/10 rounded-2xl text-white pl-9"
+                                        className="h-12 bg-white/5 border-white/10 rounded-2xl text-white pl-9 font-bold"
                                         value={loginId}
                                         onChange={e => setLoginId(e.target.value)}
                                     />
@@ -91,7 +94,7 @@ export default function ZiptallyLoginPage() {
                                     <Input 
                                         required
                                         type="password"
-                                        className="h-12 bg-white/5 border-white/10 rounded-2xl text-white pl-9"
+                                        className="h-12 bg-white/5 border-white/10 rounded-2xl text-white pl-9 font-bold"
                                         value={password}
                                         onChange={e => setPassword(e.target.value)}
                                     />
