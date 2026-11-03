@@ -239,11 +239,11 @@ export default function ZiptallyLicensesPage() {
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end" className="w-56 rounded-2xl p-2">
-                                                    <DropdownMenuItem onClick={() => handleAction(partnerId, 'activate')} className="rounded-xl font-bold uppercase text-[10px] gap-2"><CheckCircle className="h-4 w-4 text-green-500" /> Activate</DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => handleAction(partnerId, 'reset-trial')} className="rounded-xl font-bold uppercase text-[10px] gap-2"><Clock className="h-4 w-4 text-blue-500" /> Reset Trial</DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => handleAction(partnerId, 'copy-link')} className="rounded-xl font-bold uppercase text-[10px] gap-2"><Share2 className="h-4 w-4 text-indigo-500" /> Registration Link</DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => handleAction(partnerId, 'deactivate')} className="rounded-xl font-bold uppercase text-[10px] gap-2"><Ban className="h-4 w-4 text-amber-500" /> Mark Expired</DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => handleAction(partnerId, 'delete')} className="rounded-xl font-bold uppercase text-[10px] gap-2 text-destructive"><Trash2 className="h-4 w-4" /> Delete</DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleAction(p.id, 'activate')} className="rounded-xl font-bold uppercase text-[10px] gap-2"><CheckCircle className="h-4 w-4 text-green-500" /> Activate</DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleAction(p.id, 'reset-trial')} className="rounded-xl font-bold uppercase text-[10px] gap-2"><Clock className="h-4 w-4 text-blue-500" /> Reset Trial</DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleAction(p.id, 'copy-link')} className="rounded-xl font-bold uppercase text-[10px] gap-2"><Share2 className="h-4 w-4 text-indigo-500" /> Registration Link</DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleAction(p.id, 'deactivate')} className="rounded-xl font-bold uppercase text-[10px] gap-2"><Ban className="h-4 w-4 text-amber-500" /> Mark Expired</DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleAction(p.id, 'delete')} className="rounded-xl font-bold uppercase text-[10px] gap-2 text-destructive"><Trash2 className="h-4 w-4" /> Delete</DropdownMenuItem>
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
                                         </TableCell>
