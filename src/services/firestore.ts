@@ -4,8 +4,6 @@ import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, 
 
 /**
  * Robust utility to recursively remove 'undefined' values and handle Firestore FieldValues.
- * This prevents the "Objects are not valid as a React child" error by ensuring 
- * internal command objects don't leak into the UI before being saved.
  */
 const sanitizeForFirestore = (data: any): any => {
   if (data === undefined) return null;
@@ -16,7 +14,6 @@ const sanitizeForFirestore = (data: any): any => {
   }
 
   // Preserve Firestore FieldValues (like increment, serverTimestamp)
-  // These objects have a specific structure that should not be flattened
   if (data.constructor && data.constructor.name !== 'Object' && data.constructor.name !== 'Array') {
       return data; 
   }

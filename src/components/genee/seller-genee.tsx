@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
@@ -19,7 +20,7 @@ export function SellerGenee() {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'assistant', content: "Hii! I'm your ASK.ME Star Girl! ✨ Let's blast your sales! 🚀" }
+    { role: 'assistant', content: "Hii! I'm Star Girl! ✨ Let's grow! 🚀" }
   ]);
   const [isLoading, setIsLoading] = useState(false);
   
@@ -95,7 +96,7 @@ export function SellerGenee() {
         content: result.advice
       }]);
     } catch (error) {
-      setMessages(prev => [...prev, { role: 'assistant', content: "Oops! Try again? ✨" }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: "Oops! ✨" }]);
     } finally {
       setIsLoading(false);
     }
@@ -128,7 +129,7 @@ export function SellerGenee() {
             <div className="relative">
                 <div className="absolute -inset-4 bg-purple-500/10 rounded-full blur-xl animate-genee-flash"></div>
                 <Button 
-                    className="h-9 w-9 rounded-full shadow-2xl bg-slate-950 border-2 border-primary p-0 overflow-hidden relative"
+                    className="h-8 w-8 rounded-full shadow-2xl bg-slate-950 border-2 border-primary p-0 overflow-hidden relative"
                     onClick={handleTriggerClick}
                 >
                     <Image 
@@ -138,21 +139,19 @@ export function SellerGenee() {
                         className="object-cover mix-blend-screen brightness-150 pointer-events-none"
                         unoptimized
                     />
-                    <GripHorizontal className="absolute bottom-1 left-1/2 -translate-x-1/2 h-1.5 text-white/20" />
+                    <GripHorizontal className="absolute bottom-1 left-1/2 -translate-x-1/2 h-1 text-white/20" />
                 </Button>
             </div>
         </div>
       ) : (
-        <Card className="w-[200px] h-[280px] flex flex-col shadow-2xl border-none animate-in zoom-in-95 slide-in-from-bottom-5 rounded-[20px] overflow-hidden bg-white">
+        <Card className="w-[180px] h-[250px] flex flex-col shadow-2xl border-none animate-in zoom-in-95 slide-in-from-bottom-5 rounded-[20px] overflow-hidden bg-white">
           <CardHeader className="p-2 bg-slate-950 text-white border-b border-white/10 shrink-0">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-1.5">
-                <div className="relative h-5 w-5 rounded-lg overflow-hidden border border-primary bg-black">
+                <div className="relative h-4 w-4 rounded-lg overflow-hidden border border-primary bg-black">
                      <Image src={placeholders.geneeAvatar.src} alt="Star Girl" fill className="object-cover mix-blend-screen brightness-150" unoptimized />
                 </div>
-                <div>
-                  <CardTitle className="text-[8px] font-black uppercase tracking-tight">Star Girl</CardTitle>
-                </div>
+                <CardTitle className="text-[8px] font-black uppercase tracking-tight">Star Girl</CardTitle>
               </div>
               <Button variant="ghost" size="icon" className="text-white h-4 w-4" onClick={() => setIsOpen(false)}><X className="h-2 w-2" /></Button>
             </div>
@@ -161,20 +160,20 @@ export function SellerGenee() {
           <CardContent className="flex-1 overflow-y-auto p-2 space-y-2 bg-slate-50/50" ref={scrollRef}>
             {messages.map((m, i) => (
               <div key={i} className={cn("flex gap-1.5 max-w-[95%]", m.role === 'user' ? "ml-auto flex-row-reverse" : "mr-auto")}>
-                <div className={cn("p-2 rounded-[12px] text-[8px] shadow-sm leading-tight break-words", m.role === 'assistant' ? "bg-white border border-slate-100 text-slate-800 rounded-tl-none" : "bg-primary text-white rounded-tr-none font-medium")}>
+                <div className={cn("p-2 rounded-[12px] text-[7px] shadow-sm leading-tight break-words", m.role === 'assistant' ? "bg-white border border-slate-100 text-slate-800 rounded-tl-none" : "bg-primary text-white rounded-tr-none font-medium")}>
                     {m.content}
                 </div>
               </div>
             ))}
             {isLoading && (
-              <div className="flex gap-1.5 mr-auto"><div className="w-3 h-3 rounded-md bg-slate-950 border border-primary flex items-center justify-center"><Loader2 className="h-2 w-2 text-white animate-spin" /></div><div className="p-2 bg-white border border-slate-100 rounded-2xl rounded-tl-none"><p className="text-[7px] italic text-muted-foreground animate-pulse">Thinking...</p></div></div>
+              <div className="flex gap-1.5 mr-auto"><div className="w-2 h-2 rounded-md bg-slate-950 border border-primary flex items-center justify-center"><Loader2 className="h-1 text-white animate-spin" /></div><div className="p-1.5 bg-white border border-slate-100 rounded-xl rounded-tl-none"><p className="text-[6px] italic text-muted-foreground animate-pulse">...</p></div></div>
             )}
           </CardContent>
 
-          <CardFooter className="p-1.5 border-t bg-white shrink-0">
-            <div className="flex w-full gap-1.5 bg-slate-100 p-0.5 rounded-full">
-              <Input placeholder="Ask... ✨" value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSend()} className="bg-transparent border-none h-5 text-[8px] font-bold" />
-              <Button size="icon" onClick={handleSend} disabled={isLoading || !input.trim()} className="rounded-full h-5 w-5 shadow-lg bg-slate-950 hover:bg-slate-900 shrink-0"><Send className="h-2 w-2" /></Button>
+          <CardFooter className="p-1 border-t bg-white shrink-0">
+            <div className="flex w-full gap-1 bg-slate-100 p-0.5 rounded-full">
+              <Input placeholder="Ask... ✨" value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSend()} className="bg-transparent border-none h-4 text-[7px] font-bold" />
+              <Button size="icon" onClick={handleSend} disabled={isLoading || !input.trim()} className="rounded-full h-4 w-4 shadow-lg bg-slate-950 hover:bg-slate-900 shrink-0"><Send className="h-1.5 w-1.5" /></Button>
             </div>
           </CardFooter>
         </Card>

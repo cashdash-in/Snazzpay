@@ -13,7 +13,7 @@ import {
     Loader2, Camera, Plus, Minus, Search, 
     Sparkles, Mic, Trash2, Scan,
     Printer, FileUp, FileText, ImagePlus, FileSpreadsheet,
-    MapPin, Layers, ShieldCheck, TrendingUp, Info, History
+    MapPin, Layers, ShieldCheck, TrendingUp, Info, History, Factory
 } from 'lucide-react';
 import { getCollection, saveDocument, deleteDocument } from '@/services/firestore';
 import { parseInventoryCommand, detectItemsInPhoto, matchProductToBill } from '@/ai/flows/inventory-ai';
@@ -25,7 +25,6 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Html5QrcodeScanner } from 'html5-qrcode';
 import * as XLSX from 'xlsx';
 import { useRouter } from 'next/navigation';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
@@ -54,11 +53,8 @@ export default function AdminInventoryPage() {
     const [isProcessingBill, setIsProcessingBill] = useState(false);
 
     const [updatingImageId, setUpdatingImageId] = useState<string | null>(null);
-    
-    // Product Intelligence State
     const [selectedProductForStats, setSelectedProductForStats] = useState<InventoryItem | null>(null);
 
-    // DATA FETCHING
     useEffect(() => {
         if (!db) return;
         const q = query(collection(db, 'inventory'), orderBy('lastUpdated', 'desc'));
@@ -76,7 +72,6 @@ export default function AdminInventoryPage() {
         return () => { unsubscribe(); mUnsub(); };
     }, []);
 
-    // MEMOIZED FILTERS
     const filteredInventory = useMemo(() => {
         return inventory.filter(i => 
             (i.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -85,12 +80,13 @@ export default function AdminInventoryPage() {
     }, [inventory, searchTerm]);
 
     const shelfGroups = useMemo(() => {
-        return inventory.reduce((acc: Record<string, InventoryItem[]>, i) => { 
-            const s = i.shelfNumber || 'A1'; 
-            if(!acc[s]) acc[s] = []; 
-            acc[s].push(i); 
-            return acc; 
-        }, {});
+        const groups: Record<string, InventoryItem[]> = {};
+        inventory.forEach(item => {
+            const s = item.shelfNumber || 'A1';
+            if (!groups[s]) groups[s] = [];
+            groups[s].push(item);
+        });
+        return groups;
     }, [inventory]);
 
     const productStats = useMemo(() => {
@@ -113,7 +109,6 @@ export default function AdminInventoryPage() {
         });
     }, [selectedProductForStats, movements]);
 
-    // HELPERS
     const resizeImage = (file: File): Promise<string> => {
         return new Promise((resolve) => {
             const reader = new FileReader();
@@ -160,7 +155,6 @@ export default function AdminInventoryPage() {
         await saveDocument('inventory', { ...item, ...updates, lastUpdated: new Date().toISOString() }, id);
     };
 
-    // ACTION HANDLERS
     const handleBulkIntake = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -172,18 +166,20 @@ export default function AdminInventoryPage() {
             for (const d of detections) {
                 const cleanName = d.productName.trim();
                 const existing = inventory.find(i => i.name.toLowerCase().trim() === cleanName.toLowerCase());
+                
                 if (existing) {
-                    await updateItem(existing.id, { quantity: (existing.quantity || 0) + d.count });
+                    await updateItem(existing.id, { quantity: existing.quantity + d.count });
                 } else {
                     const id = uuidv4();
                     let itemImage = uri;
                     if (d.box_2d) {
                         try { itemImage = await cropImage(uri, d.box_2d); } catch (err) {}
                     }
-                    await saveDocument('inventory', {
+                    const newItem = {
                         id, storeId: 'admin', name: d.productName, quantity: d.count, mrp: 0, wholesalePrice: 0,
                         category: d.category || 'General', shelfNumber: 'A1', imageDataUri: itemImage, lastUpdated: new Date().toISOString()
-                    }, id);
+                    };
+                    await saveDocument('inventory', newItem, id);
                 }
             }
             toast({ title: "Bulk Intake Processed" });
@@ -200,13 +196,13 @@ export default function AdminInventoryPage() {
         setIsProcessingBill(true);
         try {
             const result = await matchProductToBill(billPhoto, productPhoto);
-            
             for (const m of result.matches) {
                 const cleanName = m.productName.trim();
                 const existing = inventory.find(i => i.name.toLowerCase().trim() === cleanName.toLowerCase());
+                
                 if (existing) {
                     await updateItem(existing.id, { 
-                        quantity: (existing.quantity || 0) + m.quantity,
+                        quantity: existing.quantity + m.quantity,
                         wholesalePrice: m.wholesalePrice,
                         mrp: m.mrp,
                         supplierName: result.supplier.name,
@@ -218,11 +214,12 @@ export default function AdminInventoryPage() {
                     if (m.box_2d) {
                         try { itemImage = await cropImage(productPhoto, m.box_2d); } catch (err) {}
                     }
-                    await saveDocument('inventory', {
+                    const newItem = {
                         id, storeId: 'admin', name: m.productName, quantity: m.quantity, wholesalePrice: m.wholesalePrice, mrp: m.mrp,
                         category: m.category, shelfNumber: 'A1', imageDataUri: itemImage, lastUpdated: new Date().toISOString(),
                         supplierName: result.supplier.name, supplierContact: result.supplier.contact
-                    }, id);
+                    };
+                    await saveDocument('inventory', newItem, id);
                 }
             }
             toast({ title: "Bill Sync Complete" });
@@ -245,15 +242,18 @@ export default function AdminInventoryPage() {
             try {
                 const result = await parseInventoryCommand(text);
                 for (const item of result.items) {
-                    const existing = inventory.find(i => i.name.toLowerCase().trim() === item.productName.toLowerCase().trim());
+                    const cleanName = item.productName.trim();
+                    const existing = inventory.find(i => i.name.toLowerCase().trim() === cleanName.toLowerCase());
+                    
                     if (existing) {
-                        await updateItem(existing.id, { quantity: Math.max(0, (existing.quantity || 0) + item.quantity) });
+                        await updateItem(existing.id, { quantity: Math.max(0, existing.quantity + item.quantity) });
                     } else if (item.quantity > 0) {
                         const id = uuidv4();
-                        await saveDocument('inventory', {
+                        const newItem = {
                             id, storeId: 'admin', name: item.productName, quantity: item.quantity, mrp: 0, wholesalePrice: 0,
                             category: 'General', shelfNumber: 'A1', imageDataUri: 'https://picsum.photos/seed/voice/200/200', lastUpdated: new Date().toISOString()
-                        }, id);
+                        };
+                        await saveDocument('inventory', newItem, id);
                     }
                 }
                 toast({ title: "Voice Sync Complete" });
@@ -290,22 +290,24 @@ export default function AdminInventoryPage() {
                     </Card>
                 </div>
 
-                <div className="flex gap-4 no-print">
+                <div className="flex flex-col md:flex-row gap-4 no-print">
                     <div className="relative flex-1">
                         <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                         <Input placeholder="Search name, supplier, ID..." className="pl-12 h-12 rounded-2xl bg-white shadow-sm border-none font-bold" value={searchTerm} onChange={e => setSearchQuery(e.target.value)} />
                     </div>
-                    <Button variant="outline" className="h-12 px-6 rounded-2xl bg-white shadow-sm font-black uppercase text-[10px] italic" onClick={() => {
-                        const ws = XLSX.utils.json_to_sheet(inventory.map(i => ({ Product: i.name, Supplier: i.supplierName || 'N/A', Stock: i.quantity, Purchase: i.wholesalePrice, MRP: i.mrp })));
-                        const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Master"); XLSX.writeFile(wb, "MasterInventory.xlsx");
-                    }}>
-                        <FileSpreadsheet className="mr-2 h-4 w-4" /> Export Master
-                    </Button>
-                    <div className="flex bg-white rounded-full p-1 border shadow-sm h-12">
-                        <Button variant={activeView === 'list' ? 'default' : 'ghost'} size="sm" className="h-10 px-4 rounded-full text-[10px] uppercase font-bold" onClick={() => setActiveView('list')}>List</Button>
-                        <Button variant={activeView === 'shop-map' ? 'default' : 'ghost'} size="sm" className="h-10 px-4 rounded-full text-[10px] uppercase font-bold" onClick={() => setActiveView('shop-map')}>Map</Button>
+                    <div className="flex gap-2">
+                        <Button variant="outline" className="h-12 px-6 rounded-2xl bg-white shadow-sm font-black uppercase text-[10px] italic" onClick={() => {
+                            const ws = XLSX.utils.json_to_sheet(inventory.map(i => ({ Product: i.name, Supplier: i.supplierName || 'N/A', Stock: i.quantity, Purchase: i.wholesalePrice, MRP: i.mrp })));
+                            const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Master"); XLSX.writeFile(wb, "MasterInventory.xlsx");
+                        }}>
+                            <FileSpreadsheet className="mr-2 h-4 w-4" /> Export Master
+                        </Button>
+                        <div className="flex bg-white rounded-full p-1 border shadow-sm h-12">
+                            <Button variant={activeView === 'list' ? 'default' : 'ghost'} size="sm" className="h-10 px-4 rounded-full text-[10px] uppercase font-bold" onClick={() => setActiveView('list')}>List</Button>
+                            <Button variant={activeView === 'shop-map' ? 'default' : 'ghost'} size="sm" className="h-10 px-4 rounded-full text-[10px] uppercase font-bold" onClick={() => setActiveView('shop-map')}>Map</Button>
+                        </div>
+                        <Button variant="outline" className="h-12 w-12 rounded-2xl bg-white shadow-sm" onClick={() => window.print()}><Printer className="h-5 w-5"/></Button>
                     </div>
-                    <Button variant="outline" className="h-12 w-12 rounded-2xl bg-white shadow-sm" onClick={() => window.print()}><Printer className="h-5 w-5"/></Button>
                 </div>
 
                 {activeView === 'list' ? (
@@ -385,6 +387,7 @@ export default function AdminInventoryPage() {
                     </div>
                 )}
 
+                {/* MODALS */}
                 <Dialog open={isBillIntakeOpen} onOpenChange={setIsBillIntakeOpen}>
                     <DialogContent className="max-w-2xl rounded-[32px] p-8 border-none no-print">
                         <DialogHeader><DialogTitle className="text-2xl font-black italic uppercase text-slate-800">Admin Bill Intake</DialogTitle></DialogHeader>
@@ -408,7 +411,6 @@ export default function AdminInventoryPage() {
                     </DialogContent>
                 </Dialog>
 
-                {/* Product Intelligence Modal */}
                 <Dialog open={!!selectedProductForStats} onOpenChange={open => !open && setSelectedProductForStats(null)}>
                     <DialogContent className="max-w-4xl rounded-[40px] p-0 overflow-hidden border-none bg-white">
                         <div className="grid grid-cols-1 md:grid-cols-2">
@@ -476,7 +478,11 @@ export default function AdminInventoryPage() {
                 </Dialog>
 
                 <Dialog open={isScanning} onOpenChange={setIsScanning}>
-                    <DialogContent className="max-w-sm rounded-[32px] p-6 no-print"><DialogHeader><DialogTitle className="text-center uppercase font-black">Admin Scanner</DialogTitle></DialogHeader><div id="admin-reader" className="w-full aspect-square rounded-2xl overflow-hidden border-2 bg-slate-50"></div><DialogFooter><Button variant="outline" className="w-full rounded-xl" onClick={() => setIsScanning(false)}>Cancel</Button></DialogFooter></Dialog>
+                    <DialogContent className="max-w-sm rounded-[32px] p-6 no-print">
+                        <DialogHeader><DialogTitle className="text-center uppercase font-black">Admin Scanner</DialogTitle></DialogHeader>
+                        <div id="admin-reader" className="w-full aspect-square rounded-2xl overflow-hidden border-2 bg-slate-50"></div>
+                        <DialogFooter><Button variant="outline" className="w-full rounded-xl" onClick={() => setIsScanning(false)}>Cancel</Button></DialogFooter>
+                    </DialogContent>
                 </Dialog>
 
                 <Dialog open={!!selectedSaleItem} onOpenChange={(open) => !open && setSelectedSaleItem(null)}>
