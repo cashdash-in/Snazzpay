@@ -1,4 +1,3 @@
-
 import type {Metadata, Viewport} from 'next';
 import './globals.css';
 import { Inter } from 'next/font/google';
@@ -7,13 +6,13 @@ import { Providers } from './providers';
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata: Metadata = {
-  title: 'SnapStock AI - Secure COD',
-  description: 'Secure Cash on Delivery with SnapStock AI Intelligence',
+  title: 'SnazStock AI - Secure COD',
+  description: 'Secure Cash on Delivery with SnazStock AI Intelligence',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'SnapStock AI',
+    title: 'SnazStock AI',
   },
 };
 

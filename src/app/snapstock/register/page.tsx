@@ -53,7 +53,7 @@ const plans = [
     }
 ];
 
-export default function SnapStockRegistrationPage() {
+export default function SnazStockRegistrationPage() {
     const { toast } = useToast();
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
@@ -116,7 +116,7 @@ export default function SnapStockRegistrationPage() {
             await saveDocument('snapstock_partners', partnerData, id);
             
             toast({ 
-                title: "Welcome to SnapStock AI!", 
+                title: "Welcome to SnazStock AI!", 
                 description: `Your ${planDetails?.name} has been activated.` 
             });
             
@@ -141,7 +141,7 @@ export default function SnapStockRegistrationPage() {
                         <Zap className="h-10 w-10 text-white" />
                     </div>
                     <h1 className="text-4xl md:text-7xl font-black italic uppercase tracking-tighter text-white">
-                        Smarter Retail with <span className="text-blue-500">SnapStock AI</span>
+                        Smarter Retail with <span className="text-blue-500">SnazStock AI</span>
                     </h1>
                     <p className="text-slate-400 text-lg max-w-lg mx-auto font-medium">
                         The ultimate AI-powered inventory system. Register your store and start tracking in seconds.
@@ -248,7 +248,7 @@ export default function SnapStockRegistrationPage() {
                         <CardContent className="space-y-6 p-0">
                             <div className="bg-slate-900/50 rounded-2xl p-6 border border-white/5">
                                 <h4 className="text-white font-black italic uppercase text-xs mb-4 flex items-center gap-2">
-                                    <FileText className="h-4 w-4 text-blue-500"/> SnapStock Usage Terms
+                                    <FileText className="h-4 w-4 text-blue-500"/> SnazStock Usage Terms
                                 </h4>
                                 <div className="space-y-3 text-[10px] text-slate-400 leading-relaxed font-medium uppercase tracking-wider">
                                     <p>• Data Ownership: All inventory data uploaded remains your private property.</p>
@@ -266,7 +266,7 @@ export default function SnapStockRegistrationPage() {
 
                             <Button type="submit" className="w-full h-16 text-xl font-black uppercase italic rounded-3xl bg-blue-600 hover:bg-blue-500 shadow-2xl shadow-blue-900/20" disabled={isLoading}>
                                 {isLoading ? <Loader2 className="animate-spin mr-2" /> : <Zap className="mr-2" />}
-                                Start My SnapStock Journey
+                                Start My SnazStock Journey
                             </Button>
                         </CardContent>
                         <CardFooter className="justify-center pt-6">

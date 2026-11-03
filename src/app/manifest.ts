@@ -1,10 +1,9 @@
-
 import { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'SnapStock AI - Secure COD',
-    short_name: 'SnapStock',
+    name: 'SnazStock AI - Secure COD',
+    short_name: 'SnazStock',
     description: 'AI-Powered Inventory & Secure COD for Modern Sellers',
     start_url: '/',
     display: 'standalone',

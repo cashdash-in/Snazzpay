@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -32,7 +31,7 @@ import type { InventoryItem, StockMovement } from '@/types/inventory';
 
 const MAX_IMAGE_SIZE_PX = 800;
 
-export default function SnapStockPartnerDashboard() {
+export default function SnazStockPartnerDashboard() {
     const router = useRouter();
     const { toast } = useToast();
     const [partner, setPartner] = useState<any | null>(null);
@@ -180,7 +179,6 @@ export default function SnapStockPartnerDashboard() {
             const uri = await resizeImage(file);
             const detections = await detectItemsInPhoto(uri, 'intake');
             
-            // Group detections to prevent batch duplicates
             const mergedBatch = new Map<string, any>();
             for (const d of detections) {
                 const name = d.productName.trim().toLowerCase();
@@ -192,7 +190,7 @@ export default function SnapStockPartnerDashboard() {
             }
 
             for (const [name, d] of mergedBatch.entries()) {
-                const existing = inventory.find(i => i.name.toLowerCase().trim() === name);
+                const existing = inventory.find(i => (i.name || '').toLowerCase().trim() === name);
                 
                 if (existing) {
                     await updateItem(existing.id, { quantity: existing.quantity + d.count });
@@ -226,7 +224,7 @@ export default function SnapStockPartnerDashboard() {
             const result = await matchProductToBill(billPhoto, productPhoto);
             for (const m of result.matches) {
                 const cleanName = m.productName.trim().toLowerCase();
-                const existing = inventory.find(i => i.name.toLowerCase().trim() === cleanName);
+                const existing = inventory.find(i => (i.name || '').toLowerCase().trim() === cleanName);
                 
                 if (existing) {
                     await updateItem(existing.id, { 
@@ -272,7 +270,7 @@ export default function SnapStockPartnerDashboard() {
                 const result = await parseInventoryCommand(text);
                 for (const item of result.items) {
                     const cleanName = item.productName.trim().toLowerCase();
-                    const existing = inventory.find(i => i.name.toLowerCase().trim() === cleanName);
+                    const existing = inventory.find(i => (i.name || '').toLowerCase().trim() === cleanName);
                     
                     if (existing) {
                         await updateItem(existing.id, { quantity: Math.max(0, existing.quantity + item.quantity) });
@@ -299,7 +297,7 @@ export default function SnapStockPartnerDashboard() {
             <header className="bg-slate-900 text-white p-4 md:px-8 flex justify-between items-center sticky top-0 z-50 shadow-xl no-print">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/20"><Zap className="h-6 w-6 text-white" /></div>
-                    <div><h1 className="text-xl font-black italic uppercase tracking-tighter">{partner?.storeName || 'SnapStock AI'}</h1><p className="text-[10px] text-blue-400 font-bold uppercase tracking-widest mt-1">Partner Portal</p></div>
+                    <div><h1 className="text-xl font-black italic uppercase tracking-tighter">{partner?.storeName || 'SnazStock AI'}</h1><p className="text-[10px] text-blue-400 font-bold uppercase tracking-widest mt-1">Partner Portal</p></div>
                 </div>
                 <div className="flex items-center gap-4">
                      <Badge variant="outline" className="text-blue-400 border-blue-400/30 uppercase text-[9px] font-black h-6">Snap Usage: {typeof partner?.snapUsage === 'number' ? partner.snapUsage : 0}</Badge>
@@ -409,7 +407,7 @@ export default function SnapStockPartnerDashboard() {
                     </div>
                 )}
 
-                {/* BILL INTAKE DIALOG */}
+                {/* MODALS */}
                 <Dialog open={isBillIntakeOpen} onOpenChange={setIsBillIntakeOpen}>
                     <DialogContent className="max-w-2xl rounded-[32px] p-8 border-none no-print">
                         <DialogHeader><DialogTitle className="text-2xl font-black italic uppercase text-slate-800">AI Bill Intake</DialogTitle><DialogDescription>Upload your supplier bill and the GROUP PHOTO to sync wholesale costs.</DialogDescription></DialogHeader>
@@ -433,7 +431,6 @@ export default function SnapStockPartnerDashboard() {
                     </DialogContent>
                 </Dialog>
 
-                {/* PRODUCT STATS DIALOG */}
                 <Dialog open={!!selectedProductForStats} onOpenChange={open => !open && setSelectedProductForStats(null)}>
                     <DialogContent className="max-w-4xl rounded-[40px] p-0 overflow-hidden border-none bg-white">
                         <div className="grid grid-cols-1 md:grid-cols-2">
@@ -500,7 +497,6 @@ export default function SnapStockPartnerDashboard() {
                     </DialogContent>
                 </Dialog>
 
-                {/* SCANNER DIALOG */}
                 <Dialog open={isScanning} onOpenChange={setIsScanning}>
                     <DialogContent className="max-w-sm rounded-[32px] p-6 no-print">
                         <DialogHeader><DialogTitle className="text-center uppercase font-black">Mobile Scanner</DialogTitle></DialogHeader>
@@ -509,7 +505,6 @@ export default function SnapStockPartnerDashboard() {
                     </DialogContent>
                 </Dialog>
 
-                {/* QUICK SALE DIALOG */}
                 <Dialog open={!!selectedSaleItem} onOpenChange={(open) => !open && setSelectedSaleItem(null)}>
                     <DialogContent className="max-md rounded-[32px] p-8 no-print">
                         <DialogHeader><DialogTitle className="text-2xl font-black italic uppercase">Confirm Sale</DialogTitle></DialogHeader>

@@ -1,7 +1,6 @@
-
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { AppShell } from '@/components/layout/app-shell';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -164,7 +163,6 @@ export default function AdminInventoryPage() {
             const uri = await resizeImage(file);
             const detections = await detectItemsInPhoto(uri, 'intake');
             
-            // PRE-SYNC MERGE: Combine duplicates within the detection batch
             const mergedBatch = new Map<string, any>();
             for (const d of detections) {
                 const name = d.productName.trim().toLowerCase();
@@ -176,7 +174,7 @@ export default function AdminInventoryPage() {
             }
 
             for (const [name, d] of mergedBatch.entries()) {
-                const existing = inventory.find(i => i.name.toLowerCase().trim() === name);
+                const existing = inventory.find(i => (i.name || '').toLowerCase().trim() === name);
                 
                 if (existing) {
                     await updateItem(existing.id, { quantity: existing.quantity + d.count });
@@ -209,7 +207,7 @@ export default function AdminInventoryPage() {
             const result = await matchProductToBill(billPhoto, productPhoto);
             for (const m of result.matches) {
                 const cleanName = m.productName.trim().toLowerCase();
-                const existing = inventory.find(i => i.name.toLowerCase().trim() === cleanName);
+                const existing = inventory.find(i => (i.name || '').toLowerCase().trim() === cleanName);
                 
                 if (existing) {
                     await updateItem(existing.id, { 
@@ -254,7 +252,7 @@ export default function AdminInventoryPage() {
                 const result = await parseInventoryCommand(text);
                 for (const item of result.items) {
                     const cleanName = item.productName.trim().toLowerCase();
-                    const existing = inventory.find(i => i.name.toLowerCase().trim() === cleanName);
+                    const existing = inventory.find(i => (i.name || '').toLowerCase().trim() === cleanName);
                     
                     if (existing) {
                         await updateItem(existing.id, { quantity: Math.max(0, existing.quantity + item.quantity) });
@@ -276,7 +274,7 @@ export default function AdminInventoryPage() {
     };
 
     return (
-        <AppShell title="Global Inventory Dashboard">
+        <AppShell title="SnazStock AI Dashboard">
             <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-6 gap-4 no-print">
                     <Button onClick={() => setIsScanning(true)} size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-blue-600 hover:bg-blue-500">

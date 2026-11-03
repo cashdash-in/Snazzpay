@@ -67,6 +67,7 @@ import {
   UsersRound,
   LayoutTemplate,
   Zap,
+  Gem,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { getCookie } from 'cookies-next';
@@ -75,6 +76,7 @@ import { Badge } from '@/components/ui/badge';
 import { getCollection } from '@/services/firestore';
 import type { EditableOrder } from '@/types/order';
 import { SellerGenee } from '@/components/genee/seller-genee';
+import { cn } from '@/lib/utils';
 
 type MenuItem = {
     href: string;
@@ -85,15 +87,13 @@ type MenuItem = {
 
 const adminCoreMenuItems: MenuItem[] = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/admin/inventory', label: 'SnapStock AI', icon: Zap },
+  { href: '/admin/inventory', label: 'SnazStock AI', icon: Zap },
+  { href: '/admin/snapstock-licenses', label: 'Partner Licenses', icon: Gem },
   { href: '/admin/wholesale-inquiries', label: 'Wholesale Requests', icon: ShoppingBasket, notificationKey: 'wholesale' },
   { href: '/mandates', label: 'Mandates', icon: WalletCards },
   { href: '/orders', label: 'Orders', icon: ShoppingCart, notificationKey: 'orders' as const },
   { href: '/leads', label: 'Leads', icon: Users, notificationKey: 'leads' as const },
   { href: '/delivery-tracking', label: 'Delivery Tracking', icon: Truck },
-  { href: '/cancellations', label: 'Cancellations', icon: Ban },
-  { href: '/refunds', label: 'Refunds', icon: CircleDollarSign },
-  { href: '/reports', label: 'Reports', icon: FileSpreadsheet },
 ];
 
 const adminGrowthMenuItems: MenuItem[] = [
@@ -243,7 +243,7 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
             <Button variant="ghost" size="icon" className="text-primary bg-primary-foreground hover:bg-primary-foreground/90 rounded-lg">
                 <ShieldCheck className="w-6 h-6" />
             </Button>
-            <h1 className="text-2xl font-semibold text-sidebar-foreground">SnazzPay</h1>
+            <h1 className="text-2xl font-black italic tracking-tighter text-sidebar-foreground">Snazzpay</h1>
           </div>
         </SidebarHeader>
         <SidebarContent>
@@ -380,9 +380,36 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
             </DropdownMenu>
           </div>
         </header>
-        <main className="flex-1 p-4 md:p-6 lg:p-8 relative">
+        
+        <main className="flex-1 p-4 md:p-6 lg:p-8 pb-24 md:pb-8 relative">
           {children}
         </main>
+
+        {/* Mobile Bottom Nav */}
+        <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t flex items-center justify-around px-2 z-50">
+            <Link href="/" className={cn("flex flex-col items-center gap-1", pathname === '/' ? "text-primary" : "text-slate-400")}>
+                <LayoutDashboard className="h-5 w-5" />
+                <span className="text-[10px] font-black uppercase tracking-tighter">Home</span>
+            </Link>
+            <Link href="/admin/inventory" className={cn("flex flex-col items-center gap-1", pathname === '/admin/inventory' ? "text-primary" : "text-slate-400")}>
+                <Zap className="h-5 w-5" />
+                <span className="text-[10px] font-black uppercase tracking-tighter">Stock</span>
+            </Link>
+             <div className="relative -top-6">
+                <Button className="h-14 w-14 rounded-full shadow-2xl shadow-primary/40 border-4 border-white" onClick={() => router.push('/ai-product-uploader')}>
+                    <Sparkles className="h-6 w-6" />
+                </Button>
+            </div>
+            <Link href="/orders" className={cn("flex flex-col items-center gap-1", pathname === '/orders' ? "text-primary" : "text-slate-400")}>
+                <ShoppingCart className="h-5 w-5" />
+                <span className="text-[10px] font-black uppercase tracking-tighter">Orders</span>
+            </Link>
+            <Link href="/settings" className={cn("flex flex-col items-center gap-1", pathname === '/settings' ? "text-primary" : "text-slate-400")}>
+                <Settings className="h-5 w-5" />
+                <span className="text-[10px] font-black uppercase tracking-tighter">Settings</span>
+            </Link>
+        </div>
+
         <SellerGenee />
       </SidebarInset>
     </SidebarProvider>

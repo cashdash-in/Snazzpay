@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -32,14 +31,14 @@ import { addDays } from 'date-fns';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
-type SnapStockPartner = {
+type SnazStockPartner = {
     id: string;
     storeName: string;
     ownerName: string;
     email: string;
     phone: string;
     address: string;
-    plan: 'Basic' | 'SnapStock Pro' | 'Enterprise';
+    plan: 'Basic' | 'SnazStock Pro' | 'Enterprise';
     status: 'Active' | 'Trial' | 'Expired';
     snapUsage: number;
     revenueGenerated: number;
@@ -47,9 +46,9 @@ type SnapStockPartner = {
     trialExpiresAt?: string;
 };
 
-export default function SnapStockLicensesPage() {
+export default function SnazStockLicensesPage() {
     const { toast } = useToast();
-    const [partners, setPartners] = useState<SnapStockPartner[]>([]);
+    const [partners, setPartners] = useState<SnazStockPartner[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [isSaving, setIsSaving] = useState(false);
@@ -60,7 +59,7 @@ export default function SnapStockLicensesPage() {
         email: '',
         phone: '',
         address: '',
-        plan: 'SnapStock Pro' as SnapStockPartner['plan']
+        plan: 'SnazStock Pro' as SnazStockPartner['plan']
     });
 
     useEffect(() => {
@@ -68,7 +67,7 @@ export default function SnapStockLicensesPage() {
         setIsLoading(true);
         const q = query(collection(db, 'snapstock_partners'), orderBy('joinedAt', 'desc'));
         const unsubscribe = onSnapshot(q, (snapshot) => {
-            const data = snapshot.docs.map(doc => ({ ...doc.data() } as SnapStockPartner));
+            const data = snapshot.docs.map(doc => ({ ...doc.data() } as SnazStockPartner));
             setPartners(data);
             setIsLoading(false);
         }, (err) => {
@@ -107,7 +106,7 @@ export default function SnapStockLicensesPage() {
         const id = `SSP-${uuidv4().substring(0, 4).toUpperCase()}`;
         const trialExpiry = addDays(new Date(), 10).toISOString();
         
-        const partnerData: SnapStockPartner = {
+        const partnerData: SnazStockPartner = {
             id,
             ...newPartner,
             status: 'Trial',
@@ -120,7 +119,7 @@ export default function SnapStockLicensesPage() {
         try {
             await saveDocument('snapstock_partners', partnerData, id);
             toast({ title: "Partner Registered" });
-            setNewPartner({ storeName: '', ownerName: '', email: '', phone: '', address: '', plan: 'SnapStock Pro' });
+            setNewPartner({ storeName: '', ownerName: '', email: '', phone: '', address: '', plan: 'SnazStock Pro' });
         } catch (e) {
             toast({ variant: 'destructive', title: "Save Failed" });
         } finally {
@@ -138,7 +137,7 @@ export default function SnapStockLicensesPage() {
                 navigator.clipboard.writeText(link);
                 toast({ title: "Registration Link Copied" });
             } else {
-                let updates: Partial<SnapStockPartner> = {};
+                let updates: Partial<SnazStockPartner> = {};
                 if (action === 'activate') updates = { status: 'Active' };
                 if (action === 'deactivate') updates = { status: 'Expired' };
                 if (action === 'reset-trial') updates = { status: 'Trial', trialExpiresAt: addDays(new Date(), 10).toISOString() };
@@ -151,13 +150,8 @@ export default function SnapStockLicensesPage() {
         }
     };
 
-    const renderNumericValue = (val: any) => {
-        if (typeof val === 'number') return val;
-        return 0; // Robust safeguard against corrupt data objects
-    };
-
     return (
-        <AppShell title="SnapStock License Hub">
+        <AppShell title="SnazStock License Hub">
             <div className="space-y-8">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <Card className="bg-slate-900 text-white border-none shadow-xl">
@@ -193,7 +187,7 @@ export default function SnapStockLicensesPage() {
                     <CardHeader className="flex flex-col md:flex-row justify-between items-center bg-slate-50 border-b py-6 px-8 gap-4">
                         <div>
                             <CardTitle className="font-black italic uppercase tracking-tighter">Licensed Network</CardTitle>
-                            <CardDescription className="text-xs uppercase font-bold tracking-widest">Managing SnapStock AI Partners</CardDescription>
+                            <CardDescription className="text-xs uppercase font-bold tracking-widest">Managing SnazStock AI Partners</CardDescription>
                         </div>
                         <div className="flex flex-wrap gap-2 justify-center">
                              <div className="relative">
@@ -207,7 +201,7 @@ export default function SnapStockLicensesPage() {
                                     </Button>
                                 </DialogTrigger>
                                 <DialogContent className="rounded-[32px] max-w-2xl">
-                                    <DialogHeader><DialogTitle className="text-2xl font-black italic uppercase">Register SnapStock Partner</DialogTitle></DialogHeader>
+                                    <DialogHeader><DialogTitle className="text-2xl font-black italic uppercase">Register SnazStock Partner</DialogTitle></DialogHeader>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-6">
                                         <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">Store Name</Label><Input value={newPartner.storeName} onChange={e => setNewPartner({...newPartner, storeName: e.target.value})} className="h-12 rounded-xl bg-slate-50" /></div>
                                         <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">Owner Name</Label><Input value={newPartner.ownerName} onChange={e => setNewPartner({...newPartner, ownerName: e.target.value})} className="h-12 rounded-xl bg-slate-50" /></div>
@@ -236,10 +230,10 @@ export default function SnapStockLicensesPage() {
                                             <Badge className={cn("font-black uppercase text-[9px]", p.status === 'Active' ? "bg-green-50 text-green-700" : p.status === 'Trial' ? "bg-blue-50 text-blue-600" : "bg-red-50 text-red-600")}>{p.status}</Badge>
                                         </TableCell>
                                         <TableCell className="font-mono text-xs font-black text-blue-600">
-                                            {renderNumericValue(p.snapUsage)} Snaps
+                                            {p.snapUsage || 0} Snaps
                                         </TableCell>
                                         <TableCell className="font-black text-slate-700">
-                                            ₹{renderNumericValue(p.revenueGenerated)}
+                                            ₹{p.revenueGenerated || 0}
                                         </TableCell>
                                         <TableCell className="text-right pr-8">
                                             <DropdownMenu>

@@ -16,7 +16,7 @@ import { useRouter } from 'next/navigation';
 import { getCollection } from '@/services/firestore';
 import { setCookie } from 'cookies-next';
 
-export default function SnapStockLoginPage() {
+export default function SnazStockLoginPage() {
     const { toast } = useToast();
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
@@ -35,7 +35,7 @@ export default function SnapStockLoginPage() {
                 setCookie('snapstock_token', user.id);
                 setCookie('userRole', 'snapstock_partner');
                 
-                toast({ title: "Welcome to SnapStock!", description: `Logged in as ${user.storeName}` });
+                toast({ title: "Welcome to SnazStock!", description: `Logged in as ${user.storeName}` });
                 router.push('/snapstock/dashboard');
             } else {
                 toast({ variant: 'destructive', title: "Login Failed", description: "Invalid credentials or license not active." });
@@ -58,7 +58,7 @@ export default function SnapStockLoginPage() {
                     <div className="w-20 h-20 bg-blue-600 rounded-[24px] flex items-center justify-center mx-auto shadow-2xl rotate-3">
                         <Zap className="h-10 w-10 text-white" />
                     </div>
-                    <h1 className="text-3xl font-black italic uppercase tracking-tighter text-white pt-4">SnapStock Portal</h1>
+                    <h1 className="text-3xl font-black italic uppercase tracking-tighter text-white pt-4">SnazStock Portal</h1>
                     <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">SaaS Partner Access</p>
                 </div>
 
