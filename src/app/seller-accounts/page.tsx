@@ -1,3 +1,4 @@
+
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -82,11 +83,11 @@ export default function SellerAccountsPage() {
         
         try {
             await saveDocument('seller_users', { ...seller, status: newStatus }, seller.id);
-            await loadSellers(); // Reload all data to reflect changes
+            await loadSellers();
             
             toast({
                 title: `Seller Request ${isApproved ? 'Approved' : 'Rejected'}`,
-                description: `The seller account for ${seller.companyName} has been updated.`,
+                description: `Account updated.`,
             });
         } catch (error) {
             toast({ variant: "destructive", title: "Error updating seller status" });
@@ -103,7 +104,6 @@ export default function SellerAccountsPage() {
             await createChat(chatId, ['admin', seller.id], participantNames);
             router.push('/chat-integration-info');
         } catch (error) {
-            console.error("Error creating chat:", error);
             toast({ variant: 'destructive', title: 'Failed to start chat.' });
         }
     };
@@ -118,7 +118,7 @@ export default function SellerAccountsPage() {
         if (!permissions) return;
         try {
             await saveDocument('user_permissions', permissions, permissions.id);
-            toast({ title: "Permissions Saved", description: "The user's feature access has been updated." });
+            toast({ title: "Permissions Saved" });
         } catch (error) {
             toast({ variant: "destructive", title: "Error saving permissions" });
         }
@@ -127,50 +127,37 @@ export default function SellerAccountsPage() {
 
     return (
         <AppShell title="Seller Accounts">
-            <Tabs defaultValue="requests">
-                <TabsList className="grid w-full grid-cols-2 max-w-lg">
-                    <TabsTrigger value="requests">Signup Requests <Badge className="ml-2">{sellerRequests.length}</Badge></TabsTrigger>
-                    <TabsTrigger value="approved">Approved Sellers</TabsTrigger>
+            <Tabs defaultValue="approved">
+                <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto">
+                    <TabsTrigger value="requests" className="text-[10px] font-bold uppercase">Requests <Badge className="ml-1 h-4 min-w-4 p-0 text-[8px]">{sellerRequests.length}</Badge></TabsTrigger>
+                    <TabsTrigger value="approved" className="text-[10px] font-bold uppercase">Active Network</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="requests" className="mt-4">
                      <Card>
                         <CardHeader>
-                            <CardTitle>Seller Signup Requests</CardTitle>
-                            <CardDescription>Review and approve new sellers to join the SnazzPay platform.</CardDescription>
+                            <CardTitle>Signup Requests</CardTitle>
                         </CardHeader>
                         <CardContent>
                            <Table>
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Company</TableHead>
-                                        <TableHead>Email / Phone</TableHead>
-                                        <TableHead>Linked Vendor</TableHead>
+                                        <TableHead>Vendor</TableHead>
                                         <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                   {sellerRequests.length > 0 ? sellerRequests.map(req => (
+                                   {sellerRequests.map(req => (
                                         <TableRow key={req.id}>
-                                            <TableCell className="font-medium">{req.companyName}</TableCell>
-                                            <TableCell>
-                                                <div>{req.email}</div>
-                                                <div className="text-xs text-muted-foreground">{req.phone || 'No phone provided'}</div>
-                                            </TableCell>
-                                            <TableCell>
-                                                <div className="flex items-center gap-2 text-sm">
-                                                    <Factory className="h-4 w-4 text-muted-foreground" />
-                                                    <span>{req.vendorName || 'N/A'}</span>
-                                                </div>
-                                            </TableCell>
+                                            <TableCell className="font-bold uppercase italic text-xs">{req.companyName}</TableCell>
+                                            <TableCell className="text-xs">{req.vendorName || 'N/A'}</TableCell>
                                             <TableCell className="text-right space-x-2">
-                                                <Button size="sm" variant="outline" className="text-green-600 border-green-600 hover:bg-green-50 hover:text-green-700" onClick={() => handleSellerRequest(req.id, true)}><Check className="mr-2 h-4 w-4" />Approve</Button>
-                                                <Button size="sm" variant="destructive" onClick={() => handleSellerRequest(req.id, false)}><X className="mr-2 h-4 w-4" />Reject</Button>
+                                                <Button size="sm" variant="outline" className="text-green-600" onClick={() => handleSellerRequest(req.id, true)}><Check className="h-4 w-4" /></Button>
+                                                <Button size="sm" variant="destructive" onClick={() => handleSellerRequest(req.id, false)}><X className="h-4 w-4" /></Button>
                                             </TableCell>
                                         </TableRow>
-                                   )) : (
-                                     <TableRow><TableCell colSpan={4} className="text-center h-24 text-muted-foreground">No pending seller requests.</TableCell></TableRow>
-                                   )}
+                                   ))}
                                 </TableBody>
                            </Table>
                         </CardContent>
@@ -178,91 +165,34 @@ export default function SellerAccountsPage() {
                 </TabsContent>
                 <TabsContent value="approved" className="mt-4">
                      <Card>
-                        <CardHeader>
-                            <CardTitle>Approved Sellers</CardTitle>
-                            <CardDescription>The list of sellers currently active on your platform.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
+                        <CardContent className="pt-6">
                             {isLoading ? (
-                                <div className="flex justify-center items-center h-48"><Loader2 className="h-8 w-8 animate-spin"/></div>
+                                <div className="flex justify-center py-20"><Loader2 className="animate-spin" /></div>
                             ) : (
                            <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Company</TableHead>
-                                        <TableHead>Email / Phone</TableHead>
-                                        <TableHead>Vendor</TableHead>
-                                        <TableHead>AI Uploads</TableHead>
-                                        <TableHead>Total Sales</TableHead>
-                                        <TableHead>Orders</TableHead>
-                                        <TableHead>Status</TableHead>
-                                        <TableHead className="text-right">Actions</TableHead>
+                                        <TableHead>Seller</TableHead>
+                                        <TableHead>AI Usage</TableHead>
+                                        <TableHead>Revenue</TableHead>
+                                        <TableHead className="text-right">Action</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                   {approvedSellers.length > 0 ? approvedSellers.map(seller => (
+                                   {approvedSellers.map(seller => (
                                         <TableRow key={seller.id}>
-                                            <TableCell className="font-medium">{seller.companyName}</TableCell>
                                             <TableCell>
-                                                <div>{seller.email}</div>
-                                                <div className="text-xs text-muted-foreground">{seller.phone || 'No phone provided'}</div>
+                                                <div className="font-black uppercase italic text-xs">{seller.companyName}</div>
+                                                <div className="text-[9px] text-muted-foreground uppercase">{seller.vendorName}</div>
                                             </TableCell>
-                                            <TableCell>
-                                                 <div className="text-sm text-muted-foreground">{seller.vendorName || 'N/A'}</div>
-                                            </TableCell>
-                                            <TableCell>
-                                                <div className="flex items-center gap-1 text-sm">
-                                                    <Sparkles className="h-4 w-4 text-muted-foreground"/> {seller.aiUploads || 0}
-                                                </div>
-                                            </TableCell>
-                                            <TableCell className="font-medium">₹{seller.totalSales?.toFixed(2) || '0.00'}</TableCell>
-                                            <TableCell>
-                                                <div className="flex items-center gap-1 text-sm">
-                                                    <ShoppingCart className="h-4 w-4 text-muted-foreground"/> {seller.orderCount || 0}
-                                                </div>
-                                            </TableCell>
-                                            <TableCell><Badge className="bg-green-100 text-green-800">{seller.status}</Badge></TableCell>
+                                            <TableCell className="text-xs font-bold">{seller.aiUploads || 0} Snaps</TableCell>
+                                            <TableCell className="font-black text-blue-600">₹{seller.totalSales?.toLocaleString()}</TableCell>
                                             <TableCell className="text-right space-x-1">
-                                                 <Dialog onOpenChange={(open) => !open && setSelectedSeller(null)}>
-                                                    <DialogTrigger asChild>
-                                                        <Button size="sm" variant="outline" onClick={() => openManageDialog(seller)}>
-                                                            <Settings className="mr-2 h-4 w-4" /> Manage
-                                                        </Button>
-                                                    </DialogTrigger>
-                                                    {selectedSeller?.id === seller.id && permissions && (
-                                                        <DialogContent>
-                                                            <DialogHeader>
-                                                                <DialogTitle>Manage Access for {selectedSeller.companyName}</DialogTitle>
-                                                                <DialogDescription>Set custom usage limits for premium features.</DialogDescription>
-                                                            </DialogHeader>
-                                                            <div className="py-4 space-y-4">
-                                                                <div className="space-y-2">
-                                                                    <Label htmlFor="ai-upload-limit">AI Product Uploader Limit</Label>
-                                                                    <Input
-                                                                        id="ai-upload-limit"
-                                                                        type="number"
-                                                                        value={permissions.aiUploadLimit || 50}
-                                                                        onChange={(e) => setPermissions(p => p ? {...p, aiUploadLimit: parseInt(e.target.value, 10)} : null)}
-                                                                    />
-                                                                    <p className="text-xs text-muted-foreground">Set the total number of AI product uploads this seller can perform. Default is 50.</p>
-                                                                </div>
-                                                            </div>
-                                                            <DialogFooter>
-                                                                <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                                                                <DialogClose asChild><Button onClick={handleSavePermissions}>Save Permissions</Button></DialogClose>
-                                                            </DialogFooter>
-                                                        </DialogContent>
-                                                    )}
-                                                </Dialog>
-                                                 <Button size="sm" variant="secondary" onClick={() => handleChat(seller)}>
-                                                    <MessageSquare className="mr-2 h-4 w-4" />
-                                                    Chat
-                                                </Button>
+                                                 <Button size="sm" variant="outline" onClick={() => openManageDialog(seller)}><Settings className="h-4 w-4" /></Button>
+                                                 <Button size="sm" variant="secondary" onClick={() => handleChat(seller)}><MessageSquare className="h-4 w-4" /></Button>
                                             </TableCell>
                                         </TableRow>
-                                   )) : (
-                                     <TableRow><TableCell colSpan={8} className="text-center h-24 text-muted-foreground">No approved sellers yet.</TableCell></TableRow>
-                                   )}
+                                   ))}
                                 </TableBody>
                            </Table>
                            )}
@@ -273,3 +203,4 @@ export default function SellerAccountsPage() {
         </AppShell>
     );
 }
+

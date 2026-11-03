@@ -10,7 +10,7 @@ import {
     Loader2, ShoppingCart, Star, ShieldCheck, 
     Zap, Menu, X, Trash2, Clock, 
     AlertTriangle, CreditCard, CheckCircle2,
-    Sparkles, ArrowRight
+    Sparkles, ArrowRight, Store
 } from 'lucide-react';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
@@ -59,10 +59,24 @@ export default function PublicSitePage() {
         script.async = true;
         document.body.appendChild(script);
 
-        fetch('/api/get-key')
-            .then(res => res.json())
-            .then(data => setRazorpayKeyId(data.keyId))
-            .catch(console.error);
+        // Fetch key with fallback to environment variable check
+        const fetchKey = async () => {
+            try {
+                const res = await fetch('/api/get-key');
+                const data = await res.json();
+                if (data.keyId) {
+                    setRazorpayKeyId(data.keyId);
+                } else if (process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID) {
+                    setRazorpayKeyId(process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID);
+                }
+            } catch (e) {
+                console.error("Key fetch error:", e);
+                if (process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID) {
+                    setRazorpayKeyId(process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID);
+                }
+            }
+        };
+        fetchKey();
 
         async function loadSite() {
             try {
@@ -94,7 +108,11 @@ export default function PublicSitePage() {
 
     const handleUpgrade = async (plan: { name: string; amount: number; duration: number }) => {
         if (!razorpayKeyId || !site) {
-            toast({ variant: 'destructive', title: "Gateway Error", description: "Payment system is not ready." });
+            toast({ 
+                variant: 'destructive', 
+                title: "Gateway Error", 
+                description: !razorpayKeyId ? "Missing Razorpay API Keys in Environment Configuration." : "Store session invalid. Please refresh." 
+            });
             return;
         }
 
@@ -229,7 +247,7 @@ export default function PublicSitePage() {
                         <span className="text-xl font-black italic tracking-tighter uppercase">{site.storeName}</span>
                     </div>
 
-                    <div className="hidden md:flex items-center gap-8 text-xs font-black uppercase tracking-widest text-slate-400">
+                    <div className="hidden md:flex items-center gap-8 text-[10px] font-black uppercase tracking-widest text-slate-400">
                         <a href="#home" className="hover:text-primary transition-colors text-slate-900">Home</a>
                         <a href="#shop" className="hover:text-primary transition-colors">Shop</a>
                         <a href="#about" className="hover:text-primary transition-colors">Story</a>
@@ -250,7 +268,7 @@ export default function PublicSitePage() {
                             <SheetContent className="rounded-l-[32px] p-8">
                                 <SheetHeader>
                                     <SheetTitle className="text-2xl font-black italic uppercase">My Cart</SheetTitle>
-                                    <SheetDescription>Secure checkout is one step away.</SheetDescription>
+                                    <SheetDescription className="text-xs">Secure checkout is one step away.</SheetDescription>
                                 </SheetHeader>
                                 <div className="mt-8 space-y-4 flex-1 overflow-y-auto pr-2">
                                     {cart.length === 0 ? (
@@ -303,7 +321,7 @@ export default function PublicSitePage() {
             <section id="home" className="relative pt-20 pb-32 overflow-hidden bg-slate-50">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
                     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
-                        <Badge variant="secondary" className="px-5 py-1.5 text-xs font-black tracking-widest uppercase italic shadow-sm" style={{ color: themeColor, backgroundColor: `white` }}>
+                        <Badge variant="secondary" className="px-5 py-1.5 text-[10px] font-black tracking-widest uppercase italic shadow-sm" style={{ color: themeColor, backgroundColor: `white` }}>
                             ✨ {site.slogan}
                         </Badge>
                         <h1 className="text-5xl md:text-8xl font-black tracking-tighter text-slate-900 leading-[0.9] uppercase italic">
@@ -400,7 +418,7 @@ export default function PublicSitePage() {
                                 <h3 className="font-black italic uppercase text-lg mb-2">Lifetime Access</h3>
                                 <div className="flex items-baseline gap-2 mb-6">
                                     <span className="text-5xl font-black italic tracking-tighter">₹999</span>
-                                    <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">one time</span>
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">one time</span>
                                 </div>
                                 <Button 
                                     className="w-full h-14 rounded-2xl bg-primary text-lg font-black uppercase italic shadow-xl shadow-primary/20"
@@ -410,7 +428,7 @@ export default function PublicSitePage() {
                                     {isProcessingUpgrade ? <Loader2 className="animate-spin" /> : "Pay & Activate Now"}
                                 </Button>
                             </Card>
-                            <p className="text-[10px] text-center font-black uppercase tracking-widest text-slate-400">
+                            <p className="text-[9px] text-center font-black uppercase tracking-widest text-slate-400">
                                 <ShieldCheck className="h-3 w-3 inline mr-1" /> Payments secured by Razorpay
                             </p>
                         </div>
@@ -448,3 +466,4 @@ export default function PublicSitePage() {
         </div>
     );
 }
+

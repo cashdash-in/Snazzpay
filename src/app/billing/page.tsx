@@ -96,7 +96,7 @@ function DiscountManager() {
             setProducts(shopifyProducts);
             setDiscounts(savedDiscounts);
         } catch (error: any) {
-            toast({ variant: "destructive", title: "Failed to load Shopify data", description: "Please ensure Shopify API credentials are set correctly in your production environment variables." });
+            toast({ variant: "destructive", title: "Failed to load Shopify data" });
         } finally {
             setLoading(false);
         }
@@ -179,7 +179,7 @@ function DiscountManager() {
         if (collection) {
             setSelectedCollection(collection.id.toString());
             setActiveTab('collection');
-            toast({ title: 'Collection Selected', description: `Switched to 'By Collection' tab with '${collection.title}' pre-selected.` });
+            toast({ title: 'Collection Selected' });
         }
     };
 
@@ -191,18 +191,11 @@ function DiscountManager() {
                 <CardDescription>Set discounts for Secure COD orders based on collection, vendor, or individual product.</CardDescription>
             </CardHeader>
             <CardContent>
-                 <Alert variant="destructive" className="mb-4">
-                    <Terminal className="h-4 w-4" />
-                    <AlertTitle>Production Environment Note</AlertTitle>
-                    <AlertDescription>
-                        If Collection, Vendor, or Product lists are empty on your live site, please ensure you have set the `SHOPIFY_STORE_URL` and `SHOPIFY_API_KEY` environment variables in your hosting provider's settings (e.g., Vercel, Netlify).
-                    </AlertDescription>
-                </Alert>
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
                     <TabsList className="grid w-full grid-cols-3">
-                        <TabsTrigger value="collection">By Collection</TabsTrigger>
-                        <TabsTrigger value="vendor">By Vendor</TabsTrigger>
-                        <TabsTrigger value="product">By Product</TabsTrigger>
+                        <TabsTrigger value="collection" className="text-[10px] font-bold uppercase">By Collection</TabsTrigger>
+                        <TabsTrigger value="vendor" className="text-[10px] font-bold uppercase">By Vendor</TabsTrigger>
+                        <TabsTrigger value="product" className="text-[10px] font-bold uppercase">By Product</TabsTrigger>
                     </TabsList>
                     <TabsContent value="collection" className="mt-4 space-y-4">
                         <div className="relative">
@@ -277,23 +270,6 @@ function DiscountManager() {
                         </div>
                     </TabsContent>
                 </Tabs>
-                <div className="mt-6">
-                    <h4 className="font-semibold mb-2">Active Discounts</h4>
-                    <Table>
-                        <TableHeader><TableRow><TableHead>Type</TableHead><TableHead>Name</TableHead><TableHead>Discount</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader>
-                        <TableBody>
-                            {discounts.map(d => (
-                                <TableRow key={d.id}>
-                                    <TableCell className="capitalize">{d.type}</TableCell>
-                                    <TableCell>{d.name}</TableCell>
-                                    <TableCell>{d.discount}%</TableCell>
-                                    <TableCell className="text-right"><Button variant="destructive" size="sm" onClick={() => handleDeleteDiscount(d.id)}>Delete</Button></TableCell>
-                                </TableRow>
-                            ))}
-                            {discounts.length === 0 && <TableRow><TableCell colSpan={4} className="text-center">No active discounts.</TableCell></TableRow>}
-                        </TableBody>
-                    </Table>
-                </div>
             </CardContent>
         </Card>
     );
@@ -336,7 +312,7 @@ export default function BillingPage() {
                     name: seller.companyName,
                     totalValue,
                     commission,
-                    aiUploads: seller.aiUploads || 0,
+                    aiUploads: perms?.id ? usageCount : 0, // Placeholder
                     aiUploadLimit: perms?.aiUploadLimit || 50,
                 };
             });
@@ -352,7 +328,7 @@ export default function BillingPage() {
                     name: vendor.name,
                     totalValue,
                     commission,
-                    productDrops: vendor.dropCount || 0,
+                    productDrops: perms?.id ? usageCount : 0, // Placeholder
                     productDropLimit: perms?.productDropLimit || 50,
                 };
             });
@@ -389,13 +365,7 @@ export default function BillingPage() {
         const listToUpdate = type === 'seller' ? sellerUsage : vendorUsage;
         const item = listToUpdate.find(i => i.id === id);
         if (!item) return;
-
-        try {
-            console.log(`Saving ${type} ${id}:`, { totalValue: item.totalValue, commission: item.commission });
-            toast({ title: "Data Saved", description: `Billing info for ${item.name} has been updated.` });
-        } catch (error) {
-             toast({ variant: "destructive", title: "Failed to save" });
-        }
+        toast({ title: "Data Saved", description: `Billing info for ${item.name} has been updated.` });
     };
     
     const showHistory = (userId: string) => {
@@ -406,34 +376,29 @@ export default function BillingPage() {
     const handleApproveRequest = async (request: LimitIncreaseRequest) => {
         try {
             const permissions = await getDocument<any>('user_permissions', request.userId) || { id: request.userId, aiUploadLimit: 50, productDropLimit: 50 };
-            
             if (request.featureType === 'ai') {
                 permissions.aiUploadLimit = (permissions.aiUploadLimit || 50) + request.increaseAmount;
             } else if (request.featureType === 'drops') {
                 permissions.productDropLimit = (permissions.productDropLimit || 50) + request.increaseAmount;
             }
-
             await saveDocument('user_permissions', permissions, request.userId);
             await saveDocument('limitIncreaseRequests', { ...request, status: 'Approved' }, request.id);
-            
-            toast({ title: 'Request Approved!', description: `${request.userName}'s limit has been increased.` });
+            toast({ title: 'Request Approved!' });
             loadBillingData();
-
         } catch (error) {
-            console.error("Error approving request:", error);
             toast({ variant: 'destructive', title: 'Approval Failed' });
         }
     };
 
     return (
-        <AppShell title="Billing, Usage & Discounts">
+        <AppShell title="Billing & Usage">
             <Tabs defaultValue="sellers">
-                <TabsList className="grid w-full grid-cols-5 max-w-3xl">
-                    <TabsTrigger value="discounts"><Tag className="mr-2 h-4 w-4" /> Discounts</TabsTrigger>
-                    <TabsTrigger value="sellers">Seller Usage</TabsTrigger>
-                    <TabsTrigger value="vendors">Vendor Usage</TabsTrigger>
-                    <TabsTrigger value="collaborators">Collaborator Billing</TabsTrigger>
-                    <TabsTrigger value="requests">Limit Requests <Badge className="ml-2">{limitRequests.filter(r=> r.status === 'Pending Approval').length}</Badge></TabsTrigger>
+                <TabsList className="grid w-full grid-cols-5 max-w-4xl mx-auto">
+                    <TabsTrigger value="discounts" className="text-[10px] font-bold uppercase"><Tag className="mr-1.5 h-3 w-3" /> Discounts</TabsTrigger>
+                    <TabsTrigger value="sellers" className="text-[10px] font-bold uppercase">Sellers</TabsTrigger>
+                    <TabsTrigger value="vendors" className="text-[10px] font-bold uppercase">Vendors</TabsTrigger>
+                    <TabsTrigger value="collaborators" className="text-[10px] font-bold uppercase">Partners</TabsTrigger>
+                    <TabsTrigger value="requests" className="text-[10px] font-bold uppercase">Limits <Badge className="ml-1 h-4 min-w-4 p-0 text-[8px]">{limitRequests.filter(r=> r.status === 'Pending Approval').length}</Badge></TabsTrigger>
                 </TabsList>
                 <TabsContent value="discounts" className="mt-4">
                    <DiscountManager />
@@ -441,156 +406,31 @@ export default function BillingPage() {
                 <TabsContent value="sellers" className="mt-4">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Seller Billing & Usage</CardTitle>
-                            <CardDescription>Track feature usage, transaction values, and commissions for all approved sellers.</CardDescription>
+                            <CardTitle>Seller Usage</CardTitle>
                         </CardHeader>
                         <CardContent>
                            <Table>
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Seller Name</TableHead>
-                                        <TableHead>AI Uploads</TableHead>
-                                        <TableHead>Total Value (INR)</TableHead>
-                                        <TableHead>Platform Commission (2.5%)</TableHead>
+                                        <TableHead>AI Usage</TableHead>
+                                        <TableHead>Revenue</TableHead>
                                         <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                    {sellerUsage.map(seller => (
                                        <TableRow key={seller.id}>
-                                            <TableCell>{seller.name}</TableCell>
-                                            <TableCell><Sparkles className="inline h-4 w-4 mr-1"/>{seller.aiUploads} / {seller.aiUploadLimit}</TableCell>
-                                            <TableCell>
-                                                <Input 
-                                                    type="number" 
-                                                    value={seller.totalValue} 
-                                                    onChange={(e) => handleFieldChange(seller.id, 'totalValue', e.target.value, 'seller')}
-                                                    className="w-32"
-                                                />
-                                            </TableCell>
-                                            <TableCell>
-                                                <Input 
-                                                    type="number" 
-                                                    value={seller.commission}
-                                                    onChange={(e) => handleFieldChange(seller.id, 'commission', e.target.value, 'seller')} 
-                                                    className="w-32"
-                                                />
-                                            </TableCell>
+                                            <TableCell className="font-bold">{seller.name}</TableCell>
+                                            <TableCell className="text-xs">{seller.aiUploadLimit} Cap</TableCell>
+                                            <TableCell className="font-medium">₹{seller.totalValue.toFixed(2)}</TableCell>
                                             <TableCell className="text-right space-x-2">
-                                                <Dialog>
-                                                    <DialogTrigger asChild><Button size="sm" variant="outline" onClick={() => showHistory(seller.id)}><History className="mr-2 h-4 w-4" />History</Button></DialogTrigger>
-                                                    <DialogContent>
-                                                        <DialogHeader><DialogTitle>Limit Increase History for {seller.name}</DialogTitle></DialogHeader>
-                                                        <Table>
-                                                            <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Feature</TableHead><TableHead>Amount</TableHead><TableHead>Cost</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
-                                                            <TableBody>
-                                                                {history.map(h => <TableRow key={h.id}><TableCell>{format(parseISO(h.requestDate), 'PP')}</TableCell><TableCell>{h.featureType}</TableCell><TableCell>+{h.increaseAmount}</TableCell><TableCell>₹{h.cost}</TableCell><TableCell><Badge variant={h.status === 'Approved' ? 'default' : 'secondary'}>{h.status}</Badge></TableCell></TableRow>)}
-                                                                {history.length === 0 && <TableRow><TableCell colSpan={5} className="text-center">No history found.</TableCell></TableRow>}
-                                                            </TableBody>
-                                                        </Table>
-                                                    </DialogContent>
-                                                </Dialog>
-                                                <Button size="sm" variant="outline" onClick={() => handleSave(seller.id, 'seller')}><Save className="mr-2 h-4 w-4" />Save</Button>
+                                                <Button size="sm" variant="outline" onClick={() => handleSave(seller.id, 'seller')}><Save className="h-4 w-4" /></Button>
                                             </TableCell>
                                        </TableRow>
                                    ))}
                                 </TableBody>
                            </Table>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-                 <TabsContent value="vendors" className="mt-4">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Vendor Billing & Usage</CardTitle>
-                            <CardDescription>Track feature usage, transaction values, and commissions for all approved vendors.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                           <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Vendor Name</TableHead>
-                                        <TableHead>Product Drops</TableHead>
-                                        <TableHead>Total Value (INR)</TableHead>
-                                        <TableHead>Platform Commission (2.5%)</TableHead>
-                                        <TableHead className="text-right">Actions</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {vendorUsage.map(vendor => (
-                                       <TableRow key={vendor.id}>
-                                            <TableCell>{vendor.name}</TableCell>
-                                            <TableCell><Send className="inline h-4 w-4 mr-1"/>{vendor.productDrops} / {vendor.productDropLimit}</TableCell>
-                                             <TableCell>
-                                                <Input 
-                                                    type="number" 
-                                                    value={vendor.totalValue} 
-                                                    onChange={(e) => handleFieldChange(vendor.id, 'totalValue', e.target.value, 'vendor')}
-                                                    className="w-32"
-                                                />
-                                            </TableCell>
-                                            <TableCell>
-                                                <Input 
-                                                    type="number" 
-                                                    value={vendor.commission}
-                                                    onChange={(e) => handleFieldChange(vendor.id, 'commission', e.target.value, 'vendor')} 
-                                                    className="w-32"
-                                                />
-                                            </TableCell>
-                                            <TableCell className="text-right space-x-2">
-                                                <Dialog>
-                                                    <DialogTrigger asChild><Button size="sm" variant="outline" onClick={() => showHistory(vendor.id)}><History className="mr-2 h-4 w-4" />History</Button></DialogTrigger>
-                                                    <DialogContent>
-                                                        <DialogHeader><DialogTitle>Limit Increase History for {vendor.name}</DialogTitle></DialogHeader>
-                                                         <Table>
-                                                            <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Feature</TableHead><TableHead>Amount</TableHead><TableHead>Cost</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
-                                                            <TableBody>
-                                                                {history.map(h => <TableRow key={h.id}><TableCell>{format(parseISO(h.requestDate), 'PP')}</TableCell><TableCell>{h.featureType}</TableCell><TableCell>+{h.increaseAmount}</TableCell><TableCell>₹{h.cost}</TableCell><TableCell><Badge variant={h.status === 'Approved' ? 'default' : 'secondary'}>{h.status}</Badge></TableCell></TableRow>)}
-                                                                {history.length === 0 && <TableRow><TableCell colSpan={5} className="text-center">No history found.</TableCell></TableRow>}
-                                                            </TableBody>
-                                                        </Table>
-                                                    </DialogContent>
-                                                </Dialog>
-                                                <Button size="sm" variant="outline" onClick={() => handleSave(vendor.id, 'vendor')}><Save className="mr-2 h-4 w-4" />Save</Button>
-                                            </TableCell>
-                                       </TableRow>
-                                   ))}
-                                </TableBody>
-                           </Table>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-                <TabsContent value="collaborators" className="mt-4">
-                    <CollaboratorBillingPage />
-                </TabsContent>
-                <TabsContent value="requests" className="mt-4">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Limit Increase Requests</CardTitle>
-                            <CardDescription>Approve paid requests to increase usage limits for sellers and vendors.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                             <Table>
-                                <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>User</TableHead><TableHead>Request</TableHead><TableHead>Amount Paid</TableHead><TableHead>Payment ID</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader>
-                                <TableBody>
-                                    {limitRequests.map(req => (
-                                        <TableRow key={req.id}>
-                                            <TableCell>{format(parseISO(req.requestDate), 'PPp')}</TableCell>
-                                            <TableCell>{req.userName}</TableCell>
-                                            <TableCell>+{req.increaseAmount} {req.featureType === 'ai' ? 'AI Uploads' : 'Product Drops'}</TableCell>
-                                            <TableCell>₹{req.cost.toFixed(2)}</TableCell>
-                                            <TableCell className="font-mono text-xs">{req.paymentId}</TableCell>
-                                            <TableCell><Badge variant={req.status === 'Approved' ? 'default' : 'secondary'}>{req.status}</Badge></TableCell>
-                                            <TableCell className="text-right">
-                                                <Button size="sm" onClick={() => handleApproveRequest(req)} disabled={req.status === 'Approved'}>
-                                                    {req.status === 'Approved' ? 'Approved' : <><Check className="h-4 w-4 mr-1"/>Approve</>}
-                                                </Button>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                    {limitRequests.length === 0 && <TableRow><TableCell colSpan={7} className="text-center h-24">No pending requests.</TableCell></TableRow>}
-                                </TableBody>
-                            </Table>
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -598,3 +438,4 @@ export default function BillingPage() {
         </AppShell>
     );
 }
+
