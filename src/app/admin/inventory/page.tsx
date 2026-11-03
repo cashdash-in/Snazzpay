@@ -274,7 +274,7 @@ export default function AdminInventoryPage() {
     };
 
     return (
-        <AppShell title="SnazStock AI Dashboard">
+        <AppShell title="Ziptally Dashboard">
             <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-6 gap-4 no-print">
                     <Button onClick={() => setIsScanning(true)} size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-blue-600 hover:bg-blue-500">
@@ -396,7 +396,7 @@ export default function AdminInventoryPage() {
                                     {items.slice(0, 3).map((item) => (
                                         <div key={item.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => setSelectedProductForStats(item)}>
                                             <div className="relative h-8 w-8 rounded-lg overflow-hidden border"><Image src={item.imageDataUri} fill alt="p" className="object-cover" unoptimized /></div>
-                                            <div className="flex-1 min-w-0"><p className="text-[11px] font-black uppercase italic truncate">{item.name}</p><p className="text-[9px] font-bold text-primary">MRP: ₹{item.mrp}</p></div>
+                                            <div className="flex-1 min-w-0"><p className="text-[11px] font-black uppercase italic truncate">{item.name}</p><p className="text-[8px] font-bold text-primary">MRP: ₹{item.mrp}</p></div>
                                         </div>
                                     ))}
                                 </CardContent>
@@ -497,7 +497,7 @@ export default function AdminInventoryPage() {
 
                 <Dialog open={isScanning} onOpenChange={setIsScanning}>
                     <DialogContent className="max-w-sm rounded-[32px] p-6 no-print">
-                        <DialogHeader><DialogTitle className="text-center uppercase font-black">Admin Scanner</DialogTitle></DialogHeader>
+                        <DialogHeader><DialogTitle className="text-center uppercase font-black">Mobile Scanner</DialogTitle></DialogHeader>
                         <div id="admin-reader" className="w-full aspect-square rounded-2xl overflow-hidden border-2 bg-slate-50"></div>
                         <DialogFooter><Button variant="outline" className="w-full rounded-xl" onClick={() => setIsScanning(false)}>Cancel</Button></DialogFooter>
                     </DialogContent>

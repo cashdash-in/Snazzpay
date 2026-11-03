@@ -87,8 +87,8 @@ type MenuItem = {
 
 const adminCoreMenuItems: MenuItem[] = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/admin/inventory', label: 'SnazStock AI', icon: Zap },
-  { href: '/admin/snapstock-licenses', label: 'Partner Licenses', icon: Gem },
+  { href: '/admin/inventory', label: 'Ziptally Dash', icon: Zap },
+  { href: '/admin/snapstock-licenses', label: 'SaaS Partners', icon: Gem },
   { href: '/admin/wholesale-inquiries', label: 'Wholesale Requests', icon: ShoppingBasket, notificationKey: 'wholesale' },
   { href: '/mandates', label: 'Mandates', icon: WalletCards },
   { href: '/orders', label: 'Orders', icon: ShoppingCart, notificationKey: 'orders' as const },
@@ -243,7 +243,7 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
             <Button variant="ghost" size="icon" className="text-primary bg-primary-foreground hover:bg-primary-foreground/90 rounded-lg">
                 <ShieldCheck className="w-6 h-6" />
             </Button>
-            <h1 className="text-2xl font-black italic tracking-tighter text-sidebar-foreground">Snazzpay</h1>
+            <h1 className="text-2xl font-black italic tracking-tighter text-sidebar-foreground uppercase">Ziptally</h1>
           </div>
         </SidebarHeader>
         <SidebarContent>

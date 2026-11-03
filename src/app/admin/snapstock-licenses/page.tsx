@@ -31,14 +31,14 @@ import { addDays } from 'date-fns';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
-type SnazStockPartner = {
+type ZiptallyPartner = {
     id: string;
     storeName: string;
     ownerName: string;
     email: string;
     phone: string;
     address: string;
-    plan: 'Basic' | 'SnazStock Pro' | 'Enterprise';
+    plan: 'Basic' | 'Ziptally Pro' | 'Enterprise';
     status: 'Active' | 'Trial' | 'Expired';
     snapUsage: number;
     revenueGenerated: number;
@@ -46,9 +46,9 @@ type SnazStockPartner = {
     trialExpiresAt?: string;
 };
 
-export default function SnazStockLicensesPage() {
+export default function ZiptallyLicensesPage() {
     const { toast } = useToast();
-    const [partners, setPartners] = useState<SnazStockPartner[]>([]);
+    const [partners, setPartners] = useState<ZiptallyPartner[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [isSaving, setIsSaving] = useState(false);
@@ -59,7 +59,7 @@ export default function SnazStockLicensesPage() {
         email: '',
         phone: '',
         address: '',
-        plan: 'SnazStock Pro' as SnazStockPartner['plan']
+        plan: 'Ziptally Pro' as ZiptallyPartner['plan']
     });
 
     useEffect(() => {
@@ -67,7 +67,7 @@ export default function SnazStockLicensesPage() {
         setIsLoading(true);
         const q = query(collection(db, 'snapstock_partners'), orderBy('joinedAt', 'desc'));
         const unsubscribe = onSnapshot(q, (snapshot) => {
-            const data = snapshot.docs.map(doc => ({ ...doc.data() } as SnazStockPartner));
+            const data = snapshot.docs.map(doc => ({ ...doc.data() } as ZiptallyPartner));
             setPartners(data);
             setIsLoading(false);
         }, (err) => {
@@ -103,10 +103,10 @@ export default function SnazStockLicensesPage() {
         }
 
         setIsSaving(true);
-        const id = `SSP-${uuidv4().substring(0, 4).toUpperCase()}`;
+        const id = `ZIP-${uuidv4().substring(0, 4).toUpperCase()}`;
         const trialExpiry = addDays(new Date(), 10).toISOString();
         
-        const partnerData: SnazStockPartner = {
+        const partnerData: ZiptallyPartner = {
             id,
             ...newPartner,
             status: 'Trial',
@@ -119,7 +119,7 @@ export default function SnazStockLicensesPage() {
         try {
             await saveDocument('snapstock_partners', partnerData, id);
             toast({ title: "Partner Registered" });
-            setNewPartner({ storeName: '', ownerName: '', email: '', phone: '', address: '', plan: 'SnazStock Pro' });
+            setNewPartner({ storeName: '', ownerName: '', email: '', phone: '', address: '', plan: 'Ziptally Pro' });
         } catch (e) {
             toast({ variant: 'destructive', title: "Save Failed" });
         } finally {
@@ -133,11 +133,11 @@ export default function SnazStockLicensesPage() {
                 await deleteDocument('snapstock_partners', partnerId);
                 toast({ title: "Partner Removed" });
             } else if (action === 'copy-link') {
-                const link = `${window.location.origin}/snapstock/register`;
+                const link = `${window.location.origin}/ziptally/register`;
                 navigator.clipboard.writeText(link);
                 toast({ title: "Registration Link Copied" });
             } else {
-                let updates: Partial<SnazStockPartner> = {};
+                let updates: Partial<ZiptallyPartner> = {};
                 if (action === 'activate') updates = { status: 'Active' };
                 if (action === 'deactivate') updates = { status: 'Expired' };
                 if (action === 'reset-trial') updates = { status: 'Trial', trialExpiresAt: addDays(new Date(), 10).toISOString() };
@@ -151,7 +151,7 @@ export default function SnazStockLicensesPage() {
     };
 
     return (
-        <AppShell title="SnazStock License Hub">
+        <AppShell title="Ziptally License Hub">
             <div className="space-y-8">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <Card className="bg-slate-900 text-white border-none shadow-xl">
@@ -187,7 +187,7 @@ export default function SnazStockLicensesPage() {
                     <CardHeader className="flex flex-col md:flex-row justify-between items-center bg-slate-50 border-b py-6 px-8 gap-4">
                         <div>
                             <CardTitle className="font-black italic uppercase tracking-tighter">Licensed Network</CardTitle>
-                            <CardDescription className="text-xs uppercase font-bold tracking-widest">Managing SnazStock AI Partners</CardDescription>
+                            <CardDescription className="text-xs uppercase font-bold tracking-widest">Managing Ziptally AI Partners</CardDescription>
                         </div>
                         <div className="flex flex-wrap gap-2 justify-center">
                              <div className="relative">
@@ -201,7 +201,7 @@ export default function SnazStockLicensesPage() {
                                     </Button>
                                 </DialogTrigger>
                                 <DialogContent className="rounded-[32px] max-w-2xl">
-                                    <DialogHeader><DialogTitle className="text-2xl font-black italic uppercase">Register SnazStock Partner</DialogTitle></DialogHeader>
+                                    <DialogHeader><DialogTitle className="text-2xl font-black italic uppercase">Register Ziptally Partner</DialogTitle></DialogHeader>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-6">
                                         <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">Store Name</Label><Input value={newPartner.storeName} onChange={e => setNewPartner({...newPartner, storeName: e.target.value})} className="h-12 rounded-xl bg-slate-50" /></div>
                                         <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">Owner Name</Label><Input value={newPartner.ownerName} onChange={e => setNewPartner({...newPartner, ownerName: e.target.value})} className="h-12 rounded-xl bg-slate-50" /></div>
@@ -239,11 +239,11 @@ export default function SnazStockLicensesPage() {
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end" className="w-56 rounded-2xl p-2">
-                                                    <DropdownMenuItem onClick={() => handleAction(p.id, 'activate')} className="rounded-xl font-bold uppercase text-[10px] gap-2"><CheckCircle className="h-4 w-4 text-green-500" /> Activate</DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => handleAction(p.id, 'reset-trial')} className="rounded-xl font-bold uppercase text-[10px] gap-2"><Clock className="h-4 w-4 text-blue-500" /> Reset Trial</DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => handleAction(p.id, 'copy-link')} className="rounded-xl font-bold uppercase text-[10px] gap-2"><Share2 className="h-4 w-4 text-indigo-500" /> Registration Link</DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => handleAction(p.id, 'deactivate')} className="rounded-xl font-bold uppercase text-[10px] gap-2"><Ban className="h-4 w-4 text-amber-500" /> Mark Expired</DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => handleAction(p.id, 'delete')} className="rounded-xl font-bold uppercase text-[10px] gap-2 text-destructive"><Trash2 className="h-4 w-4" /> Delete</DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleAction(partnerId, 'activate')} className="rounded-xl font-bold uppercase text-[10px] gap-2"><CheckCircle className="h-4 w-4 text-green-500" /> Activate</DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleAction(partnerId, 'reset-trial')} className="rounded-xl font-bold uppercase text-[10px] gap-2"><Clock className="h-4 w-4 text-blue-500" /> Reset Trial</DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleAction(partnerId, 'copy-link')} className="rounded-xl font-bold uppercase text-[10px] gap-2"><Share2 className="h-4 w-4 text-indigo-500" /> Registration Link</DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleAction(partnerId, 'deactivate')} className="rounded-xl font-bold uppercase text-[10px] gap-2"><Ban className="h-4 w-4 text-amber-500" /> Mark Expired</DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleAction(partnerId, 'delete')} className="rounded-xl font-bold uppercase text-[10px] gap-2 text-destructive"><Trash2 className="h-4 w-4" /> Delete</DropdownMenuItem>
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
                                         </TableCell>

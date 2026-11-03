@@ -36,8 +36,8 @@ export function middleware(request: NextRequest) {
     '/catalogue',
     '/smart-magazine',
     '/magic-mirror/widget',
-    '/snapstock/login',
-    '/snapstock/register',
+    '/ziptally/login',
+    '/ziptally/register',
   ];
 
   const publicPrefixes = ['/guest-fulfillment', '/terms', '/wholesale-request', '/collection', '/site'];
@@ -56,9 +56,9 @@ export function middleware(request: NextRequest) {
   }
 
   // PROTECT PARTNER ROUTES
-  if (pathname.startsWith('/snapstock') && !pathname.startsWith('/snapstock/login') && !pathname.startsWith('/snapstock/register')) {
+  if (pathname.startsWith('/ziptally') && !pathname.startsWith('/ziptally/login') && !pathname.startsWith('/ziptally/register')) {
     if (!token) {
-        return NextResponse.redirect(new URL('/snapstock/login', request.url));
+        return NextResponse.redirect(new URL('/ziptally/login', request.url));
     }
     return NextResponse.next();
   }
