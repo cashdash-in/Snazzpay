@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -10,7 +11,7 @@ import {
     Loader2, Gem, CheckCircle, 
     TrendingUp, UserPlus, 
     Search, MoreVertical, Zap,
-    Share2, Trash2, Ban, Clock,
+    Trash2, Ban, Clock,
     Lock, MessageSquare
 } from 'lucide-react';
 import { getCollection, saveDocument, deleteDocument } from '@/services/firestore';
@@ -186,7 +187,7 @@ export default function ZiptallyLicensesPage() {
                             <div className="text-4xl font-black italic text-slate-900">{stats.totalSnaps}</div>
                             <Zap className="h-10 w-10 text-blue-500 opacity-20" />
                         </CardContent>
-                    </div>
+                    </Card>
                 </div>
 
                 <Card className="rounded-[32px] shadow-sm border-none bg-white overflow-hidden">

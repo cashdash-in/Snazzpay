@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -320,7 +321,6 @@ export default function ZiptallyPartnerDashboard() {
 
     return (
         <div className="space-y-8">
-            {/* SaaS Secondary Nav for Shopkeepers since sidebar is removed */}
             <div className="flex flex-wrap gap-2 pb-2 no-print">
                 <Button variant="outline" size="sm" className="rounded-full h-8 px-4 text-[10px] font-black uppercase tracking-widest bg-white" onClick={() => router.push('/orders')}><ShoppingCart className="mr-1.5 h-3 w-3" /> Orders</Button>
                 <Button variant="outline" size="sm" className="rounded-full h-8 px-4 text-[10px] font-black uppercase tracking-widest bg-white" onClick={() => router.push('/leads')}><Users className="mr-1.5 h-3 w-3" /> Leads</Button>
