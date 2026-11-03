@@ -325,12 +325,12 @@ export default function ZiptallyPartnerDashboard() {
 
     return (
         <div className="space-y-8">
-            <div className="flex flex-wrap gap-2 pb-2 no-print opacity-40 pointer-events-none">
-                <Button variant="outline" size="sm" className="rounded-full h-8 px-4 text-[10px] font-black uppercase tracking-widest bg-white/50" disabled><ShoppingCart className="mr-1.5 h-3 w-3" /> Orders</Button>
-                <Button variant="outline" size="sm" className="rounded-full h-8 px-4 text-[10px] font-black uppercase tracking-widest bg-white/50" disabled><Users className="mr-1.5 h-3 w-3" /> Leads</Button>
-                <Button variant="outline" size="sm" className="rounded-full h-8 px-4 text-[10px] font-black uppercase tracking-widest bg-white/50" disabled><Wand2 className="mr-1.5 h-3 w-3" /> AI Uploader</Button>
-                <Button variant="outline" size="sm" className="rounded-full h-8 px-4 text-[10px] font-black uppercase tracking-widest bg-white/50" disabled><BookOpen className="mr-1.5 h-3 w-3" /> Smart Magazine</Button>
-                <Button variant="outline" size="sm" className="rounded-full h-8 px-4 text-[10px] font-black uppercase tracking-widest bg-white/50" disabled><Settings className="mr-1.5 h-3 w-3" /> Settings</Button>
+            <div className="flex flex-wrap gap-2 pb-2 no-print">
+                <Button variant="outline" size="sm" className="rounded-full h-8 px-4 text-[10px] font-black uppercase tracking-widest bg-white/50 opacity-40" disabled><ShoppingCart className="mr-1.5 h-3 w-3" /> Orders</Button>
+                <Button variant="outline" size="sm" className="rounded-full h-8 px-4 text-[10px] font-black uppercase tracking-widest bg-white/50 opacity-40" disabled><Users className="mr-1.5 h-3 w-3" /> Leads</Button>
+                <Button variant="outline" size="sm" className="rounded-full h-8 px-4 text-[10px] font-black uppercase tracking-widest bg-white/50 opacity-40" disabled><Wand2 className="mr-1.5 h-3 w-3" /> AI Uploader</Button>
+                <Button variant="outline" size="sm" className="rounded-full h-8 px-4 text-[10px] font-black uppercase tracking-widest bg-white/50 opacity-40" disabled><BookOpen className="mr-1.5 h-3 w-3" /> Smart Magazine</Button>
+                <Button variant="outline" size="sm" className="rounded-full h-8 px-4 text-[10px] font-black uppercase tracking-widest bg-white/50 opacity-40" disabled><Settings className="mr-1.5 h-3 w-3" /> Settings</Button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4 no-print">
@@ -454,7 +454,7 @@ export default function ZiptallyPartnerDashboard() {
                             <input type="file" id="product-upload" accept="image/*" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if(f) setProductPhoto(await resizeImage(f)); }} />
                         </div>
                     </div>
-                    <DialogFooter><Button className="w-full h-14 rounded-2xl font-black uppercase italic bg-blue-600" onClick={handleProcessBill} disabled={isProcessingBill || !billPhoto || !productPhoto}>{isProcessingBill ? <Loader2 className="animate-spin mr-2" /> : <Sparkles className="mr-2" />} Match & Merge to Stock</Button></DialogFooter>
+                    <DialogFooter><DialogClose asChild><Button className="w-full h-14 rounded-2xl font-black uppercase italic bg-blue-600" onClick={handleProcessBill} disabled={isProcessingBill || !billPhoto || !productPhoto}>{isProcessingBill ? <Loader2 className="animate-spin mr-2" /> : <Sparkles className="mr-2" />} Match & Merge to Stock</Button></DialogClose></DialogFooter>
                 </DialogContent>
             </Dialog>
 
