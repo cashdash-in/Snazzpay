@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -50,6 +51,7 @@ export default function AdminInventoryPage() {
 
     const [updatingImageId, setUpdatingImageId] = useState<string | null>(null);
 
+    // DATA FETCHING
     useEffect(() => {
         if (!db) return;
         const q = query(collection(db, 'inventory'), orderBy('lastUpdated', 'desc'));
@@ -61,6 +63,7 @@ export default function AdminInventoryPage() {
         return () => unsubscribe();
     }, []);
 
+    // SCANNER SETUP
     useEffect(() => {
         if (!isScanning) return;
         const timer = setTimeout(() => {
@@ -82,6 +85,7 @@ export default function AdminInventoryPage() {
         return () => clearTimeout(timer);
     }, [isScanning, inventory, toast]);
 
+    // HELPERS
     const resizeImage = (file: File): Promise<string> => {
         return new Promise((resolve) => {
             const reader = new FileReader();
@@ -128,6 +132,7 @@ export default function AdminInventoryPage() {
         await saveDocument('inventory', { ...item, ...updates, lastUpdated: new Date().toISOString() }, id);
     };
 
+    // ACTION HANDLERS
     const handleBulkIntake = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -246,23 +251,7 @@ export default function AdminInventoryPage() {
         r.start();
     };
 
-    const exportToExcel = () => {
-        const data = inventory.map(item => ({
-            'Marker ID': item.id,
-            'Product Name': item.name,
-            'Category': item.category,
-            'Shelf': item.shelfNumber,
-            'Purchase Rate (₹)': item.wholesalePrice,
-            'Selling Rate (MRP) (₹)': item.mrp,
-            'Quantity': item.quantity,
-            'Last Sync': format(new Date(item.lastUpdated), 'PP p')
-        }));
-        const ws = XLSX.utils.json_to_sheet(data);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Admin Inventory");
-        XLSX.writeFile(wb, `Global_Inventory_Report_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
-    };
-
+    // MEMOIZED FILTERS
     const filteredInventory = useMemo(() => {
         return inventory.filter(i => (i.name || '').toLowerCase().includes(searchTerm.toLowerCase()));
     }, [inventory, searchTerm]);
@@ -310,7 +299,10 @@ export default function AdminInventoryPage() {
                         <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                         <Input placeholder="Search global inventory..." className="pl-12 h-12 rounded-2xl bg-white shadow-sm border-none font-bold" value={searchTerm} onChange={e => setSearchQuery(e.target.value)} />
                     </div>
-                    <Button variant="outline" className="h-12 px-6 rounded-2xl bg-white shadow-sm font-black uppercase text-[10px] italic" onClick={exportToExcel}>
+                    <Button variant="outline" className="h-12 px-6 rounded-2xl bg-white shadow-sm font-black uppercase text-[10px] italic" onClick={() => {
+                        const ws = XLSX.utils.json_to_sheet(inventory.map(i => ({ Product: i.name, Stock: i.quantity, Purchase: i.wholesalePrice, MRP: i.mrp })));
+                        const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Master"); XLSX.writeFile(wb, "MasterInventory.xlsx");
+                    }}>
                         <FileSpreadsheet className="mr-2 h-4 w-4" /> Export Master
                     </Button>
                     <Button variant="outline" className="h-12 w-12 rounded-2xl bg-white shadow-sm" onClick={() => window.print()}><Printer className="h-5 w-5"/></Button>

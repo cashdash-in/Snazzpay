@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -54,11 +55,12 @@ export default function SnapStockPartnerDashboard() {
 
     const partnerId = getCookie('snapstock_token') as string;
 
-    const trackUsage = useCallback(async () => {
-        if (!partnerId) return;
-        await saveDocument('snapstock_partners', { snapUsage: increment(1) }, partnerId);
-    }, [partnerId]);
+    // SCROLL TO TOP ON LOAD
+    useEffect(() => {
+        window.scrollTo(0, 0);
+    }, []);
 
+    // LIVE DATA SYNC
     useEffect(() => {
         if (!partnerId || !db) return;
         
@@ -78,6 +80,7 @@ export default function SnapStockPartnerDashboard() {
         return () => { partnerUnsub(); invUnsub(); };
     }, [partnerId]);
 
+    // SCANNER SETUP
     useEffect(() => {
         if (!isScanning) return;
         const timer = setTimeout(() => {
@@ -98,6 +101,12 @@ export default function SnapStockPartnerDashboard() {
         }, 100);
         return () => clearTimeout(timer);
     }, [isScanning, inventory, toast]);
+
+    // HELPERS
+    const trackUsage = useCallback(async () => {
+        if (!partnerId) return;
+        await saveDocument('snapstock_partners', { snapUsage: increment(1) }, partnerId);
+    }, [partnerId]);
 
     const resizeImage = (file: File): Promise<string> => {
         return new Promise((resolve) => {
@@ -146,6 +155,7 @@ export default function SnapStockPartnerDashboard() {
         await trackUsage();
     };
 
+    // ACTION HANDLERS
     const handleBulkIntake = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -266,6 +276,7 @@ export default function SnapStockPartnerDashboard() {
         r.start();
     };
 
+    // MEMOIZED FILTERS (Declared before usage in JSX)
     const filteredInventory = useMemo(() => {
         return inventory.filter(i => (i.name || '').toLowerCase().includes(searchTerm.toLowerCase()));
     }, [inventory, searchTerm]);
@@ -384,38 +395,41 @@ export default function SnapStockPartnerDashboard() {
                         ))}
                     </div>
                 )}
-            </main>
 
-            <Dialog open={isBillIntakeOpen} onOpenChange={setIsBillIntakeOpen}>
-                <DialogContent className="max-w-2xl rounded-[32px] p-8 border-none no-print">
-                    <DialogHeader><DialogTitle className="text-2xl font-black italic uppercase text-slate-800">AI Bill Intake</DialogTitle><DialogDescription>Upload your supplier bill and the GROUP PHOTO to sync wholesale costs.</DialogDescription></DialogHeader>
-                    <div className="grid grid-cols-2 gap-6 py-6">
-                        <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">1. Supplier Bill</Label><div className="relative aspect-[3/4] border-2 border-dashed rounded-2xl flex flex-col items-center justify-center bg-slate-50 cursor-pointer overflow-hidden" onClick={() => document.getElementById('bill-upload')?.click()}>{billPhoto ? <Image src={billPhoto} fill className="object-cover" alt="bill" /> : <><FileText className="h-8 w-8 text-slate-300" /><span className="text-[8px] font-bold uppercase mt-2">Upload Bill</span></>}</div><input type="file" id="bill-upload" accept="image/*" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if(f) setBillPhoto(await resizeImage(f)); }} /></div>
-                        <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">2. GROUP PHOTO</Label><div className="relative aspect-[3/4] border-2 border-dashed rounded-2xl flex flex-col items-center justify-center bg-slate-50 cursor-pointer overflow-hidden" onClick={() => document.getElementById('product-upload')?.click()}>{productPhoto ? <Image src={productPhoto} fill className="object-cover" alt="prod" /> : <><Camera className="h-8 w-8 text-slate-300" /><span className="text-[8px] font-bold uppercase mt-2">Upload Group</span></>}</div><input type="file" id="product-upload" accept="image/*" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if(f) setProductPhoto(await resizeImage(f)); }} /></div>
-                    </div>
-                    <DialogFooter><Button className="w-full h-14 rounded-2xl font-black uppercase italic bg-blue-600" onClick={handleProcessBill} disabled={isProcessingBill || !billPhoto || !productPhoto}>{isProcessingBill ? <Loader2 className="animate-spin mr-2" /> : <Sparkles className="mr-2" />} Match & Merge to Stock</Button></DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            <Dialog open={isScanning} onOpenChange={setIsScanning}>
-                <DialogContent className="max-w-sm rounded-[32px] p-6 no-print"><DialogHeader><DialogTitle className="text-center uppercase font-black">Mobile Scanner</DialogTitle></DialogHeader><div id="partner-reader" className="w-full aspect-square rounded-2xl overflow-hidden border-2 bg-slate-50" /><DialogFooter><Button variant="outline" className="w-full rounded-xl" onClick={() => setIsScanning(false)}>Cancel</Button></DialogFooter></DialogContent>
-            </Dialog>
-
-            <Dialog open={!!selectedSaleItem} onOpenChange={(open) => !open && setSelectedSaleItem(null)}>
-                <DialogContent className="max-md rounded-[32px] p-8 no-print">
-                    <DialogHeader><DialogTitle className="text-2xl font-black italic uppercase">Confirm Sale</DialogTitle></DialogHeader>
-                    {selectedSaleItem && (
-                        <div className="space-y-6 pt-4">
-                            <div className="flex gap-4 p-4 bg-slate-50 rounded-2xl"><div className="relative h-16 w-16 rounded-xl overflow-hidden border bg-white"><Image src={selectedSaleItem.imageDataUri} fill alt="p" className="object-cover" unoptimized /></div><div><p className="font-black italic uppercase text-slate-800">{selectedSaleItem.name}</p><p className="text-xs text-blue-600 font-bold">Available: {selectedSaleItem.quantity}</p></div></div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">Qty</Label><Input type="number" className="h-12 rounded-xl font-bold" value={saleQty} onChange={e => setSaleQty(Number(e.target.value))} /></div>
-                                <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">Price (₹)</Label><Input type="number" className="h-12 rounded-xl font-bold" value={actualSellPrice} onChange={e => setSalePrice(Number(e.target.value))} /></div>
-                            </div>
-                            <Button className="w-full h-14 rounded-2xl font-black uppercase italic text-lg bg-blue-600" onClick={async () => { await updateItem(selectedSaleItem.id, { quantity: (selectedSaleItem.quantity || 0) - saleQty }); setSelectedSaleItem(null); toast({ title: "Sale Recorded" }); }}>Confirm Transaction</Button>
+                {/* BILL INTAKE DIALOG */}
+                <Dialog open={isBillIntakeOpen} onOpenChange={setIsBillIntakeOpen}>
+                    <DialogContent className="max-w-2xl rounded-[32px] p-8 border-none no-print">
+                        <DialogHeader><DialogTitle className="text-2xl font-black italic uppercase text-slate-800">AI Bill Intake</DialogTitle><DialogDescription>Upload your supplier bill and the GROUP PHOTO to sync wholesale costs.</DialogDescription></DialogHeader>
+                        <div className="grid grid-cols-2 gap-6 py-6">
+                            <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">1. Supplier Bill</Label><div className="relative aspect-[3/4] border-2 border-dashed rounded-2xl flex flex-col items-center justify-center bg-slate-50 cursor-pointer overflow-hidden" onClick={() => document.getElementById('bill-upload')?.click()}>{billPhoto ? <Image src={billPhoto} fill className="object-cover" alt="bill" /> : <><FileText className="h-8 w-8 text-slate-300" /><span className="text-[8px] font-bold uppercase mt-2">Upload Bill</span></>}</div><input type="file" id="bill-upload" accept="image/*" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if(f) setBillPhoto(await resizeImage(f)); }} /></div>
+                            <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">2. Product GROUP PHOTO</Label><div className="relative aspect-[3/4] border-2 border-dashed rounded-2xl flex flex-col items-center justify-center bg-slate-50 cursor-pointer overflow-hidden" onClick={() => document.getElementById('product-upload')?.click()}>{productPhoto ? <Image src={productPhoto} fill className="object-cover" alt="prod" /> : <><Camera className="h-8 w-8 text-slate-300" /><span className="text-[8px] font-bold uppercase mt-2">Upload Group</span></>}</div><input type="file" id="product-upload" accept="image/*" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if(f) setProductPhoto(await resizeImage(f)); }} /></div>
                         </div>
-                    )}
-                </DialogContent>
-            </Dialog>
+                        <DialogFooter><Button className="w-full h-14 rounded-2xl font-black uppercase italic bg-blue-600" onClick={handleProcessBill} disabled={isProcessingBill || !billPhoto || !productPhoto}>{isProcessingBill ? <Loader2 className="animate-spin mr-2" /> : <Sparkles className="mr-2" />} Match & Merge to Stock</Button></DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                {/* SCANNER DIALOG */}
+                <Dialog open={isScanning} onOpenChange={setIsScanning}>
+                    <DialogContent className="max-w-sm rounded-[32px] p-6 no-print"><DialogHeader><DialogTitle className="text-center uppercase font-black">Mobile Scanner</DialogTitle></DialogHeader><div id="partner-reader" className="w-full aspect-square rounded-2xl overflow-hidden border-2 bg-slate-50" /><DialogFooter><Button variant="outline" className="w-full rounded-xl" onClick={() => setIsScanning(false)}>Cancel</Button></DialogFooter></DialogContent>
+                </Dialog>
+
+                {/* QUICK SALE DIALOG */}
+                <Dialog open={!!selectedSaleItem} onOpenChange={(open) => !open && setSelectedSaleItem(null)}>
+                    <DialogContent className="max-md rounded-[32px] p-8 no-print">
+                        <DialogHeader><DialogTitle className="text-2xl font-black italic uppercase">Confirm Sale</DialogTitle></DialogHeader>
+                        {selectedSaleItem && (
+                            <div className="space-y-6 pt-4">
+                                <div className="flex gap-4 p-4 bg-slate-50 rounded-2xl"><div className="relative h-16 w-16 rounded-xl overflow-hidden border bg-white"><Image src={selectedSaleItem.imageDataUri} fill alt="p" className="object-cover" unoptimized /></div><div><p className="font-black italic uppercase text-slate-800">{selectedSaleItem.name}</p><p className="text-xs text-blue-600 font-bold">Available: {selectedSaleItem.quantity}</p></div></div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">Qty</Label><Input type="number" className="h-12 rounded-xl font-bold" value={saleQty} onChange={e => setSaleQty(Number(e.target.value))} /></div>
+                                    <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">Price (₹)</Label><Input type="number" className="h-12 rounded-xl font-bold" value={actualSellPrice} onChange={e => setSalePrice(Number(e.target.value))} /></div>
+                                </div>
+                                <Button className="w-full h-14 rounded-2xl font-black uppercase italic text-lg bg-blue-600" onClick={async () => { await updateItem(selectedSaleItem.id, { quantity: (selectedSaleItem.quantity || 0) - saleQty }); setSelectedSaleItem(null); toast({ title: "Sale Recorded" }); }}>Confirm Transaction</Button>
+                            </div>
+                        )}
+                    </DialogContent>
+                </Dialog>
+            </main>
 
             <input type="file" id="partner-bulk-snap" accept="image/*" className="hidden" onChange={handleBulkIntake} />
             <input type="file" id="partner-image-update" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if(f && updatingImageId) resizeImage(f).then(uri => updateItem(updatingImageId, { imageDataUri: uri })); }} />
