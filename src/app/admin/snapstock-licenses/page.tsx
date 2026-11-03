@@ -235,7 +235,7 @@ export default function SnapStockLicensesPage() {
                                             <div className="text-[10px] text-muted-foreground font-bold">{p.ownerName} • {p.email}</div>
                                         </TableCell>
                                         <TableCell>
-                                            <Badge className={cn("font-black uppercase text-[9px]", p.status === 'Active' ? "bg-green-500" : "bg-blue-500")}>{p.status}</Badge>
+                                            <Badge className={cn("font-black uppercase text-[9px]", p.status === 'Active' ? "bg-green-50" : p.status === 'Trial' ? "bg-blue-50 text-blue-600" : "bg-red-50 text-red-600")}>{p.status}</Badge>
                                         </TableCell>
                                         <TableCell className="font-mono text-xs font-black text-blue-600">
                                             {renderNumericValue(p.snapUsage)} Snaps
