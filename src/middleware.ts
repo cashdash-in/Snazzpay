@@ -35,7 +35,9 @@ export function middleware(request: NextRequest) {
     '/collaborator/signup',
     '/catalogue',
     '/smart-magazine',
-    '/magic-mirror/widget', // ALLOW PUBLIC ACCESS TO WIDGET
+    '/magic-mirror/widget',
+    '/snapstock/login',
+    '/snapstock/register',
   ];
 
   const publicPrefixes = ['/guest-fulfillment', '/terms', '/wholesale-request', '/collection', '/site'];
@@ -50,6 +52,14 @@ export function middleware(request: NextRequest) {
     pathname.startsWith('/_next/') ||
     pathname.includes('.')
   ) {
+    return NextResponse.next();
+  }
+
+  // PROTECT PARTNER ROUTES
+  if (pathname.startsWith('/snapstock') && !pathname.startsWith('/snapstock/login') && !pathname.startsWith('/snapstock/register')) {
+    if (!token) {
+        return NextResponse.redirect(new URL('/snapstock/login', request.url));
+    }
     return NextResponse.next();
   }
 
@@ -73,7 +83,6 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // Catch everything except static assets
   matcher: [
     '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
