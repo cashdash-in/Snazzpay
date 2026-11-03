@@ -26,6 +26,7 @@ export interface StockMovement {
 
 export interface InventoryItem {
     id: string;
+    storeId: string;
     name: string;
     quantity: number;
     wholesalePrice: number;
@@ -40,4 +41,6 @@ export interface InventoryItem {
     sellingPoints?: string[];
     marketInsight?: string;
     competitors?: { sellerName: string; price: number }[];
+    supplierName?: string;
+    supplierContact?: string;
 }

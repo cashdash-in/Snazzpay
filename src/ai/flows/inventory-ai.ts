@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview AI flows for Inventory Intelligence.
@@ -87,6 +88,7 @@ export async function detectItemsInPhoto(imageDataUri: string, mode: 'sale' | 'a
 /**
  * Parses a purchase bill and matches it to multiple products in a group photo.
  * CRITICAL UPGRADE: Enforces exact string extraction from the bill for 100% precision.
+ * ALSO: Now extracts WHOLESALER/SUPPLIER information from the bill.
  */
 export async function matchProductToBill(billDataUri: string, groupProductsDataUri: string) {
     try {
@@ -95,22 +97,25 @@ export async function matchProductToBill(billDataUri: string, groupProductsDataU
             system: `You are an elite OCR and computer vision analyst specializing in retail logistics.
             CRITICAL INSTRUCTION: You must extract the EXACT product names from the PURCHASE BILL (Photo 1). 
             Do NOT summarize, rename, or generalize them. 
-            If the bill says "Dell Latitude 5420", you MUST return that exact string, not just "Laptop".
-            Precision is your top priority.
             
             TASK: 
-            1. READ BILL: High-Fidelity Extraction. Perform deep OCR on Photo 1. Extract every line item with its EXACT original text.
-            2. MATCH PHOTO: Analyze Photo 2 (Group Product Photo). Locate every physical item that corresponds to the bill entries.
-            3. SPATIAL MAPPING: Provide the BOUNDING BOX [ymin, xmin, ymax, xmax] normalized 0-1000 for each item as seen in Photo 2.
+            1. IDENTIFY SUPPLIER: Extract the Supplier/Wholesaler name and contact details from the header of Image 1.
+            2. READ BILL: High-Fidelity Extraction. Perform deep OCR on Photo 1. Extract every line item with its EXACT original text.
+            3. MATCH PHOTO: Analyze Photo 2 (Group Product Photo). Locate every physical item that corresponds to the bill entries.
+            4. SPATIAL MAPPING: Provide the BOUNDING BOX [ymin, xmin, ymax, xmax] normalized 0-1000 for each item as seen in Photo 2.
             
-            Return a strictly structured JSON array of matched items.`,
+            Return a strictly structured JSON object.`,
             prompt: [
-                { text: "Image 1 is the Supplier Bill. Image 2 contains the physical products listed on the bill. Match them precisely using the exact names from the bill." },
+                { text: "Image 1 is the Supplier Bill. Image 2 contains the physical products listed on the bill. Identify the supplier and match products precisely." },
                 { media: { url: billDataUri, contentType: 'image/jpeg' } },
                 { media: { url: groupProductsDataUri, contentType: 'image/jpeg' } }
             ],
             output: {
                 schema: z.object({
+                    supplier: z.object({
+                        name: z.string().describe("The Name of the Wholesaler/Supplier from the bill header"),
+                        contact: z.string().optional().describe("Supplier phone or email if visible")
+                    }),
                     matches: z.array(z.object({
                         productName: z.string().describe("The EXACT name of the product as printed on the bill"),
                         quantity: z.number().describe("The quantity purchased from bill"),
@@ -124,7 +129,7 @@ export async function matchProductToBill(billDataUri: string, groupProductsDataU
         });
 
         if (!output || !output.matches) throw new Error("Could not match bill to products.");
-        return output.matches;
+        return output;
     } catch (error: any) {
         console.error("matchProductToBill AI error:", error);
         throw new Error(`Bill processing failed: ${error.message}`);

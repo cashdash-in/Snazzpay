@@ -1,8 +1,9 @@
+
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { AppShell } from '@/components/layout/app-shell';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,21 +13,23 @@ import {
     Loader2, Camera, Plus, Minus, Search, 
     Sparkles, Mic, Trash2, Scan,
     Printer, FileUp, FileText, ImagePlus, FileSpreadsheet,
-    MapPin, Layers, ShieldCheck
+    MapPin, Layers, ShieldCheck, TrendingUp, Info, History
 } from 'lucide-react';
 import { getCollection, saveDocument, deleteDocument } from '@/services/firestore';
 import { parseInventoryCommand, detectItemsInPhoto, matchProductToBill } from '@/ai/flows/inventory-ai';
 import { v4 as uuidv4 } from 'uuid';
 import Image from 'next/image';
 import { cn } from "@/lib/utils";
-import type { InventoryItem } from '@/types/inventory';
+import type { InventoryItem, StockMovement } from '@/types/inventory';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import * as XLSX from 'xlsx';
 import { useRouter } from 'next/navigation';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { format, parseISO, subDays } from 'date-fns';
 
 const MAX_IMAGE_SIZE_PX = 800;
 
@@ -34,6 +37,7 @@ export default function AdminInventoryPage() {
     const { toast } = useToast();
     const router = useRouter();
     const [inventory, setInventory] = useState<InventoryItem[]>([]);
+    const [movements, setMovements] = useState<StockMovement[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [searchTerm, setSearchQuery] = useState('');
@@ -50,6 +54,9 @@ export default function AdminInventoryPage() {
     const [isProcessingBill, setIsProcessingBill] = useState(false);
 
     const [updatingImageId, setUpdatingImageId] = useState<string | null>(null);
+    
+    // Product Intelligence State
+    const [selectedProductForStats, setSelectedProductForStats] = useState<InventoryItem | null>(null);
 
     // DATA FETCHING
     useEffect(() => {
@@ -60,12 +67,21 @@ export default function AdminInventoryPage() {
             setInventory(data);
             setIsLoading(false);
         });
-        return () => unsubscribe();
+
+        const mq = query(collection(db, 'inventory_movements'), orderBy('date', 'desc'));
+        const mUnsub = onSnapshot(mq, (snapshot) => {
+            setMovements(snapshot.docs.map(doc => doc.data() as StockMovement));
+        });
+
+        return () => { unsubscribe(); mUnsub(); };
     }, []);
 
     // MEMOIZED FILTERS
     const filteredInventory = useMemo(() => {
-        return inventory.filter(i => (i.name || '').toLowerCase().includes(searchTerm.toLowerCase()));
+        return inventory.filter(i => 
+            (i.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (i.supplierName || '').toLowerCase().includes(searchTerm.toLowerCase())
+        );
     }, [inventory, searchTerm]);
 
     const shelfGroups = useMemo(() => {
@@ -77,27 +93,25 @@ export default function AdminInventoryPage() {
         }, {});
     }, [inventory]);
 
-    // SCANNER SETUP
-    useEffect(() => {
-        if (!isScanning) return;
-        const timer = setTimeout(() => {
-            const scanner = new Html5QrcodeScanner("admin-reader", { fps: 10, qrbox: 250 }, false);
-            scanner.render((decodedText) => {
-                const item = inventory.find(i => i.id === decodedText || i.name.toLowerCase() === decodedText.toLowerCase());
-                if (item) {
-                    setSelectedSaleItem(item);
-                    setSalePrice(item.mrp);
-                    setSaleQty(1);
-                    setIsScanning(false);
-                    scanner.clear().catch(console.warn);
-                } else {
-                    toast({ variant: 'destructive', title: "SKU Not Found" });
-                }
-            }, () => {});
-            return () => { scanner.clear().catch(() => {}); };
-        }, 100);
-        return () => clearTimeout(timer);
-    }, [isScanning, inventory, toast]);
+    const productStats = useMemo(() => {
+        if (!selectedProductForStats) return [];
+        const last30Days = Array.from({ length: 30 }, (_, i) => {
+            const d = subDays(new Date(), i);
+            return format(d, 'yyyy-MM-dd');
+        }).reverse();
+
+        return last30Days.map(day => {
+            const dayMovements = movements.filter(m => 
+                m.productId === selectedProductForStats.id && 
+                m.date.startsWith(day) &&
+                m.type === 'Sale'
+            );
+            return {
+                name: format(parseISO(day), 'MMM dd'),
+                sales: Math.abs(dayMovements.reduce((sum, m) => sum + m.quantity, 0))
+            };
+        });
+    }, [selectedProductForStats, movements]);
 
     // HELPERS
     const resizeImage = (file: File): Promise<string> => {
@@ -155,19 +169,9 @@ export default function AdminInventoryPage() {
             const uri = await resizeImage(file);
             const detections = await detectItemsInPhoto(uri, 'intake');
             
-            const sessionGroups = new Map<string, any>();
             for (const d of detections) {
                 const cleanName = d.productName.trim();
-                const key = cleanName.toLowerCase();
-                if (sessionGroups.has(key)) {
-                    sessionGroups.get(key).count += d.count;
-                } else {
-                    sessionGroups.set(key, { ...d });
-                }
-            }
-
-            for (const [key, d] of sessionGroups.entries()) {
-                const existing = inventory.find(i => i.name.toLowerCase().trim() === key);
+                const existing = inventory.find(i => i.name.toLowerCase().trim() === cleanName.toLowerCase());
                 if (existing) {
                     await updateItem(existing.id, { quantity: (existing.quantity || 0) + d.count });
                 } else {
@@ -195,36 +199,29 @@ export default function AdminInventoryPage() {
         if (!billPhoto || !productPhoto) return;
         setIsProcessingBill(true);
         try {
-            const matchedItems = await matchProductToBill(billPhoto, productPhoto);
+            const result = await matchProductToBill(billPhoto, productPhoto);
             
-            const sessionGroups = new Map<string, any>();
-            for (const m of matchedItems) {
+            for (const m of result.matches) {
                 const cleanName = m.productName.trim();
-                const key = cleanName.toLowerCase();
-                if (sessionGroups.has(key)) {
-                    sessionGroups.get(key).quantity += m.quantity;
-                } else {
-                    sessionGroups.set(key, { ...m });
-                }
-            }
-
-            for (const [key, result] of sessionGroups.entries()) {
-                const existing = inventory.find(i => i.name.toLowerCase().trim() === key);
+                const existing = inventory.find(i => i.name.toLowerCase().trim() === cleanName.toLowerCase());
                 if (existing) {
                     await updateItem(existing.id, { 
-                        quantity: (existing.quantity || 0) + result.quantity,
-                        wholesalePrice: result.wholesalePrice,
-                        mrp: result.mrp
+                        quantity: (existing.quantity || 0) + m.quantity,
+                        wholesalePrice: m.wholesalePrice,
+                        mrp: m.mrp,
+                        supplierName: result.supplier.name,
+                        supplierContact: result.supplier.contact
                     });
                 } else {
                     const id = uuidv4();
                     let itemImage = productPhoto;
-                    if (result.box_2d) {
-                        try { itemImage = await cropImage(productPhoto, result.box_2d); } catch (err) {}
+                    if (m.box_2d) {
+                        try { itemImage = await cropImage(productPhoto, m.box_2d); } catch (err) {}
                     }
                     await saveDocument('inventory', {
-                        id, storeId: 'admin', name: result.productName, quantity: result.quantity, wholesalePrice: result.wholesalePrice, mrp: result.mrp,
-                        category: result.category, shelfNumber: 'A1', imageDataUri: itemImage, lastUpdated: new Date().toISOString()
+                        id, storeId: 'admin', name: m.productName, quantity: m.quantity, wholesalePrice: m.wholesalePrice, mrp: m.mrp,
+                        category: m.category, shelfNumber: 'A1', imageDataUri: itemImage, lastUpdated: new Date().toISOString(),
+                        supplierName: result.supplier.name, supplierContact: result.supplier.contact
                     }, id);
                 }
             }
@@ -296,10 +293,10 @@ export default function AdminInventoryPage() {
                 <div className="flex gap-4 no-print">
                     <div className="relative flex-1">
                         <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                        <Input placeholder="Search global inventory..." className="pl-12 h-12 rounded-2xl bg-white shadow-sm border-none font-bold" value={searchTerm} onChange={e => setSearchQuery(e.target.value)} />
+                        <Input placeholder="Search name, supplier, ID..." className="pl-12 h-12 rounded-2xl bg-white shadow-sm border-none font-bold" value={searchTerm} onChange={e => setSearchQuery(e.target.value)} />
                     </div>
                     <Button variant="outline" className="h-12 px-6 rounded-2xl bg-white shadow-sm font-black uppercase text-[10px] italic" onClick={() => {
-                        const ws = XLSX.utils.json_to_sheet(inventory.map(i => ({ Product: i.name, Stock: i.quantity, Purchase: i.wholesalePrice, MRP: i.mrp })));
+                        const ws = XLSX.utils.json_to_sheet(inventory.map(i => ({ Product: i.name, Supplier: i.supplierName || 'N/A', Stock: i.quantity, Purchase: i.wholesalePrice, MRP: i.mrp })));
                         const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Master"); XLSX.writeFile(wb, "MasterInventory.xlsx");
                     }}>
                         <FileSpreadsheet className="mr-2 h-4 w-4" /> Export Master
@@ -316,10 +313,10 @@ export default function AdminInventoryPage() {
                         <Table>
                             <TableHeader className="bg-slate-50">
                                 <TableRow>
-                                    <TableHead className="pl-8">Product</TableHead>
-                                    <TableHead>Loc</TableHead>
-                                    <TableHead>Purchase Rate</TableHead>
-                                    <TableHead>Selling Rate (MRP)</TableHead>
+                                    <TableHead className="pl-8">Product Intelligence</TableHead>
+                                    <TableHead>Wholesaler</TableHead>
+                                    <TableHead>Purchase</TableHead>
+                                    <TableHead>MRP</TableHead>
                                     <TableHead>Stock</TableHead>
                                     <TableHead className="text-right pr-8 no-print">Actions</TableHead>
                                 </TableRow>
@@ -336,12 +333,23 @@ export default function AdminInventoryPage() {
                                                     <Image src={item.imageDataUri} fill alt="p" className="object-cover group-hover/img:opacity-50 transition-opacity" unoptimized />
                                                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity"><ImagePlus className="h-4 w-4 text-primary" /></div>
                                                 </div>
-                                                <div><p className="font-bold italic uppercase">{item.name}</p><p className="text-[9px] font-mono opacity-50">{item.id.substring(0,8)}</p></div>
+                                                <div className="cursor-pointer" onClick={() => setSelectedProductForStats(item)}>
+                                                    <p className="font-bold italic uppercase flex items-center gap-1 hover:text-primary transition-colors">{item.name} <Info className="h-3 w-3 opacity-30"/></p>
+                                                    <p className="text-[9px] font-mono opacity-50">{item.id.substring(0,8)} • {item.shelfNumber || 'A1'}</p>
+                                                </div>
                                             </div>
                                         </TableCell>
-                                        <TableCell><Input value={item.shelfNumber} onChange={e => updateItem(item.id, { shelfNumber: e.target.value })} className="w-16 h-8 text-[10px] font-bold uppercase no-print" /><span className="hidden print:inline">{item.shelfNumber}</span></TableCell>
-                                        <TableCell><div className="flex items-center gap-1"><span className="text-[10px] font-bold text-slate-400 no-print">₹</span><Input type="number" value={item.wholesalePrice} onChange={e => updateItem(item.id, { wholesalePrice: parseFloat(e.target.value) || 0 })} className="w-24 h-8 font-bold no-print" /><span className="hidden print:inline">₹{item.wholesalePrice}</span></div></TableCell>
-                                        <TableCell><div className="flex items-center gap-1"><span className="text-[10px] font-bold text-primary no-print">₹</span><Input type="number" value={item.mrp} onChange={e => updateItem(item.id, { mrp: parseFloat(e.target.value) || 0 })} className="w-24 h-8 font-black text-primary no-print" /><span className="hidden print:inline">₹{item.mrp}</span></div></TableCell>
+                                        <TableCell>
+                                            <Input 
+                                                value={item.supplierName || ''} 
+                                                placeholder="Unknown Wholesaler"
+                                                onChange={e => updateItem(item.id, { supplierName: e.target.value })} 
+                                                className="h-8 text-[10px] font-bold border-transparent hover:border-input focus:border-input bg-transparent no-print" 
+                                            />
+                                            <span className="hidden print:inline">{item.supplierName || 'N/A'}</span>
+                                        </TableCell>
+                                        <TableCell><div className="flex items-center gap-1"><span className="text-[10px] font-bold text-slate-400 no-print">₹</span><Input type="number" value={item.wholesalePrice} onChange={e => updateItem(item.id, { wholesalePrice: parseFloat(e.target.value) || 0 })} className="w-20 h-8 font-bold no-print" /><span className="hidden print:inline">₹{item.wholesalePrice}</span></div></TableCell>
+                                        <TableCell><div className="flex items-center gap-1"><span className="text-[10px] font-bold text-primary no-print">₹</span><Input type="number" value={item.mrp} onChange={e => updateItem(item.id, { mrp: parseFloat(e.target.value) || 0 })} className="w-20 h-8 font-black text-primary no-print" /><span className="hidden print:inline">₹{item.mrp}</span></div></TableCell>
                                         <TableCell>
                                             <div className="flex items-center gap-3 no-print">
                                                 <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500" onClick={() => updateItem(item.id, { quantity: Math.max(0, (item.quantity || 0) - 1) })}><Minus className="h-4 w-4" /></Button>
@@ -366,7 +374,7 @@ export default function AdminInventoryPage() {
                                 </CardHeader>
                                 <CardContent className="p-4 space-y-3">
                                     {items.slice(0, 3).map((item) => (
-                                        <div key={item.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 transition-colors">
+                                        <div key={item.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => setSelectedProductForStats(item)}>
                                             <div className="relative h-8 w-8 rounded-lg overflow-hidden border"><Image src={item.imageDataUri} fill alt="p" className="object-cover" unoptimized /></div>
                                             <div className="flex-1 min-w-0"><p className="text-[11px] font-black uppercase italic truncate">{item.name}</p><p className="text-[9px] font-bold text-primary">MRP: ₹{item.mrp}</p></div>
                                         </div>
@@ -400,8 +408,75 @@ export default function AdminInventoryPage() {
                     </DialogContent>
                 </Dialog>
 
+                {/* Product Intelligence Modal */}
+                <Dialog open={!!selectedProductForStats} onOpenChange={open => !open && setSelectedProductForStats(null)}>
+                    <DialogContent className="max-w-4xl rounded-[40px] p-0 overflow-hidden border-none bg-white">
+                        <div className="grid grid-cols-1 md:grid-cols-2">
+                            <div className="bg-slate-900 text-white p-10 space-y-8">
+                                {selectedProductForStats && (
+                                    <>
+                                        <div className="flex gap-6 items-center">
+                                            <div className="relative w-24 h-24 rounded-3xl overflow-hidden shadow-2xl border-2 border-white/10"><Image src={selectedProductForStats.imageDataUri} fill alt="p" className="object-cover" unoptimized /></div>
+                                            <div className="space-y-1">
+                                                <h3 className="text-3xl font-black italic uppercase tracking-tighter leading-none">{selectedProductForStats.name}</h3>
+                                                <Badge variant="outline" className="text-blue-400 border-blue-400/30 uppercase text-[9px] font-black">SKU: {selectedProductForStats.id.substring(0,8)}</Badge>
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
+                                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Current Stock</p>
+                                                <p className="text-3xl font-black italic">{selectedProductForStats.quantity}</p>
+                                            </div>
+                                            <div className="p-4 bg-blue-600 rounded-2xl shadow-xl shadow-blue-900/20">
+                                                <p className="text-[10px] font-black text-blue-200 uppercase tracking-widest mb-1">Net Profit</p>
+                                                <p className="text-3xl font-black italic">₹{(movements.filter(m => m.productId === selectedProductForStats.id && m.type === 'Sale').reduce((sum, m) => sum + Math.abs(m.quantity), 0) * (selectedProductForStats.mrp - selectedProductForStats.wholesalePrice)).toFixed(0)}</p>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-4">
+                                            <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Supplier Intelligence</Label>
+                                            <div className="space-y-3">
+                                                <div className="relative"><Factory className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" /><Input className="pl-9 h-11 bg-white/5 border-white/10 text-white rounded-xl" value={selectedProductForStats.supplierName || ''} onChange={e => updateItem(selectedProductForStats.id, { supplierName: e.target.value })} placeholder="Unknown Supplier" /></div>
+                                                <div className="relative"><ShieldCheck className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" /><Input className="pl-9 h-11 bg-white/5 border-white/10 text-white rounded-xl" value={selectedProductForStats.supplierContact || ''} onChange={e => updateItem(selectedProductForStats.id, { supplierContact: e.target.value })} placeholder="Contact Details" /></div>
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                            <div className="p-10 space-y-8">
+                                <div className="flex items-center justify-between">
+                                    <h4 className="text-xl font-black italic uppercase tracking-tight flex items-center gap-2 text-slate-800"><TrendingUp className="text-blue-600"/> Sales Velocity</h4>
+                                    <Badge className="bg-slate-100 text-slate-600 border-none uppercase text-[9px] font-bold">Last 30 Days</Badge>
+                                </div>
+                                <div className="h-64 w-full">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <LineChart data={productStats}>
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                            <XAxis dataKey="name" stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
+                                            <YAxis stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
+                                            <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }} />
+                                            <Line type="monotone" dataKey="sales" stroke="#2563eb" strokeWidth={4} dot={{ r: 4, fill: "#2563eb", strokeWidth: 2, stroke: "#fff" }} activeDot={{ r: 6 }} />
+                                        </LineChart>
+                                    </ResponsiveContainer>
+                                </div>
+                                <div className="space-y-4">
+                                    <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-2"><History className="h-4 w-4"/> Recent Activity</h4>
+                                    <div className="space-y-2">
+                                        {movements.filter(m => m.productId === selectedProductForStats?.id).slice(0, 3).map(m => (
+                                            <div key={m.id} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                                <div><p className="text-[10px] font-black uppercase text-slate-800">{m.type}</p><p className="text-[8px] text-slate-400 font-bold uppercase">{format(parseISO(m.date), 'PPP p')}</p></div>
+                                                <p className={cn("font-black italic", m.quantity > 0 ? "text-green-600" : "text-red-600")}>{m.quantity > 0 ? '+' : ''}{m.quantity}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                <DialogClose asChild><Button className="w-full h-14 rounded-2xl font-black uppercase italic tracking-widest mt-4">Close Intelligence</Button></DialogClose>
+                            </div>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+
                 <Dialog open={isScanning} onOpenChange={setIsScanning}>
-                    <DialogContent className="max-w-sm rounded-[32px] p-6 no-print"><DialogHeader><DialogTitle className="text-center uppercase font-black">Admin Scanner</DialogTitle></DialogHeader><div id="admin-reader" className="w-full aspect-square rounded-2xl overflow-hidden border-2 bg-slate-50"></div><DialogFooter><Button variant="outline" className="w-full rounded-xl" onClick={() => setIsScanning(false)}>Cancel</Button></DialogFooter></DialogContent>
+                    <DialogContent className="max-w-sm rounded-[32px] p-6 no-print"><DialogHeader><DialogTitle className="text-center uppercase font-black">Admin Scanner</DialogTitle></DialogHeader><div id="admin-reader" className="w-full aspect-square rounded-2xl overflow-hidden border-2 bg-slate-50"></div><DialogFooter><Button variant="outline" className="w-full rounded-xl" onClick={() => setIsScanning(false)}>Cancel</Button></DialogFooter></Dialog>
                 </Dialog>
 
                 <Dialog open={!!selectedSaleItem} onOpenChange={(open) => !open && setSelectedSaleItem(null)}>

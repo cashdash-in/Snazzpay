@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -8,12 +9,12 @@ import {
     Zap, Camera, Layers, Mic, Search, 
     Scan, Loader2, Sparkles, Plus, Minus,
     FileSpreadsheet, Trash2, FileUp, FileText,
-    MapPin, Printer, ImagePlus, ShieldCheck
+    MapPin, Printer, ImagePlus, ShieldCheck, TrendingUp, Info, History, Factory
 } from 'lucide-react';
 import { getCollection, saveDocument, deleteDocument } from '@/services/firestore';
 import { getCookie } from 'cookies-next';
 import { useRouter } from 'next/navigation';
-import { format } from 'date-fns';
+import { format, parseISO, subDays } from 'date-fns';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
 import { detectItemsInPhoto, parseInventoryCommand, matchProductToBill } from '@/ai/flows/inventory-ai';
@@ -23,10 +24,11 @@ import * as XLSX from 'xlsx';
 import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { increment, collection, query, onSnapshot, orderBy, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 const MAX_IMAGE_SIZE_PX = 800;
 
@@ -35,6 +37,7 @@ export default function SnapStockPartnerDashboard() {
     const { toast } = useToast();
     const [partner, setPartner] = useState<any | null>(null);
     const [inventory, setInventory] = useState<any[]>([]);
+    const [movements, setMovements] = useState<StockMovement[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [activeView, setActiveView] = useState<'list' | 'shop-map'>('list');
@@ -51,28 +54,11 @@ export default function SnapStockPartnerDashboard() {
     const [isProcessingBill, setIsProcessingBill] = useState(false);
 
     const [updatingImageId, setUpdatingImageId] = useState<string | null>(null);
+    
+    // Product Intelligence State
+    const [selectedProductForStats, setSelectedProductForStats] = useState<InventoryItem | null>(null);
 
     const partnerId = getCookie('snapstock_token') as string;
-
-    // SCROLL TO TOP ON LOAD
-    useEffect(() => {
-        if (typeof window !== 'undefined') window.scrollTo(0, 0);
-    }, []);
-
-    // MEMOIZED FILTERS
-    const filteredInventory = useMemo(() => {
-        return inventory.filter(i => (i.name || '').toLowerCase().includes(searchTerm.toLowerCase()));
-    }, [inventory, searchTerm]);
-
-    const shelfGroups = useMemo(() => {
-        const groups: Record<string, any[]> = {};
-        inventory.forEach(item => {
-            const s = item.shelfNumber || 'A1';
-            if (!groups[s]) groups[s] = [];
-            groups[s].push(item);
-        });
-        return groups;
-    }, [inventory]);
 
     // LIVE DATA SYNC
     useEffect(() => {
@@ -91,8 +77,51 @@ export default function SnapStockPartnerDashboard() {
             setIsLoading(false);
         });
 
-        return () => { partnerUnsub(); invUnsub(); };
+        const mq = query(collection(db, 'inventory_movements'), orderBy('date', 'desc'));
+        const mUnsub = onSnapshot(mq, (snapshot) => {
+            setMovements(snapshot.docs.map(doc => doc.data() as StockMovement));
+        });
+
+        return () => { partnerUnsub(); invUnsub(); mUnsub(); };
     }, [partnerId]);
+
+    // MEMOIZED FILTERS
+    const filteredInventory = useMemo(() => {
+        return inventory.filter(i => 
+            (i.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (i.supplierName || '').toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    }, [inventory, searchTerm]);
+
+    const shelfGroups = useMemo(() => {
+        const groups: Record<string, any[]> = {};
+        inventory.forEach(item => {
+            const s = item.shelfNumber || 'A1';
+            if (!groups[s]) groups[s] = [];
+            groups[s].push(item);
+        });
+        return groups;
+    }, [inventory]);
+
+    const productStats = useMemo(() => {
+        if (!selectedProductForStats) return [];
+        const last30Days = Array.from({ length: 30 }, (_, i) => {
+            const d = subDays(new Date(), i);
+            return format(d, 'yyyy-MM-dd');
+        }).reverse();
+
+        return last30Days.map(day => {
+            const dayMovements = movements.filter(m => 
+                m.productId === selectedProductForStats.id && 
+                m.date.startsWith(day) &&
+                m.type === 'Sale'
+            );
+            return {
+                name: format(parseISO(day), 'MMM dd'),
+                sales: Math.abs(dayMovements.reduce((sum, m) => sum + m.quantity, 0))
+            };
+        });
+    }, [selectedProductForStats, movements]);
 
     // HELPERS
     const trackUsage = useCallback(async () => {
@@ -155,19 +184,9 @@ export default function SnapStockPartnerDashboard() {
             const uri = await resizeImage(file);
             const detections = await detectItemsInPhoto(uri, 'intake');
             
-            const sessionGroups = new Map<string, any>();
             for (const d of detections) {
                 const cleanName = d.productName.trim();
-                const key = cleanName.toLowerCase();
-                if (sessionGroups.has(key)) {
-                    sessionGroups.get(key).count += d.count;
-                } else {
-                    sessionGroups.set(key, { ...d });
-                }
-            }
-
-            for (const [key, d] of sessionGroups.entries()) {
-                const existing = inventory.find(i => i.name.toLowerCase().trim() === key);
+                const existing = inventory.find(i => i.name.toLowerCase().trim() === cleanName.toLowerCase());
                 if (existing) {
                     await updateItem(existing.id, { quantity: (existing.quantity || 0) + d.count });
                 } else {
@@ -196,36 +215,29 @@ export default function SnapStockPartnerDashboard() {
         if (!billPhoto || !productPhoto) return;
         setIsProcessingBill(true);
         try {
-            const matchedItems = await matchProductToBill(billPhoto, productPhoto);
+            const result = await matchProductToBill(billPhoto, productPhoto);
             
-            const sessionGroups = new Map<string, any>();
-            for (const m of matchedItems) {
+            for (const m of result.matches) {
                 const cleanName = m.productName.trim();
-                const key = cleanName.toLowerCase();
-                if (sessionGroups.has(key)) {
-                    sessionGroups.get(key).quantity += m.quantity;
-                } else {
-                    sessionGroups.set(key, { ...m });
-                }
-            }
-
-            for (const [key, result] of sessionGroups.entries()) {
-                const existing = inventory.find(i => i.name.toLowerCase().trim() === key);
+                const existing = inventory.find(i => i.name.toLowerCase().trim() === cleanName.toLowerCase());
                 if (existing) {
                     await updateItem(existing.id, { 
-                        quantity: (existing.quantity || 0) + result.quantity,
-                        wholesalePrice: result.wholesalePrice,
-                        mrp: result.mrp
+                        quantity: (existing.quantity || 0) + m.quantity,
+                        wholesalePrice: m.wholesalePrice,
+                        mrp: m.mrp,
+                        supplierName: result.supplier.name,
+                        supplierContact: result.supplier.contact
                     });
                 } else {
                     const id = uuidv4();
                     let itemImage = productPhoto;
-                    if (result.box_2d) {
-                        try { itemImage = await cropImage(productPhoto, result.box_2d); } catch (err) {}
+                    if (m.box_2d) {
+                        try { itemImage = await cropImage(productPhoto, m.box_2d); } catch (err) {}
                     }
                     await saveDocument('inventory', {
-                        id, storeId: partnerId, name: result.productName, quantity: result.quantity, wholesalePrice: result.wholesalePrice, mrp: result.mrp,
-                        category: result.category, shelfNumber: 'A1', imageDataUri: itemImage, lastUpdated: new Date().toISOString()
+                        id, storeId: partnerId, name: m.productName, quantity: m.quantity, wholesalePrice: m.wholesalePrice, mrp: m.mrp,
+                        category: m.category, shelfNumber: 'A1', imageDataUri: itemImage, lastUpdated: new Date().toISOString(),
+                        supplierName: result.supplier.name, supplierContact: result.supplier.contact
                     }, id);
                 }
             }
@@ -300,12 +312,12 @@ export default function SnapStockPartnerDashboard() {
                 </div>
 
                 <div className="flex flex-col md:flex-row gap-4 px-2 no-print">
-                    <div className="relative flex-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" /><Input placeholder="Search inventory..." className="pl-9 h-12 rounded-xl bg-white shadow-sm border-none font-bold" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} /></div>
+                    <div className="relative flex-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" /><Input placeholder="Search name, supplier..." className="pl-9 h-12 rounded-xl bg-white shadow-sm border-none font-bold" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} /></div>
                     <div className="flex gap-2">
                         <Button variant="outline" className="h-12 px-6 rounded-full bg-white shadow-sm font-black uppercase text-[10px] italic" onClick={() => {
-                            const ws = XLSX.utils.json_to_sheet(inventory.map(i => ({ Product: i.name, Shelf: i.shelfNumber, Stock: i.quantity, Purchase: i.wholesalePrice, MRP: i.mrp })));
+                            const ws = XLSX.utils.json_to_sheet(inventory.map(i => ({ Product: i.name, Wholesaler: i.supplierName || 'N/A', Stock: i.quantity, Purchase: i.wholesalePrice, MRP: i.mrp })));
                             const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Stock"); XLSX.writeFile(wb, "Inventory.xlsx");
-                        }}><FileSpreadsheet className="mr-2 h-4 w-4" /> Export Excel</Button>
+                        }}><FileSpreadsheet className="mr-2 h-4 w-4" /> Export Master</Button>
                         <div className="flex bg-white rounded-full p-1 border shadow-sm h-12">
                             <Button variant={activeView === 'list' ? 'default' : 'ghost'} size="sm" className="h-10 px-4 rounded-full text-[10px] uppercase font-bold" onClick={() => setActiveView('list')}>List</Button>
                             <Button variant={activeView === 'shop-map' ? 'default' : 'ghost'} size="sm" className="h-10 px-4 rounded-full text-[10px] uppercase font-bold" onClick={() => setActiveView('shop-map')}>Map</Button>
@@ -319,29 +331,40 @@ export default function SnapStockPartnerDashboard() {
                         <Table>
                             <TableHeader className="bg-slate-50/50">
                                 <TableRow>
-                                    <TableHead className="pl-8">Product</TableHead>
-                                    <TableHead>Loc</TableHead>
+                                    <TableHead className="pl-8">Intelligence Feed</TableHead>
+                                    <TableHead>Wholesaler</TableHead>
                                     <TableHead>Purchase</TableHead>
-                                    <TableHead>Selling (MRP)</TableHead>
+                                    <TableHead>MRP</TableHead>
                                     <TableHead>Stock</TableHead>
                                     <TableHead className="text-right pr-8 no-print">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {filteredInventory.map(item => (
-                                    <TableRow key={item.id}>
+                                    <TableRow key={item.id} className="group hover:bg-slate-50">
                                         <TableCell className="pl-8 py-4">
                                             <div className="flex items-center gap-4">
                                                 <div className="relative w-12 h-12 rounded-xl overflow-hidden border cursor-pointer" onClick={() => { setUpdatingImageId(item.id); document.getElementById('partner-image-update')?.click(); }}>
                                                     <Image src={item.imageDataUri} fill alt="p" className="object-cover" unoptimized />
                                                     <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 bg-black/20 transition-opacity"><ImagePlus className="h-4 w-4 text-white" /></div>
                                                 </div>
-                                                <div><p className="font-black uppercase italic text-sm text-slate-800">{item.name}</p><p className="text-[9px] font-mono opacity-50">{item.id.substring(0,8)}</p></div>
+                                                <div className="cursor-pointer" onClick={() => setSelectedProductForStats(item)}>
+                                                    <p className="font-black uppercase italic text-sm text-slate-800 hover:text-blue-600 transition-colors flex items-center gap-1">{item.name} <Info className="h-3 w-3 opacity-30"/></p>
+                                                    <p className="text-[9px] font-mono opacity-50">{item.id.substring(0,8)} • {item.shelfNumber || 'A1'}</p>
+                                                </div>
                                             </div>
                                         </TableCell>
-                                        <TableCell><Input value={item.shelfNumber} onChange={e => updateItem(item.id, { shelfNumber: e.target.value })} className="w-16 h-8 text-[10px] font-bold no-print" /><span className="hidden print:inline">{item.shelfNumber}</span></TableCell>
-                                        <TableCell><div className="flex items-center gap-1"><span className="text-[10px] font-bold text-slate-400 no-print">₹</span><Input type="number" value={item.wholesalePrice} onChange={e => updateItem(item.id, { wholesalePrice: parseFloat(e.target.value) || 0 })} className="w-24 h-8 font-bold no-print" /><span className="hidden print:inline">₹{item.wholesalePrice}</span></div></TableCell>
-                                        <TableCell><div className="flex items-center gap-1"><span className="text-[10px] font-bold text-blue-600 no-print">₹</span><Input type="number" value={item.mrp} onChange={e => updateItem(item.id, { mrp: parseFloat(e.target.value) || 0 })} className="w-24 h-8 font-black text-blue-600 no-print" /><span className="hidden print:inline">₹{item.mrp}</span></div></TableCell>
+                                        <TableCell>
+                                            <Input 
+                                                value={item.supplierName || ''} 
+                                                placeholder="Edit Supplier"
+                                                onChange={e => updateItem(item.id, { supplierName: e.target.value })} 
+                                                className="h-8 text-[10px] font-bold border-transparent hover:border-input focus:border-input bg-transparent no-print" 
+                                            />
+                                            <span className="hidden print:inline">{item.supplierName || 'N/A'}</span>
+                                        </TableCell>
+                                        <TableCell><div className="flex items-center gap-1"><span className="text-[10px] font-bold text-slate-400 no-print">₹</span><Input type="number" value={item.wholesalePrice} onChange={e => updateItem(item.id, { wholesalePrice: parseFloat(e.target.value) || 0 })} className="w-20 h-8 font-bold no-print" /><span className="hidden print:inline">₹{item.wholesalePrice}</span></div></TableCell>
+                                        <TableCell><div className="flex items-center gap-1"><span className="text-[10px] font-bold text-blue-600 no-print">₹</span><Input type="number" value={item.mrp} onChange={e => updateItem(item.id, { mrp: parseFloat(e.target.value) || 0 })} className="w-20 h-8 font-black text-blue-600 no-print" /><span className="hidden print:inline">₹{item.mrp}</span></div></TableCell>
                                         <TableCell><div className="flex items-center gap-3 no-print"><Button variant="ghost" size="icon" className="h-8 w-8 text-slate-300" onClick={() => updateItem(item.id, { quantity: Math.max(0, (item.quantity || 0) - 1) })}><Minus className="h-4 w-4" /></Button><span className="font-black text-xl">{item.quantity || 0}</span><Button variant="ghost" size="icon" className="h-8 w-8 text-slate-300" onClick={() => updateItem(item.id, { quantity: (item.quantity || 0) + 1 })}><Plus className="h-4 w-4" /></Button></div><span className="hidden print:inline">{item.quantity}</span></TableCell>
                                         <TableCell className="text-right pr-8 no-print"><Button variant="ghost" size="icon" className="text-slate-200" onClick={() => deleteDocument('inventory', item.id)}><Trash2 className="h-4 w-4" /></Button></TableCell>
                                     </TableRow>
@@ -358,24 +381,84 @@ export default function SnapStockPartnerDashboard() {
                                     <Badge className="bg-slate-900 text-[10px] font-black italic">Stock: {items.reduce((sum, i) => sum + (i.quantity || 0), 0)}</Badge>
                                 </CardHeader>
                                 <CardContent className="p-4 space-y-3">
-                                    <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                                        <div 
-                                            className={cn("h-full transition-all duration-1000", items.length > 5 ? "bg-red-500" : "bg-blue-500")} 
-                                            style={{ width: `${Math.min(100, (items.length / 10) * 100)}%` }} 
-                                        />
-                                    </div>
                                     {items.slice(0, 3).map(item => (
-                                        <div key={item.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100">
+                                        <div key={item.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100 cursor-pointer" onClick={() => setSelectedProductForStats(item)}>
                                             <div className="relative h-8 w-8 rounded-lg overflow-hidden border"><Image src={item.imageDataUri} fill alt="p" className="object-cover" unoptimized /></div>
                                             <div className="flex-1 min-w-0"><p className="text-[10px] font-black uppercase italic truncate">{item.name}</p><p className="text-[8px] font-bold text-blue-500">₹{item.mrp}</p></div>
                                         </div>
                                     ))}
-                                    {items.length > 3 && <p className="text-center text-[8px] font-black uppercase text-slate-400">+ {items.length - 3} more items</p>}
                                 </CardContent>
                             </Card>
                         ))}
                     </div>
                 )}
+
+                {/* Product Intelligence Modal */}
+                <Dialog open={!!selectedProductForStats} onOpenChange={open => !open && setSelectedProductForStats(null)}>
+                    <DialogContent className="max-w-4xl rounded-[40px] p-0 overflow-hidden border-none bg-white">
+                        <div className="grid grid-cols-1 md:grid-cols-2">
+                            <div className="bg-slate-900 text-white p-10 space-y-8">
+                                {selectedProductForStats && (
+                                    <>
+                                        <div className="flex gap-6 items-center">
+                                            <div className="relative w-24 h-24 rounded-3xl overflow-hidden shadow-2xl border-2 border-white/10"><Image src={selectedProductForStats.imageDataUri} fill alt="p" className="object-cover" unoptimized /></div>
+                                            <div className="space-y-1">
+                                                <h3 className="text-3xl font-black italic uppercase tracking-tighter leading-none">{selectedProductForStats.name}</h3>
+                                                <Badge variant="outline" className="text-blue-400 border-blue-400/30 uppercase text-[9px] font-black">Ref: {selectedProductForStats.id.substring(0,8)}</Badge>
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
+                                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Stock Level</p>
+                                                <p className="text-3xl font-black italic">{selectedProductForStats.quantity}</p>
+                                            </div>
+                                            <div className="p-4 bg-blue-600 rounded-2xl shadow-xl shadow-blue-900/20">
+                                                <p className="text-[10px] font-black text-blue-200 uppercase tracking-widest mb-1">Profit/Unit</p>
+                                                <p className="text-3xl font-black italic">₹{(selectedProductForStats.mrp - selectedProductForStats.wholesalePrice).toFixed(0)}</p>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-4">
+                                            <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Wholesaler Details</Label>
+                                            <div className="space-y-3">
+                                                <div className="relative"><Factory className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" /><Input className="pl-9 h-11 bg-white/5 border-white/10 text-white rounded-xl" value={selectedProductForStats.supplierName || ''} onChange={e => updateItem(selectedProductForStats.id, { supplierName: e.target.value })} placeholder="Source/Supplier Name" /></div>
+                                                <div className="relative"><Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" /><Input className="pl-9 h-11 bg-white/5 border-white/10 text-white rounded-xl" value={selectedProductForStats.supplierContact || ''} onChange={e => updateItem(selectedProductForStats.id, { supplierContact: e.target.value })} placeholder="Supplier Contact" /></div>
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                            <div className="p-10 space-y-8">
+                                <div className="flex items-center justify-between">
+                                    <h4 className="text-xl font-black italic uppercase tracking-tight flex items-center gap-2 text-slate-800"><TrendingUp className="text-blue-600"/> Performance</h4>
+                                    <Badge className="bg-slate-100 text-slate-600 border-none uppercase text-[9px] font-bold">Sales Velocity</Badge>
+                                </div>
+                                <div className="h-64 w-full">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <LineChart data={productStats}>
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                            <XAxis dataKey="name" stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
+                                            <YAxis stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
+                                            <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }} />
+                                            <Line type="monotone" dataKey="sales" stroke="#2563eb" strokeWidth={4} dot={{ r: 4, fill: "#2563eb", strokeWidth: 2, stroke: "#fff" }} activeDot={{ r: 6 }} />
+                                        </LineChart>
+                                    </ResponsiveContainer>
+                                </div>
+                                <div className="space-y-4 pt-4">
+                                    <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-2"><History className="h-4 w-4"/> Stock History</h4>
+                                    <div className="space-y-2">
+                                        {movements.filter(m => m.productId === selectedProductForStats?.id).slice(0, 3).map(m => (
+                                            <div key={m.id} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                                <div><p className="text-[10px] font-black uppercase text-slate-800">{m.type}</p><p className="text-[8px] text-slate-400 font-bold uppercase">{format(parseISO(m.date), 'PP p')}</p></div>
+                                                <p className={cn("font-black italic", m.quantity > 0 ? "text-green-600" : "text-red-600")}>{m.quantity > 0 ? '+' : ''}{m.quantity}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                <DialogClose asChild><Button className="w-full h-14 rounded-2xl font-black uppercase italic tracking-widest">Close Intelligence</Button></DialogClose>
+                            </div>
+                        </div>
+                    </DialogContent>
+                </Dialog>
 
                 {/* BILL INTAKE DIALOG */}
                 <Dialog open={isBillIntakeOpen} onOpenChange={setIsBillIntakeOpen}>
@@ -391,8 +474,7 @@ export default function SnapStockPartnerDashboard() {
 
                 {/* SCANNER DIALOG */}
                 <Dialog open={isScanning} onOpenChange={setIsScanning}>
-                    <DialogContent className="max-w-sm rounded-[32px] p-6 no-print"><DialogHeader><DialogTitle className="text-center uppercase font-black">Mobile Scanner</DialogTitle></DialogHeader><div id="partner-reader" className="w-full aspect-square rounded-2xl overflow-hidden border-2 bg-slate-50" /><DialogFooter><Button variant="outline" className="w-full rounded-xl" onClick={() => setIsScanning(false)}>Cancel</Button></DialogFooter></DialogContent>
-                </Dialog>
+                    <DialogContent className="max-w-sm rounded-[32px] p-6 no-print"><DialogHeader><DialogTitle className="text-center uppercase font-black">Mobile Scanner</DialogTitle></DialogHeader><div id="partner-reader" className="w-full aspect-square rounded-2xl overflow-hidden border-2 bg-slate-50" /><DialogFooter><Button variant="outline" className="w-full rounded-xl" onClick={() => setIsScanning(false)}>Cancel</Button></DialogFooter></Dialog>
 
                 {/* QUICK SALE DIALOG */}
                 <Dialog open={!!selectedSaleItem} onOpenChange={(open) => !open && setSelectedSaleItem(null)}>
