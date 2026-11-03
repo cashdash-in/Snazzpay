@@ -1,3 +1,4 @@
+
 'use client';
 import type {FC, PropsWithChildren} from 'react';
 import {
@@ -254,6 +255,10 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
 
   const {core, growth, config} = getMenuItems();
 
+  const isPartner = role === 'snapstock_partner';
+  const logoText = isPartner ? "Ziptally" : "SnazzPay";
+  const taglineText = isPartner ? "Zip your Stock with AI" : "Admin Central";
+
   return (
     <SidebarProvider>
       <Sidebar>
@@ -263,8 +268,8 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
                 <Zap className="w-6 h-6 text-white fill-current" />
             </div>
             <div className="flex flex-col">
-              <h1 className="text-xl font-black italic tracking-tighter text-sidebar-foreground uppercase leading-none">Ziptally</h1>
-              <span className="text-[7px] font-bold uppercase tracking-widest text-primary">Zip your Stock with AI</span>
+              <h1 className="text-xl font-black italic tracking-tighter text-sidebar-foreground uppercase leading-none">{logoText}</h1>
+              <span className="text-[7px] font-bold uppercase tracking-widest text-primary">{taglineText}</span>
             </div>
           </div>
         </SidebarHeader>
@@ -288,10 +293,10 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
             )})}
           </SidebarMenu>
 
-          {growth.length > 0 && <SidebarSeparator />}
+          {growth && growth.length > 0 && <SidebarSeparator />}
           
           <SidebarMenu>
-            {growth.map((item) => (
+            {growth && growth.map((item) => (
               <SidebarMenuItem key={item.label}>
                 <Link href={item.href}>
                   <SidebarMenuButton
@@ -306,10 +311,10 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
             ))}
           </SidebarMenu>
           
-          {config.length > 0 && <SidebarSeparator />}
+          {config && config.length > 0 && <SidebarSeparator />}
 
           <SidebarMenu>
-             {config.map((item) => (
+             {config && config.map((item) => (
               <SidebarMenuItem key={item.label}>
                 <Link href={item.href}>
                   <SidebarMenuButton
@@ -325,7 +330,6 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter>
-          {/* Footer content if any */}
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
@@ -347,7 +351,7 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                   <Avatar>
-                    <AvatarImage src={user?.photoURL || "https://picsum.photos/seed/avatar/100/100"} alt="User avatar" data-ai-hint="user avatar" />
+                    <AvatarImage src={user?.photoURL || "https://picsum.photos/seed/avatar/100/100"} alt="User avatar" />
                     <AvatarFallback>{user?.email?.[0].toUpperCase()}</AvatarFallback>
                   </Avatar>
                 </Button>
@@ -407,7 +411,6 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
           {children}
         </main>
 
-        {/* Mobile Bottom Nav */}
         {mounted && (
             <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t flex items-center justify-around px-2 z-50">
                 <Link href="/" className={cn("flex flex-col items-center gap-1", pathname === '/' ? "text-primary" : "text-slate-400")}>

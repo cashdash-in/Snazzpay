@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -368,8 +369,8 @@ export default function AdminInventoryPage() {
                                             />
                                             <span className="hidden print:inline">{item.supplierName || 'N/A'}</span>
                                         </TableCell>
-                                        <TableCell><div className="flex items-center gap-1"><span className="text-[10px] font-bold text-slate-400 no-print">₹</span><Input type="number" value={item.wholesalePrice} onChange={e => updateItem(item.id, { wholesalePrice: parseFloat(e.target.value) || 0 })} className="w-20 h-8 font-bold no-print" /><span className="hidden print:inline">₹{item.wholesalePrice}</span></div></TableCell>
-                                        <TableCell><div className="flex items-center gap-1"><span className="text-[10px] font-bold text-primary no-print">₹</span><Input type="number" value={item.mrp} onChange={e => updateItem(item.id, { mrp: parseFloat(e.target.value) || 0 })} className="w-20 h-8 font-black text-primary no-print" /><span className="hidden print:inline">₹{item.mrp}</span></div></TableCell>
+                                        <TableCell><div className="flex items-center gap-1"><span className="text-[10px] font-bold text-slate-400 no-print">₹</span><Input type="number" value={item.wholesalePrice} onChange={e => updateItem(item.id, { wholesalePrice: parseFloat(item.wholesalePrice) || 0 })} className="w-20 h-8 font-bold no-print" /><span className="hidden print:inline">₹{item.wholesalePrice}</span></div></TableCell>
+                                        <TableCell><div className="flex items-center gap-1"><span className="text-[10px] font-bold text-primary no-print">₹</span><Input type="number" value={item.mrp} onChange={e => updateItem(item.id, { mrp: parseFloat(item.mrp) || 0 })} className="w-20 h-8 font-black text-primary no-print" /><span className="hidden print:inline">₹{item.mrp}</span></div></TableCell>
                                         <TableCell>
                                             <div className="flex items-center gap-3 no-print">
                                                 <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500" onClick={() => updateItem(item.id, { quantity: Math.max(0, (item.quantity || 0) - 1) })}><Minus className="h-4 w-4" /></Button>
