@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -374,7 +375,7 @@ export default function WholesaleInquiriesPage() {
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input placeholder="Search magazines..." className="pl-9" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
                         </div>
-                        <Button variant="outline" onClick={handleExportExcel}><FileSpreadsheet className="mr-2 h-4 w-4" /> Export Report</Button>
+                        <Button variant="outline" onClick={handleExportExcel} className="text-[9px] font-black uppercase tracking-tighter"><FileSpreadsheet className="mr-2 h-4 w-4" /> Export Report</Button>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -391,7 +392,7 @@ export default function WholesaleInquiriesPage() {
                                     <Trash2 className="h-4 w-4" />
                                 </Button>
                                 <div className="relative h-48 w-full bg-slate-900">
-                                    <Image src={(inq.items?.[0]?.images?.[0]) || 'https://picsum.photos/seed/mag/400/300'} fill alt="mag" className="object-cover opacity-60" />
+                                    <Image src={(inq.items?.[0]?.images?.[0]) || 'https://picsum.photos/seed/mag/400/300'} fill alt="mag" className="object-cover opacity-60" unoptimized />
                                     <div className="absolute bottom-4 left-4 text-white">
                                         <h4 className="font-black italic text-xl uppercase leading-none">{inq.title}</h4>
                                         <p className="text-[10px] font-bold text-primary-foreground uppercase mt-1">To: {inq.vendorName}</p>
@@ -421,12 +422,12 @@ export default function WholesaleInquiriesPage() {
                                     </div>
                                 </CardContent>
                                 <CardFooter className="p-4 pt-0 gap-2">
-                                    <Button variant="outline" size="sm" className="flex-1 rounded-xl" onClick={() => handleCopyRequestLink(inq.id)}><Copy className="h-3 w-3 mr-2" /> Share</Button>
+                                    <Button variant="outline" size="sm" className="flex-1 rounded-xl text-[9px] font-black uppercase tracking-tighter" onClick={() => handleCopyRequestLink(inq.id)}><Copy className="h-3 w-3 mr-2" /> Share</Button>
                                     <Dialog>
-                                        <DialogTrigger asChild><Button size="sm" className="flex-1 rounded-xl"><Eye className="h-3 w-3 mr-2" /> View Status</Button></DialogTrigger>
+                                        <DialogTrigger asChild><Button size="sm" className="flex-1 rounded-xl text-[9px] font-black uppercase tracking-tighter"><Eye className="h-3 w-3 mr-2" /> View Status</Button></DialogTrigger>
                                         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                                             <DialogHeader>
-                                                <DialogTitle className="text-2xl font-black italic">WHOLESALE MAGAZINE: {inq.title}</DialogTitle>
+                                                <DialogTitle className="text-2xl font-black italic uppercase">Wholesale Magazine: {inq.title}</DialogTitle>
                                             </DialogHeader>
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
                                                 {(inq.items || []).map((item, idx) => (
@@ -438,7 +439,7 @@ export default function WholesaleInquiriesPage() {
                                                         )}
                                                         <CardHeader className="p-3 bg-muted/20">
                                                             <div className="flex justify-between items-center">
-                                                                <CardTitle className="text-sm">{item.category}</CardTitle>
+                                                                <CardTitle className="text-sm font-bold uppercase">{item.category}</CardTitle>
                                                                 <Badge variant={item.status === 'Pending' ? 'secondary' : 'default'} className={cn(
                                                                     item.status === 'Available' && "bg-green-500",
                                                                     item.status === 'Alternate Proposed' && "bg-blue-500"
@@ -448,7 +449,7 @@ export default function WholesaleInquiriesPage() {
                                                         <CardContent className="p-3 space-y-3">
                                                             <div className="flex gap-3">
                                                                 <div className="relative w-[80px] h-[80px] shrink-0 border rounded overflow-hidden">
-                                                                    <Image src={item.images?.[0] || 'https://picsum.photos/seed/placeholder/100/100'} fill alt="p" className="object-cover" />
+                                                                    <Image src={item.images?.[0] || 'https://picsum.photos/seed/placeholder/100/100'} fill alt="p" className="object-cover" unoptimized />
                                                                 </div>
                                                                 <div className="text-xs space-y-1">
                                                                     <p><strong>Qty Req:</strong> {item.quantityRequested}</p>
@@ -457,7 +458,7 @@ export default function WholesaleInquiriesPage() {
                                                                         {item.breadth && <span>B:{item.breadth}</span>}
                                                                         {item.height && <span>H:{item.height}</span>}
                                                                     </div>
-                                                                    <p className="italic text-muted-foreground">"{item.descriptionRequested}"</p>
+                                                                    <p className="italic text-muted-foreground line-clamp-2">"{item.descriptionRequested}"</p>
                                                                 </div>
                                                             </div>
                                                             
@@ -475,7 +476,7 @@ export default function WholesaleInquiriesPage() {
                                                                             <div className="flex gap-3 items-start">
                                                                                 {item.alternateProduct?.imageDataUri && (
                                                                                     <div className="relative w-[100px] h-[100px] shrink-0 border-2 border-white rounded-lg shadow-sm overflow-hidden bg-white">
-                                                                                        <Image src={item.alternateProduct.imageDataUri} fill className="object-contain p-1" alt="alt" />
+                                                                                        <Image src={item.alternateProduct.imageDataUri} fill className="object-contain p-1" alt="alt" unoptimized />
                                                                                     </div>
                                                                                 )}
                                                                                 <div className="space-y-1 flex-1">
@@ -513,7 +514,7 @@ export default function WholesaleInquiriesPage() {
                                                         </CardContent>
                                                         <CardFooter className="p-2 pt-0">
                                                              <Button 
-                                                                className="w-full h-8 text-[10px] uppercase font-black" 
+                                                                className="w-full h-8 text-[9px] uppercase font-black tracking-tighter" 
                                                                 variant={item.isConfirmedByAdmin ? "secondary" : "default"}
                                                                 disabled={item.status === 'Pending' || item.isConfirmedByAdmin}
                                                                 onClick={() => handleConfirmItem(inq, item.id)}

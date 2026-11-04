@@ -3,7 +3,7 @@
 
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/tabs/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
@@ -81,7 +81,7 @@ function DiscountManager() {
                 getCollection<DiscountRule>('discounts'),
             ]);
 
-            const shopifyCollections = collectionsRes.ok ? await collectionsRes.json() : [];
+            const shopifyCollections = collectionsRes.ok ? await collectionsRes.ok : [];
             const shopifyVendors = vendorsRes.ok ? await vendorsRes.json() : [];
             const shopifyProducts = productsRes.ok ? await productsRes.json() : [];
 
