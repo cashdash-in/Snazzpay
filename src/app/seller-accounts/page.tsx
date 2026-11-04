@@ -129,8 +129,8 @@ export default function SellerAccountsPage() {
         <AppShell title="Seller Accounts">
             <Tabs defaultValue="approved">
                 <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto">
-                    <TabsTrigger value="requests" className="text-[10px] font-bold uppercase">Requests <Badge className="ml-1 h-4 min-w-4 p-0 text-[8px]">{sellerRequests.length}</Badge></TabsTrigger>
-                    <TabsTrigger value="approved" className="text-[10px] font-bold uppercase">Active Network</TabsTrigger>
+                    <TabsTrigger value="requests" className="text-[9px] font-black uppercase tracking-tighter px-1">Requests <Badge className="ml-1 h-4 min-w-4 p-0 text-[8px]">{sellerRequests.length}</Badge></TabsTrigger>
+                    <TabsTrigger value="approved" className="text-[9px] font-black uppercase tracking-tighter px-1">Active Network</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="requests" className="mt-4">
@@ -203,4 +203,3 @@ export default function SellerAccountsPage() {
         </AppShell>
     );
 }
-

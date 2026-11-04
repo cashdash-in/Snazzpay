@@ -11,7 +11,7 @@ import {
     ShieldCheck, Loader2, Sparkles,
     ImagePlus, CheckCircle2,
     Lock, FileText, MapPin, 
-    Star, CreditCard
+    Star, CreditCard, RefreshCw
 } from "lucide-react";
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -63,6 +63,7 @@ export default function ZiptallyRegistrationPage() {
     const [selectedPlan, setSelectedPlan] = useState<PlanType>('monthly');
     const [agreedToTerms, setAgreedToTerms] = useState(false);
     const [razorpayKeyId, setRazorpayKeyId] = useState<string | null>(null);
+    const [isKeyLoading, setIsKeyLoading] = useState(true);
     
     const [formData, setFormData] = useState({
         storeName: '',
@@ -74,28 +75,28 @@ export default function ZiptallyRegistrationPage() {
         password: ''
     });
 
+    const fetchKey = async () => {
+        setIsKeyLoading(true);
+        try {
+            const res = await fetch('/api/get-key');
+            const data = await res.json();
+            if (data.keyId) {
+                setRazorpayKeyId(data.keyId);
+            } else if (process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID) {
+                setRazorpayKeyId(process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID);
+            }
+        } catch (e) {
+            console.error("Key fetch error:", e);
+        } finally {
+            setIsKeyLoading(false);
+        }
+    };
+
     useEffect(() => {
         const script = document.createElement('script');
         script.src = 'https://checkout.razorpay.com/v1/checkout.js';
         script.async = true;
         document.body.appendChild(script);
-
-        const fetchKey = async () => {
-            try {
-                const res = await fetch('/api/get-key');
-                const data = await res.json();
-                if (data.keyId) {
-                    setRazorpayKeyId(data.keyId);
-                } else if (process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID) {
-                    setRazorpayKeyId(process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID);
-                }
-            } catch (e) {
-                console.error("Key fetch error:", e);
-                if (process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID) {
-                    setRazorpayKeyId(process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID);
-                }
-            }
-        };
         fetchKey();
     }, []);
 
@@ -116,11 +117,6 @@ export default function ZiptallyRegistrationPage() {
             return;
         }
 
-        if (!formData.storeName || !formData.email || !formData.password || !formData.address) {
-            toast({ variant: 'destructive', title: "Missing Fields", description: "Please fill out all required fields." });
-            return;
-        }
-
         const planDetails = plans.find(p => p.id === selectedPlan);
         if (!planDetails) return;
 
@@ -128,8 +124,8 @@ export default function ZiptallyRegistrationPage() {
             if (!razorpayKeyId) {
                 toast({ 
                     variant: 'destructive', 
-                    title: "Payment Error", 
-                    description: "Payment gateway is not ready. Please check your NEXT_PUBLIC_RAZORPAY_KEY_ID environment variable." 
+                    title: "Gateway Not Ready", 
+                    description: "Click 'Retry Activation' if you have already set the key in Netlify." 
                 });
                 return;
             }
@@ -209,7 +205,7 @@ export default function ZiptallyRegistrationPage() {
                 description: `Success! Your ${plan.name} has been activated.` 
             });
             
-            window.location.href = '/ziptally/login';
+            router.push('/ziptally/login');
         } catch (error) {
             toast({ variant: 'destructive', title: "Database Error" });
             setIsLoading(false);
@@ -238,7 +234,14 @@ export default function ZiptallyRegistrationPage() {
 
                 <form onSubmit={handleSignup} className="space-y-12">
                     <div className="space-y-6">
-                        <h3 className="text-white font-black italic uppercase tracking-[0.2em] text-center text-sm">Select Your Success Plan</h3>
+                        <div className="flex justify-between items-center px-4">
+                            <h3 className="text-white font-black italic uppercase tracking-[0.2em] text-sm">Select Your Plan</h3>
+                            {!razorpayKeyId && !isKeyLoading && (
+                                <Button variant="outline" size="sm" type="button" onClick={fetchKey} className="h-7 text-[9px] font-black uppercase border-blue-500/50 text-blue-400">
+                                    <RefreshCw className="mr-1 h-3 w-3" /> Retry Activation
+                                </Button>
+                            )}
+                        </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             {plans.map((plan) => (
                                 <Card 
@@ -268,11 +271,6 @@ export default function ZiptallyRegistrationPage() {
                                             ))}
                                         </ul>
                                     </CardContent>
-                                    {selectedPlan === plan.id && (
-                                        <div className="bg-white/20 py-3 text-center text-[10px] font-black uppercase tracking-widest">
-                                            Currently Selected
-                                        </div>
-                                    )}
                                 </Card>
                             ))}
                         </div>
@@ -340,7 +338,7 @@ export default function ZiptallyRegistrationPage() {
                     <Card className="rounded-[40px] border-white/5 bg-slate-900/80 p-8 md:p-12 shadow-2xl border">
                         <CardContent className="space-y-8 p-0">
                             <div className="bg-slate-950/50 rounded-[32px] p-8 border border-white/5">
-                                <h4 className="text-white font-black italic uppercase text-xs mb-6 flex items-center gap-2 tracking-widest">
+                                <h4 className="text-white font-black italic uppercase text-xs mb-6 flex items-center gap-2 tracking-widest text-white">
                                     <FileText className="h-5 w-5 text-blue-500"/> Licensing & Usage Terms
                                 </h4>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-[11px] text-slate-200 leading-relaxed font-bold uppercase tracking-wider">
@@ -366,7 +364,7 @@ export default function ZiptallyRegistrationPage() {
                 </form>
 
                 <div className="text-center space-y-6">
-                    <p className="text-slate-200 text-sm font-bold uppercase tracking-widest">
+                    <p className="text-slate-200 text-sm font-bold uppercase tracking-widest text-white">
                         Existing Partner? <Link href="/ziptally/login" className="text-blue-500 hover:text-blue-400 transition-colors underline">Log in to your terminal</Link>
                     </p>
                     <div className="flex items-center justify-center gap-3 text-[10px] font-black text-slate-700 uppercase tracking-[0.3em]">

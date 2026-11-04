@@ -189,9 +189,9 @@ function DiscountManager() {
             <CardContent>
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
                     <TabsList className="grid w-full grid-cols-3">
-                        <TabsTrigger value="collection" className="text-[10px] font-black uppercase">Collection</TabsTrigger>
-                        <TabsTrigger value="vendor" className="text-[10px] font-black uppercase">Vendor</TabsTrigger>
-                        <TabsTrigger value="product" className="text-[10px] font-black uppercase">Product</TabsTrigger>
+                        <TabsTrigger value="collection" className="text-[9px] font-black uppercase tracking-tighter px-1">Collection</TabsTrigger>
+                        <TabsTrigger value="vendor" className="text-[9px] font-black uppercase tracking-tighter px-1">Vendor</TabsTrigger>
+                        <TabsTrigger value="product" className="text-[9px] font-black uppercase tracking-tighter px-1">Product</TabsTrigger>
                     </TabsList>
                     <TabsContent value="collection" className="mt-4 space-y-4">
                         <div className="relative">
@@ -295,7 +295,6 @@ export default function BillingPage() {
     const [sellerUsage, setSellerUsage] = useState<UsageStat[]>([]);
     const [vendorUsage, setVendorUsage] = useState<UsageStat[]>([]);
     const [limitRequests, setLimitRequests] = useState<LimitIncreaseRequest[]>([]);
-    const [history, setHistory] = useState<LimitIncreaseRequest[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     const loadBillingData = useCallback(async () => {
@@ -318,14 +317,13 @@ export default function BillingPage() {
             const sellerData = approvedSellers.map(seller => {
                 const sellerOrders = orders.filter(o => o.sellerId === seller.id && o.paymentStatus === 'Paid');
                 const totalValue = sellerOrders.reduce((sum, o) => sum + parseFloat(o.price || '0'), 0);
-                const commission = totalValue * 0.025;
                 const perms = permissionsMap.get(seller.id);
 
                 return {
                     id: seller.id,
                     name: seller.companyName,
                     totalValue,
-                    commission,
+                    commission: totalValue * 0.025,
                     aiUploads: 0,
                     aiUploadLimit: perms?.aiUploadLimit || 50,
                 };
@@ -334,14 +332,13 @@ export default function BillingPage() {
              const vendorData = approvedVendors.map(vendor => {
                 const vendorOrders = orders.filter(o => o.vendorId === vendor.id && o.paymentStatus === 'Paid');
                 const totalValue = vendorOrders.reduce((sum, o) => sum + parseFloat(o.price || '0'), 0);
-                const commission = totalValue * 0.025;
                 const perms = permissionsMap.get(vendor.id);
                 
                 return {
                     id: vendor.id,
                     name: vendor.name,
                     totalValue,
-                    commission,
+                    commission: totalValue * 0.025,
                     productDrops: 0,
                     productDropLimit: perms?.productDropLimit || 50,
                 };
@@ -361,18 +358,6 @@ export default function BillingPage() {
     useEffect(() => {
         loadBillingData();
     }, [loadBillingData]);
-
-    const handleSave = async (id: string, type: 'seller' | 'vendor') => {
-        const listToUpdate = type === 'seller' ? sellerUsage : vendorUsage;
-        const item = listToUpdate.find(i => i.id === id);
-        if (!item) return;
-        toast({ title: "Data Saved", description: `Billing info for ${item.name} has been updated.` });
-    };
-    
-    const showHistory = (userId: string) => {
-        const userHistory = limitRequests.filter(req => req.userId === userId).sort((a, b) => parseISO(b.requestDate).getTime() - parseISO(a.requestDate).getTime());
-        setHistory(userHistory);
-    };
 
     const handleApproveRequest = async (request: LimitIncreaseRequest) => {
         try {
@@ -395,11 +380,11 @@ export default function BillingPage() {
         <AppShell title="Billing & Usage">
             <Tabs defaultValue="sellers">
                 <TabsList className="grid w-full grid-cols-5 max-w-4xl mx-auto">
-                    <TabsTrigger value="discounts" className="text-[10px] font-black uppercase"><Tag className="mr-1.5 h-3 w-3" /> Rules</TabsTrigger>
-                    <TabsTrigger value="sellers" className="text-[10px] font-black uppercase">Sellers</TabsTrigger>
-                    <TabsTrigger value="vendors" className="text-[10px] font-black uppercase">Vendors</TabsTrigger>
-                    <TabsTrigger value="collaborators" className="text-[10px] font-black uppercase">Partners</TabsTrigger>
-                    <TabsTrigger value="requests" className="text-[10px] font-black uppercase">Limits <Badge className="ml-1 h-4 min-w-4 p-0 text-[8px]">{limitRequests.filter(r=> r.status === 'Pending Approval').length}</Badge></TabsTrigger>
+                    <TabsTrigger value="discounts" className="text-[9px] font-black uppercase tracking-tighter px-1"><Tag className="mr-1 h-3 w-3" /> Rules</TabsTrigger>
+                    <TabsTrigger value="sellers" className="text-[9px] font-black uppercase tracking-tighter px-1">Sellers</TabsTrigger>
+                    <TabsTrigger value="vendors" className="text-[9px] font-black uppercase tracking-tighter px-1">Vendors</TabsTrigger>
+                    <TabsTrigger value="collaborators" className="text-[9px] font-black uppercase tracking-tighter px-1">Partners</TabsTrigger>
+                    <TabsTrigger value="requests" className="text-[9px] font-black uppercase tracking-tighter px-1">Limits <Badge className="ml-1 h-4 min-w-4 p-0 text-[8px]">{limitRequests.filter(r=> r.status === 'Pending Approval').length}</Badge></TabsTrigger>
                 </TabsList>
                 <TabsContent value="discounts" className="mt-4">
                    <DiscountManager />
@@ -426,7 +411,7 @@ export default function BillingPage() {
                                             <TableCell className="text-xs">{seller.aiUploadLimit} Cap</TableCell>
                                             <TableCell className="font-medium">₹{seller.totalValue.toFixed(2)}</TableCell>
                                             <TableCell className="text-right space-x-2">
-                                                <Button size="sm" variant="outline" onClick={() => handleSave(seller.id, 'seller')}><Save className="h-4 w-4" /></Button>
+                                                <Button size="sm" variant="outline" onClick={() => {}}><Save className="h-4 w-4" /></Button>
                                             </TableCell>
                                        </TableRow>
                                    ))}
@@ -454,7 +439,7 @@ export default function BillingPage() {
                                             <TableCell className="font-bold">{v.name}</TableCell>
                                             <TableCell className="text-xs">{v.productDropLimit} Cap</TableCell>
                                             <TableCell className="font-medium">₹{v.totalValue.toFixed(2)}</TableCell>
-                                            <TableCell className="text-right"><Button size="sm" variant="outline" onClick={() => handleSave(v.id, 'vendor')}><Save className="h-4 w-4"/></Button></TableCell>
+                                            <TableCell className="text-right"><Button size="sm" variant="outline" onClick={() => {}}><Save className="h-4 w-4"/></Button></TableCell>
                                         </TableRow>
                                     ))}
                                 </TableBody>
