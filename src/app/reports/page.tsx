@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState } from 'react';
@@ -182,7 +181,7 @@ export default function ReportsPage() {
                                 ))}
                             </SelectContent>
                         </Select>
-                         {isFilterDisabled && <p className="text-xs text-muted-foreground">Status filters are not applicable for this data source.</p>}
+                         {isFilterDisabled && <p className="text-[9px] text-muted-foreground uppercase font-black">Status filters are not applicable for this source.</p>}
                     </div>
 
                     <div className="space-y-2">

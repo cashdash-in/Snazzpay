@@ -229,6 +229,7 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
       case 'collaborator':
         return { core: collaboratorMenuItems, growth: [], config: [] };
       case 'snapstock_partner':
+        // Partners don't see sidebar on their specific dashboard
         return { core: [], growth: [], config: [] };
       default: // Admin view (default if no role found yet or admin role)
         return {
@@ -241,7 +242,8 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
 
   const {core, growth, config} = getMenuItems();
 
-  const isPartner = role === 'snapstock_partner';
+  const isPartnerPage = pathname.startsWith('/ziptally') || pathname.startsWith('/snapstock');
+  const isPartner = role === 'snapstock_partner' && isPartnerPage;
   const logoText = isPartner ? "Ziptally" : "SnazzPay";
   const taglineText = isPartner ? "Zip your Stock with AI" : "Admin Central";
 
@@ -328,7 +330,7 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
             {isPartner && (
                 <div className="flex items-center gap-3">
                     <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg"><Zap className="h-5 w-5 text-white" /></div>
-                    <h2 className="text-xl font-black italic tracking-tighter uppercase">{title}</h2>
+                    <h2 className="text-xl font-black italic uppercase tracking-tighter">{title}</h2>
                 </div>
             )}
             {!isPartner && <h2 className="text-xl font-semibold text-card-foreground">{title}</h2>}

@@ -125,8 +125,9 @@ export default function ZiptallyRegistrationPage() {
                 toast({ 
                     variant: 'destructive', 
                     title: "Gateway Not Ready", 
-                    description: "Click 'Retry Activation' if you have already set the key in Netlify." 
+                    description: "Wait a moment for the payment system to initialize. If this persists, ensure your RAZORPAY_KEY_ID is set in Netlify." 
                 });
+                fetchKey(); // Retry fetching the key
                 return;
             }
             await initiatePaidRegistration(planDetails);
