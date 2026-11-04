@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -166,7 +165,7 @@ export default function ZiptallyLicensesPage() {
                 await deleteDocument('snapstock_partners', pId);
                 toast({ title: "Partner Removed" });
             } else if (action === 'whatsapp-access') {
-                const msg = `Hi ${partner.ownerName}, your Ziptally AI dashboard is ready!\n\nStore: ${partner.storeName}\nLogin: ${partner.email}\nPassword: ${partner.password || 'Contact Admin'}\n\nAccess here: ${window.location.origin}/ziptally/login\n\nZip your Stock with AI! ✨`;
+                const msg = `Hi ${partner.ownerName}, your ZipTally AI dashboard is ready!\n\nStore: ${partner.storeName}\nLogin: ${partner.email}\nPassword: ${partner.password || 'Contact Admin'}\n\nAccess here: ${window.location.origin}/ziptally/login\n\nStock Zip Karo, Aage Bado! ✨`;
                 window.open(`https://wa.me/${sanitizePhoneNumber(partner.phone)}?text=${encodeURIComponent(msg)}`, '_blank');
             } else {
                 let updates: Partial<ZiptallyPartner> = {};
@@ -183,7 +182,7 @@ export default function ZiptallyLicensesPage() {
     };
 
     return (
-        <AppShell title="Ziptally Admin Central">
+        <AppShell title="ZipTally Partner Intelligence">
             <div className="space-y-8">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <Card className="bg-slate-900 text-white border-none shadow-xl">
@@ -192,21 +191,21 @@ export default function ZiptallyLicensesPage() {
                         </CardHeader>
                         <CardContent className="flex justify-between items-end">
                             <div className="text-4xl font-black italic">{stats.totalPartners}</div>
-                            <Users className="h-10 w-10 text-blue-500 opacity-50" />
+                            <Users className="h-10 w-10 text-emerald-500 opacity-50" />
                         </CardContent>
                     </Card>
-                    <Card className="bg-blue-600 text-white border-none shadow-xl">
+                    <Card className="bg-emerald-600 text-white border-none shadow-xl">
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-[10px] font-black uppercase text-blue-100 tracking-widest">Global Snap Usage</CardTitle>
+                            <CardTitle className="text-[10px] font-black uppercase text-emerald-100 tracking-widest">Global Snap Usage</CardTitle>
                         </CardHeader>
                         <CardContent className="flex justify-between items-end">
                             <div className="text-4xl font-black italic">{stats.totalSnaps}</div>
                             <Zap className="h-10 w-10 text-white opacity-30" />
                         </CardContent>
                     </Card>
-                    <Card className="bg-emerald-600 text-white border-none shadow-xl">
+                    <Card className="bg-blue-600 text-white border-none shadow-xl">
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-[10px] font-black uppercase text-emerald-100 tracking-widest">Subscription Revenue</CardTitle>
+                            <CardTitle className="text-[10px] font-black uppercase text-blue-100 tracking-widest">SaaS Revenue</CardTitle>
                         </CardHeader>
                         <CardContent className="flex justify-between items-end">
                             <div className="text-4xl font-black italic">₹{stats.monthlyRevenue.toLocaleString()}</div>
@@ -215,11 +214,11 @@ export default function ZiptallyLicensesPage() {
                     </Card>
                     <Card className="bg-white shadow-lg border-none">
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Most Used Feature</CardTitle>
+                            <CardTitle className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Top AI Feature</CardTitle>
                         </CardHeader>
                         <CardContent className="flex justify-between items-end">
                             <div className="text-xl font-black uppercase italic truncate">{stats.topFeature ? stats.topFeature[0].replace(/([A-Z])/g, ' $1') : 'N/A'}</div>
-                            <MousePointer2 className="h-8 w-8 text-blue-500 opacity-20" />
+                            <MousePointer2 className="h-8 w-8 text-emerald-500 opacity-20" />
                         </CardContent>
                     </Card>
                 </div>
@@ -236,13 +235,13 @@ export default function ZiptallyLicensesPage() {
                             </div>
                             <Dialog>
                                 <DialogTrigger asChild>
-                                    <Button className="rounded-xl h-11 font-bold uppercase italic bg-blue-600 hover:bg-blue-700">
+                                    <Button className="rounded-xl h-11 font-bold uppercase italic bg-emerald-600 hover:bg-emerald-700">
                                         <UserPlus className="mr-2 h-4 w-4"/> New Partner
                                     </Button>
                                 </DialogTrigger>
                                 <DialogContent className="rounded-[32px] max-w-2xl">
                                     <DialogHeader>
-                                        <DialogTitle className="text-2xl font-black italic uppercase text-slate-800">Register Ziptally Partner</DialogTitle>
+                                        <DialogTitle className="text-2xl font-black italic uppercase text-slate-800">Register ZipTally Partner</DialogTitle>
                                     </DialogHeader>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-6">
                                         <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">Store Name</Label><Input value={newPartner.storeName} onChange={e => setNewPartner({...newPartner, storeName: e.target.value})} className="h-12 rounded-xl bg-slate-50" /></div>
@@ -258,14 +257,14 @@ export default function ZiptallyLicensesPage() {
                                         <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">Phone</Label><Input type="tel" value={newPartner.phone} onChange={e => setNewPartner({...newPartner, phone: e.target.value})} className="h-12 rounded-xl bg-slate-50" /></div>
                                         <div className="md:col-span-2 space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">Shop Address</Label><Input value={newPartner.address} onChange={e => setNewPartner({...newPartner, address: e.target.value})} className="h-12 rounded-xl bg-slate-50" /></div>
                                     </div>
-                                    <DialogFooter><DialogClose asChild><Button className="w-full h-14 rounded-2xl font-black uppercase italic text-lg" onClick={handleCreatePartner} disabled={isSaving}>Activate License</Button></DialogClose></DialogFooter>
+                                    <DialogFooter><DialogClose asChild><Button className="w-full h-14 rounded-2xl font-black uppercase italic text-lg bg-emerald-600" onClick={handleCreatePartner} disabled={isSaving}>Activate License</Button></DialogClose></DialogFooter>
                                 </DialogContent>
                             </Dialog>
                         </div>
                     </CardHeader>
                     <CardContent className="p-0">
                         <Table>
-                            <TableHeader><TableRow><TableHead className="pl-8">Store & Owner</TableHead><TableHead>Plan</TableHead><TableHead>Status</TableHead><TableHead>Usage</TableHead><TableHead>Revenue</TableHead><TableHead className="text-right pr-8">Actions</TableHead></TableRow></TableHeader>
+                            <TableHeader><TableRow><TableHead className="pl-8 text-[9px] font-black uppercase">Store & Owner</TableHead><TableHead className="text-[9px] font-black uppercase">Plan</TableHead><TableHead className="text-[9px] font-black uppercase">Status</TableHead><TableHead className="text-[9px] font-black uppercase">Usage</TableHead><TableHead className="text-[9px] font-black uppercase">Revenue</TableHead><TableHead className="text-right pr-8 text-[9px] font-black uppercase">Actions</TableHead></TableRow></TableHeader>
                             <TableBody>
                                 {isLoading ? (
                                     <TableRow><TableCell colSpan={6} className="text-center py-20"><Loader2 className="animate-spin h-8 w-8 mx-auto text-primary" /></TableCell></TableRow>
@@ -276,7 +275,7 @@ export default function ZiptallyLicensesPage() {
                                                 onClick={() => setSelectedPartnerForDetail(p)}
                                                 className="text-left group/btn"
                                             >
-                                                <div className="font-black uppercase italic text-sm group-hover/btn:text-blue-600 transition-colors flex items-center gap-2">
+                                                <div className="font-black uppercase italic text-sm group-hover/btn:text-emerald-600 transition-colors flex items-center gap-2">
                                                     {p.storeName}
                                                     <Info className="h-3 w-3 opacity-0 group-hover/btn:opacity-100" />
                                                 </div>
@@ -289,17 +288,17 @@ export default function ZiptallyLicensesPage() {
                                         <TableCell>
                                             <Badge className={cn("font-black uppercase text-[9px]", p.status === 'Active' ? "bg-green-50 text-green-700" : "bg-blue-50 text-blue-600")}>{p.status}</Badge>
                                         </TableCell>
-                                        <TableCell className="font-mono text-xs font-black text-blue-600">{p.snapUsage || 0} Snaps</TableCell>
-                                        <TableCell className="font-bold text-sm text-green-600">₹{(p.revenueGenerated || 0).toLocaleString()}</TableCell>
+                                        <TableCell className="font-mono text-xs font-black text-emerald-600">{p.snapUsage || 0} Snaps</TableCell>
+                                        <TableCell className="font-bold text-sm text-blue-600">₹{(p.revenueGenerated || 0).toLocaleString()}</TableCell>
                                         <TableCell className="text-right pr-8">
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end" className="w-56 rounded-2xl p-2">
-                                                    <DropdownMenuItem onClick={() => handleAction(p.id, 'whatsapp-access')} className="rounded-xl font-bold uppercase text-[10px] gap-2"><MessageSquare className="h-4 w-4 text-green-500" /> WhatsApp Access</DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => handleAction(p.id, 'activate')} className="rounded-xl font-bold uppercase text-[10px] gap-2"><CheckCircle className="h-4 w-4 text-blue-500" /> Mark Active</DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => handleAction(p.id, 'reset-trial')} className="rounded-xl font-bold uppercase text-[10px] gap-2"><Clock className="h-4 w-4 text-purple-500" /> Reset Trial</DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => handleAction(p.id, 'deactivate')} className="rounded-xl font-bold uppercase text-[10px] gap-2"><Ban className="h-4 w-4 text-amber-500" /> Mark Expired</DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => handleAction(p.id, 'delete')} className="rounded-xl font-bold uppercase text-[10px] gap-2 text-destructive"><Trash2 className="h-4 w-4" /> Delete</DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleAction(p.id, 'whatsapp-access')} className="rounded-xl font-bold uppercase text-[9px] gap-2"><MessageSquare className="h-4 w-4 text-green-500" /> WhatsApp Access</DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleAction(p.id, 'activate')} className="rounded-xl font-bold uppercase text-[9px] gap-2"><CheckCircle className="h-4 w-4 text-emerald-500" /> Mark Active</DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleAction(p.id, 'reset-trial')} className="rounded-xl font-bold uppercase text-[9px] gap-2"><Clock className="h-4 w-4 text-purple-500" /> Reset Trial</DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleAction(p.id, 'deactivate')} className="rounded-xl font-bold uppercase text-[9px] gap-2"><Ban className="h-4 w-4 text-amber-500" /> Mark Expired</DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleAction(p.id, 'delete')} className="rounded-xl font-bold uppercase text-[9px] gap-2 text-destructive"><Trash2 className="h-4 w-4" /> Delete</DropdownMenuItem>
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
                                         </TableCell>
@@ -321,7 +320,7 @@ export default function ZiptallyLicensesPage() {
                             <div className="bg-slate-900 p-8 text-white">
                                 <div className="flex justify-between items-start">
                                     <div className="space-y-1">
-                                        <Badge className="bg-blue-600 mb-2 uppercase text-[9px] font-black italic">Partner Profile</Badge>
+                                        <Badge className="bg-emerald-600 mb-2 uppercase text-[9px] font-black italic">Partner Profile</Badge>
                                         <h3 className="text-3xl font-black italic uppercase tracking-tighter">{selectedPartnerForDetail.storeName}</h3>
                                         <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">{selectedPartnerForDetail.ownerName}</p>
                                     </div>
@@ -338,13 +337,13 @@ export default function ZiptallyLicensesPage() {
                                     <div className="space-y-1">
                                         <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Usage Data</p>
                                         <p className="text-sm font-bold flex items-center gap-2"><Clock className="h-3.5 w-3.5" /> Joined {format(new Date(selectedPartnerForDetail.joinedAt), 'PP')}</p>
-                                        <p className="text-sm font-bold flex items-center gap-2"><Zap className="h-3.5 w-3.5 text-blue-500" /> {selectedPartnerForDetail.snapUsage} Total Snaps</p>
+                                        <p className="text-sm font-bold flex items-center gap-2"><Zap className="h-3.5 w-3.5 text-emerald-500" /> {selectedPartnerForDetail.snapUsage} Total Snaps</p>
                                     </div>
                                 </div>
                                 <div className="space-y-3 pt-6 border-t">
                                     <div className="flex justify-between items-end">
                                         <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Live Business Location</p>
-                                        <Button variant="ghost" size="sm" className="h-7 text-[10px] font-black uppercase text-blue-600 gap-1 hover:bg-blue-50" onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedPartnerForDetail.address)}`, '_blank')}>
+                                        <Button variant="ghost" size="sm" className="h-7 text-[10px] font-black uppercase text-emerald-600 gap-1 hover:bg-emerald-50" onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedPartnerForDetail.address)}`, '_blank')}>
                                             <ExternalLink className="h-3 w-3" /> Map View
                                         </Button>
                                     </div>
@@ -355,7 +354,7 @@ export default function ZiptallyLicensesPage() {
                                 </div>
                             </div>
                             <DialogFooter className="p-6 bg-slate-50 border-t">
-                                <DialogClose asChild><Button className="w-full h-12 rounded-xl font-black uppercase italic">Close Intelligence Profile</Button></DialogClose>
+                                <DialogClose asChild><Button className="w-full h-12 rounded-xl font-black uppercase italic bg-emerald-600 hover:bg-emerald-700 text-white border-none">Close Profile</Button></DialogClose>
                             </DialogFooter>
                         </div>
                     )}

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -125,9 +124,9 @@ export default function ZiptallyRegistrationPage() {
                 toast({ 
                     variant: 'destructive', 
                     title: "Gateway Not Ready", 
-                    description: "Wait a moment for the payment system to initialize. If this persists, ensure your RAZORPAY_KEY_ID is set in Netlify." 
+                    description: "Wait a moment for the payment system to initialize." 
                 });
-                fetchKey(); // Retry fetching the key
+                fetchKey();
                 return;
             }
             await initiatePaidRegistration(planDetails);
@@ -144,7 +143,7 @@ export default function ZiptallyRegistrationPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                     amount: plan.amount, 
-                    productName: `Ziptally ${plan.name} License`,
+                    productName: `ZipTally ${plan.name} License`,
                     name: formData.ownerName,
                     email: formData.email,
                     contact: formData.phone || '9999999999',
@@ -157,7 +156,7 @@ export default function ZiptallyRegistrationPage() {
                 key: razorpayKeyId,
                 amount: plan.amount * 100,
                 currency: "INR",
-                name: "Ziptally AI",
+                name: "ZipTally AI",
                 description: `${plan.name} License Fee`,
                 order_id: result.order_id,
                 handler: async (paymentResponse: any) => {
@@ -168,7 +167,7 @@ export default function ZiptallyRegistrationPage() {
                     email: formData.email,
                     contact: formData.phone
                 },
-                theme: { color: "#3b82f6" },
+                theme: { color: "#064e3b" },
                 modal: { ondismiss: () => setIsLoading(false) }
             };
             const rzp = new (window as any).Razorpay(options);
@@ -202,7 +201,7 @@ export default function ZiptallyRegistrationPage() {
             await saveDocument('snapstock_partners', partnerData, id);
             
             toast({ 
-                title: "Welcome to Ziptally!", 
+                title: "Welcome to ZipTally!", 
                 description: `Success! Your ${plan.name} has been activated.` 
             });
             
@@ -216,20 +215,20 @@ export default function ZiptallyRegistrationPage() {
     return (
         <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 py-20 relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-full opacity-20 pointer-events-none">
-                <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-blue-600 rounded-full blur-[150px]"></div>
-                <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-indigo-600 rounded-full blur-[150px]"></div>
+                <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-emerald-600 rounded-full blur-[150px]"></div>
+                <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-blue-600 rounded-full blur-[150px]"></div>
             </div>
 
             <div className="w-full max-w-5xl relative z-10 space-y-12 text-white">
                 <div className="text-center space-y-4">
-                    <div className="w-24 h-24 bg-blue-600 rounded-[32px] flex items-center justify-center mx-auto shadow-2xl rotate-3 mb-8">
+                    <div className="w-24 h-24 bg-emerald-600 rounded-[32px] flex items-center justify-center mx-auto shadow-2xl rotate-3 mb-8">
                         <Zap className="h-12 w-12 text-white fill-current" />
                     </div>
                     <h1 className="text-4xl md:text-7xl font-black italic uppercase tracking-tighter text-white">
-                        Ziptally <span className="text-blue-500">AI</span>
+                        ZipTally <span className="text-blue-500">AI</span>
                     </h1>
-                    <p className="text-blue-400 text-lg md:text-2xl font-black uppercase tracking-[0.2em] italic">
-                        Zip your Stock with AI
+                    <p className="text-emerald-400 text-lg md:text-2xl font-black uppercase tracking-[0.2em] italic">
+                        Stock Zip Karo, Aage Bado!
                     </p>
                 </div>
 
@@ -281,14 +280,14 @@ export default function ZiptallyRegistrationPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2">
                             <div className="p-8 md:p-12 space-y-6">
                                 <h3 className="text-white font-black italic uppercase tracking-widest text-sm flex items-center gap-2 border-b border-white/5 pb-4">
-                                    <Store className="h-4 w-4 text-blue-500"/> Shop Identity
+                                    <Store className="h-4 w-4 text-emerald-500"/> Shop Identity
                                 </h3>
                                 <div className="space-y-4">
                                     <div className="space-y-2">
                                         <Label className="text-[10px] font-black uppercase text-slate-200 tracking-widest ml-1">Store Name</Label>
                                         <div className="relative">
                                             <Store className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-                                            <Input required placeholder="e.g. Metro Electronics" className="h-12 bg-white/5 border-white/10 rounded-2xl text-white pl-9 font-bold" value={formData.storeName} onChange={e => setFormData({...formData, storeName: e.target.value})} />
+                                            <Input required placeholder="e.g. Metro Grocery" className="h-12 bg-white/5 border-white/10 rounded-2xl text-white pl-9 font-bold" value={formData.storeName} onChange={e => setFormData({...formData, storeName: e.target.value})} />
                                         </div>
                                     </div>
                                     <div className="space-y-2">
@@ -313,7 +312,7 @@ export default function ZiptallyRegistrationPage() {
 
                             <div className="bg-white/5 p-8 md:p-12 space-y-6 border-l border-white/5">
                                 <h3 className="text-white font-black italic uppercase tracking-widest text-sm flex items-center gap-2 border-b border-white/5 pb-4">
-                                    <User className="h-4 w-4 text-indigo-400"/> Manager Access
+                                    <User className="h-4 w-4 text-blue-400"/> Manager Access
                                 </h3>
                                 <div className="space-y-4">
                                     <div className="space-y-2">
@@ -340,23 +339,23 @@ export default function ZiptallyRegistrationPage() {
                         <CardContent className="space-y-8 p-0">
                             <div className="bg-slate-950/50 rounded-[32px] p-8 border border-white/5">
                                 <h4 className="text-white font-black italic uppercase text-xs mb-6 flex items-center gap-2 tracking-widest text-white">
-                                    <FileText className="h-5 w-5 text-blue-500"/> Licensing & Usage Terms
+                                    <FileText className="h-5 w-5 text-emerald-500"/> Licensing & Usage Terms
                                 </h4>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-[11px] text-slate-200 leading-relaxed font-bold uppercase tracking-wider">
-                                    <p className="flex gap-3"><span className="text-blue-500">01</span> Data remains 100% your property.</p>
-                                    <p className="flex gap-3"><span className="text-blue-500">02</span> AI Snaps are non-refundable.</p>
-                                    <p className="flex gap-3"><span className="text-blue-500">03</span> No long-term contracts. Cancel anytime.</p>
-                                    <p className="flex gap-3"><span className="text-blue-500">04</span> Multi-user access is plan-dependent.</p>
+                                    <p className="flex gap-3"><span className="text-emerald-500">01</span> Data remains 100% your property.</p>
+                                    <p className="flex gap-3"><span className="text-emerald-500">02</span> AI Snaps are non-refundable.</p>
+                                    <p className="flex gap-3"><span className="text-emerald-500">03</span> Simple. Smart. Brighter Tomorrow.</p>
+                                    <p className="flex gap-3"><span className="text-emerald-500">04</span> Professional SaaS Platform.</p>
                                 </div>
-                                <div className="flex items-center space-x-4 mt-10 p-5 bg-blue-600/10 rounded-[24px] border border-blue-500/30 group hover:bg-blue-600/20 transition-all cursor-pointer">
+                                <div className="flex items-center space-x-4 mt-10 p-5 bg-emerald-600/10 rounded-[24px] border border-emerald-500/30 group hover:bg-emerald-600/20 transition-all cursor-pointer">
                                     <Checkbox id="usage-terms" checked={agreedToTerms} onCheckedChange={(val) => setAgreedToTerms(val as boolean)} className="h-6 w-6 border-white/50" />
                                     <Label htmlFor="usage-terms" className="text-xs font-black uppercase italic text-white cursor-pointer select-none">
-                                        I Agree to the Ziptally AI SaaS License & Usage Policy
+                                        I Agree to the ZipTally AI SaaS License & Usage Policy
                                     </Label>
                                 </div>
                             </div>
 
-                            <Button type="submit" className="w-full h-20 text-2xl font-black uppercase italic rounded-[32px] bg-blue-600 hover:bg-blue-500 shadow-2xl shadow-blue-900/40 transform hover:scale-[1.02] transition-all" disabled={isLoading}>
+                            <Button type="submit" className="w-full h-20 text-2xl font-black uppercase italic rounded-[32px] bg-emerald-600 hover:bg-emerald-700 shadow-2xl shadow-emerald-900/40 transform hover:scale-[1.02] transition-all" disabled={isLoading}>
                                 {isLoading ? <Loader2 className="animate-spin mr-3 h-8 w-8" /> : (selectedPlan === 'trial' ? <Zap className="mr-3 h-8 w-8" /> : <CreditCard className="mr-3 h-8 w-8" />)}
                                 {selectedPlan === 'trial' ? 'Start Free Trial' : `Pay & Activate ${plans.find(p=>p.id === selectedPlan)?.name}`}
                             </Button>
@@ -366,10 +365,10 @@ export default function ZiptallyRegistrationPage() {
 
                 <div className="text-center space-y-6">
                     <p className="text-slate-200 text-sm font-bold uppercase tracking-widest text-white">
-                        Existing Partner? <Link href="/ziptally/login" className="text-blue-500 hover:text-blue-400 transition-colors underline">Log in to your terminal</Link>
+                        Existing Partner? <Link href="/ziptally/login" className="text-emerald-500 hover:text-emerald-400 transition-colors underline">Log in to your terminal</Link>
                     </p>
                     <div className="flex items-center justify-center gap-3 text-[10px] font-black text-slate-700 uppercase tracking-[0.3em]">
-                        <ShieldCheck className="h-3 w-3 text-blue-500" /> Secure Licensing powered by Ziptally AI
+                        <ShieldCheck className="h-3 w-3 text-emerald-500" /> Licensed by ZipTally AI
                     </div>
                 </div>
             </div>

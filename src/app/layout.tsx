@@ -6,18 +6,18 @@ import { Providers } from './providers';
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata: Metadata = {
-  title: 'SnazStock AI - Secure COD',
-  description: 'Secure Cash on Delivery with SnazStock AI Intelligence',
+  title: 'ZipTally AI - Smart Stock',
+  description: 'Stock Zip Karo, Aage Bado! Smart Stock Management Powered by AI Intelligence.',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'SnazStock AI',
+    title: 'ZipTally AI',
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: '#5a31f4',
+  themeColor: '#064e3b',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,

@@ -1,4 +1,3 @@
-
 'use client';
 import type {FC, PropsWithChildren} from 'react';
 import {
@@ -88,8 +87,8 @@ type MenuItem = {
 
 const adminCoreMenuItems: MenuItem[] = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/admin/inventory', label: 'Ziptally AI', icon: Zap },
-  { href: '/admin/snapstock-licenses', label: 'Ziptally Partners', icon: Gem },
+  { href: '/admin/inventory', label: 'ZipTally AI', icon: Zap },
+  { href: '/admin/snapstock-licenses', label: 'ZipTally Partners', icon: Gem },
   { href: '/admin/wholesale-inquiries', label: 'Wholesale Requests', icon: ShoppingBasket, notificationKey: 'wholesale' },
   { href: '/mandates', label: 'Mandates', icon: WalletCards },
   { href: '/orders', label: 'Orders', icon: ShoppingCart, notificationKey: 'orders' as const },
@@ -219,7 +218,7 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
   const getMenuItems = () => {
     if (!mounted) return { core: [], growth: [], config: [] };
 
-    // Source of Truth is the Pathname
+    // Path-based role switching is more robust for multi-window
     if (pathname.startsWith('/seller')) return { core: sellerMenuItems, growth: [], config: [] };
     if (pathname.startsWith('/vendor')) return { core: vendorMenuItems, growth: [], config: [] };
     if (pathname.startsWith('/collaborator')) return { core: collaboratorMenuItems, growth: [], config: [] };
@@ -249,8 +248,8 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
                     <Zap className="w-6 h-6 text-white fill-current" />
                 </div>
                 <div className="flex flex-col">
-                <h1 className="text-xl font-black italic tracking-tighter text-sidebar-foreground uppercase leading-none">SnazzPay</h1>
-                <span className="text-[7px] font-bold uppercase tracking-widest text-primary">Admin Central</span>
+                <h1 className="text-xl font-black italic tracking-tighter text-sidebar-foreground uppercase leading-none">ZipTally AI</h1>
+                <span className="text-[7px] font-bold uppercase tracking-widest text-primary">Smart Stock. Stronger Business.</span>
                 </div>
             </div>
             </SidebarHeader>
