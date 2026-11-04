@@ -1,4 +1,3 @@
-
 'use client';
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -81,7 +80,7 @@ function DiscountManager() {
                 getCollection<DiscountRule>('discounts'),
             ]);
 
-            const shopifyCollections = collectionsRes.ok ? await collectionsRes.ok : [];
+            const shopifyCollections = collectionsRes.ok ? await collectionsRes.json() : [];
             const shopifyVendors = vendorsRes.ok ? await vendorsRes.json() : [];
             const shopifyProducts = productsRes.ok ? await productsRes.json() : [];
 
@@ -216,12 +215,12 @@ export default function BillingPage() {
     return (
         <AppShell title="Billing & Usage">
             <Tabs defaultValue="sellers">
-                <TabsList className="grid w-full grid-cols-5 max-w-4xl mx-auto">
-                    <TabsTrigger value="discounts" className="text-[9px] font-black uppercase tracking-tighter px-1"><Tag className="mr-1 h-3 w-3" /> Rules</TabsTrigger>
-                    <TabsTrigger value="sellers" className="text-[9px] font-black uppercase tracking-tighter px-1">Sellers</TabsTrigger>
-                    <TabsTrigger value="vendors" className="text-[9px] font-black uppercase tracking-tighter px-1">Vendors</TabsTrigger>
-                    <TabsTrigger value="collaborators" className="text-[9px] font-black uppercase tracking-tighter px-1">Partners</TabsTrigger>
-                    <TabsTrigger value="requests" className="text-[9px] font-black uppercase tracking-tighter px-1">Limits</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-5 max-w-4xl mx-auto bg-muted p-1">
+                    <TabsTrigger value="discounts" className="text-[9px] font-black uppercase tracking-tighter px-2 h-8"><Tag className="mr-1 h-3 w-3" /> Rules</TabsTrigger>
+                    <TabsTrigger value="sellers" className="text-[9px] font-black uppercase tracking-tighter px-2 h-8">Sellers</TabsTrigger>
+                    <TabsTrigger value="vendors" className="text-[9px] font-black uppercase tracking-tighter px-2 h-8">Vendors</TabsTrigger>
+                    <TabsTrigger value="collaborators" className="text-[9px] font-black uppercase tracking-tighter px-2 h-8">Partners</TabsTrigger>
+                    <TabsTrigger value="requests" className="text-[9px] font-black uppercase tracking-tighter px-2 h-8">Limits</TabsTrigger>
                 </TabsList>
                 <TabsContent value="discounts"><DiscountManager /></TabsContent>
                 <TabsContent value="sellers"><Card><CardContent className="py-20 text-center">Seller billing data will appear here.</CardContent></Card></TabsContent>
