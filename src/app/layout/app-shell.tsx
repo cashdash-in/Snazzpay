@@ -71,7 +71,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { getCookie } from 'cookies-next';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { getCollection } from '@/services/firestore';
 import type { EditableOrder } from '@/types/order';
@@ -215,28 +215,53 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
 
   }, [pathname, user]);
 
-  const getMenuItems = () => {
-    if (!mounted) return { core: [], growth: [], config: [] };
-
-    // Path-based role switching is more robust for multi-window
+  const { core, growth, config } = useMemo(() => {
     if (pathname.startsWith('/seller')) return { core: sellerMenuItems, growth: [], config: [] };
     if (pathname.startsWith('/vendor')) return { core: vendorMenuItems, growth: [], config: [] };
     if (pathname.startsWith('/collaborator')) return { core: collaboratorMenuItems, growth: [], config: [] };
     if (pathname.startsWith('/ziptally') || pathname.startsWith('/snapstock')) return { core: [], growth: [], config: [] };
 
-    // Default to Admin
     return {
         core: adminCoreMenuItems,
         growth: adminGrowthMenuItems,
         config: adminConfigMenuItems
     };
-  }
+  }, [pathname]);
 
-  const {core, growth, config} = getMenuItems();
+  const mobileNavLinks = useMemo(() => {
+      if (pathname.startsWith('/seller')) return [
+        { href: '/seller/dashboard', label: 'Home', icon: LayoutDashboard },
+        { href: '/seller/products', label: 'Stock', icon: Zap },
+        { href: '/seller/ai-product-uploader', label: 'AI Tools', icon: Sparkles, isAction: true },
+        { href: '/seller/orders', label: 'Orders', icon: ShoppingCart },
+        { href: '/seller/settings', label: 'Settings', icon: Settings },
+      ];
+      if (pathname.startsWith('/vendor')) return [
+        { href: '/vendor/dashboard', label: 'Home', icon: LayoutDashboard },
+        { href: '/vendor/products', label: 'Drops', icon: PackagePlus },
+        { href: '/vendor/ai-product-uploader', label: 'AI Tools', icon: Sparkles, isAction: true },
+        { href: '/vendor/orders', label: 'Retail', icon: ShoppingCart },
+        { href: '/vendor/settings', label: 'Settings', icon: Settings },
+      ];
+      if (pathname.startsWith('/collaborator')) return [
+        { href: '/collaborator/dashboard', label: 'Home', icon: LayoutDashboard },
+        { href: '/collaborator/magazines', label: 'Library', icon: BookOpen },
+        { href: '/collaborator/orders', label: 'Push', icon: Send },
+        { href: '/collaborator/commissions', label: 'Wallet', icon: DollarSign },
+        { href: '/collaborator/reports', label: 'Report', icon: FileSpreadsheet },
+      ];
+      
+      return [
+        { href: '/', label: 'Home', icon: LayoutDashboard },
+        { href: '/admin/inventory', label: 'AI Stock', icon: Zap },
+        { href: '/ai-product-uploader', label: 'AI Tools', icon: Sparkles, isAction: true },
+        { href: '/orders', label: 'Orders', icon: ShoppingCart },
+        { href: '/settings', label: 'Settings', icon: Settings },
+      ];
+  }, [pathname]);
 
   const isPartnerPage = pathname.startsWith('/ziptally') || pathname.startsWith('/snapstock');
-  const role = getCookie('userRole');
-  const isPartner = role === 'snapstock_partner' && isPartnerPage;
+  const userRole = getCookie('userRole');
 
   return (
     <SidebarProvider>
@@ -373,28 +398,35 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
         </main>
 
         {mounted && !isPartnerPage && (
-            <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t flex items-center justify-around px-2 z-50">
-                <Link href="/" className={cn("flex flex-col items-center gap-1", pathname === '/' ? "text-primary" : "text-slate-400")}>
-                    <LayoutDashboard className="h-5 w-5" />
-                    <span className="text-[10px] font-black uppercase tracking-tighter">Home</span>
-                </Link>
-                <Link href="/admin/inventory" className={cn("flex flex-col items-center gap-1", pathname === '/admin/inventory' ? "text-primary" : "text-slate-400")}>
-                    <Zap className="h-5 w-5" />
-                    <span className="text-[10px] font-black uppercase tracking-tighter">Stock</span>
-                </Link>
-                <div className="relative -top-6">
-                    <Button className="h-14 w-14 rounded-full shadow-2xl shadow-primary/40 border-4 border-white" onClick={() => router.push('/ai-product-uploader')}>
-                        <Sparkles className="h-6 w-6" />
-                    </Button>
-                </div>
-                <Link href="/orders" className={cn("flex flex-col items-center gap-1", pathname === '/orders' ? "text-primary" : "text-slate-400")}>
-                    <ShoppingCart className="h-5 w-5" />
-                    <span className="text-[10px] font-black uppercase tracking-tighter">Orders</span>
-                </Link>
-                <Link href="/settings" className={cn("flex flex-col items-center gap-1", pathname === '/settings' ? "text-primary" : "text-slate-400")}>
-                    <Settings className="h-5 w-5" />
-                    <span className="text-[10px] font-black uppercase tracking-tighter">Settings</span>
-                </Link>
+            <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t flex items-center justify-around px-2 z-50 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
+                {mobileNavLinks.map((link) => {
+                    const Icon = link.icon;
+                    if (link.isAction) {
+                        return (
+                            <div key={link.label} className="relative -top-6">
+                                <Button 
+                                    className="h-14 w-14 rounded-full shadow-2xl shadow-primary/40 border-4 border-white bg-primary" 
+                                    onClick={() => router.push(link.href)}
+                                >
+                                    <Icon className="h-6 w-6 text-white" />
+                                </Button>
+                            </div>
+                        );
+                    }
+                    return (
+                        <Link 
+                            key={link.label} 
+                            href={link.href} 
+                            className={cn(
+                                "flex flex-col items-center gap-1 min-w-[60px]", 
+                                pathname === link.href ? "text-primary" : "text-slate-400"
+                            )}
+                        >
+                            <Icon className="h-5 w-5" />
+                            <span className="text-[10px] font-black uppercase tracking-tighter">{link.label}</span>
+                        </Link>
+                    );
+                })}
             </div>
         )}
 

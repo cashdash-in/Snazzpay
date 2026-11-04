@@ -360,6 +360,11 @@ export default function ZiptallyRegistrationPage() {
                                 {selectedPlan === 'trial' ? 'Start Free Trial' : `Pay & Activate ${plans.find(p=>p.id === selectedPlan)?.name}`}
                             </Button>
                         </CardContent>
+                        <CardFooter className="justify-center pt-6">
+                            <div className="flex items-center gap-2 text-[9px] font-black text-slate-600 uppercase tracking-[0.2em]">
+                                <ShieldCheck className="h-3 w-3 text-emerald-500" /> Powered by Snazzify Star Intelligence
+                            </div>
+                        </CardFooter>
                     </Card>
                 </form>
 
