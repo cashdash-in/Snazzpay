@@ -191,6 +191,13 @@ export default function AdminInventoryPage() {
             const uri = await resizeImage(file);
             const detections = await detectItemsInPhoto(uri, 'intake');
             
+            if (!detections || detections.length === 0) {
+                toast({ variant: 'destructive', title: "No Items Identified" });
+                setIsAnalyzing(false);
+                return;
+            }
+
+            // 1. Merge duplicates in the AI response (Batch Grouping)
             const mergedBatch = new Map<string, any>();
             for (const d of detections) {
                 const name = d.productName.trim().toLowerCase();
@@ -201,6 +208,7 @@ export default function AdminInventoryPage() {
                 }
             }
 
+            // 2. Process the merged list against existing inventory
             for (const [name, d] of mergedBatch.entries()) {
                 const existing = inventory.find(i => (i.name || '').toLowerCase().trim() === name);
                 
@@ -219,7 +227,7 @@ export default function AdminInventoryPage() {
                     await saveDocument('inventory', newItem, id);
                 }
             }
-            toast({ title: "Bulk Intake Processed" });
+            toast({ title: "Inventory Synced!", description: `Processed ${mergedBatch.size} unique products.` });
         } catch (e) {
             toast({ variant: 'destructive', title: "Intake Failed" });
         } finally {

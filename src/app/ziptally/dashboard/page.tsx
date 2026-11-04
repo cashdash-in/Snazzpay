@@ -175,16 +175,41 @@ export default function ZiptallyPartnerDashboard() {
         try {
             const uri = await resizeImage(file);
             const detections = await detectItemsInPhoto(uri, 'intake');
+            
+            if (!detections || detections.length === 0) {
+                toast({ variant: 'destructive', title: "No Items Identified" });
+                setIsAnalyzing(false);
+                return;
+            }
+
+            // 1. Merge duplicates in the AI response (Batch Grouping)
+            const mergedBatch = new Map<string, any>();
             for (const d of detections) {
-                const id = uuidv4();
-                const newItem = {
-                    id, storeId: partnerId, name: d.productName, quantity: d.count, mrp: 0, wholesalePrice: 0,
-                    category: d.category || 'General', shelfNumber: 'A1', imageDataUri: uri, lastUpdated: new Date().toISOString()
-                };
-                await saveDocument('inventory', newItem, id);
+                const name = d.productName.trim().toLowerCase();
+                if (mergedBatch.has(name)) {
+                    mergedBatch.get(name).count += d.count;
+                } else {
+                    mergedBatch.set(name, { ...d });
+                }
+            }
+
+            // 2. Process the merged list against existing inventory
+            for (const [name, d] of mergedBatch.entries()) {
+                const existing = inventory.find(i => (i.name || '').toLowerCase().trim() === name);
+                
+                if (existing) {
+                    await updateItem(existing.id, { quantity: existing.quantity + d.count });
+                } else {
+                    const id = uuidv4();
+                    const newItem = {
+                        id, storeId: partnerId, name: d.productName, quantity: d.count, mrp: 0, wholesalePrice: 0,
+                        category: d.category || 'General', shelfNumber: 'A1', imageDataUri: uri, lastUpdated: new Date().toISOString()
+                    };
+                    await saveDocument('inventory', newItem, id);
+                }
             }
             await trackUsage('bulkSnap');
-            toast({ title: "Bulk Intake Processed" });
+            toast({ title: "Inventory Synced!", description: `Processed ${mergedBatch.size} unique products.` });
         } catch (e) {
             toast({ variant: 'destructive', title: "Intake Failed" });
         } finally {
@@ -350,7 +375,7 @@ export default function ZiptallyPartnerDashboard() {
                                         <div className="flex items-center gap-4">
                                             <div className="relative w-12 h-12 rounded-xl overflow-hidden border cursor-pointer group/img" onClick={() => { setUpdatingImageId(item.id); imageUpdateRef.current?.click(); }}>
                                                 <Image src={item.imageDataUri} fill alt="p" className="object-cover" unoptimized />
-                                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/20 transition-opacity"><ImagePlus className="h-4 w-4 text-white" /></div>
+                                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/opacity-100 bg-black/20 transition-opacity"><ImagePlus className="h-4 w-4 text-white" /></div>
                                             </div>
                                             <div className="flex flex-col gap-1">
                                                 <div className="flex items-center gap-2">
@@ -518,4 +543,3 @@ export default function ZiptallyPartnerDashboard() {
         </div>
     );
 }
-
