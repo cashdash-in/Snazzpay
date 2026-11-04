@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { AppShell } from '@/components/layout/app-shell';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -54,6 +55,12 @@ export default function AdminInventoryPage() {
 
     const [updatingImageId, setUpdatingImageId] = useState<string | null>(null);
     const [selectedProductForStats, setSelectedProductForStats] = useState<InventoryItem | null>(null);
+
+    // File Input Refs for Mobile Interaction Stability
+    const bulkSnapRef = useRef<HTMLInputElement>(null);
+    const imageUpdateRef = useRef<HTMLInputElement>(null);
+    const billInputRef = useRef<HTMLInputElement>(null);
+    const prodInputRef = useRef<HTMLInputElement>(null);
 
     const filteredInventory = useMemo(() => {
         return inventory.filter(i => 
@@ -295,13 +302,13 @@ export default function AdminInventoryPage() {
     };
 
     return (
-        <AppShell title="Ziptally Dashboard">
+        <AppShell title="ZipTally Dashboard">
             <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-6 gap-4 no-print">
                     <Button onClick={() => setIsScanning(true)} size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-blue-600 hover:bg-blue-500">
                         <Scan className="h-8 w-8" /><span className="font-bold uppercase text-xs">Scan to Sell</span>
                     </Button>
-                    <Button onClick={() => document.getElementById('admin-bulk-input')?.click()} variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-white border-2 border-dashed border-blue-200 text-blue-600" disabled={isAnalyzing}>
+                    <Button onClick={() => bulkSnapRef.current?.click()} variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-white border-2 border-dashed border-blue-200 text-blue-600" disabled={isAnalyzing}>
                         {isAnalyzing ? <Loader2 className="animate-spin h-8 w-8" /> : <Layers className="h-8 w-8" />}
                         <span className="font-bold uppercase text-xs">Bulk Snap</span>
                     </Button>
@@ -360,7 +367,7 @@ export default function AdminInventoryPage() {
                                             <div className="flex items-center gap-3">
                                                 <div 
                                                     className="relative w-10 h-10 rounded-xl overflow-hidden border bg-slate-50 cursor-pointer group/img"
-                                                    onClick={() => { setUpdatingImageId(item.id); document.getElementById('image-update-input')?.click(); }}
+                                                    onClick={() => { setUpdatingImageId(item.id); imageUpdateRef.current?.click(); }}
                                                 >
                                                     <Image src={item.imageDataUri} fill alt="p" className="object-cover group-hover/img:opacity-50 transition-opacity" unoptimized />
                                                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity"><ImagePlus className="h-4 w-4 text-primary" /></div>
@@ -434,17 +441,17 @@ export default function AdminInventoryPage() {
                         <div className="grid grid-cols-2 gap-6 py-6">
                             <div className="space-y-2">
                                 <Label className="text-[10px] font-black uppercase text-slate-400">Supplier Bill</Label>
-                                <div className="relative aspect-[3/4] border-2 border-dashed rounded-2xl flex flex-col items-center justify-center bg-slate-50 cursor-pointer overflow-hidden" onClick={() => document.getElementById('bill-admin')?.click()}>
+                                <div className="relative aspect-[3/4] border-2 border-dashed rounded-2xl flex flex-col items-center justify-center bg-slate-50 cursor-pointer overflow-hidden" onClick={() => billInputRef.current?.click()}>
                                     {billPhoto ? <Image src={billPhoto} fill className="object-cover" alt="bill" /> : <><FileText className="h-8 w-8 text-slate-300" /><span className="text-[8px] font-bold uppercase mt-2">Upload Bill</span></>}
                                 </div>
-                                <input type="file" id="bill-admin" accept="image/*" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if(f) setBillPhoto(await resizeImage(f)); }} />
+                                <input ref={billInputRef} type="file" accept="image/*" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if(f) setBillPhoto(await resizeImage(f)); }} />
                             </div>
                             <div className="space-y-2">
                                 <Label className="text-[10px] font-black uppercase text-slate-400">Group Photo</Label>
-                                <div className="relative aspect-[3/4] border-2 border-dashed rounded-2xl flex flex-col items-center justify-center bg-slate-50 cursor-pointer overflow-hidden" onClick={() => document.getElementById('prod-admin')?.click()}>
+                                <div className="relative aspect-[3/4] border-2 border-dashed rounded-2xl flex flex-col items-center justify-center bg-slate-50 cursor-pointer overflow-hidden" onClick={() => prodInputRef.current?.click()}>
                                     {productPhoto ? <Image src={productPhoto} fill className="object-cover" alt="prod" /> : <><Camera className="h-8 w-8 text-slate-300" /><span className="text-[8px] font-bold uppercase mt-2">Upload Group</span></>}
                                 </div>
-                                <input type="file" id="prod-admin" accept="image/*" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if(f) setProductPhoto(await resizeImage(f)); }} />
+                                <input ref={prodInputRef} type="file" accept="image/*" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if(f) setProductPhoto(await resizeImage(f)); }} />
                             </div>
                         </div>
                         <DialogFooter><Button className="w-full h-14 rounded-2xl font-black uppercase italic bg-primary" onClick={handleProcessBill} disabled={isProcessingBill || !billPhoto || !productPhoto}>{isProcessingBill ? <Loader2 className="animate-spin mr-2" /> : <Sparkles className="mr-2" />} Process Admin Intake</Button></DialogFooter>
@@ -545,8 +552,8 @@ export default function AdminInventoryPage() {
                 </Dialog>
             </div>
             
-            <input type="file" id="admin-bulk-input" accept="image/*" className="hidden" onChange={handleBulkIntake} />
-            <input type="file" id="image-update-input" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if(f && updatingImageId) resizeImage(f).then(uri => updateItem(updatingImageId, { imageDataUri: uri })); }} />
+            <input ref={bulkSnapRef} type="file" accept="image/*" className="hidden" onChange={handleBulkIntake} />
+            <input ref={imageUpdateRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if(f && updatingImageId) resizeImage(f).then(uri => updateItem(updatingImageId, { imageDataUri: uri })); }} />
 
             <style jsx global>{`
                 @media print {

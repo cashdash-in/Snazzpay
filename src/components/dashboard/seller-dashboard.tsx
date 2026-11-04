@@ -1,17 +1,19 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
-import { DollarSign, ShoppingCart, Activity, Star, Factory, Sparkles, PackagePlus, Coins, Loader2, MessageSquare } from "lucide-react";
+import { 
+    DollarSign, ShoppingCart, Activity, Star, Factory, Sparkles, 
+    PackagePlus, Coins, Loader2, MessageSquare, Scan, Layers, FileUp, ShieldCheck 
+} from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { getDocument, getCollection, saveDocument, createChat } from "@/services/firestore";
 import type { SellerUser } from "@/app/seller-accounts/page";
 import type { SellerProduct } from "@/app/seller/ai-product-uploader/page";
 import type { EditableOrder } from "@/app/orders/page";
-import { getCookie } from "cookies-next";
 import { useToast } from "@/hooks/use-toast";
 import { v4 as uuidv4 } from 'uuid';
 import { useRouter } from "next/navigation";
@@ -34,6 +36,10 @@ export function SellerDashboard() {
     const [razorpayKeyId, setRazorpayKeyId] = useState<string | null>(null);
     const [isToppingUp, setIsToppingUp] = useState(false);
     const [loading, setLoading] = useState(true);
+    
+    // File Input Refs for Mobile Interaction Stability
+    const bulkSnapRef = useRef<HTMLInputElement>(null);
+    const billAiRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         async function loadSellerInfo() {
@@ -144,85 +150,103 @@ export function SellerDashboard() {
         }
     };
 
-
     return (
         <div className="grid gap-8">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Welcome, <span className="font-bold">{sellerInfo?.companyName || 'Seller'}</span>!</CardTitle>
-                    <CardDescription className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
-                        <div>
-                        {sellerInfo?.vendorName ? (
-                            <span className="flex items-center gap-2">
-                                <Factory className="h-4 w-4" />
-                                Your approved vendor is <span className="font-bold">{sellerInfo.vendorName}</span>
-                            </span>
-                        ) : (
-                            "This is your dedicated dashboard. From here you can manage your products, view your orders, and track your performance."
-                        )}
+            <Card className="border-none shadow-sm bg-white overflow-hidden rounded-[32px]">
+                <CardHeader className="bg-slate-50 border-b">
+                    <CardTitle className="text-xl font-black italic uppercase">Welcome, {sellerInfo?.companyName || 'Store Owner'}</CardTitle>
+                    <CardDescription className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+                        <div className="flex items-center gap-2 font-bold text-slate-500 uppercase text-[10px]">
+                            <Factory className="h-3 w-3" /> Supply Partner: {sellerInfo?.vendorName || 'Direct'}
                         </div>
-                         <Button variant="outline" onClick={handleChatWithAdmin} className="mt-2 sm:mt-0">
+                        <Button variant="outline" size="sm" onClick={handleChatWithAdmin} className="rounded-xl h-10 border-2 font-bold uppercase text-[10px]">
                             <MessageSquare className="mr-2 h-4 w-4" /> Chat with Admin
                         </Button>
                     </CardDescription>
                 </CardHeader>
+                <CardContent className="p-8">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <Card className="rounded-[24px] bg-emerald-600 text-white border-none p-6 flex flex-col gap-2 transform active:scale-95 transition-all cursor-pointer" onClick={() => router.push('/seller/ai-product-uploader')}>
+                            <Scan className="h-8 w-8 opacity-40" />
+                            <p className="text-[10px] font-black uppercase tracking-widest text-emerald-100">Quick Sell</p>
+                            <h4 className="text-xl font-black italic uppercase">Scan to Sell</h4>
+                        </Card>
+                        <Card className="rounded-[24px] bg-blue-600 text-white border-none p-6 flex flex-col gap-2 transform active:scale-95 transition-all cursor-pointer" onClick={() => bulkSnapRef.current?.click()}>
+                            <Layers className="h-8 w-8 opacity-40" />
+                            <p className="text-[10px] font-black uppercase tracking-widest text-blue-100">Intake</p>
+                            <h4 className="text-xl font-black italic uppercase">Bulk Snap</h4>
+                        </Card>
+                        <Card className="rounded-[24px] bg-indigo-600 text-white border-none p-6 flex flex-col gap-2 transform active:scale-95 transition-all cursor-pointer" onClick={() => billAiRef.current?.click()}>
+                            <FileUp className="h-8 w-8 opacity-40" />
+                            <p className="text-[10px] font-black uppercase tracking-widest text-indigo-100">Logistics</p>
+                            <h4 className="text-xl font-black italic uppercase">Bill AI</h4>
+                        </Card>
+                        <Card className="rounded-[24px] bg-purple-600 text-white border-none p-6 flex flex-col gap-2 transform active:scale-95 transition-all cursor-pointer" onClick={() => router.push('/seller/products')}>
+                            <ShieldCheck className="h-8 w-8 opacity-40" />
+                            <p className="text-[10px] font-black uppercase tracking-widest text-purple-100">Inventory</p>
+                            <h4 className="text-xl font-black italic uppercase">Shelf Audit</h4>
+                        </Card>
+                    </div>
+                    
+                    <input ref={bulkSnapRef} type="file" className="hidden" accept="image/*" multiple onChange={() => toast({ title: "Processing Intake..." })} />
+                    <input ref={billAiRef} type="file" className="hidden" accept="image/*" onChange={() => toast({ title: "Analyzing Bill..." })} />
+                </CardContent>
             </Card>
 
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                 <Card>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                 <Card className="rounded-[28px] shadow-sm border-none bg-white">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-                        <DollarSign className="h-4 w-4 text-muted-foreground" />
+                        <CardTitle className="text-[10px] font-black uppercase tracking-widest text-slate-400">Total Revenue</CardTitle>
+                        <DollarSign className="h-4 w-4 text-emerald-500" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">₹{stats.totalRevenue.toFixed(2)}</div>
-                        <p className="text-xs text-muted-foreground">From all completed sales.</p>
+                        <div className="text-3xl font-black italic">₹{stats.totalRevenue.toLocaleString()}</div>
+                        <p className="text-[10px] text-muted-foreground font-bold uppercase mt-1">Life-time Earnings</p>
                     </CardContent>
                 </Card>
-                 <Card>
+                 <Card className="rounded-[28px] shadow-sm border-none bg-white">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
-                        <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+                        <CardTitle className="text-[10px] font-black uppercase tracking-widest text-slate-400">Active Orders</CardTitle>
+                        <ShoppingCart className="h-4 w-4 text-blue-500" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{stats.totalOrders}</div>
-                         <p className="text-xs text-muted-foreground">Number of successful orders.</p>
+                        <div className="text-3xl font-black italic">{stats.totalOrders}</div>
+                         <p className="text-[10px] text-muted-foreground font-bold uppercase mt-1">Paid Transactions</p>
                     </CardContent>
                 </Card>
-                <Card>
+                <Card className="rounded-[28px] shadow-sm border-none bg-white">
                     <CardHeader className="flex flex-row items-center justify-between">
                         <div className="space-y-1">
-                            <CardTitle className="text-lg flex items-center gap-2"><Sparkles /> AI Uploader</CardTitle>
-                            <CardDescription>Generate product listings using AI.</CardDescription>
+                            <CardTitle className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">AI Snap Credit</CardTitle>
+                            <CardDescription className="text-[9px] uppercase font-bold">Generative Power</CardDescription>
                         </div>
                         <div className="text-right">
-                            <p className="text-2xl font-bold">{loading ? <Loader2 className="h-6 w-6 animate-spin" /> : `${usage.aiUploads} / ${limits.aiUploadLimit}`}</p>
-                            <p className="text-xs text-muted-foreground">Generations Used</p>
+                            <p className="text-2xl font-black italic">{loading ? <Loader2 className="h-6 w-6 animate-spin" /> : `${usage.aiUploads} / ${limits.aiUploadLimit}`}</p>
                         </div>
                     </CardHeader>
                     <CardFooter>
                          <Dialog>
                             <DialogTrigger asChild>
-                                <Button variant="secondary" className="w-full">Request Limit Increase</Button>
+                                <Button variant="secondary" className="w-full rounded-xl h-10 font-bold uppercase text-[10px]">Request Limit Increase</Button>
                             </DialogTrigger>
-                             <DialogContent>
+                             <DialogContent className="rounded-[32px]">
                                 <DialogHeader>
-                                    <DialogTitle>Increase AI Uploader Limit</DialogTitle>
-                                    <DialogDescription>Purchase more AI generation credits. Your new limit will be active after admin approval.</DialogDescription>
+                                    <DialogTitle className="text-xl font-black italic uppercase">Increase AI Power</DialogTitle>
+                                    <DialogDescription>Purchase more AI generation credits to keep your stock moving.</DialogDescription>
                                 </DialogHeader>
                                 <div className="py-4 space-y-4">
                                     {limitIncreaseOptions.map(opt => (
-                                        <Card key={opt.label}>
-                                            <CardContent className="p-4 flex justify-between items-center">
-                                                <p className="font-bold text-lg">{opt.label}</p>
-                                                <Button onClick={() => handleRequestLimitIncrease(opt)} disabled={isToppingUp}>
+                                        <Card key={opt.label} className="rounded-2xl border-2 border-slate-100 hover:border-primary transition-all">
+                                            <CardContent className="p-5 flex justify-between items-center">
+                                                <p className="font-black italic uppercase text-sm">{opt.label}</p>
+                                                <Button onClick={() => handleRequestLimitIncrease(opt)} disabled={isToppingUp} className="rounded-xl h-10 px-6 font-bold">
                                                     {isToppingUp ? <Loader2 className="h-4 w-4 animate-spin"/> : `Pay ₹${opt.cost}`}
                                                 </Button>
                                             </CardContent>
                                         </Card>
                                     ))}
                                 </div>
-                                <DialogFooter><DialogClose asChild><Button id="close-limit-dialog" variant="outline">Close</Button></DialogClose></DialogFooter>
+                                <DialogFooter><DialogClose asChild><Button id="close-limit-dialog" variant="outline" className="rounded-xl">Close</Button></DialogClose></DialogFooter>
                             </DialogContent>
                         </Dialog>
                     </CardFooter>
@@ -231,3 +255,4 @@ export function SellerDashboard() {
         </div>
     );
 }
+

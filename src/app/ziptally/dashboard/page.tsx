@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -59,6 +60,12 @@ export default function ZiptallyPartnerDashboard() {
     const [updatingImageId, setUpdatingImageId] = useState<string | null>(null);
     const [selectedProductForStats, setSelectedProductForStats] = useState<InventoryItem | null>(null);
     
+    // File Input Refs for Mobile Stability
+    const bulkSnapRef = useRef<HTMLInputElement>(null);
+    const imageUpdateRef = useRef<HTMLInputElement>(null);
+    const billUploadRef = useRef<HTMLInputElement>(null);
+    const productUploadRef = useRef<HTMLInputElement>(null);
+
     // Reporting States
     const [reportRange, setReportRange] = useState<DateRange | undefined>();
     const [isExporting, setIsExporting] = useState(false);
@@ -269,7 +276,7 @@ export default function ZiptallyPartnerDashboard() {
 
             <div className="grid grid-cols-1 md:grid-cols-6 gap-4 no-print">
                 <Button onClick={() => setIsScanning(true)} size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-emerald-600 hover:bg-emerald-500 transition-all active:scale-95"><Scan className="h-8 w-8" /><span className="font-bold uppercase text-xs">Scan to Sell</span></Button>
-                <Button onClick={() => document.getElementById('partner-bulk-snap')?.click()} variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-white border-2 border-dashed border-emerald-200 text-emerald-600 transition-all active:scale-95" disabled={isAnalyzing}>{isAnalyzing ? <Loader2 className="animate-spin h-8 w-8" /> : <Layers className="h-8 w-8" />}<span className="font-bold uppercase text-xs">Bulk Snap</span></Button>
+                <Button onClick={() => bulkSnapRef.current?.click()} variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-white border-2 border-dashed border-emerald-200 text-emerald-600 transition-all active:scale-95" disabled={isAnalyzing}>{isAnalyzing ? <Loader2 className="animate-spin h-8 w-8" /> : <Layers className="h-8 w-8" />}<span className="font-bold uppercase text-xs">Bulk Snap</span></Button>
                 <Button onClick={() => setIsBillIntakeOpen(true)} variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-white border-2 border-dashed border-blue-200 text-blue-600 transition-all active:scale-95"><FileUp className="h-8 w-8" /><span className="font-bold uppercase text-xs">Bill AI</span></Button>
                 <Button onClick={() => router.push('/ziptally/audit')} variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-white border-2 border-dashed border-purple-200 text-purple-600 transition-all active:scale-95">
                     <ShieldCheck className="h-8 w-8" /><span className="font-bold uppercase text-xs">Shelf Audit</span>
@@ -341,7 +348,7 @@ export default function ZiptallyPartnerDashboard() {
                                 <TableRow key={item.id} className="group hover:bg-slate-50">
                                     <TableCell className="pl-8 py-4">
                                         <div className="flex items-center gap-4">
-                                            <div className="relative w-12 h-12 rounded-xl overflow-hidden border cursor-pointer group/img" onClick={() => { setUpdatingImageId(item.id); document.getElementById('partner-image-update')?.click(); }}>
+                                            <div className="relative w-12 h-12 rounded-xl overflow-hidden border cursor-pointer group/img" onClick={() => { setUpdatingImageId(item.id); imageUpdateRef.current?.click(); }}>
                                                 <Image src={item.imageDataUri} fill alt="p" className="object-cover" unoptimized />
                                                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/20 transition-opacity"><ImagePlus className="h-4 w-4 text-white" /></div>
                                             </div>
@@ -384,9 +391,131 @@ export default function ZiptallyPartnerDashboard() {
                     ))}
                 </div>
             )}
-            
-            <input type="file" id="partner-bulk-snap" accept="image/*" className="hidden" onChange={handleBulkIntake} />
-            <input type="file" id="partner-image-update" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if(f && updatingImageId) resizeImage(f).then(uri => updateItem(updatingImageId, { imageDataUri: uri })); }} />
+
+            {/* MODALS */}
+            <Dialog open={isBillIntakeOpen} onOpenChange={setIsBillIntakeOpen}>
+                <DialogContent className="max-w-2xl rounded-[32px] p-8 border-none no-print">
+                    <DialogHeader><DialogTitle className="text-2xl font-black italic uppercase text-slate-800">AI Bill Intake</DialogTitle><DialogDescription>Upload your supplier bill and the GROUP PHOTO to sync wholesale costs.</DialogDescription></DialogHeader>
+                    <div className="grid grid-cols-2 gap-6 py-6">
+                        <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase text-slate-400">1. Supplier Bill</Label>
+                            <div className="relative aspect-[3/4] border-2 border-dashed rounded-2xl flex flex-col items-center justify-center bg-slate-50 cursor-pointer overflow-hidden" onClick={() => billUploadRef.current?.click()}>
+                                {billPhoto ? <Image src={billPhoto} fill className="object-cover" alt="bill" /> : <><FileText className="h-8 w-8 text-slate-300" /><span className="text-[8px] font-bold uppercase mt-2">Upload Bill</span></>}
+                            </div>
+                            <input ref={billUploadRef} type="file" accept="image/*" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if(f) setBillPhoto(await resizeImage(f)); }} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase text-slate-400">2. Product GROUP PHOTO</Label>
+                            <div className="relative aspect-[3/4] border-2 border-dashed rounded-2xl flex flex-col items-center justify-center bg-slate-50 cursor-pointer overflow-hidden" onClick={() => productUploadRef.current?.click()}>
+                                {productPhoto ? <Image src={productPhoto} fill className="object-cover" alt="prod" /> : <><Camera className="h-8 w-8 text-slate-300" /><span className="text-[8px] font-bold uppercase mt-2">Upload Group</span></>}
+                            </div>
+                            <input ref={productUploadRef} type="file" accept="image/*" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if(f) setProductPhoto(await resizeImage(f)); }} />
+                        </div>
+                    </div>
+                    <DialogFooter><Button className="w-full h-14 rounded-2xl font-black uppercase italic bg-blue-600" onClick={handleProcessBill} disabled={isProcessingBill || !billPhoto || !productPhoto}>{isProcessingBill ? <Loader2 className="animate-spin mr-2" /> : <Sparkles className="mr-2" />} Match & Merge to Stock</Button></DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={!!selectedProductForStats} onOpenChange={open => !open && setSelectedProductForStats(null)}>
+                <DialogContent className="max-w-4xl rounded-[40px] p-0 overflow-hidden border-none bg-white">
+                    <div className="grid grid-cols-1 md:grid-cols-2">
+                        <div className="bg-slate-900 text-white p-10 space-y-8">
+                            {selectedProductForStats && (
+                                <>
+                                    <div className="flex gap-6 items-center">
+                                        <div className="relative w-24 h-24 rounded-3xl overflow-hidden shadow-2xl border-2 border-white/10"><Image src={selectedProductForStats.imageDataUri} fill alt="p" className="object-cover" unoptimized /></div>
+                                        <div className="space-y-1">
+                                            <h3 className="text-3xl font-black italic uppercase tracking-tighter leading-none">{selectedProductForStats.name}</h3>
+                                            <Badge variant="outline" className="text-blue-400 border-blue-400/30 uppercase text-[9px] font-black">Ref: {selectedProductForStats.id.substring(0,8)}</Badge>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
+                                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Stock Level</p>
+                                            <p className="text-3xl font-black italic">{selectedProductForStats.quantity}</p>
+                                        </div>
+                                        <div className="p-4 bg-blue-600 rounded-2xl shadow-xl shadow-blue-900/20">
+                                            <p className="text-[10px] font-black text-blue-200 uppercase tracking-widest mb-1">Profit/Unit</p>
+                                            <p className="text-3xl font-black italic">₹{(selectedProductForStats.mrp - selectedProductForStats.wholesalePrice).toFixed(0)}</p>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-4">
+                                        <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Wholesaler Details</Label>
+                                        <div className="space-y-3">
+                                            <div className="relative"><Factory className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" /><Input className="pl-9 h-11 bg-white/5 border-white/10 text-white rounded-xl" value={selectedProductForStats.supplierName || ''} onChange={e => updateItem(selectedProductForStats.id, { supplierName: e.target.value })} placeholder="Source/Supplier Name" /></div>
+                                            <div className="relative"><Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" /><Input className="pl-9 h-11 bg-white/5 border-white/10 text-white rounded-xl" value={selectedProductForStats.supplierContact || ''} onChange={e => updateItem(selectedProductForStats.id, { supplierContact: e.target.value })} placeholder="Supplier Contact" /></div>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                        <div className="p-10 space-y-8">
+                            <div className="flex items-center justify-between">
+                                <h4 className="text-xl font-black italic uppercase tracking-tight flex items-center gap-2 text-slate-800"><TrendingUp className="text-blue-600"/> Performance</h4>
+                                <Badge className="bg-slate-100 text-slate-600 border-none uppercase text-[9px] font-bold">Sales Velocity</Badge>
+                            </div>
+                            <div className="h-64 w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <LineChart data={productStats}>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                        <XAxis dataKey="name" stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
+                                        <YAxis stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
+                                        <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }} />
+                                        <Line type="monotone" dataKey="sales" stroke="#2563eb" strokeWidth={4} dot={{ r: 4, fill: "#2563eb", strokeWidth: 2, stroke: "#fff" }} activeDot={{ r: 6 }} />
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            </div>
+                            <div className="space-y-4 pt-4">
+                                <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-2"><History className="h-4 w-4"/> Stock History</h4>
+                                <div className="space-y-2">
+                                    {movements.filter(m => m.productId === selectedProductForStats?.id).slice(0, 3).map(m => (
+                                        <div key={m.id} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                            <div><p className="text-[10px] font-black uppercase text-slate-800">{m.type}</p><p className="text-[8px] text-slate-400 font-bold uppercase">{format(parseISO(m.date), 'PPP p')}</p></div>
+                                            <p className={cn("font-black italic", m.quantity > 0 ? "text-green-600" : "text-red-600")}>{m.quantity > 0 ? '+' : ''}{m.quantity}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            <DialogClose asChild><Button className="w-full h-14 rounded-2xl font-black uppercase italic tracking-widest mt-4">Close Intelligence</Button></DialogClose>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={isScanning} onOpenChange={setIsScanning}>
+                <DialogContent className="max-w-sm rounded-[32px] p-6 no-print">
+                    <DialogHeader><DialogTitle className="text-center uppercase font-black">Mobile Scanner</DialogTitle></DialogHeader>
+                    <div id="partner-reader" className="w-full aspect-square rounded-2xl overflow-hidden border-2 bg-slate-50" />
+                    <DialogFooter><Button variant="outline" className="w-full rounded-xl" onClick={() => setIsScanning(false)}>Cancel</Button></DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={!!selectedSaleItem} onOpenChange={(open) => !open && setSelectedSaleItem(null)}>
+                <DialogContent className="max-md rounded-[32px] p-8 no-print">
+                    <DialogHeader><DialogTitle className="text-2xl font-black italic uppercase">Confirm Sale</DialogTitle></DialogHeader>
+                    {selectedSaleItem && (
+                        <div className="space-y-6 pt-4">
+                            <div className="flex gap-4 p-4 bg-slate-50 rounded-2xl"><div className="relative h-16 w-16 rounded-xl overflow-hidden border bg-white"><Image src={selectedSaleItem.imageDataUri} fill alt="p" className="object-cover" unoptimized /></div><div><p className="font-black italic uppercase text-slate-800">{selectedSaleItem.name}</p><p className="text-xs text-blue-600 font-bold">Available: {selectedSaleItem.quantity}</p></div></div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">Qty</Label><Input type="number" className="h-12 rounded-xl font-bold" value={saleQty} onChange={e => setSaleQty(Number(e.target.value))} /></div>
+                                <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">Price (₹)</Label><Input type="number" className="h-12 rounded-xl font-bold" value={actualSellPrice} onChange={e => setSalePrice(Number(e.target.value))} /></div>
+                            </div>
+                            <Button className="w-full h-14 rounded-2xl font-black uppercase italic text-lg bg-emerald-600" onClick={async () => { await updateItem(selectedSaleItem.id, { quantity: (selectedSaleItem.quantity || 0) - saleQty }); setSelectedSaleItem(null); toast({ title: "Sale Recorded" }); }}>Confirm Transaction</Button>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
+
+            <input ref={bulkSnapRef} type="file" accept="image/*" className="hidden" onChange={handleBulkIntake} />
+            <input ref={imageUpdateRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if(f && updatingImageId) resizeImage(f).then(uri => updateItem(updatingImageId, { imageDataUri: uri })); }} />
+
+            <style jsx global>{`
+                @media print {
+                  .no-print { display: none !important; }
+                  body { background: white !important; }
+                }
+            `}</style>
         </div>
     );
 }
+
