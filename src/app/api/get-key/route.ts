@@ -5,8 +5,8 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
   try {
-    // Check both common naming conventions
-    const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID;
+    // Priority: Server-side environment variables then Publicly exposed ones
+    const keyId = process.env.RAZORPAY_KEY_ID || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
     
     if (!keyId) {
       console.warn("[Razorpay Warning]: RAZORPAY_KEY_ID is missing from server environment variables.");
@@ -14,7 +14,7 @@ export async function GET(request: Request) {
         keyId: null,
         error: "Gateway configuration missing",
         diagnostics: "Ensure RAZORPAY_KEY_ID is set in your Netlify/Vercel dashboard and trigger a new deploy."
-      }, { status: 200 }); // Return 200 so the client can handle the error state gracefully
+      }, { status: 200 }); 
     }
     
     return NextResponse.json({ keyId });

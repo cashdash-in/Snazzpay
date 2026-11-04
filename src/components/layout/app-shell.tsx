@@ -229,8 +229,8 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
       case 'collaborator':
         return { core: collaboratorMenuItems, growth: [], config: [] };
       case 'snapstock_partner':
-        return { core: [], growth: [], config: [] }; // No sidebar for shopkeepers
-      default: // Admin view
+        return { core: [], growth: [], config: [] };
+      default: // Admin view (default if no role found yet or admin role)
         return {
             core: adminCoreMenuItems,
             growth: adminGrowthMenuItems,
@@ -316,8 +316,6 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
                 ))}
             </SidebarMenu>
             </SidebarContent>
-            <SidebarFooter>
-            </SidebarFooter>
         </Sidebar>
       )}
       <SidebarInset>
