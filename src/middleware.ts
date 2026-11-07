@@ -15,7 +15,7 @@ export function middleware(request: NextRequest) {
   }
 
   const publicPaths = [
-    '/',
+    '/', // ZipTally AI Public Landing Page
     '/auth/login',
     '/auth/signup',
     '/auth/forgot-password', 
@@ -37,7 +37,7 @@ export function middleware(request: NextRequest) {
     '/catalogue',
     '/smart-magazine',
     '/magic-mirror/widget',
-    '/ziptally', // Public landing page
+    '/ziptally', // Also allow /ziptally for legacy redirects
     '/ziptally/login',
     '/ziptally/register',
   ];
