@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -8,7 +7,7 @@ import {
     ArrowRight, Sparkles, BarChart3, 
     Camera, Layers, Mic, FileUp, 
     Smartphone, Globe, TrendingUp,
-    Clock, Star, Package
+    Clock, Star, Package, X
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -98,9 +97,9 @@ export default function ZiptallyLandingPage() {
             <section className="relative pt-20 pb-32 overflow-hidden bg-slate-50">
                 <div className="max-w-7xl mx-auto px-4 text-center relative z-10">
                     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-10 duration-700">
-                        <Badge className="bg-emerald-100 text-emerald-700 border-none px-4 py-1.5 font-black uppercase text-[10px] tracking-[0.2em] italic mb-4">
+                        <div className="inline-flex items-center rounded-full px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] italic bg-emerald-100 text-emerald-700 mb-4">
                              Smart Stock. Stronger Business.
-                        </Badge>
+                        </div>
                         <h1 className="text-5xl md:text-8xl font-black tracking-tighter text-slate-950 leading-[0.85] uppercase italic">
                             Stock Zip Karo, <br/> <span className="text-emerald-600">Aage Bado!</span>
                         </h1>
@@ -199,7 +198,7 @@ export default function ZiptallyLandingPage() {
                                     <h3 className="font-black italic uppercase text-lg text-slate-400">{p.name}</h3>
                                     <div className="flex items-baseline gap-1">
                                         <span className="text-6xl font-black italic tracking-tighter">{p.price}</span>
-                                        <span className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">{p.period}</span>
+                                        {p.period && <span className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">{p.period}</span>}
                                     </div>
                                     <p className="text-xs text-slate-500 font-medium">{p.description}</p>
                                 </div>

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -125,7 +124,7 @@ export default function ZiptallyRegistrationPage() {
                 toast({ 
                     variant: 'destructive', 
                     title: "Gateway Not Ready", 
-                    description: "Wait a moment for the payment system to initialize." 
+                    description: "Wait a moment for the payment system to initialize. If this persists, ensure RAZORPAY_KEY_ID is set in Netlify." 
                 });
                 fetchKey();
                 return;
@@ -260,7 +259,7 @@ export default function ZiptallyRegistrationPage() {
                                             {plan.id === 'monthly' && <Zap className="h-6 w-6 text-white" />}
                                             {plan.id === 'annual' && <Star className="h-6 w-6 text-white fill-current" />}
                                         </div>
-                                        <CardTitle className="text-base font-black uppercase italic tracking-widest">{plan.name}</CardTitle>
+                                        <CardTitle className="text-base font-black italic uppercase italic tracking-widest">{plan.name}</CardTitle>
                                         <p className="text-5xl font-black italic tracking-tighter">{plan.price}</p>
                                     </CardHeader>
                                     <CardContent className="flex-1 p-8 pt-0">
@@ -374,7 +373,7 @@ export default function ZiptallyRegistrationPage() {
                         Already registered? <Link href="/ziptally/login" className="text-emerald-500 hover:text-emerald-400 transition-colors underline italic">Go to Dashboard</Link>
                     </p>
                     <div className="flex items-center justify-center gap-3 text-[10px] font-black text-slate-700 uppercase tracking-[0.3em]">
-                        <ShieldCheck className="h-3 w-3 text-emerald-500" /> Licensed by ZipTally AI
+                        <ShieldCheck className="h-4 w-4 text-emerald-500" /> Licensed by ZipTally AI
                     </div>
                 </div>
             </div>

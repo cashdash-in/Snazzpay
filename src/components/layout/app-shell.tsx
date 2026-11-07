@@ -1,4 +1,3 @@
-
 'use client';
 import type {FC, PropsWithChildren} from 'react';
 import {
@@ -72,7 +71,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { getCookie } from 'cookies-next';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { getCollection } from '@/services/firestore';
 import type { EditableOrder } from '@/types/order';
@@ -88,8 +87,8 @@ type MenuItem = {
 
 const adminCoreMenuItems: MenuItem[] = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/admin/inventory', label: 'Ziptally AI', icon: Zap },
-  { href: '/admin/snapstock-licenses', label: 'Ziptally Partners', icon: Gem },
+  { href: '/admin/inventory', label: 'ZipTally AI', icon: Zap },
+  { href: '/admin/snapstock-licenses', label: 'ZipTally Partners', icon: Gem },
   { href: '/admin/wholesale-inquiries', label: 'Wholesale Requests', icon: ShoppingBasket, notificationKey: 'wholesale' },
   { href: '/mandates', label: 'Mandates', icon: WalletCards },
   { href: '/orders', label: 'Orders', icon: ShoppingCart, notificationKey: 'orders' as const },
@@ -171,12 +170,10 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
   const { user, signOut } = useAuth();
   
   const [mounted, setMounted] = useState(false);
-  const [role, setRole] = useState<string | undefined>(undefined);
   const [notificationCounts, setNotificationCounts] = useState({ orders: 0, leads: 0, wholesale: 0 });
 
   useEffect(() => {
     setMounted(true);
-    setRole(getCookie('userRole') as string);
     
     const fetchCounts = async () => {
         if (!user) return;
@@ -212,44 +209,67 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
     };
 
     fetchCounts();
-    const interval = setInterval(fetchCounts, 30000); // Refresh every 30 seconds
+    const interval = setInterval(fetchCounts, 30000);
 
     return () => clearInterval(interval);
 
   }, [pathname, user]);
 
-  const getMenuItems = () => {
+  const { core, growth, config } = useMemo(() => {
+    // If not mounted yet, show nothing
     if (!mounted) return { core: [], growth: [], config: [] };
 
-    switch (role) {
-      case 'seller':
-        return { core: sellerMenuItems, growth: [], config: [] };
-      case 'vendor':
-        return { core: vendorMenuItems, growth: [], config: [] };
-      case 'collaborator':
-        return { core: collaboratorMenuItems, growth: [], config: [] };
-      case 'snapstock_partner':
-        // Partners don't see sidebar on their specific dashboard
-        return { core: [], growth: [], config: [] };
-      default: // Admin view (default if no role found yet or admin role)
-        return {
-            core: adminCoreMenuItems,
-            growth: adminGrowthMenuItems,
-            config: adminConfigMenuItems
-        };
-    }
-  }
+    // Determine role based primarily on PATH to restore Sidebar in new windows
+    if (pathname.startsWith('/seller')) return { core: sellerMenuItems, growth: [], config: [] };
+    if (pathname.startsWith('/vendor')) return { core: vendorMenuItems, growth: [], config: [] };
+    if (pathname.startsWith('/collaborator')) return { core: collaboratorMenuItems, growth: [], config: [] };
+    if (pathname.startsWith('/ziptally') || pathname.startsWith('/snapstock')) return { core: [], growth: [], config: [] };
 
-  const {core, growth, config} = getMenuItems();
+    // Default to Admin items for any other protected route
+    return {
+        core: adminCoreMenuItems,
+        growth: adminGrowthMenuItems,
+        config: adminConfigMenuItems
+    };
+  }, [pathname, mounted]);
+
+  const mobileNavLinks = useMemo(() => {
+      if (pathname.startsWith('/seller')) return [
+        { href: '/seller/dashboard', label: 'Home', icon: LayoutDashboard },
+        { href: '/seller/products', label: 'Stock', icon: Zap },
+        { href: '/seller/ai-product-uploader', label: 'AI Tools', icon: Sparkles, isAction: true },
+        { href: '/seller/orders', label: 'Orders', icon: ShoppingCart },
+        { href: '/seller/settings', label: 'Settings', icon: Settings },
+      ];
+      if (pathname.startsWith('/vendor')) return [
+        { href: '/vendor/dashboard', label: 'Home', icon: LayoutDashboard },
+        { href: '/vendor/products', label: 'Drops', icon: PackagePlus },
+        { href: '/vendor/ai-product-uploader', label: 'AI Tools', icon: Sparkles, isAction: true },
+        { href: '/vendor/orders', label: 'Retail', icon: ShoppingCart },
+        { href: '/vendor/settings', label: 'Settings', icon: Settings },
+      ];
+      if (pathname.startsWith('/collaborator')) return [
+        { href: '/collaborator/dashboard', label: 'Home', icon: LayoutDashboard },
+        { href: '/collaborator/magazines', label: 'Library', icon: BookOpen },
+        { href: '/collaborator/orders', label: 'Push', icon: Send },
+        { href: '/collaborator/commissions', label: 'Wallet', icon: DollarSign },
+        { href: '/collaborator/reports', label: 'Report', icon: FileSpreadsheet },
+      ];
+      
+      return [
+        { href: '/', label: 'Home', icon: LayoutDashboard },
+        { href: '/admin/inventory', label: 'AI Stock', icon: Zap },
+        { href: '/ai-product-uploader', label: 'AI Tools', icon: Sparkles, isAction: true },
+        { href: '/orders', label: 'Orders', icon: ShoppingCart },
+        { href: '/settings', label: 'Settings', icon: Settings },
+      ];
+  }, [pathname]);
 
   const isPartnerPage = pathname.startsWith('/ziptally') || pathname.startsWith('/snapstock');
-  const isPartner = role === 'snapstock_partner' && isPartnerPage;
-  const logoText = isPartner ? "Ziptally" : "SnazzPay";
-  const taglineText = isPartner ? "Zip your Stock with AI" : "Admin Central";
 
   return (
     <SidebarProvider>
-      {!isPartner && (
+      {!isPartnerPage && (
         <Sidebar>
             <SidebarHeader className="p-4">
             <div className="flex items-center gap-2">
@@ -257,8 +277,8 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
                     <Zap className="w-6 h-6 text-white fill-current" />
                 </div>
                 <div className="flex flex-col">
-                <h1 className="text-xl font-black italic tracking-tighter text-sidebar-foreground uppercase leading-none">{logoText}</h1>
-                <span className="text-[7px] font-bold uppercase tracking-widest text-primary">{taglineText}</span>
+                <h1 className="text-xl font-black italic tracking-tighter text-sidebar-foreground uppercase leading-none">ZipTally AI</h1>
+                <span className="text-[7px] font-bold uppercase tracking-widest text-primary">Smart Stock. Stronger Business.</span>
                 </div>
             </div>
             </SidebarHeader>
@@ -323,17 +343,11 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
       <SidebarInset>
         <header className={cn(
             "flex h-16 items-center justify-between border-b bg-card px-4 md:px-6 sticky top-0 z-30",
-            isPartner && "bg-slate-900 text-white border-white/5"
+            isPartnerPage && "bg-slate-900 text-white border-white/5"
         )}>
           <div className="flex items-center gap-4">
-            {!isPartner && <SidebarTrigger className="md:hidden" />}
-            {isPartner && (
-                <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg"><Zap className="h-5 w-5 text-white" /></div>
-                    <h2 className="text-xl font-black italic uppercase tracking-tighter">{title}</h2>
-                </div>
-            )}
-            {!isPartner && <h2 className="text-xl font-semibold text-card-foreground">{title}</h2>}
+            {!isPartnerPage && <SidebarTrigger className="md:hidden" />}
+            <h2 className={cn("text-xl font-black italic tracking-tight uppercase", isPartnerPage && "text-white")}>{title}</h2>
           </div>
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" onClick={() => router.refresh()}>
@@ -370,30 +384,6 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
                     <span>Vendor Login</span>
                   </DropdownMenuItem>
                 </Link>
-                 <Link href="/partner-pay/login" target="_blank">
-                  <DropdownMenuItem>
-                    <Handshake className="mr-2 h-4 w-4" />
-                    <span>Partner Login</span>
-                  </DropdownMenuItem>
-                </Link>
-                 <Link href="/logistics-secure/login" target="_blank">
-                  <DropdownMenuItem>
-                    <Truck className="mr-2 h-4 w-4" />
-                    <span>Logistics Login</span>
-                  </DropdownMenuItem>
-                </Link>
-                 <Link href="/collaborator/login" target="_blank">
-                  <DropdownMenuItem>
-                    <UserPlus className="mr-2 h-4 w-4" />
-                    <span>Collaborator Login</span>
-                  </DropdownMenuItem>
-                </Link>
-                <Link href="/customer/login" target="_blank">
-                  <DropdownMenuItem>
-                    <LogIn className="mr-2 h-4 w-4" />
-                    <span>Customer Login</span>
-                  </DropdownMenuItem>
-                </Link>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => signOut()}>
                   <LogOut className="mr-2 h-4 w-4"/>
@@ -406,34 +396,41 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
         
         <main className={cn(
             "flex-1 p-4 md:p-6 lg:p-8 pb-24 md:pb-8 relative",
-            isPartner && "bg-slate-50"
+            isPartnerPage && "bg-slate-50"
         )}>
           {children}
         </main>
 
-        {mounted && !isPartner && (
-            <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t flex items-center justify-around px-2 z-50">
-                <Link href="/" className={cn("flex flex-col items-center gap-1", pathname === '/' ? "text-primary" : "text-slate-400")}>
-                    <LayoutDashboard className="h-5 w-5" />
-                    <span className="text-[10px] font-black uppercase tracking-tighter">Home</span>
-                </Link>
-                <Link href="/admin/inventory" className={cn("flex flex-col items-center gap-1", pathname === '/admin/inventory' ? "text-primary" : "text-slate-400")}>
-                    <Zap className="h-5 w-5" />
-                    <span className="text-[10px] font-black uppercase tracking-tighter">Stock</span>
-                </Link>
-                <div className="relative -top-6">
-                    <Button className="h-14 w-14 rounded-full shadow-2xl shadow-primary/40 border-4 border-white" onClick={() => router.push('/ai-product-uploader')}>
-                        <Sparkles className="h-6 w-6" />
-                    </Button>
-                </div>
-                <Link href="/orders" className={cn("flex flex-col items-center gap-1", pathname === '/orders' ? "text-primary" : "text-slate-400")}>
-                    <ShoppingCart className="h-5 w-5" />
-                    <span className="text-[10px] font-black uppercase tracking-tighter">Orders</span>
-                </Link>
-                <Link href="/settings" className={cn("flex flex-col items-center gap-1", pathname === '/settings' ? "text-primary" : "text-slate-400")}>
-                    <Settings className="h-5 w-5" />
-                    <span className="text-[10px] font-black uppercase tracking-tighter">Settings</span>
-                </Link>
+        {mounted && !isPartnerPage && (
+            <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t flex items-center justify-around px-2 z-50 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
+                {mobileNavLinks.map((link) => {
+                    const Icon = link.icon;
+                    if (link.isAction) {
+                        return (
+                            <div key={link.label} className="relative -top-6">
+                                <Button 
+                                    className="h-14 w-14 rounded-full shadow-2xl shadow-primary/40 border-4 border-white bg-primary" 
+                                    onClick={() => router.push(link.href)}
+                                >
+                                    <Icon className="h-6 w-6 text-white" />
+                                </Button>
+                            </div>
+                        );
+                    }
+                    return (
+                        <Link 
+                            key={link.label} 
+                            href={link.href} 
+                            className={cn(
+                                "flex flex-col items-center gap-1 min-w-[60px]", 
+                                pathname === link.href ? "text-primary" : "text-slate-400"
+                            )}
+                        >
+                            <Icon className="h-5 w-5" />
+                            <span className="text-[10px] font-black uppercase tracking-tighter">{link.label}</span>
+                        </Link>
+                    );
+                })}
             </div>
         )}
 
