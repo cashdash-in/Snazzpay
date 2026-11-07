@@ -182,7 +182,7 @@ export default function ZiptallyPartnerDashboard() {
                 return;
             }
 
-            // 1. Merge duplicates in the AI response (Batch Grouping)
+            // Consolidate duplicates into single entries with correct quantities
             const mergedBatch = new Map<string, any>();
             for (const d of detections) {
                 const name = d.productName.trim().toLowerCase();
@@ -193,7 +193,6 @@ export default function ZiptallyPartnerDashboard() {
                 }
             }
 
-            // 2. Process the merged list against existing inventory
             for (const [name, d] of mergedBatch.entries()) {
                 const existing = inventory.find(i => (i.name || '').toLowerCase().trim() === name);
                 

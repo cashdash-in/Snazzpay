@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -370,7 +371,7 @@ export default function ZiptallyRegistrationPage() {
 
                 <div className="text-center space-y-6">
                     <p className="text-slate-200 text-sm font-bold uppercase tracking-widest text-white">
-                        Existing Partner? <Link href="/ziptally/login" className="text-emerald-500 hover:text-emerald-400 transition-colors underline">Log in to your terminal</Link>
+                        Already registered? <Link href="/ziptally/login" className="text-emerald-500 hover:text-emerald-400 transition-colors underline italic">Go to Dashboard</Link>
                     </p>
                     <div className="flex items-center justify-center gap-3 text-[10px] font-black text-slate-700 uppercase tracking-[0.3em]">
                         <ShieldCheck className="h-3 w-3 text-emerald-500" /> Licensed by ZipTally AI

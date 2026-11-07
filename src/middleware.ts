@@ -1,3 +1,4 @@
+
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
@@ -36,6 +37,7 @@ export function middleware(request: NextRequest) {
     '/catalogue',
     '/smart-magazine',
     '/magic-mirror/widget',
+    '/ziptally', // Public landing page
     '/ziptally/login',
     '/ziptally/register',
   ];
