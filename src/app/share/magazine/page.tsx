@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -79,15 +80,29 @@ export default function ShareMagazinePage() {
                 let productsCollection: Array<SellerProduct | ProductDrop> = [];
                 const currentRole = getCookie('userRole');
                 
+                // Fetch from both relevant collections to ensure nothing is missed
+                const [sellerProducts, productDrops] = await Promise.all([
+                    getCollection<SellerProduct>('seller_products'),
+                    getCollection<ProductDrop>('product_drops')
+                ]);
+
                 if (currentRole === 'seller') {
-                    const sellerProducts = await getCollection<SellerProduct>('seller_products');
-                    productsCollection = sellerProducts.filter(p => p.sellerId === user.uid);
+                    // Sellers see their own products + drops from their vendor/admin
+                    const myProducts = sellerProducts.filter(p => p.sellerId === user.uid);
+                    // Filter drops that might be relevant (e.g., admin drops or their specific vendor)
+                    // For now, let's keep it clean as per original logic but more robust
+                    productsCollection = myProducts;
                 } else if (currentRole === 'vendor') {
-                    const allDrops = await getCollection<ProductDrop>('product_drops');
-                    productsCollection = allDrops.filter(p => p.vendorId === user.uid);
+                    // Vendors see their own drops
+                    productsCollection = productDrops.filter(p => p.vendorId === user.uid);
                 } else {
-                    const allDrops = await getCollection<ProductDrop>('product_drops');
-                    productsCollection = allDrops;
+                    // Admins see EVERYTHING - All drops and all seller products for curation
+                    // Merge collections but prioritize Drops as the primary Admin data source
+                    const merged = [...productDrops, ...sellerProducts];
+                    // Remove duplicates by ID
+                    const uniqueMap = new Map();
+                    merged.forEach(p => uniqueMap.set(p.id, p));
+                    productsCollection = Array.from(uniqueMap.values());
                 }
                 
                 setProducts(productsCollection.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
@@ -186,7 +201,9 @@ export default function ShareMagazinePage() {
                                         </div>
                                     ) : (
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto pr-2">
-                                            {products.map(p => (
+                                            {products.map(p => {
+                                                const hasImage = p.imageDataUris && p.imageDataUris.length > 0;
+                                                return (
                                                 <div key={p.id} className={cn(
                                                     "flex items-center gap-4 p-3 border-2 rounded-2xl transition-all cursor-pointer",
                                                     selectedProductIds.includes(p.id) ? "border-primary bg-primary/5" : "hover:border-slate-300"
@@ -195,15 +212,19 @@ export default function ShareMagazinePage() {
                                                     else setSelectedProductIds(prev => [...prev, p.id]);
                                                 }}>
                                                     <Checkbox checked={selectedProductIds.includes(p.id)} />
-                                                    <div className="relative h-12 w-12 rounded-lg overflow-hidden shrink-0">
-                                                        <Image src={p.imageDataUris[0]} alt={p.title} fill className="object-cover" unoptimized />
+                                                    <div className="relative h-12 w-12 rounded-lg overflow-hidden shrink-0 bg-slate-50">
+                                                        {hasImage ? (
+                                                            <Image src={p.imageDataUris[0]} alt={p.title} fill className="object-cover" unoptimized />
+                                                        ) : (
+                                                            <div className="flex items-center justify-center h-full text-[8px] font-bold text-slate-300 uppercase">No Image</div>
+                                                        )}
                                                     </div>
                                                     <div className="flex-1 truncate">
                                                         <p className="font-black text-sm truncate uppercase italic">{p.title}</p>
                                                         <p className="text-xs font-bold text-primary">₹{((p as any).price || (p as any).costPrice)}</p>
                                                     </div>
                                                 </div>
-                                            ))}
+                                            )})}
                                         </div>
                                     )}
                                 </CardContent>
@@ -304,20 +325,28 @@ export default function ShareMagazinePage() {
                             {products.filter(p => selectedProductIds.includes(p.id)).map(p => {
                                 const price = (p as any).price || (p as any).costPrice;
                                 const qrLink = `${origin}/catalogue?id=${p.id}&sellerId=${user?.uid}&sellerName=${encodeURIComponent(user?.displayName || 'Our Store')}`;
+                                const hasImage = p.imageDataUris && p.imageDataUris.length > 0;
+                                
                                 return (
                                     <div key={p.id} className="space-y-6 group">
-                                        <SocialAdCard 
-                                            imageUrl={p.imageDataUris[0]}
-                                            title={p.title}
-                                            headline={globalAdHeadline}
-                                            price={price}
-                                            qrUrl={qrLink}
-                                            showWatermark={showWatermark}
-                                            logoDataUri={logoDataUri || undefined}
-                                            showBrandText={showBrandText}
-                                            brandName={user?.displayName || 'Our Store'}
-                                            onCanvasUpdate={(url) => setGeneratedAdUrls(prev => ({...prev, [p.id]: url}))}
-                                        />
+                                        {hasImage ? (
+                                            <SocialAdCard 
+                                                imageUrl={p.imageDataUris[0]}
+                                                title={p.title}
+                                                headline={globalAdHeadline}
+                                                price={price}
+                                                qrUrl={qrLink}
+                                                showWatermark={showWatermark}
+                                                logoDataUri={logoDataUri || undefined}
+                                                showBrandText={showBrandText}
+                                                brandName={user?.displayName || 'Our Store'}
+                                                onCanvasUpdate={(url) => setGeneratedAdUrls(prev => ({...prev, [p.id]: url}))}
+                                            />
+                                        ) : (
+                                            <Card className="aspect-square flex items-center justify-center bg-slate-50 border-2 border-dashed">
+                                                <p className="font-black text-slate-300 uppercase italic">Add Image to Preview</p>
+                                            </Card>
+                                        )}
                                         <div className="flex gap-3 px-2">
                                             <Button variant="outline" className="flex-1 font-bold h-11 rounded-xl" onClick={() => {
                                                 const url = generatedAdUrls[p.id];
@@ -344,6 +373,10 @@ export default function ShareMagazinePage() {
                     </div>
                 </TabsContent>
             </Tabs>
-        </AppShell>
+
+            <footer className="bg-slate-50 border-t p-4 flex justify-end shrink-0">
+                <DialogClose asChild><Button variant="ghost" className="rounded-xl px-8 font-bold uppercase text-[10px]">Close Ad Studio</Button></DialogClose>
+            </footer>
+        </DialogContent>
     );
 }

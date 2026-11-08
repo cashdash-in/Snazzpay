@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Suspense, useEffect, useState, useRef, useMemo, useCallback } from 'react';
@@ -103,6 +104,7 @@ function SmartMagazineContent() {
                 setMagazine(fetchedMagazine);
                 
                 const productIds = fetchedMagazine.productIds || [];
+                // Exhaustive fetch from both potential product collections
                 const [sellerProducts, productDrops] = await Promise.all([
                     getCollection<any>('seller_products'),
                     getCollection<any>('product_drops')
@@ -115,7 +117,7 @@ function SmartMagazineContent() {
                 const fetched = productIds.map(id => productMap.get(id)).filter(p => !!p);
                 setProducts(fetched);
             } catch (error) {
-                console.error(error);
+                console.error("Smart Magazine Fetch Error:", error);
             } finally {
                 setIsLoading(false);
             }
@@ -125,7 +127,7 @@ function SmartMagazineContent() {
 
     const getProductContext = useCallback((p: DisplayProduct) => {
         if (!p) return { type: 'General', hint: 'selfie', label: 'SELFIE', isApparel: false };
-        const title = p.title.toLowerCase();
+        const title = (p.title || '').toLowerCase();
         const cat = (p.category || '').toLowerCase();
         
         const isWatch = title.includes('watch') || cat.includes('watch');
@@ -231,7 +233,83 @@ function SmartMagazineContent() {
         router.push(`/catalogue?${catalogueParams.toString()}`);
     };
 
+    const handleTryOnUpload = async (e: React.ChangeEvent<HTMLInputElement>, product: DisplayProduct) => {
+        if (!hasConsented) {
+            toast({ variant: 'destructive', title: "Consent Required" });
+            return;
+        }
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setIsTryOnLoading(true);
+        setTryOnResult(null);
+        setTryOnProductId(product.id);
+
+        try {
+            const [personUri, productUri] = await Promise.all([
+                resizeImageForAI(file),
+                resizeImageForAI(product.imageDataUris[0])
+            ]);
+            
+            const res = await fetch('/api/ai/virtual-try-on', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    personImageDataUri: personUri,
+                    productImageDataUri: productUri,
+                    productTitle: product.title,
+                    garmentType: getProductContext(product).type,
+                    drapeStyle: selectedDrapeStyle,
+                    sleeveLength: selectedSleeves
+                })
+            });
+            
+            const result = await res.json();
+            
+            if (result.error) {
+                toast({ variant: 'destructive', title: "Try-On Failed", description: result.error });
+            } else if (result.generatedImageDataUri) {
+                setTryOnResult(result.generatedImageDataUri);
+                toast({ title: "Magic Mirror Ready!" });
+            }
+        } catch (err: any) {
+            toast({ variant: 'destructive', title: "Try-On Failed" });
+            setTryOnProductId(null);
+        } finally {
+            setIsTryOnLoading(false);
+            if (e.target) e.target.value = '';
+        }
+    };
+
+    const resizeImageForAI = (fileOrUri: File | string, maxSize: number = MAX_TRYON_SIZE_PX): Promise<string> => {
+        return new Promise((resolve, reject) => {
+            if (typeof window === 'undefined') return reject('Window undefined');
+            const img = new (window as any).Image();
+            img.crossOrigin = "anonymous";
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let { width, height } = img;
+                if (width > height) { if (width > maxSize) { height *= maxSize / width; width = maxSize; } }
+                else { if (height > maxSize) { width *= maxSize / height; height = maxSize; } }
+                canvas.width = width; canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', 0.5));
+            };
+            img.onerror = reject;
+            if (typeof fileOrUri === 'string') img.src = fileOrUri;
+            else {
+                const reader = new FileReader();
+                reader.onload = (e) => img.src = e.target?.result as string;
+                reader.readAsDataURL(fileOrUri);
+            }
+        });
+    };
+
     if (!mounted || isLoading) return <div className="flex h-screen w-full items-center justify-center"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
+
+    const activeTryOnProduct = products.find(p => p.id === tryOnProductId);
+    const activeTryOnContext = activeTryOnProduct ? getProductContext(activeTryOnProduct) : null;
 
     return (
         <div className="min-h-screen bg-slate-50 pb-20">
@@ -252,14 +330,17 @@ function SmartMagazineContent() {
                         const productCtx = getProductContext(product);
                         const isProductTryOn = tryOnProductId === product.id;
                         const canTryOn = magazine?.isTryOnEnabled || product.isTryOnEnabled;
+                        const hasImage = product.imageDataUris && product.imageDataUris.length > 0;
 
                         return (
                             <Card key={product.id} className="group rounded-[32px] border-none shadow-lg hover:shadow-2xl transition-all duration-500 overflow-hidden bg-white flex flex-col">
                                 <div className="relative aspect-[4/5] bg-slate-100 overflow-hidden">
                                     {isProductTryOn && tryOnResult ? (
                                         <Image src={tryOnResult} fill alt="Try On" className="object-cover animate-in fade-in duration-500" unoptimized />
+                                    ) : hasImage ? (
+                                        <Image src={product.imageDataUris[0]} fill alt={product.title} className="object-cover transition-transform duration-700 group-hover:scale-105" unoptimized />
                                     ) : (
-                                        <Image src={(product.imageDataUris || [])[0]} fill alt={product.title} className="object-cover transition-transform duration-700 group-hover:scale-105" unoptimized />
+                                        <div className="flex items-center justify-center h-full text-[10px] font-black uppercase text-slate-300">No Preview</div>
                                     )}
                                     {isProductTryOn && isTryOnLoading && <div className="absolute inset-0 bg-white/70 backdrop-blur-sm flex flex-col items-center justify-center p-4 text-center z-20"><Sparkles className="h-10 w-10 text-primary animate-bounce mb-2" /><p className="text-[10px] font-black uppercase italic">AI Fitting...</p></div>}
                                     {canTryOn && !isProductTryOn && <div className="absolute top-4 left-4 z-10"><Badge className="bg-primary/90 text-white font-black italic text-[9px] px-3 py-1 rounded-full animate-pulse">TRY ME</Badge></div>}
@@ -280,14 +361,14 @@ function SmartMagazineContent() {
                     })}
                 </div>
 
-                {activeTryOnProduct && (
+                {activeTryOnProduct && activeTryOnContext && (
                     <Card className="rounded-[24px] bg-slate-900 text-white p-6 shadow-2xl relative border-none animate-in slide-in-from-bottom-5">
                         <div className="flex flex-col gap-6">
                             <div className="space-y-1">
                                 <h3 className="text-xl font-black italic uppercase flex items-center gap-2"><Sparkles className="h-5 w-5 text-purple-400" /> Magic Mirror Controls</h3>
                                 <div className="flex items-center gap-2">
                                     <p className="text-xs text-slate-400">Refining fit for: <span className="font-bold text-white">{activeTryOnProduct.title}</span></p>
-                                    <Badge variant="outline" className="text-[8px] border-white/20 text-white uppercase">{saveCount >= 3 ? "Premium Save Mode" : `${3 - saveCount} Free Saves Left`}</Badge>
+                                    <Badge variant="outline" className="text-[8px] border-white/20 text-white uppercase">{saveCount >= FREE_SAVES_LIMIT ? "Premium Save Mode" : `${FREE_SAVES_LIMIT - saveCount} Free Saves Left`}</Badge>
                                 </div>
                             </div>
                             <div className="bg-white/5 border border-white/10 p-4 rounded-2xl space-y-4">
@@ -307,8 +388,8 @@ function SmartMagazineContent() {
                                 <div className="grid grid-cols-2 gap-3">
                                     <Button onClick={() => cameraInputRef.current?.click()} disabled={!hasConsented || isTryOnLoading} className="bg-primary hover:bg-primary/90 text-white rounded-xl h-12 font-bold"><Camera className="mr-2 h-4 w-4" /> Retake Photo</Button>
                                     <Button onClick={handleSaveLook} className="bg-white text-slate-900 hover:bg-slate-100 rounded-xl h-12 font-bold" disabled={!tryOnResult || isProcessingPayment}>
-                                        {isProcessingPayment ? <Loader2 className="animate-spin mr-1"/> : (saveCount >= 3 ? <CreditCard className="mr-2 h-4 w-4" /> : <Download className="mr-2 h-4 w-4" />)}
-                                        {saveCount >= 3 ? 'Save Look (₹10)' : 'Save Look'}
+                                        {isProcessingPayment ? <Loader2 className="animate-spin mr-1"/> : (saveCount >= FREE_SAVES_LIMIT ? <CreditCard className="mr-2 h-4 w-4" /> : <Download className="mr-2 h-4 w-4" />)}
+                                        {saveCount >= FREE_SAVES_LIMIT ? 'Save Look (₹10)' : 'Save Look'}
                                     </Button>
                                 </div>
                             </div>
@@ -323,7 +404,9 @@ function SmartMagazineContent() {
                     {enquiryProduct && (
                         <div className="space-y-4 py-4">
                             <div className="flex gap-4 p-3 bg-muted/50 rounded-xl">
-                                <div className="relative w-12 h-12 rounded-lg overflow-hidden shrink-0"><Image src={enquiryProduct.imageDataUris[0]} fill alt="p" className="object-cover" /></div>
+                                <div className="relative w-12 h-12 rounded-lg overflow-hidden shrink-0">
+                                    {enquiryProduct.imageDataUris?.[0] ? <Image src={enquiryProduct.imageDataUris[0]} fill alt="p" className="object-cover" /> : <div className="bg-slate-100 h-full w-full" />}
+                                </div>
                                 <div><p className="font-bold text-xs uppercase">{enquiryProduct.title}</p><p className="text-[10px] text-primary font-bold">₹{((enquiryProduct as any).price || (enquiryProduct as any).costPrice)}</p></div>
                             </div>
                             <div className="space-y-1"><Label className="text-[10px] font-black uppercase">Your Name</Label><Input value={enquiryForm.name} onChange={e => setEnquiryForm({...enquiryForm, name: e.target.value})} className="h-12 rounded-xl" /></div>
