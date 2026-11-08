@@ -10,7 +10,7 @@ import {
     ShieldCheck, Loader2, Sparkles,
     ImagePlus, CheckCircle2,
     Lock, FileText, MapPin, 
-    Star, RefreshCw
+    Star, RefreshCw, CreditCard
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from 'next/navigation';
@@ -355,6 +355,11 @@ export default function ZiptallyRegistrationPage() {
                                 {selectedPlan === 'trial' ? 'Start Free Trial' : `Pay & Activate ${plans.find(p=>p.id === selectedPlan)?.name}`}
                             </Button>
                         </CardContent>
+                        <CardFooter className="justify-center pt-6">
+                            <div className="flex items-center gap-2 text-[9px] font-black text-slate-600 uppercase tracking-[0.2em]">
+                                <ShieldCheck className="h-3 w-3" /> Powered by Snazzify Star Intelligence
+                            </div>
+                        </CardFooter>
                     </Card>
                 </form>
 

@@ -363,6 +363,10 @@ export default function ShareMagazinePage() {
                     </div>
                 </TabsContent>
             </Tabs>
+
+            <footer className="bg-slate-50 border-t p-4 flex justify-end shrink-0">
+                 <Button variant="ghost" className="rounded-xl px-8 font-bold uppercase text-[10px]" onClick={() => router.back()}>Exit Builder</Button>
+            </footer>
         </AppShell>
     );
 }
