@@ -1,3 +1,4 @@
+
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
@@ -15,7 +16,7 @@ export function middleware(request: NextRequest) {
 
   // ADMIN REDIRECTION: If an authenticated Admin lands on the root page, take them to the SnazzPay Dashboard
   if (pathname === '/' && token && userRole === 'admin') {
-    return NextResponse.redirect(new URL('/admin/dashboard', request.url));
+    return NextResponse.redirect(new URL('/admin', request.url));
   }
 
   const publicPaths = [
@@ -41,7 +42,6 @@ export function middleware(request: NextRequest) {
     '/catalogue',
     '/smart-magazine',
     '/magic-mirror/widget',
-    '/ziptally', // Also allow /ziptally for legacy redirects
     '/ziptally/login',
     '/ziptally/register',
   ];
@@ -62,7 +62,7 @@ export function middleware(request: NextRequest) {
   }
 
   // PROTECT PARTNER ROUTES
-  if (pathname.startsWith('/ziptally') && !pathname.startsWith('/ziptally/login') && !pathname.startsWith('/ziptally/register')) {
+  if (pathname.startsWith('/ziptally') || pathname.startsWith('/snapstock')) {
     if (!token) {
         return NextResponse.redirect(new URL('/ziptally/login', request.url));
     }

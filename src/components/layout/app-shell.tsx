@@ -1,3 +1,4 @@
+
 'use client';
 import type {FC, PropsWithChildren} from 'react';
 import {
@@ -86,7 +87,7 @@ type MenuItem = {
 };
 
 const adminCoreMenuItems: MenuItem[] = [
-  { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/inventory', label: 'ZipTally AI', icon: Zap },
   { href: '/admin/snapstock-licenses', label: 'ZipTally Partners', icon: Gem },
   { href: '/admin/wholesale-inquiries', label: 'Wholesale Requests', icon: ShoppingBasket, notificationKey: 'wholesale' },
@@ -223,7 +224,7 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
     if (pathname.startsWith('/collaborator')) return { core: collaboratorMenuItems, growth: [], config: [], isSnazzPay: false };
     if (pathname.startsWith('/ziptally') || pathname.startsWith('/snapstock')) return { core: [], growth: [], config: [], isSnazzPay: false };
 
-    // Default to Admin menu for management routes
+    // Default to Admin items for any other protected route (Back-office management)
     return {
         core: adminCoreMenuItems,
         growth: adminGrowthMenuItems,
@@ -256,7 +257,7 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
       ];
       
       return [
-        { href: '/admin/dashboard', label: 'Home', icon: LayoutDashboard },
+        { href: '/admin', label: 'Home', icon: LayoutDashboard },
         { href: '/admin/inventory', label: 'AI Stock', icon: Zap },
         { href: '/ai-product-uploader', label: 'AI Tools', icon: Sparkles, isAction: true },
         { href: '/orders', label: 'Orders', icon: ShoppingCart },
@@ -264,7 +265,6 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
       ];
   }, [pathname]);
 
-  // Hide sidebar on public landing, collection, and partner login pages
   const isFullWidthPage = pathname === '/' || 
                         pathname.startsWith('/auth/') || 
                         pathname.startsWith('/ziptally/') || 

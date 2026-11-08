@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, Suspense } from 'react';
@@ -64,7 +65,6 @@ function LoginForm() {
                 const userCredential = await signInWithEmailAndPassword(auth, email, password);
                 const idToken = await userCredential.user.getIdToken();
 
-                // FIX: Use the calculated 'role' variable instead of hardcoded 'seller'
                 const response = await fetch('/api/auth/session', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -80,7 +80,7 @@ function LoginForm() {
             toast({ title: "Login Successful" });
             
             const rawRedirect = searchParams.get('redirectedFrom');
-            const defaultTarget = role === 'admin' ? '/admin/dashboard' : '/seller/dashboard';
+            const defaultTarget = role === 'admin' ? '/admin' : '/seller/dashboard';
             
             if (rawRedirect) {
                  const cleanPath = rawRedirect.replace(/\/+/g, '/');
