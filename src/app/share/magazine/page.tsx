@@ -41,7 +41,7 @@ type Magazine = {
 export default function ShareMagazinePage() {
     const { user } = useAuth();
     const { toast } = useToast();
-    const [products, setProducts] = useState<Array<SellerProduct | ProductDrop>>([]);
+    const [products, setProducts] = useState<Array<any>>([]);
     const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [magazineLink, setMagazineLink] = useState('');
@@ -76,27 +76,33 @@ export default function ShareMagazinePage() {
             try {
                 const currentRole = getCookie('userRole');
                 
+                // Fetch from all potential collections
                 const [sellerProducts, productDrops] = await Promise.all([
-                    getCollection<SellerProduct>('seller_products'),
-                    getCollection<ProductDrop>('product_drops')
+                    getCollection<any>('seller_products'),
+                    getCollection<any>('product_drops')
                 ]);
 
-                let productsCollection: Array<SellerProduct | ProductDrop> = [];
+                let productsCollection: Array<any> = [];
 
                 if (currentRole === 'seller') {
                     productsCollection = sellerProducts.filter(p => p.sellerId === user.uid);
                 } else if (currentRole === 'vendor') {
                     productsCollection = productDrops.filter(p => p.vendorId === user.uid);
                 } else {
-                    // Admin sees all products from all sources
+                    // Admin or mixed roles: Merge all available items into a unique master list
                     const merged = [...productDrops, ...sellerProducts];
                     const uniqueMap = new Map();
-                    merged.forEach(p => uniqueMap.set(p.id, p));
+                    merged.forEach(p => {
+                        if (p && p.id) {
+                            uniqueMap.set(p.id, p);
+                        }
+                    });
                     productsCollection = Array.from(uniqueMap.values());
                 }
                 
                 setProducts(productsCollection.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
                 
+                // Load branding defaults if available
                 const settings = await getDocument<any>(currentRole === 'seller' ? 'seller_users' : 'vendors', user.uid);
                 if (settings?.logoDataUri) {
                     setLogoDataUri(settings.logoDataUri);
@@ -108,7 +114,7 @@ export default function ShareMagazinePage() {
                 toast({ 
                     variant: 'destructive', 
                     title: "Fetch Error", 
-                    description: "Could not load products." 
+                    description: "Could not load products from My Products catalog." 
                 });
             } finally {
                 setIsLoading(false);
@@ -149,21 +155,13 @@ export default function ShareMagazinePage() {
         toast({ title: 'Collection Saved & Linked!' });
     };
 
-    const handleDownloadAll = () => {
-        Object.entries(generatedAdUrls).forEach(([id, url]) => {
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `ad_tile_${id}.jpg`;
-            link.click();
-        });
-        toast({ title: "Downloading All Creatives" });
-    };
-
     const handleShareCollectionWhatsApp = () => {
         if (!magazineLink) return;
         const msg = `Check out our new ${magazineTitle} here: ${magazineLink}`;
         window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
     };
+
+    if (!mounted) return null;
 
     return (
         <AppShell title="Marketing & Creative Studio">
@@ -179,7 +177,7 @@ export default function ShareMagazinePage() {
                             <Card className="rounded-[24px] shadow-sm">
                                 <CardHeader>
                                     <CardTitle className="text-xl font-black uppercase italic">Select Products</CardTitle>
-                                    <CardDescription>Choose the items you want to feature in your magazine and social tiles.</CardDescription>
+                                    <CardDescription>Choose items from your catalog to feature in the smart magazine.</CardDescription>
                                 </CardHeader>
                                 <CardContent>
                                     {isLoading ? (
@@ -187,7 +185,7 @@ export default function ShareMagazinePage() {
                                     ) : products.length === 0 ? (
                                         <div className="text-center py-20 opacity-30">
                                             <LucideImage className="h-16 w-16 mx-auto mb-4" />
-                                            <p className="font-bold uppercase text-xs">No products available to share</p>
+                                            <p className="font-bold uppercase text-xs text-slate-400">No products found in "My Products" list</p>
                                         </div>
                                     ) : (
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto pr-2">
@@ -201,17 +199,17 @@ export default function ShareMagazinePage() {
                                                     if (selectedProductIds.includes(p.id)) setSelectedProductIds(prev => prev.filter(id => id !== p.id));
                                                     else setSelectedProductIds(prev => [...prev, p.id]);
                                                 }}>
-                                                    <Checkbox checked={selectedProductIds.includes(p.id)} />
-                                                    <div className="relative h-12 w-12 rounded-lg overflow-hidden shrink-0 bg-slate-50">
+                                                    <Checkbox checked={selectedProductIds.includes(p.id)} onCheckedChange={() => {}} />
+                                                    <div className="relative h-12 w-12 rounded-lg overflow-hidden shrink-0 bg-slate-50 border">
                                                         {hasImage ? (
                                                             <Image src={p.imageDataUris[0]} alt={p.title} fill className="object-cover" unoptimized />
                                                         ) : (
                                                             <div className="flex items-center justify-center h-full text-[8px] font-bold text-slate-300 uppercase">No Image</div>
                                                         )}
                                                     </div>
-                                                    <div className="flex-1 truncate">
-                                                        <p className="font-black text-sm truncate uppercase italic">{p.title}</p>
-                                                        <p className="text-xs font-bold text-primary">₹{((p as any).price || (p as any).costPrice)}</p>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="font-black text-sm truncate uppercase italic text-slate-900">{p.title}</p>
+                                                        <p className="text-xs font-bold text-primary">₹{p.price || p.costPrice}</p>
                                                     </div>
                                                 </div>
                                             )})}
@@ -223,37 +221,33 @@ export default function ShareMagazinePage() {
 
                         <div className="lg:col-span-1 space-y-6">
                             <Card className="rounded-[24px] shadow-lg border-primary/20 sticky top-24">
-                                <CardHeader><CardTitle className="text-lg font-black uppercase italic">Collection Identity</CardTitle></CardHeader>
+                                <CardHeader><CardTitle className="text-lg font-black uppercase italic">Identity</CardTitle></CardHeader>
                                 <CardContent className="space-y-4">
                                     <div className="space-y-2">
-                                        <Label className="text-[10px] font-black uppercase text-slate-400">Magazine Title</Label>
-                                        <Input value={magazineTitle} onChange={e => setMagazineTitle(e.target.value)} className="font-bold h-11" placeholder="e.g. Summer Collection" />
+                                        <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Magazine Title</Label>
+                                        <Input value={magazineTitle} onChange={e => setMagazineTitle(e.target.value)} className="font-bold h-11" placeholder="e.g. Winter Essentials" />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label className="text-[10px] font-black uppercase text-slate-400">Store / Vendor Name</Label>
-                                        <Input value={vendorTitle} onChange={e => setVendorTitle(e.target.value)} className="font-bold h-11" placeholder="e.g. My Boutique" />
+                                        <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Store Label</Label>
+                                        <Input value={vendorTitle} onChange={e => setVendorTitle(e.target.value)} className="font-bold h-11" placeholder="Brand Name" />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label className="text-[10px] font-black uppercase text-slate-400">Brand Logo</Label>
+                                        <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Logo</Label>
                                         <div className="flex gap-4 items-center">
-                                            <div className="w-16 h-16 border-2 rounded-2xl bg-white overflow-hidden relative shrink-0 shadow-inner flex items-center justify-center">
-                                                {logoDataUri ? <Image src={logoDataUri} alt="logo" fill className="object-contain p-1" unoptimized /> : <LucideImage className="h-8 w-8 text-slate-100" />}
+                                            <div className="w-14 h-14 border-2 rounded-2xl bg-white overflow-hidden relative shrink-0 shadow-inner flex items-center justify-center">
+                                                {logoDataUri ? <Image src={logoDataUri} alt="logo" fill className="object-contain p-1" unoptimized /> : <LucideImage className="h-6 w-6 text-slate-100" />}
                                             </div>
-                                            <Input type="file" className="text-xs rounded-xl" onChange={handleLogoUpload} />
+                                            <Input type="file" className="text-[10px] h-8" onChange={handleLogoUpload} />
                                         </div>
                                     </div>
                                     <div className="space-y-2">
-                                        <Label className="text-[10px] font-black uppercase text-slate-400">Custom URL Slug</Label>
-                                        <Input value={customSlug} onChange={e => setCustomSlug(e.target.value)} placeholder="e.g. spring-sale" className="font-mono text-xs" />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label className="text-[10px] font-black uppercase text-slate-400">Discount Label (%)</Label>
-                                        <Input type="number" value={discount} onChange={e => setDiscount(Number(e.target.value))} className="font-bold" />
+                                        <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Custom Slug</Label>
+                                        <Input value={customSlug} onChange={e => setCustomSlug(e.target.value)} placeholder="my-collection" className="font-mono text-xs" />
                                     </div>
                                     <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border">
                                         <div className="space-y-0.5">
-                                            <Label className="text-xs font-bold uppercase italic tracking-tighter">Enable Magic Mirror</Label>
-                                            <p className="text-[10px] text-muted-foreground">Allow virtual try-on for this entire collection.</p>
+                                            <Label className="text-xs font-bold uppercase italic tracking-tighter">Try-On Enabled</Label>
+                                            <p className="text-[9px] text-muted-foreground">Allow virtual fitting for items.</p>
                                         </div>
                                         <Switch checked={isTryOnEnabled} onCheckedChange={setIsTryOnEnabled} />
                                     </div>
@@ -268,7 +262,7 @@ export default function ShareMagazinePage() {
                                                     <Button size="icon" variant="outline" className="h-9 w-9 shrink-0" onClick={() => { navigator.clipboard.writeText(magazineLink); toast({title: "Copied!"}); }}><Copy className="h-4 w-4" /></Button>
                                                 </div>
                                                 <Button variant="secondary" className="w-full h-10 font-bold bg-green-50 text-green-700 border-green-200" onClick={handleShareCollectionWhatsApp}>
-                                                    <MessageSquare className="mr-2 h-4 w-4" /> Share on WhatsApp
+                                                    <MessageSquare className="mr-2 h-4 w-4" /> WhatsApp
                                                 </Button>
                                             </div>
                                         )}
@@ -281,32 +275,18 @@ export default function ShareMagazinePage() {
 
                 <TabsContent value="social">
                     <div className="space-y-8 max-w-6xl mx-auto pb-20">
-                        <Card className="bg-slate-900 text-white border-none shadow-2xl overflow-hidden rounded-[32px]">
+                         <Card className="bg-slate-900 text-white border-none shadow-2xl overflow-hidden rounded-[32px]">
                             <CardContent className="p-8 md:p-12 flex flex-col md:flex-row justify-between items-center gap-10">
-                                <div className="space-y-6 max-w-md">
-                                    <div className="space-y-2">
-                                        <h2 className="text-4xl font-black italic uppercase tracking-tighter leading-none">Social Ad Studio</h2>
-                                        <p className="text-slate-400 text-sm font-medium">Generate high-conversion visual tiles instantly.</p>
-                                    </div>
-                                    <div className="flex flex-wrap gap-4 items-center">
-                                        <div className="flex items-center gap-3 bg-white/10 px-5 py-2.5 rounded-full border border-white/20">
-                                            <Label className="text-[10px] font-black uppercase tracking-widest text-primary-foreground">Remove Watermark</Label>
-                                            <Switch checked={!showWatermark} onCheckedChange={(val) => setShowWatermark(!val)} />
-                                        </div>
-                                        <div className="flex items-center gap-3 bg-white/10 px-5 py-2.5 rounded-full border border-white/20">
-                                            <Label className="text-[10px] font-black uppercase tracking-widest">Brand Name</Label>
-                                            <Switch checked={showBrandText} onCheckedChange={setShowBrandText} />
-                                        </div>
+                                <div className="space-y-4">
+                                    <h2 className="text-4xl font-black italic uppercase tracking-tighter">Ad Studio</h2>
+                                    <div className="flex items-center gap-6">
+                                        <div className="flex items-center gap-3"><Label className="text-[10px] uppercase font-black">Brand Name</Label><Switch checked={showBrandText} onCheckedChange={setShowBrandText} /></div>
+                                        <div className="flex items-center gap-3"><Label className="text-[10px] uppercase font-black">Watermark</Label><Switch checked={showWatermark} onCheckedChange={setShowWatermark} /></div>
                                     </div>
                                 </div>
-                                <div className="flex flex-col gap-4 w-full md:w-80">
-                                    <div className="space-y-1.5">
-                                        <Label className="text-[10px] uppercase font-black text-slate-500 tracking-widest">Global Ad Headline</Label>
-                                        <Input value={globalAdHeadline} onChange={e => setGlobalAdHeadline(e.target.value)} className="bg-white/10 border-white/20 text-white font-black italic h-12 rounded-xl" />
-                                    </div>
-                                    <Button onClick={handleDownloadAll} size="lg" className="w-full h-14 bg-primary hover:bg-primary/90 font-black uppercase italic shadow-xl shadow-primary/20" disabled={selectedProductIds.length === 0}>
-                                        <Download className="mr-2 h-6 w-6" /> Download All Tiles
-                                    </Button>
+                                <div className="space-y-4 w-full md:w-80">
+                                    <Label className="text-[10px] uppercase font-black text-slate-500 tracking-widest">Main Headline</Label>
+                                    <Input value={globalAdHeadline} onChange={e => setGlobalAdHeadline(e.target.value)} className="bg-white/10 border-white/20 text-white font-black italic h-12 rounded-xl" />
                                 </div>
                             </CardContent>
                         </Card>
@@ -314,11 +294,11 @@ export default function ShareMagazinePage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
                             {products.filter(p => selectedProductIds.includes(p.id)).map(p => {
                                 const price = (p as any).price || (p as any).costPrice;
-                                const qrLink = `${origin}/catalogue?id=${p.id}&sellerId=${user?.uid}&sellerName=${encodeURIComponent(user?.displayName || 'Our Store')}`;
+                                const qrLink = `${origin}/catalogue?id=${p.id}&sellerId=${user?.uid}`;
                                 const hasImage = p.imageDataUris && p.imageDataUris.length > 0;
                                 
                                 return (
-                                    <div key={p.id} className="space-y-6 group">
+                                    <div key={p.id} className="space-y-6">
                                         {hasImage ? (
                                             <SocialAdCard 
                                                 imageUrl={p.imageDataUris[0]}
@@ -326,35 +306,31 @@ export default function ShareMagazinePage() {
                                                 headline={globalAdHeadline}
                                                 price={price}
                                                 qrUrl={qrLink}
-                                                showWatermark={showWatermark}
                                                 logoDataUri={logoDataUri || undefined}
                                                 showBrandText={showBrandText}
-                                                brandName={user?.displayName || 'Our Store'}
+                                                brandName={vendorTitle}
+                                                showWatermark={showWatermark}
                                                 onCanvasUpdate={(url) => setGeneratedAdUrls(prev => ({...prev, [p.id]: url}))}
                                             />
                                         ) : (
                                             <Card className="aspect-square flex items-center justify-center bg-slate-50 border-2 border-dashed">
-                                                <p className="font-black text-slate-300 uppercase italic">Add Image to Preview</p>
+                                                <p className="font-black text-slate-300 uppercase italic">No Image</p>
                                             </Card>
                                         )}
-                                        <div className="flex gap-3 px-2">
-                                            <Button variant="outline" className="flex-1 font-bold h-11 rounded-xl" onClick={() => {
+                                        <div className="flex gap-2">
+                                            <Button variant="outline" className="flex-1 font-bold h-11" onClick={() => {
                                                 const url = generatedAdUrls[p.id];
                                                 if (url) {
                                                     const link = document.createElement('a');
                                                     link.href = url;
-                                                    link.download = `ad_tile_${p.id}.jpg`;
+                                                    link.download = `ad_${p.id}.jpg`;
                                                     link.click();
                                                 }
-                                            }}>
-                                                <Download className="mr-2 h-4 w-4" /> Download
-                                            </Button>
-                                            <Button variant="secondary" className="h-11 w-11 rounded-xl shrink-0" onClick={() => {
-                                                const msg = `Check out this ${p.title} at only ₹${price}! Click to order: ${qrLink}`;
+                                            }}><Download className="mr-2 h-4 w-4" /> Download</Button>
+                                             <Button variant="secondary" className="h-11 w-11" onClick={() => {
+                                                const msg = `Check this out: ${qrLink}`;
                                                 window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
-                                            }}>
-                                                <MessageSquare className="h-5 w-5" />
-                                            </Button>
+                                            }}><MessageSquare className="h-4 w-4" /></Button>
                                         </div>
                                     </div>
                                 );
@@ -363,10 +339,6 @@ export default function ShareMagazinePage() {
                     </div>
                 </TabsContent>
             </Tabs>
-
-            <footer className="bg-slate-50 border-t p-4 flex justify-end shrink-0">
-                 <Button variant="ghost" className="rounded-xl px-8 font-bold uppercase text-[10px]" onClick={() => router.back()}>Exit Builder</Button>
-            </footer>
         </AppShell>
     );
 }
