@@ -65,7 +65,7 @@ function LoginForm() {
                 const response = await fetch('/api/auth/session', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ idToken, role }),
+                    body: JSON.stringify({ idToken, role: 'seller' }),
                 });
 
                 if (!response.ok) {
@@ -77,16 +77,17 @@ function LoginForm() {
             toast({ title: "Login Successful" });
             
             const rawRedirect = searchParams.get('redirectedFrom');
+            const defaultTarget = role === 'admin' ? '/admin/dashboard' : '/';
             
             if (rawRedirect) {
                  const cleanPath = rawRedirect.replace(/\/+/g, '/');
                  if (cleanPath.startsWith('/') && !cleanPath.startsWith('//')) {
                      router.push(cleanPath);
                  } else {
-                     router.push('/');
+                     router.push(defaultTarget);
                  }
             } else {
-                 router.push('/');
+                 router.push(defaultTarget);
             }
             
             router.refresh();

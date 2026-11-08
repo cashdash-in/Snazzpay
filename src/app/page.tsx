@@ -1,6 +1,3 @@
-
-'use client';
-
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
@@ -113,8 +110,8 @@ export default function ZiptallyLandingPage() {
                                     Launch My Shop <ArrowRight className="ml-2" />
                                 </Button>
                             </Link>
-                            <Button variant="outline" size="lg" className="h-16 px-10 text-xl font-black uppercase italic rounded-2xl border-2 hover:bg-white transition-all">
-                                Watch Demo
+                            <Button asChild variant="outline" size="lg" className="h-16 px-10 text-xl font-black uppercase italic rounded-2xl border-2 hover:bg-white transition-all">
+                                <Link href="#features-section">Watch Demo</Link>
                             </Button>
                         </div>
                     </div>
@@ -157,7 +154,7 @@ export default function ZiptallyLandingPage() {
             </section>
 
             {/* Features */}
-            <section className="py-32 bg-slate-50">
+            <section id="features-section" className="py-32 bg-slate-50">
                 <div className="max-w-7xl mx-auto px-4">
                     <div className="text-center space-y-4 mb-20">
                         <h2 className="text-4xl md:text-6xl font-black italic uppercase tracking-tighter">AI-Powered Features</h2>

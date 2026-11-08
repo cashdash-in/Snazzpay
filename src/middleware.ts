@@ -1,4 +1,3 @@
-
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
@@ -12,6 +11,11 @@ export function middleware(request: NextRequest) {
     const safePath = pathname.replace(/\/+/g, '/');
     const url = new URL(safePath || '/', request.url);
     return NextResponse.redirect(url);
+  }
+
+  // ADMIN REDIRECTION: If an authenticated Admin lands on the root page, take them to the SnazzPay Dashboard
+  if (pathname === '/' && token && userRole === 'admin') {
+    return NextResponse.redirect(new URL('/admin/dashboard', request.url));
   }
 
   const publicPaths = [
