@@ -1,4 +1,3 @@
-
 'use client';
 import type {FC, PropsWithChildren} from 'react';
 import {
@@ -224,7 +223,7 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
     if (pathname.startsWith('/collaborator')) return { core: collaboratorMenuItems, growth: [], config: [], isSnazzPay: false };
     if (pathname.startsWith('/ziptally') || pathname.startsWith('/snapstock')) return { core: [], growth: [], config: [], isSnazzPay: false };
 
-    // Admin routes (Standard Back-office)
+    // Default to Admin menu for management routes
     return {
         core: adminCoreMenuItems,
         growth: adminGrowthMenuItems,
@@ -265,11 +264,17 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
       ];
   }, [pathname]);
 
-  const isPartnerPage = pathname.startsWith('/ziptally') || pathname.startsWith('/snapstock');
+  // Hide sidebar on public landing, collection, and partner login pages
+  const isFullWidthPage = pathname === '/' || 
+                        pathname.startsWith('/auth/') || 
+                        pathname.startsWith('/ziptally/') || 
+                        pathname.startsWith('/snapstock/') || 
+                        pathname.startsWith('/collection/') || 
+                        pathname.startsWith('/site/');
 
   return (
     <SidebarProvider>
-      {!isPartnerPage && (
+      {!isFullWidthPage && (
         <Sidebar>
             <SidebarHeader className="p-4">
             <div className="flex items-center gap-2">
@@ -347,11 +352,11 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
       <SidebarInset>
         <header className={cn(
             "flex h-16 items-center justify-between border-b bg-card px-4 md:px-6 sticky top-0 z-30",
-            isPartnerPage && "bg-slate-900 text-white border-white/5"
+            (pathname.startsWith('/ziptally') || pathname.startsWith('/snapstock')) && "bg-slate-900 text-white border-white/5"
         )}>
           <div className="flex items-center gap-4">
-            {!isPartnerPage && <SidebarTrigger className="md:hidden" />}
-            <h2 className={cn("text-xl font-black italic tracking-tight uppercase", isPartnerPage && "text-white")}>{title}</h2>
+            {!isFullWidthPage && <SidebarTrigger className="md:hidden" />}
+            <h2 className={cn("text-xl font-black italic tracking-tight uppercase", (pathname.startsWith('/ziptally') || pathname.startsWith('/snapstock')) && "text-white")}>{title}</h2>
           </div>
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" onClick={() => router.refresh()}>
@@ -400,12 +405,12 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
         
         <main className={cn(
             "flex-1 p-4 md:p-6 lg:p-8 pb-24 md:pb-8 relative",
-            isPartnerPage && "bg-slate-50"
+            (pathname.startsWith('/ziptally') || pathname.startsWith('/snapstock')) && "bg-slate-50"
         )}>
           {children}
         </main>
 
-        {mounted && !isPartnerPage && (
+        {mounted && !isFullWidthPage && (
             <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t flex items-center justify-around px-2 z-50 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
                 {mobileNavLinks.map((link) => {
                     const Icon = link.icon;

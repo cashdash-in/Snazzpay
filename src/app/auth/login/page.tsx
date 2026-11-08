@@ -39,8 +39,9 @@ function LoginForm() {
         }
         
         try {
-            let role = 'user';
+            let role = 'seller'; // Default role
 
+            // Special check for hardcoded temp admin
             if (email.toLowerCase() === 'tempadmin@snazzify.com' && password === 'password123') {
                 role = 'admin';
                 const userCredential = await signInWithEmailAndPassword(auth, 'admin@snazzify.com', 'password123456');
@@ -55,6 +56,7 @@ function LoginForm() {
                 if (!response.ok) throw new Error("Failed to create session");
 
             } else {
+                // Normal Auth flow
                 if (email.toLowerCase() === 'admin@snazzify.com') {
                     role = 'admin';
                 }
@@ -62,10 +64,11 @@ function LoginForm() {
                 const userCredential = await signInWithEmailAndPassword(auth, email, password);
                 const idToken = await userCredential.user.getIdToken();
 
+                // FIX: Use the calculated 'role' variable instead of hardcoded 'seller'
                 const response = await fetch('/api/auth/session', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ idToken, role: 'seller' }),
+                    body: JSON.stringify({ idToken, role: role }),
                 });
 
                 if (!response.ok) {
@@ -77,7 +80,7 @@ function LoginForm() {
             toast({ title: "Login Successful" });
             
             const rawRedirect = searchParams.get('redirectedFrom');
-            const defaultTarget = role === 'admin' ? '/admin/dashboard' : '/';
+            const defaultTarget = role === 'admin' ? '/admin/dashboard' : '/seller/dashboard';
             
             if (rawRedirect) {
                  const cleanPath = rawRedirect.replace(/\/+/g, '/');
