@@ -8,7 +8,7 @@ import {
     ArrowRight, Sparkles, BarChart3, 
     Camera, Layers, Mic, FileUp, 
     Smartphone, Globe, TrendingUp,
-    Clock, Star, Package, X, Download, ShoppingCart, Users, Wand2, BookOpen, Settings
+    Clock, Star, Package, X
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -240,13 +240,14 @@ export default function ZiptallyLandingPage() {
                     
                     <div className="flex flex-wrap justify-center gap-12 text-[10px] font-black uppercase tracking-widest text-slate-400">
                         <Link href="/ziptally/login" className="hover:text-emerald-400 transition-colors">Partner Login</Link>
+                        <Link href="/auth/login" className="hover:text-emerald-400 transition-colors">Admin Portal</Link>
                         <Link href="/faq" className="hover:text-emerald-400 transition-colors">FAQ</Link>
                         <Link href="/terms/seller" className="hover:text-emerald-400 transition-colors">Merchant Terms</Link>
                         <Link href="mailto:support@ziptally.ai" className="hover:text-emerald-400 transition-colors">Contact Support</Link>
                     </div>
 
                     <div className="flex items-center gap-3 text-[9px] font-black uppercase tracking-[0.4em] text-slate-700">
-                        <ShieldCheck className="h-4 w-4 text-emerald-600" /> Licensed by ZipTally AI Global
+                        <ShieldCheck className="h-4 w-4 text-emerald-600" /> Powered by ZipTally AI Global
                     </div>
                 </div>
             </footer>
