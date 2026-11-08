@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -12,8 +11,7 @@ import type { SellerProduct } from '@/types/product';
 import Image from 'next/image';
 import { 
     Loader2, Share2, Copy, MessageSquare, BookOpen, 
-    Edit, Wand2, PlusCircle, 
-    ImagePlus, Image as LucideImage, 
+    Wand2, ImagePlus, Image as LucideImage, 
     Instagram, Download, 
 } from 'lucide-react';
 import { getCollection, saveDocument, getDocument } from '@/services/firestore';
@@ -22,7 +20,6 @@ import { Label } from '@/components/ui/label';
 import type { ProductDrop } from '@/types/product';
 import { Input } from '@/components/ui/input';
 import { v4 as uuidv4 } from 'uuid';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SocialAdCard } from '@/components/social-ad-card';
@@ -77,29 +74,22 @@ export default function ShareMagazinePage() {
                 return;
             }
             try {
-                let productsCollection: Array<SellerProduct | ProductDrop> = [];
                 const currentRole = getCookie('userRole');
                 
-                // Fetch from both relevant collections to ensure nothing is missed
                 const [sellerProducts, productDrops] = await Promise.all([
                     getCollection<SellerProduct>('seller_products'),
                     getCollection<ProductDrop>('product_drops')
                 ]);
 
+                let productsCollection: Array<SellerProduct | ProductDrop> = [];
+
                 if (currentRole === 'seller') {
-                    // Sellers see their own products + drops from their vendor/admin
-                    const myProducts = sellerProducts.filter(p => p.sellerId === user.uid);
-                    // Filter drops that might be relevant (e.g., admin drops or their specific vendor)
-                    // For now, let's keep it clean as per original logic but more robust
-                    productsCollection = myProducts;
+                    productsCollection = sellerProducts.filter(p => p.sellerId === user.uid);
                 } else if (currentRole === 'vendor') {
-                    // Vendors see their own drops
                     productsCollection = productDrops.filter(p => p.vendorId === user.uid);
                 } else {
-                    // Admins see EVERYTHING - All drops and all seller products for curation
-                    // Merge collections but prioritize Drops as the primary Admin data source
+                    // Admin sees all products from all sources
                     const merged = [...productDrops, ...sellerProducts];
-                    // Remove duplicates by ID
                     const uniqueMap = new Map();
                     merged.forEach(p => uniqueMap.set(p.id, p));
                     productsCollection = Array.from(uniqueMap.values());
@@ -118,7 +108,7 @@ export default function ShareMagazinePage() {
                 toast({ 
                     variant: 'destructive', 
                     title: "Fetch Error", 
-                    description: "Could not load products. Please check if your account has permission." 
+                    description: "Could not load products." 
                 });
             } finally {
                 setIsLoading(false);
@@ -155,7 +145,7 @@ export default function ShareMagazinePage() {
             isTryOnEnabled: isTryOnEnabled,
         };
         await saveDocument('smart_magazines', newMagazine, finalId);
-        setMagazineLink(`${origin}/collection/${finalId}${discount > 0 ? `?discount=${discount}` : ''}`);
+        setMagazineLink(`${origin}/smart-magazine?id=${finalId}${discount > 0 ? `&discount=${discount}` : ''}`);
         toast({ title: 'Collection Saved & Linked!' });
     };
 
@@ -296,7 +286,7 @@ export default function ShareMagazinePage() {
                                 <div className="space-y-6 max-w-md">
                                     <div className="space-y-2">
                                         <h2 className="text-4xl font-black italic uppercase tracking-tighter leading-none">Social Ad Studio</h2>
-                                        <p className="text-slate-400 text-sm font-medium">Generate high-conversion visual tiles for Instagram, Facebook, and WhatsApp Status instantly.</p>
+                                        <p className="text-slate-400 text-sm font-medium">Generate high-conversion visual tiles instantly.</p>
                                     </div>
                                     <div className="flex flex-wrap gap-4 items-center">
                                         <div className="flex items-center gap-3 bg-white/10 px-5 py-2.5 rounded-full border border-white/20">
@@ -373,10 +363,6 @@ export default function ShareMagazinePage() {
                     </div>
                 </TabsContent>
             </Tabs>
-
-            <footer className="bg-slate-50 border-t p-4 flex justify-end shrink-0">
-                <DialogClose asChild><Button variant="ghost" className="rounded-xl px-8 font-bold uppercase text-[10px]">Close Ad Studio</Button></DialogClose>
-            </footer>
-        </DialogContent>
+        </AppShell>
     );
 }

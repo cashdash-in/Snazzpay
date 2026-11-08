@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -11,7 +10,7 @@ import {
     ShieldCheck, Loader2, Sparkles,
     ImagePlus, CheckCircle2,
     Lock, FileText, MapPin, 
-    Star, CreditCard, RefreshCw
+    Star, RefreshCw
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from 'next/navigation';
@@ -125,7 +124,7 @@ export default function ZiptallyRegistrationPage() {
                 toast({ 
                     variant: 'destructive', 
                     title: "Gateway Not Ready", 
-                    description: "Wait a moment for the payment system to initialize. If this persists, ensure RAZORPAY_KEY_ID is set in Netlify." 
+                    description: "Wait a moment for the payment system to initialize." 
                 });
                 fetchKey();
                 return;
@@ -237,11 +236,6 @@ export default function ZiptallyRegistrationPage() {
                     <div className="space-y-6">
                         <div className="flex justify-between items-center px-4">
                             <h3 className="text-white font-black italic uppercase tracking-[0.2em] text-sm">Select Your Plan</h3>
-                            {!razorpayKeyId && !isKeyLoading && (
-                                <Button variant="outline" size="sm" type="button" onClick={fetchKey} className="h-7 text-[9px] font-black uppercase border-blue-500/50 text-blue-400">
-                                    <RefreshCw className="mr-1 h-3 w-3" /> Retry Activation
-                                </Button>
-                            )}
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             {plans.map((plan) => (
@@ -361,11 +355,6 @@ export default function ZiptallyRegistrationPage() {
                                 {selectedPlan === 'trial' ? 'Start Free Trial' : `Pay & Activate ${plans.find(p=>p.id === selectedPlan)?.name}`}
                             </Button>
                         </CardContent>
-                        <CardFooter className="justify-center pt-6">
-                            <div className="flex items-center gap-2 text-[9px] font-black text-slate-600 uppercase tracking-[0.2em]">
-                                <ShieldCheck className="h-3 w-3 text-emerald-500" /> Powered by Snazzify Star Intelligence
-                            </div>
-                        </CardFooter>
                     </Card>
                 </form>
 
