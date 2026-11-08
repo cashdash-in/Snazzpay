@@ -1,3 +1,4 @@
+
 'use client';
 import type {FC, PropsWithChildren} from 'react';
 import {
@@ -86,7 +87,7 @@ type MenuItem = {
 };
 
 const adminCoreMenuItems: MenuItem[] = [
-  { href: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/inventory', label: 'ZipTally AI', icon: Zap },
   { href: '/admin/snapstock-licenses', label: 'ZipTally Partners', icon: Gem },
   { href: '/admin/wholesale-inquiries', label: 'Wholesale Requests', icon: ShoppingBasket, notificationKey: 'wholesale' },
@@ -215,21 +216,20 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
 
   }, [pathname, user]);
 
-  const { core, growth, config } = useMemo(() => {
-    // If not mounted yet, show nothing
-    if (!mounted) return { core: [], growth: [], config: [] };
+  const { core, growth, config, isSnazzPay } = useMemo(() => {
+    if (!mounted) return { core: [], growth: [], config: [], isSnazzPay: false };
 
-    // Determine role based primarily on PATH to restore Sidebar in new windows
-    if (pathname.startsWith('/seller')) return { core: sellerMenuItems, growth: [], config: [] };
-    if (pathname.startsWith('/vendor')) return { core: vendorMenuItems, growth: [], config: [] };
-    if (pathname.startsWith('/collaborator')) return { core: collaboratorMenuItems, growth: [], config: [] };
-    if (pathname.startsWith('/ziptally') || pathname.startsWith('/snapstock')) return { core: [], growth: [], config: [] };
+    if (pathname.startsWith('/seller')) return { core: sellerMenuItems, growth: [], config: [], isSnazzPay: false };
+    if (pathname.startsWith('/vendor')) return { core: vendorMenuItems, growth: [], config: [], isSnazzPay: false };
+    if (pathname.startsWith('/collaborator')) return { core: collaboratorMenuItems, growth: [], config: [], isSnazzPay: false };
+    if (pathname.startsWith('/ziptally') || pathname.startsWith('/snapstock')) return { core: [], growth: [], config: [], isSnazzPay: false };
 
-    // Default to Admin items for any other protected route
+    // Admin routes (Standard Back-office)
     return {
         core: adminCoreMenuItems,
         growth: adminGrowthMenuItems,
-        config: adminConfigMenuItems
+        config: adminConfigMenuItems,
+        isSnazzPay: true
     };
   }, [pathname, mounted]);
 
@@ -257,7 +257,7 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
       ];
       
       return [
-        { href: '/', label: 'Home', icon: LayoutDashboard },
+        { href: '/admin/dashboard', label: 'Home', icon: LayoutDashboard },
         { href: '/admin/inventory', label: 'AI Stock', icon: Zap },
         { href: '/ai-product-uploader', label: 'AI Tools', icon: Sparkles, isAction: true },
         { href: '/orders', label: 'Orders', icon: ShoppingCart },
@@ -277,8 +277,12 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
                     <Zap className="w-6 h-6 text-white fill-current" />
                 </div>
                 <div className="flex flex-col">
-                <h1 className="text-xl font-black italic tracking-tighter text-sidebar-foreground uppercase leading-none">ZipTally AI</h1>
-                <span className="text-[7px] font-bold uppercase tracking-widest text-primary">Smart Stock. Stronger Business.</span>
+                <h1 className="text-xl font-black italic tracking-tighter text-sidebar-foreground uppercase leading-none">
+                    {isSnazzPay ? 'SnazzPay Admin' : 'ZipTally AI'}
+                </h1>
+                <span className="text-[7px] font-bold uppercase tracking-widest text-primary">
+                    {isSnazzPay ? 'Secure COD Ecosystem' : 'Smart Stock. Stronger Business.'}
+                </span>
                 </div>
             </div>
             </SidebarHeader>

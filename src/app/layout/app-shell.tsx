@@ -1,3 +1,4 @@
+
 'use client';
 import type {FC, PropsWithChildren} from 'react';
 import {
@@ -216,14 +217,16 @@ export const AppShell: FC<PropsWithChildren<{ title: string }>> = ({ children, t
   }, [pathname, user]);
 
   const { core, growth, config, isSnazzPay } = useMemo(() => {
+    // If not mounted yet, show nothing
     if (!mounted) return { core: [], growth: [], config: [], isSnazzPay: false };
 
+    // Determine role based primarily on PATH to restore Sidebar in new windows
     if (pathname.startsWith('/seller')) return { core: sellerMenuItems, growth: [], config: [], isSnazzPay: false };
     if (pathname.startsWith('/vendor')) return { core: vendorMenuItems, growth: [], config: [], isSnazzPay: false };
     if (pathname.startsWith('/collaborator')) return { core: collaboratorMenuItems, growth: [], config: [], isSnazzPay: false };
     if (pathname.startsWith('/ziptally') || pathname.startsWith('/snapstock')) return { core: [], growth: [], config: [], isSnazzPay: false };
 
-    // Admin routes
+    // Default to Admin items for any other protected route (Back-office management)
     return {
         core: adminCoreMenuItems,
         growth: adminGrowthMenuItems,
