@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -60,7 +59,7 @@ export default function ZiptallyPartnerDashboard() {
     const [updatingImageId, setUpdatingImageId] = useState<string | null>(null);
     const [selectedProductForStats, setSelectedProductForStats] = useState<InventoryItem | null>(null);
     
-    // File Input Refs for Mobile Stability
+    // File Input Refs for Mobile Stability (Bypass browser popup blocking)
     const bulkSnapRef = useRef<HTMLInputElement>(null);
     const imageUpdateRef = useRef<HTMLInputElement>(null);
     const billUploadRef = useRef<HTMLInputElement>(null);
@@ -182,7 +181,7 @@ export default function ZiptallyPartnerDashboard() {
                 return;
             }
 
-            // Consolidate duplicates into single entries with correct quantities
+            // Consolidate duplicates into single entries with correct quantities (Batch Grouping)
             const mergedBatch = new Map<string, any>();
             for (const d of detections) {
                 const name = d.productName.trim().toLowerCase();

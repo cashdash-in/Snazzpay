@@ -76,31 +76,40 @@ export default function ShareMagazinePage() {
             try {
                 const currentRole = getCookie('userRole');
                 
-                // Fetch from all potential collections
+                // Fetch from all potential collections to ensure "My Products" are seen
                 const [sellerProducts, productDrops] = await Promise.all([
                     getCollection<any>('seller_products'),
                     getCollection<any>('product_drops')
                 ]);
 
-                let productsCollection: Array<any> = [];
+                // Create a master unique map of all products
+                const uniqueMap = new Map();
+                
+                // 1. Process drops (Vendor/Admin items)
+                productDrops.forEach(p => {
+                    if (p && p.id) {
+                        uniqueMap.set(p.id, { ...p, sourceType: 'drop' });
+                    }
+                });
 
-                if (currentRole === 'seller') {
-                    productsCollection = sellerProducts.filter(p => p.sellerId === user.uid);
-                } else if (currentRole === 'vendor') {
-                    productsCollection = productDrops.filter(p => p.vendorId === user.uid);
-                } else {
-                    // Admin or mixed roles: Merge all available items into a unique master list
-                    const merged = [...productDrops, ...sellerProducts];
-                    const uniqueMap = new Map();
-                    merged.forEach(p => {
-                        if (p && p.id) {
-                            uniqueMap.set(p.id, p);
-                        }
-                    });
-                    productsCollection = Array.from(uniqueMap.values());
+                // 2. Process seller products (Individual items)
+                sellerProducts.forEach(p => {
+                    if (p && p.id) {
+                        // If it's a seller product, it might override a drop or be unique
+                        uniqueMap.set(p.id, { ...p, sourceType: 'seller' });
+                    }
+                });
+
+                let finalProducts = Array.from(uniqueMap.values());
+
+                // If not admin, filter to only show what belongs to the user
+                if (currentRole !== 'admin') {
+                    finalProducts = finalProducts.filter(p => 
+                        p.sellerId === user.uid || p.vendorId === user.uid
+                    );
                 }
                 
-                setProducts(productsCollection.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+                setProducts(finalProducts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
                 
                 // Load branding defaults if available
                 const settings = await getDocument<any>(currentRole === 'seller' ? 'seller_users' : 'vendors', user.uid);
@@ -114,7 +123,7 @@ export default function ShareMagazinePage() {
                 toast({ 
                     variant: 'destructive', 
                     title: "Fetch Error", 
-                    description: "Could not load products from My Products catalog." 
+                    description: "Could not load products from Master Catalog." 
                 });
             } finally {
                 setIsLoading(false);
@@ -177,7 +186,7 @@ export default function ShareMagazinePage() {
                             <Card className="rounded-[24px] shadow-sm">
                                 <CardHeader>
                                     <CardTitle className="text-xl font-black uppercase italic">Select Products</CardTitle>
-                                    <CardDescription>Choose items from your catalog to feature in the smart magazine.</CardDescription>
+                                    <CardDescription>Choose items from your "My Products" master list to feature.</CardDescription>
                                 </CardHeader>
                                 <CardContent>
                                     {isLoading ? (
@@ -185,7 +194,7 @@ export default function ShareMagazinePage() {
                                     ) : products.length === 0 ? (
                                         <div className="text-center py-20 opacity-30">
                                             <LucideImage className="h-16 w-16 mx-auto mb-4" />
-                                            <p className="font-bold uppercase text-xs text-slate-400">No products found in "My Products" list</p>
+                                            <p className="font-bold uppercase text-xs text-slate-400">No products found in Master catalog</p>
                                         </div>
                                     ) : (
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto pr-2">

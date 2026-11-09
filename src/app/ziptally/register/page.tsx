@@ -12,7 +12,7 @@ import {
     Lock, FileText, MapPin, 
     Star, RefreshCw, CreditCard
 } from "lucide-react";
-import Link from "next/link";
+import Link from "next/navigation";
 import { useRouter } from 'next/navigation';
 import { saveDocument } from '@/services/firestore';
 import { v4 as uuidv4 } from 'uuid';
