@@ -62,7 +62,6 @@ export default function ZiptallyRegistrationPage() {
     const [selectedPlan, setSelectedPlan] = useState<PlanType>('monthly');
     const [agreedToTerms, setAgreedToTerms] = useState(false);
     const [razorpayKeyId, setRazorpayKeyId] = useState<string | null>(null);
-    const [isKeyLoading, setIsKeyLoading] = useState(true);
     
     const [formData, setFormData] = useState({
         storeName: '',
@@ -74,29 +73,18 @@ export default function ZiptallyRegistrationPage() {
         password: ''
     });
 
-    const fetchKey = async () => {
-        setIsKeyLoading(true);
-        try {
-            const res = await fetch('/api/get-key');
-            const data = await res.json();
-            if (data.keyId) {
-                setRazorpayKeyId(data.keyId);
-            } else if (process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID) {
-                setRazorpayKeyId(process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID);
-            }
-        } catch (e) {
-            console.error("Key fetch error:", e);
-        } finally {
-            setIsKeyLoading(false);
-        }
-    };
-
     useEffect(() => {
         const script = document.createElement('script');
         script.src = 'https://checkout.razorpay.com/v1/checkout.js';
         script.async = true;
         document.body.appendChild(script);
-        fetchKey();
+
+        fetch('/api/get-key')
+            .then(res => res.json())
+            .then(data => {
+                if (data.keyId) setRazorpayKeyId(data.keyId);
+            })
+            .catch(console.error);
     }, []);
 
     const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -112,7 +100,7 @@ export default function ZiptallyRegistrationPage() {
         e.preventDefault();
         
         if (!agreedToTerms) {
-            toast({ variant: 'destructive', title: "Terms Required", description: "Please accept the usage terms to proceed." });
+            toast({ variant: 'destructive', title: "Terms Required", description: "Please accept the usage terms." });
             return;
         }
 
@@ -121,12 +109,7 @@ export default function ZiptallyRegistrationPage() {
 
         if (planDetails.amount > 0) {
             if (!razorpayKeyId) {
-                toast({ 
-                    variant: 'destructive', 
-                    title: "Gateway Not Ready", 
-                    description: "Wait a moment for the payment system to initialize." 
-                });
-                fetchKey();
+                toast({ variant: 'destructive', title: "Gateway Error" });
                 return;
             }
             await initiatePaidRegistration(planDetails);
@@ -162,11 +145,7 @@ export default function ZiptallyRegistrationPage() {
                 handler: async (paymentResponse: any) => {
                     await finalizeRegistration(plan, paymentResponse.razorpay_payment_id);
                 },
-                prefill: {
-                    name: formData.ownerName,
-                    email: formData.email,
-                    contact: formData.phone
-                },
+                prefill: { name: formData.ownerName, email: formData.email, contact: formData.phone },
                 theme: { color: "#064e3b" },
                 modal: { ondismiss: () => setIsLoading(false) }
             };
@@ -199,12 +178,7 @@ export default function ZiptallyRegistrationPage() {
             };
 
             await saveDocument('snapstock_partners', partnerData, id);
-            
-            toast({ 
-                title: "Welcome to ZipTally!", 
-                description: `Success! Your ${plan.name} has been activated.` 
-            });
-            
+            toast({ title: "Welcome to ZipTally!", description: `Account activated: ${plan.name}` });
             router.push('/ziptally/login');
         } catch (error) {
             toast({ variant: 'destructive', title: "Database Error" });
@@ -224,107 +198,59 @@ export default function ZiptallyRegistrationPage() {
                     <div className="w-24 h-24 bg-emerald-600 rounded-[32px] flex items-center justify-center mx-auto shadow-2xl rotate-3 mb-8">
                         <Zap className="h-12 w-12 text-white fill-current" />
                     </div>
-                    <h1 className="text-4xl md:text-7xl font-black italic uppercase tracking-tighter text-white">
-                        ZipTally <span className="text-blue-500">AI</span>
-                    </h1>
-                    <p className="text-emerald-400 text-lg md:text-2xl font-black uppercase tracking-[0.2em] italic">
-                        Stock Zip Karo, Aage Bado!
-                    </p>
+                    <h1 className="text-4xl md:text-7xl font-black italic uppercase tracking-tighter text-white">ZipTally AI</h1>
+                    <p className="text-emerald-400 text-lg font-black uppercase tracking-[0.2em] italic">Stock Zip Karo, Aage Bado!</p>
                 </div>
 
                 <form onSubmit={handleSignup} className="space-y-12">
-                    <div className="space-y-6">
-                        <div className="flex justify-between items-center px-4">
-                            <h3 className="text-white font-black italic uppercase tracking-[0.2em] text-sm">Select Your Plan</h3>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            {plans.map((plan) => (
-                                <Card 
-                                    key={plan.id} 
-                                    onClick={() => setSelectedPlan(plan.id)}
-                                    className={cn(
-                                        "rounded-[40px] border-4 transition-all duration-300 cursor-pointer transform hover:scale-[1.05] active:scale-95 flex flex-col overflow-hidden",
-                                        plan.color,
-                                        selectedPlan === plan.id ? "ring-8 ring-white/10 scale-[1.05] border-white" : "border-transparent opacity-90 brightness-90 hover:brightness-100"
-                                    )}
-                                >
-                                    <CardHeader className="text-center p-8 space-y-2">
-                                        <div className="mx-auto w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center mb-2">
-                                            {plan.id === 'trial' && <Sparkles className="h-6 w-6 text-white" />}
-                                            {plan.id === 'monthly' && <Zap className="h-6 w-6 text-white" />}
-                                            {plan.id === 'annual' && <Star className="h-6 w-6 text-white fill-current" />}
-                                        </div>
-                                        <CardTitle className="text-base font-black italic uppercase italic tracking-widest">{plan.name}</CardTitle>
-                                        <p className="text-5xl font-black italic tracking-tighter">{plan.price}</p>
-                                    </CardHeader>
-                                    <CardContent className="flex-1 p-8 pt-0">
-                                        <ul className="space-y-3">
-                                            {plan.features.map(f => (
-                                                <li key={f} className="flex items-center gap-3 text-xs font-black uppercase tracking-wider">
-                                                    <CheckCircle2 className="h-4 w-4 shrink-0" /> {f}
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </CardContent>
-                                </Card>
-                            ))}
-                        </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {plans.map((plan) => (
+                            <Card 
+                                key={plan.id} 
+                                onClick={() => setSelectedPlan(plan.id)}
+                                className={cn(
+                                    "rounded-[40px] border-4 transition-all duration-300 cursor-pointer transform hover:scale-[1.05] active:scale-95 flex flex-col overflow-hidden",
+                                    plan.color,
+                                    selectedPlan === plan.id ? "ring-8 ring-white/10 scale-[1.05] border-white" : "border-transparent opacity-90 brightness-90"
+                                )}
+                            >
+                                <CardHeader className="text-center p-8">
+                                    <CardTitle className="text-base font-black uppercase tracking-widest">{plan.name}</CardTitle>
+                                    <p className="text-5xl font-black italic tracking-tighter">{plan.price}</p>
+                                </CardHeader>
+                                <CardContent className="flex-1 p-8 pt-0">
+                                    <ul className="space-y-3">
+                                        {plan.features.map(f => (
+                                            <li key={f} className="flex items-center gap-3 text-xs font-black uppercase tracking-wider">
+                                                <CheckCircle2 className="h-4 w-4 shrink-0" /> {f}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </CardContent>
+                            </Card>
+                        ))}
                     </div>
 
                     <Card className="rounded-[40px] border-white/5 bg-slate-900/80 backdrop-blur-2xl shadow-2xl overflow-hidden border">
                         <div className="grid grid-cols-1 md:grid-cols-2">
                             <div className="p-8 md:p-12 space-y-6">
-                                <h3 className="text-white font-black italic uppercase tracking-widest text-sm flex items-center gap-2 border-b border-white/5 pb-4">
-                                    <Store className="h-4 w-4 text-emerald-500"/> Shop Identity
-                                </h3>
+                                <h3 className="text-white font-black italic uppercase tracking-widest text-sm flex items-center gap-2 border-b border-white/5 pb-4"><Store className="h-4 w-4 text-emerald-500"/> Shop Identity</h3>
                                 <div className="space-y-4">
-                                    <div className="space-y-2">
-                                        <Label className="text-[10px] font-black uppercase text-slate-200 tracking-widest ml-1">Store Name</Label>
-                                        <div className="relative">
-                                            <Store className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-                                            <Input required placeholder="e.g. Metro Grocery" className="h-12 bg-white/5 border-white/10 rounded-2xl text-white pl-9 font-bold" value={formData.storeName} onChange={e => setFormData({...formData, storeName: e.target.value})} />
-                                        </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label className="text-[10px] font-black uppercase text-slate-200 tracking-widest ml-1">Shop Address</Label>
-                                        <div className="relative">
-                                            <MapPin className="absolute left-3 top-3 h-4 w-4 text-slate-500" />
-                                            <Input required placeholder="Complete Street Address" className="h-12 bg-white/5 border-white/10 rounded-2xl text-white pl-9 font-bold" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} />
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-4 items-center pt-2">
-                                        <div className="w-20 h-20 rounded-2xl bg-white/5 border-2 border-dashed border-white/10 flex items-center justify-center overflow-hidden relative cursor-pointer" onClick={() => document.getElementById('logo-upload')?.click()}>
+                                    <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-200 tracking-widest ml-1">Store Name</Label><Input required className="h-12 bg-white/5 border-white/10 rounded-2xl text-white font-bold" value={formData.storeName} onChange={e => setFormData({...formData, storeName: e.target.value})} /></div>
+                                    <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-200 tracking-widest ml-1">Address</Label><Input required className="h-12 bg-white/5 border-white/10 rounded-2xl text-white font-bold" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} /></div>
+                                    <div className="flex gap-4 items-center">
+                                        <div className="w-16 h-16 rounded-2xl bg-white/5 border-2 border-dashed border-white/10 flex items-center justify-center overflow-hidden relative cursor-pointer" onClick={() => document.getElementById('logo-upload')?.click()}>
                                             {logoPreview ? <Image src={logoPreview} alt="logo" fill className="object-contain p-1" /> : <ImagePlus className="h-6 w-6 text-slate-600" />}
                                         </div>
-                                        <div className="flex-1 space-y-1">
-                                            <Button type="button" variant="outline" size="sm" className="h-8 rounded-lg text-[10px] uppercase font-bold text-white border-white/20" onClick={() => document.getElementById('logo-upload')?.click()}>Upload Shop Logo</Button>
-                                            <p className="text-[9px] text-slate-400 uppercase tracking-widest">Appears on reports</p>
-                                        </div>
-                                        <input type="file" id="logo-upload" accept="image/*" className="hidden" onChange={handleLogoUpload} />
+                                        <Input type="file" id="logo-upload" accept="image/*" className="hidden" onChange={handleLogoUpload} />
                                     </div>
                                 </div>
                             </div>
-
                             <div className="bg-white/5 p-8 md:p-12 space-y-6 border-l border-white/5">
-                                <h3 className="text-white font-black italic uppercase tracking-widest text-sm flex items-center gap-2 border-b border-white/5 pb-4">
-                                    <User className="h-4 w-4 text-blue-400"/> Manager Access
-                                </h3>
+                                <h3 className="text-white font-black italic uppercase tracking-widest text-sm flex items-center gap-2 border-b border-white/5 pb-4"><User className="h-4 w-4 text-blue-400"/> Admin Login</h3>
                                 <div className="space-y-4">
-                                    <div className="space-y-2">
-                                        <Label className="text-[10px] font-black uppercase text-slate-200 tracking-widest ml-1">Owner Name</Label>
-                                        <Input required className="h-12 bg-white/5 border-white/10 rounded-2xl text-white font-bold" value={formData.ownerName} onChange={e => setFormData({...formData, ownerName: e.target.value})} />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label className="text-[10px] font-black uppercase text-slate-200 tracking-widest ml-1">Email / Mobile</Label>
-                                        <Input required className="h-12 bg-white/5 border-white/10 rounded-2xl text-white font-bold" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label className="text-[10px] font-black uppercase text-slate-200 tracking-widest ml-1">Login Password</Label>
-                                        <div className="relative">
-                                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-                                            <Input required type="password" placeholder="Min 6 characters" className="h-12 bg-white/5 border-white/10 rounded-2xl text-white pl-9 font-bold" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
-                                        </div>
-                                    </div>
+                                    <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-200 tracking-widest ml-1">Email / Mobile</Label><Input required className="h-12 bg-white/5 border-white/10 rounded-2xl text-white font-bold" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} /></div>
+                                    <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-200 tracking-widest ml-1">Password</Label><Input required type="password" className="h-12 bg-white/5 border-white/10 rounded-2xl text-white font-bold" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} /></div>
                                 </div>
                             </div>
                         </div>
@@ -332,44 +258,20 @@ export default function ZiptallyRegistrationPage() {
 
                     <Card className="rounded-[40px] border-white/5 bg-slate-900/80 p-8 md:p-12 shadow-2xl border">
                         <CardContent className="space-y-8 p-0">
-                            <div className="bg-slate-950/50 rounded-[32px] p-8 border border-white/5">
-                                <h4 className="text-white font-black italic uppercase text-xs mb-6 flex items-center gap-2 tracking-widest text-white">
-                                    <FileText className="h-5 w-5 text-emerald-500"/> Licensing & Usage Terms
-                                </h4>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-[11px] text-slate-200 leading-relaxed font-bold uppercase tracking-wider">
-                                    <p className="flex gap-3"><span className="text-emerald-500">01</span> Data remains 100% your property.</p>
-                                    <p className="flex gap-3"><span className="text-emerald-500">02</span> AI Snaps are non-refundable.</p>
-                                    <p className="flex gap-3"><span className="text-emerald-500">03</span> Simple. Smart. Brighter Tomorrow.</p>
-                                    <p className="flex gap-3"><span className="text-emerald-500">04</span> Professional SaaS Platform.</p>
-                                </div>
-                                <div className="flex items-center space-x-4 mt-10 p-5 bg-emerald-600/10 rounded-[24px] border border-emerald-500/30 group hover:bg-emerald-600/20 transition-all cursor-pointer">
-                                    <Checkbox id="usage-terms" checked={agreedToTerms} onCheckedChange={(val) => setAgreedToTerms(val as boolean)} className="h-6 w-6 border-white/50" />
-                                    <Label htmlFor="usage-terms" className="text-xs font-black uppercase italic text-white cursor-pointer select-none">
-                                        I Agree to the ZipTally AI SaaS License & Usage Policy
-                                    </Label>
-                                </div>
+                            <div className="flex items-center space-x-4 p-5 bg-emerald-600/10 rounded-[24px] border border-emerald-500/30">
+                                <Checkbox id="usage-terms" checked={agreedToTerms} onCheckedChange={(val) => setAgreedToTerms(val as boolean)} className="h-6 w-6 border-white/50" />
+                                <Label htmlFor="usage-terms" className="text-xs font-black uppercase italic text-white cursor-pointer">I Agree to the ZipTally AI SaaS License & Usage Policy</Label>
                             </div>
-
                             <Button type="submit" className="w-full h-20 text-2xl font-black uppercase italic rounded-[32px] bg-emerald-600 hover:bg-emerald-700 shadow-2xl shadow-emerald-900/40 transform hover:scale-[1.02] transition-all" disabled={isLoading}>
                                 {isLoading ? <Loader2 className="animate-spin mr-3 h-8 w-8" /> : (selectedPlan === 'trial' ? <Zap className="mr-3 h-8 w-8" /> : <CreditCard className="mr-3 h-8 w-8" />)}
-                                {selectedPlan === 'trial' ? 'Start Free Trial' : `Pay & Activate ${plans.find(p=>p.id === selectedPlan)?.name}`}
+                                {selectedPlan === 'trial' ? 'Start Free Trial' : `Activate ${plans.find(p=>p.id === selectedPlan)?.name}`}
                             </Button>
                         </CardContent>
-                        <CardFooter className="justify-center pt-6">
-                            <div className="flex items-center gap-2 text-[9px] font-black text-slate-600 uppercase tracking-[0.2em]">
-                                <ShieldCheck className="h-3 w-3" /> Powered by Snazzify Star Intelligence
-                            </div>
-                        </CardFooter>
                     </Card>
                 </form>
 
-                <div className="text-center space-y-6">
-                    <p className="text-slate-200 text-sm font-bold uppercase tracking-widest text-white">
-                        Already registered? <Link href="/ziptally/login" className="text-emerald-500 hover:text-emerald-400 transition-colors underline italic">Go to Dashboard</Link>
-                    </p>
-                    <div className="flex items-center justify-center gap-3 text-[10px] font-black text-slate-700 uppercase tracking-[0.3em]">
-                        <ShieldCheck className="h-4 w-4 text-emerald-500" /> Licensed by ZipTally AI
-                    </div>
+                <div className="text-center">
+                    <p className="text-slate-200 text-sm font-bold uppercase tracking-widest">Already registered? <Link href="/ziptally/login" className="text-emerald-500 underline italic">Go to Dashboard</Link></p>
                 </div>
             </div>
         </div>
