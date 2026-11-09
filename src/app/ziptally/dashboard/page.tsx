@@ -8,13 +8,12 @@ import {
     Zap, Camera, Layers, Mic, Search, 
     Scan, Loader2, Sparkles, Plus, Minus,
     FileSpreadsheet, Trash2, FileUp, FileText,
-    MapPin, Printer, ImagePlus, ShieldCheck, TrendingUp, Info, History, Factory, Phone,
-    Calendar, Download, ShoppingCart, Users, Wand2, BookOpen, Settings
+    MapPin, Printer, ImagePlus, ShieldCheck, TrendingUp, Info, History, Factory, Phone
 } from 'lucide-react';
 import { getCollection, saveDocument, deleteDocument } from '@/services/firestore';
 import { getCookie } from 'cookies-next';
 import { useRouter } from 'next/navigation';
-import { format, parseISO, subDays, startOfDay, endOfDay, isWithinInterval } from 'date-fns';
+import { format, parseISO, subDays } from 'date-fns';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
 import { detectItemsInPhoto, parseInventoryCommand, matchProductToBill } from '@/ai/flows/inventory-ai';
@@ -24,18 +23,15 @@ import * as XLSX from 'xlsx';
 import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
 import { increment, collection, query, onSnapshot, orderBy, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import type { InventoryItem, StockMovement } from '@/types/inventory';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar as CalendarComponent } from '@/components/ui/calendar';
-import type { DateRange } from 'react-day-picker';
 
 const MAX_IMAGE_SIZE_PX = 800;
 
-export default function ZiptallyPartnerDashboard() {
+export default function SnazStockPartnerDashboard() {
     const router = useRouter();
     const { toast } = useToast();
     const [partner, setPartner] = useState<any | null>(null);
@@ -58,16 +54,12 @@ export default function ZiptallyPartnerDashboard() {
 
     const [updatingImageId, setUpdatingImageId] = useState<string | null>(null);
     const [selectedProductForStats, setSelectedProductForStats] = useState<InventoryItem | null>(null);
-    
-    // File Input Refs for Mobile Stability (Bypass browser popup blocking)
-    const bulkSnapRef = useRef<HTMLInputElement>(null);
-    const imageUpdateRef = useRef<HTMLInputElement>(null);
-    const billUploadRef = useRef<HTMLInputElement>(null);
-    const productUploadRef = useRef<HTMLInputElement>(null);
 
-    // Reporting States
-    const [reportRange, setReportRange] = useState<DateRange | undefined>();
-    const [isExporting, setIsExporting] = useState(false);
+    // Mobile Hardware Refs
+    const bulkSnapRef = useRef<HTMLInputElement>(null);
+    const billAiRef = useRef<HTMLInputElement>(null);
+    const prodGroupRef = useRef<HTMLInputElement>(null);
+    const imageUpdateRef = useRef<HTMLInputElement>(null);
 
     const partnerId = getCookie('snapstock_token') as string;
 
@@ -127,17 +119,15 @@ export default function ZiptallyPartnerDashboard() {
 
         const mq = query(collection(db, 'inventory_movements'), orderBy('date', 'desc'));
         const mUnsub = onSnapshot(mq, (snapshot) => {
-            setMovements(snapshot.docs.map(doc => doc.data() as StockMovement).filter(m => inventory.some(i => i.id === m.productId)));
+            setMovements(snapshot.docs.map(doc => doc.data() as StockMovement));
         });
 
         return () => { partnerUnsub(); invUnsub(); mUnsub(); };
-    }, [partnerId, inventory]);
+    }, [partnerId]);
 
-    const trackUsage = useCallback(async (feature?: string) => {
+    const trackUsage = useCallback(async () => {
         if (!partnerId) return;
-        const updates: any = { snapUsage: increment(1) };
-        if (feature) updates[`featureStats.${feature}`] = increment(1);
-        await saveDocument('snapstock_partners', updates, partnerId);
+        await saveDocument('snapstock_partners', { snapUsage: increment(1) }, partnerId);
     }, [partnerId]);
 
     const resizeImage = (file: File): Promise<string> => {
@@ -165,6 +155,7 @@ export default function ZiptallyPartnerDashboard() {
         const item = inventory.find(i => i.id === id);
         if (!item) return;
         await saveDocument('inventory', { ...item, ...updates, lastUpdated: new Date().toISOString() }, id);
+        await trackUsage();
     };
 
     const handleBulkIntake = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -181,7 +172,7 @@ export default function ZiptallyPartnerDashboard() {
                 return;
             }
 
-            // Consolidate duplicates into single entries with correct quantities (Batch Grouping)
+            // Grouping logic for items in the same photo
             const mergedBatch = new Map<string, any>();
             for (const d of detections) {
                 const name = d.productName.trim().toLowerCase();
@@ -206,7 +197,7 @@ export default function ZiptallyPartnerDashboard() {
                     await saveDocument('inventory', newItem, id);
                 }
             }
-            await trackUsage('bulkSnap');
+            await trackUsage();
             toast({ title: "Inventory Synced!", description: `Processed ${mergedBatch.size} unique products.` });
         } catch (e) {
             toast({ variant: 'destructive', title: "Intake Failed" });
@@ -230,9 +221,10 @@ export default function ZiptallyPartnerDashboard() {
                 };
                 await saveDocument('inventory', newItem, id);
             }
-            await trackUsage('billAi');
+            await trackUsage();
             toast({ title: "Bill Sync Complete" });
             setIsBillIntakeOpen(false);
+            setBillPhoto(null); setProductPhoto(null);
         } catch (e) {
             toast({ variant: 'destructive', title: "Bill Analysis Failed" });
         } finally {
@@ -240,294 +232,259 @@ export default function ZiptallyPartnerDashboard() {
         }
     };
 
-    const handleGenerateReport = () => {
-        if (!reportRange?.from) {
-            toast({ variant: 'destructive', title: "Date Range Required" });
-            return;
-        }
-        setIsExporting(true);
-        try {
-            const start = startOfDay(reportRange.from);
-            const end = endOfDay(reportRange.to || reportRange.from);
-            
-            const filteredMovements = movements.filter(m => {
-                const mDate = parseISO(m.date);
-                return isWithinInterval(mDate, { start, end });
-            });
-
-            if (filteredMovements.length === 0) {
-                toast({ variant: 'destructive', title: "No Data Found", description: "No stock movements in this date range." });
-                setIsExporting(false);
-                return;
+    const handleVoiceCommand = () => {
+        const sr = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+        if (!sr) return;
+        const r = new sr();
+        r.onresult = async (e: any) => {
+            const text = e.results[0][0].transcript;
+            setIsAnalyzing(true);
+            try {
+                const result = await parseInventoryCommand(text);
+                for (const item of result.items) {
+                    const cleanName = item.productName.trim().toLowerCase();
+                    const existing = inventory.find(i => (i.name || '').toLowerCase().trim() === cleanName);
+                    
+                    if (existing) {
+                        await updateItem(existing.id, { quantity: Math.max(0, existing.quantity + item.quantity) });
+                    } else if (item.quantity > 0) {
+                        const id = uuidv4();
+                        const newItem = {
+                            id, storeId: partnerId, name: item.productName, quantity: item.quantity, mrp: 0, wholesalePrice: 0,
+                            category: 'General', shelfNumber: 'A1', imageDataUri: 'https://picsum.photos/seed/voice/200/200', lastUpdated: new Date().toISOString()
+                        };
+                        await saveDocument('inventory', newItem, id);
+                    }
+                }
+                await trackUsage();
+                toast({ title: "Voice Sync Complete" });
+            } finally {
+                setIsAnalyzing(false);
             }
-
-            const data = filteredMovements.map(m => {
-                const item = inventory.find(i => i.id === m.productId);
-                return {
-                    'Date': format(parseISO(m.date), 'PPp'),
-                    'Product': item?.name || 'Unknown',
-                    'Event': m.type,
-                    'Quantity': m.quantity,
-                    'Prev Stock': m.previousStock,
-                    'New Stock': m.newStock,
-                    'Note': m.note || '-'
-                };
-            });
-
-            const ws = XLSX.utils.json_to_sheet(data);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Activity Report");
-            XLSX.writeFile(wb, `ZipTally_Report_${format(start, 'yyyy-MM-dd')}.xlsx`);
-            
-            toast({ title: "Report Downloaded!" });
-        } catch (e) {
-            toast({ variant: 'destructive', title: "Report Export Failed" });
-        } finally {
-            setIsExporting(false);
-        }
+        };
+        r.start();
     };
 
     return (
-        <div className="space-y-8">
-            <div className="flex flex-wrap gap-2 pb-2 no-print">
-                <Button variant="outline" size="sm" className="rounded-full h-8 px-4 text-[10px] font-black uppercase tracking-widest bg-white/50 opacity-40" disabled><ShoppingCart className="mr-1.5 h-3 w-3" /> Orders</Button>
-                <Button variant="outline" size="sm" className="rounded-full h-8 px-4 text-[10px] font-black uppercase tracking-widest bg-white/50 opacity-40" disabled><Users className="mr-1.5 h-3 w-3" /> Leads</Button>
-                <Button variant="outline" size="sm" className="rounded-full h-8 px-4 text-[10px] font-black uppercase tracking-widest bg-white/50 opacity-40" disabled><Wand2 className="mr-1.5 h-3 w-3" /> AI Uploader</Button>
-                <Button variant="outline" size="sm" className="rounded-full h-8 px-4 text-[10px] font-black uppercase tracking-widest bg-white/50 opacity-40" disabled><BookOpen className="mr-1.5 h-3 w-3" /> Smart Magazine</Button>
-                <Button variant="outline" size="sm" className="rounded-full h-8 px-4 text-[10px] font-black uppercase tracking-widest bg-white/50 opacity-40" disabled><Settings className="mr-1.5 h-3 w-3" /> Settings</Button>
-            </div>
+        <div className="min-h-screen bg-slate-50 flex flex-col">
+            <header className="bg-slate-900 text-white p-4 md:px-8 flex justify-between items-center sticky top-0 z-50 shadow-xl no-print">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center shadow-lg"><Zap className="h-6 w-6 text-white" /></div>
+                    <div><h1 className="text-xl font-black italic uppercase tracking-tighter">{partner?.storeName || 'ZipTally AI'}</h1><p className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest mt-1">Operational Terminal</p></div>
+                </div>
+                <div className="flex items-center gap-4">
+                     <Badge variant="outline" className="text-emerald-400 border-emerald-400/30 uppercase text-[9px] font-black h-6">AI Credits: {partner?.snapUsage || 0}</Badge>
+                     <Button variant="ghost" size="sm" onClick={() => router.push('/ziptally/login')} className="text-slate-400 hover:text-white uppercase font-black text-[10px]">Sign Out</Button>
+                </div>
+            </header>
 
-            <div className="grid grid-cols-1 md:grid-cols-6 gap-4 no-print">
-                <Button onClick={() => setIsScanning(true)} size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-emerald-600 hover:bg-emerald-500 transition-all active:scale-95"><Scan className="h-8 w-8" /><span className="font-bold uppercase text-xs">Scan to Sell</span></Button>
-                <Button onClick={() => bulkSnapRef.current?.click()} variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-white border-2 border-dashed border-emerald-200 text-emerald-600 transition-all active:scale-95" disabled={isAnalyzing}>{isAnalyzing ? <Loader2 className="animate-spin h-8 w-8" /> : <Layers className="h-8 w-8" />}<span className="font-bold uppercase text-xs">Bulk Snap</span></Button>
-                <Button onClick={() => setIsBillIntakeOpen(true)} variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-white border-2 border-dashed border-blue-200 text-blue-600 transition-all active:scale-95"><FileUp className="h-8 w-8" /><span className="font-bold uppercase text-xs">Bill AI</span></Button>
-                <Button onClick={() => router.push('/ziptally/audit')} variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-white border-2 border-dashed border-purple-200 text-purple-600 transition-all active:scale-95">
-                    <ShieldCheck className="h-8 w-8" /><span className="font-bold uppercase text-xs">Shelf Audit</span>
-                </Button>
-                <Dialog>
-                    <DialogTrigger asChild>
-                        <Button variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-white border-2 border-dashed border-indigo-200 text-indigo-600 transition-all active:scale-95">
-                            <FileSpreadsheet className="h-8 w-8" /><span className="font-bold uppercase text-xs">Date Report</span>
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent className="rounded-[32px]">
-                        <DialogHeader>
-                            <DialogTitle className="text-xl font-black italic uppercase text-slate-800">Generate Activity Report</DialogTitle>
-                            <DialogDescription>Export detailed stock activity and sales for your chosen dates.</DialogDescription>
-                        </DialogHeader>
-                        <div className="py-6 space-y-4">
-                            <Label className="text-[10px] font-black uppercase text-slate-400">Select Date Range</Label>
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button variant="outline" className="w-full h-14 rounded-xl text-left font-bold justify-start">
-                                        <Calendar className="mr-2 h-4 w-4" />
-                                        {reportRange?.from ? (reportRange.to ? `${format(reportRange.from, 'PP')} - ${format(reportRange.to, 'PP')}` : format(reportRange.from, 'PP')) : "Pick dates..."}
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                    <CalendarComponent mode="range" selected={reportRange} onSelect={setReportRange} initialFocus />
-                                </PopoverContent>
-                            </Popover>
+            <main className="flex-1 p-4 md:p-8 space-y-8 max-w-7xl mx-auto w-full pb-32">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4 no-print">
+                    <Button onClick={() => setIsScanning(true)} size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-emerald-600 hover:bg-emerald-500"><Scan className="h-8 w-8" /><span className="font-bold uppercase text-xs">Scan to Sell</span></Button>
+                    <Button onClick={() => bulkSnapRef.current?.click()} variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-white border-2 border-dashed border-emerald-200 text-emerald-600" disabled={isAnalyzing}>{isAnalyzing ? <Loader2 className="animate-spin h-8 w-8" /> : <Layers className="h-8 w-8" />}<span className="font-bold uppercase text-xs">Bulk Snap</span></Button>
+                    <Button onClick={() => setIsBillIntakeOpen(true)} variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-white border-2 border-dashed border-blue-200 text-blue-600"><FileUp className="h-8 w-8" /><span className="font-bold uppercase text-xs">Bill AI</span></Button>
+                    <Button onClick={() => router.push('/ziptally/audit')} variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg bg-white border-2 border-dashed border-purple-200 text-purple-600">
+                        <ShieldCheck className="h-8 w-8" /><span className="font-bold uppercase text-xs">Shelf Audit</span>
+                    </Button>
+                    <Button variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg border-2 border-slate-100 bg-white" onClick={handleVoiceCommand} disabled={isAnalyzing}>{isAnalyzing ? <Loader2 className="animate-spin h-8 w-8" /> : <Mic className="h-8 w-8 text-blue-500" />}<span className="font-bold uppercase text-xs text-slate-500">Voice Sync</span></Button>
+                </div>
+
+                <div className="flex flex-col md:flex-row gap-4 px-2 no-print">
+                    <div className="relative flex-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" /><Input placeholder="Search name, supplier..." className="pl-9 h-12 rounded-xl bg-white shadow-sm border-none font-bold" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} /></div>
+                    <div className="flex gap-2">
+                        <Button variant="outline" className="h-12 px-6 rounded-full bg-white shadow-sm font-black uppercase text-[10px] italic" onClick={() => {
+                            const ws = XLSX.utils.json_to_sheet(inventory.map(i => ({ Product: i.name, Wholesaler: i.supplierName || 'N/A', Stock: i.quantity, Purchase: i.wholesalePrice, MRP: i.mrp })));
+                            const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Stock"); XLSX.writeFile(wb, "Inventory.xlsx");
+                        }}><FileSpreadsheet className="mr-2 h-4 w-4" /> Export Master</Button>
+                        <div className="flex bg-white rounded-full p-1 border shadow-sm h-12">
+                            <Button variant={activeView === 'list' ? 'default' : 'ghost'} size="sm" className="h-10 px-4 rounded-full text-[10px] uppercase font-bold" onClick={() => setActiveView('list')}>List</Button>
+                            <Button variant={activeView === 'shop-map' ? 'default' : 'ghost'} size="sm" className="h-10 px-4 rounded-full text-[10px] uppercase font-bold" onClick={() => setActiveView('shop-map')}>Map</Button>
                         </div>
-                        <DialogFooter>
-                            <Button onClick={handleGenerateReport} className="w-full h-14 rounded-2xl bg-indigo-600 hover:bg-indigo-700 font-black uppercase italic" disabled={isExporting || !reportRange?.from}>
-                                {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2" />} Export to Excel
-                            </Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
-                <Button variant="outline" size="lg" className="h-24 flex flex-col gap-2 rounded-[24px] shadow-lg border-2 border-slate-100 bg-white transition-all active:scale-95" onClick={() => trackUsage('voiceSync')}><Mic className="h-8 w-8 text-blue-500" /><span className="font-bold uppercase text-xs text-slate-500">Voice Sync</span></Button>
-            </div>
-
-            <div className="flex flex-col md:flex-row gap-4 px-2 no-print">
-                <div className="relative flex-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" /><Input placeholder="Search name, supplier..." className="pl-9 h-12 rounded-xl bg-white shadow-sm border-none font-bold" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} /></div>
-                <div className="flex gap-2">
-                    <Button variant="outline" className="h-12 px-6 rounded-full bg-white shadow-sm font-black uppercase text-[10px] italic" onClick={() => {
-                        const ws = XLSX.utils.json_to_sheet(inventory.map(i => ({ Product: i.name, Wholesaler: i.supplierName || 'N/A', Stock: i.quantity, Purchase: i.wholesalePrice, MRP: i.mrp })));
-                        const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Stock"); XLSX.writeFile(wb, "ZipTally_Inventory.xlsx");
-                    }}><FileSpreadsheet className="mr-2 h-4 w-4" /> Export Master</Button>
-                    <div className="flex bg-white rounded-full p-1 border shadow-sm h-12">
-                        <Button variant={activeView === 'list' ? 'default' : 'ghost'} size="sm" className="h-10 px-4 rounded-full text-[10px] uppercase font-bold" onClick={() => setActiveView('list')}>List</Button>
-                        <Button variant={activeView === 'shop-map' ? 'default' : 'ghost'} size="sm" className="h-10 px-4 rounded-full text-[10px] uppercase font-bold" onClick={() => setActiveView('shop-map')}>Map</Button>
                     </div>
                 </div>
-            </div>
 
-            {activeView === 'list' ? (
-                <Card className="rounded-[32px] overflow-hidden border-none shadow-sm bg-white">
-                    <Table>
-                        <TableHeader className="bg-slate-50/50">
-                            <TableRow>
-                                <TableHead className="pl-8">Intelligence Feed</TableHead>
-                                <TableHead>Wholesaler</TableHead>
-                                <TableHead>Purchase</TableHead>
-                                <TableHead>MRP</TableHead>
-                                <TableHead>Stock</TableHead>
-                                <TableHead className="text-right pr-8 no-print">Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {filteredInventory.map(item => (
-                                <TableRow key={item.id} className="group hover:bg-slate-50">
-                                    <TableCell className="pl-8 py-4">
-                                        <div className="flex items-center gap-4">
-                                            <div className="relative w-12 h-12 rounded-xl overflow-hidden border cursor-pointer group/img" onClick={() => { setUpdatingImageId(item.id); imageUpdateRef.current?.click(); }}>
-                                                <Image src={item.imageDataUri} fill alt="p" className="object-cover" unoptimized />
-                                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/opacity-100 bg-black/20 transition-opacity"><ImagePlus className="h-4 w-4 text-white" /></div>
-                                            </div>
-                                            <div className="flex flex-col gap-1">
-                                                <div className="flex items-center gap-2">
-                                                    <Input value={item.name} onChange={e => updateItem(item.id, { name: e.target.value })} className="h-8 font-black uppercase italic border-transparent hover:border-input focus:border-input bg-transparent w-48 text-sm" />
-                                                    <Button variant="ghost" size="icon" className="h-6 w-6 opacity-30 hover:opacity-100" onClick={() => setSelectedProductForStats(item)}><Info className="h-4 w-4" /></Button>
-                                                </div>
-                                                <p className="text-[9px] font-mono opacity-50 ml-3">{item.id.substring(0,8)} • {item.shelfNumber || 'A1'}</p>
-                                            </div>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell><Input value={item.supplierName || ''} placeholder="Edit Supplier" onChange={e => updateItem(item.id, { supplierName: e.target.value })} className="h-8 text-[10px] font-bold border-transparent hover:border-input focus:border-input bg-transparent no-print" /><span className="hidden print:inline">{item.supplierName || 'N/A'}</span></TableCell>
-                                    <TableCell><div className="flex items-center gap-1"><span className="text-[10px] font-bold text-slate-400 no-print">₹</span><Input type="number" value={item.wholesalePrice} onChange={e => updateItem(item.id, { wholesalePrice: parseFloat(item.wholesalePrice) || 0 })} className="w-20 h-8 font-bold no-print" /><span className="hidden print:inline">₹{item.wholesalePrice}</span></div></TableCell>
-                                    <TableCell><div className="flex items-center gap-1"><span className="text-[10px] font-bold text-emerald-600 no-print">₹</span><Input type="number" value={item.mrp} onChange={e => updateItem(item.id, { mrp: parseFloat(item.mrp) || 0 })} className="w-20 h-8 font-black text-emerald-600 no-print" /><span className="hidden print:inline">₹{item.mrp}</span></div></TableCell>
-                                    <TableCell><div className="flex items-center gap-3 no-print"><Button variant="ghost" size="icon" className="h-8 w-8 text-slate-300" onClick={() => updateItem(item.id, { quantity: Math.max(0, (item.quantity || 0) - 1) })}><Minus className="h-4 w-4" /></Button><span className="font-black text-xl">{item.quantity || 0}</span><Button variant="ghost" size="icon" className="h-8 w-8 text-slate-300" onClick={() => updateItem(item.id, { quantity: (item.quantity || 0) + 1 })}><Plus className="h-4 w-4" /></Button></div><span className="hidden print:inline">{item.quantity}</span></TableCell>
-                                    <TableCell className="text-right pr-8 no-print"><Button variant="ghost" size="icon" className="text-slate-200" onClick={() => deleteDocument('inventory', item.id)}><Trash2 className="h-4 w-4" /></Button></TableCell>
+                {activeView === 'list' ? (
+                    <Card className="rounded-[32px] overflow-hidden border-none shadow-sm bg-white">
+                        <Table>
+                            <TableHeader className="bg-slate-50/50">
+                                <TableRow>
+                                    <TableHead className="pl-8">Intelligence Feed</TableHead>
+                                    <TableHead>Wholesaler</TableHead>
+                                    <TableHead>Purchase</TableHead>
+                                    <TableHead>MRP</TableHead>
+                                    <TableHead>Stock</TableHead>
+                                    <TableHead className="text-right pr-8 no-print">Actions</TableHead>
                                 </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </Card>
-            ) : (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 no-print">
-                    {Object.entries(shelfGroups).map(([shelf, items]) => (
-                        <Card key={shelf} className="rounded-[32px] border-none shadow-lg bg-white overflow-hidden group hover:shadow-2xl transition-all">
-                            <CardHeader className="bg-slate-50 border-b flex flex-row items-center justify-between py-4 px-6">
-                                <div className="flex items-center gap-3"><div className="p-2 bg-emerald-100 text-emerald-600 rounded-xl font-black italic"><MapPin className="h-4 w-4" /></div><CardTitle className="text-sm font-black uppercase italic">Shelf {shelf}</CardTitle></div>
-                                <Badge className="bg-slate-900 text-[10px] font-black italic">Stock: {items.reduce((sum, i) => sum + (i.quantity || 0), 0)}</Badge>
-                            </CardHeader>
-                            <CardContent className="p-4 space-y-3">
-                                {items.slice(0, 3).map(item => (
-                                    <div key={item.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100 cursor-pointer" onClick={() => setSelectedProductForStats(item)}>
-                                        <div className="relative h-8 w-8 rounded-lg overflow-hidden border"><Image src={item.imageDataUri} fill alt="p" className="object-cover" unoptimized /></div>
-                                        <div className="flex-1 min-w-0"><p className="text-[10px] font-black uppercase italic truncate">{item.name}</p><p className="text-[8px] font-bold text-emerald-500">₹{item.mrp}</p></div>
-                                    </div>
+                            </TableHeader>
+                            <TableBody>
+                                {filteredInventory.map(item => (
+                                    <TableRow key={item.id} className="group hover:bg-slate-50">
+                                        <TableCell className="pl-8 py-4">
+                                            <div className="flex items-center gap-4">
+                                                <div className="relative w-12 h-12 rounded-xl overflow-hidden border cursor-pointer" onClick={() => { setUpdatingImageId(item.id); imageUpdateRef.current?.click(); }}>
+                                                    <Image src={item.imageDataUri} fill alt="p" className="object-cover" unoptimized />
+                                                    <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 bg-black/20 transition-opacity"><ImagePlus className="h-4 w-4 text-white" /></div>
+                                                </div>
+                                                <div className="flex flex-col gap-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <Input 
+                                                            value={item.name} 
+                                                            onChange={e => updateItem(item.id, { name: e.target.value })}
+                                                            className="h-8 font-black uppercase italic border-transparent hover:border-input focus:border-input bg-transparent w-48 text-sm"
+                                                        />
+                                                        <Button variant="ghost" size="icon" className="h-6 w-6 opacity-30 hover:opacity-100" onClick={() => setSelectedProductForStats(item)}>
+                                                            <Info className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                    <p className="text-[9px] font-mono opacity-50 ml-3">{item.id.substring(0,8)} • {item.shelfNumber || 'A1'}</p>
+                                                </div>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell><Input value={item.supplierName || ''} placeholder="Supplier" onChange={e => updateItem(item.id, { supplierName: e.target.value })} className="h-8 text-[10px] font-bold border-transparent hover:border-input focus:border-input bg-transparent no-print" /><span className="hidden print:inline">{item.supplierName || 'N/A'}</span></TableCell>
+                                        <TableCell><div className="flex items-center gap-1"><span className="text-[10px] font-bold text-slate-400 no-print">₹</span><Input type="number" value={item.wholesalePrice} onChange={e => updateItem(item.id, { wholesalePrice: parseFloat(e.target.value) || 0 })} className="w-20 h-8 font-bold no-print" /><span className="hidden print:inline">₹{item.wholesalePrice}</span></div></TableCell>
+                                        <TableCell><div className="flex items-center gap-1"><span className="text-[10px] font-bold text-emerald-600 no-print">₹</span><Input type="number" value={item.mrp} onChange={e => updateItem(item.id, { mrp: parseFloat(e.target.value) || 0 })} className="w-20 h-8 font-black text-emerald-600 no-print" /><span className="hidden print:inline">₹{item.mrp}</span></div></TableCell>
+                                        <TableCell><div className="flex items-center gap-3 no-print"><Button variant="ghost" size="icon" className="h-8 w-8 text-slate-300" onClick={() => updateItem(item.id, { quantity: Math.max(0, (item.quantity || 0) - 1) })}><Minus className="h-4 w-4" /></Button><span className="font-black text-xl">{item.quantity || 0}</span><Button variant="ghost" size="icon" className="h-8 w-8 text-slate-300" onClick={() => updateItem(item.id, { quantity: (item.quantity || 0) + 1 })}><Plus className="h-4 w-4" /></Button></div><span className="hidden print:inline">{item.quantity}</span></TableCell>
+                                        <TableCell className="text-right pr-8 no-print"><Button variant="ghost" size="icon" className="text-slate-200" onClick={() => deleteDocument('inventory', item.id)}><Trash2 className="h-4 w-4" /></Button></TableCell>
+                                    </TableRow>
                                 ))}
-                            </CardContent>
-                        </Card>
-                    ))}
-                </div>
-            )}
-
-            {/* MODALS */}
-            <Dialog open={isBillIntakeOpen} onOpenChange={setIsBillIntakeOpen}>
-                <DialogContent className="max-w-2xl rounded-[32px] p-8 border-none no-print">
-                    <DialogHeader><DialogTitle className="text-2xl font-black italic uppercase text-slate-800">AI Bill Intake</DialogTitle><DialogDescription>Upload your supplier bill and the GROUP PHOTO to sync wholesale costs.</DialogDescription></DialogHeader>
-                    <div className="grid grid-cols-2 gap-6 py-6">
-                        <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase text-slate-400">1. Supplier Bill</Label>
-                            <div className="relative aspect-[3/4] border-2 border-dashed rounded-2xl flex flex-col items-center justify-center bg-slate-50 cursor-pointer overflow-hidden" onClick={() => billUploadRef.current?.click()}>
-                                {billPhoto ? <Image src={billPhoto} fill className="object-cover" alt="bill" /> : <><FileText className="h-8 w-8 text-slate-300" /><span className="text-[8px] font-bold uppercase mt-2">Upload Bill</span></>}
-                            </div>
-                            <input ref={billUploadRef} type="file" accept="image/*" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if(f) setBillPhoto(await resizeImage(f)); }} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase text-slate-400">2. Product GROUP PHOTO</Label>
-                            <div className="relative aspect-[3/4] border-2 border-dashed rounded-2xl flex flex-col items-center justify-center bg-slate-50 cursor-pointer overflow-hidden" onClick={() => productUploadRef.current?.click()}>
-                                {productPhoto ? <Image src={productPhoto} fill className="object-cover" alt="prod" /> : <><Camera className="h-8 w-8 text-slate-300" /><span className="text-[8px] font-bold uppercase mt-2">Upload Group</span></>}
-                            </div>
-                            <input ref={productUploadRef} type="file" accept="image/*" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if(f) setProductPhoto(await resizeImage(f)); }} />
-                        </div>
-                    </div>
-                    <DialogFooter><Button className="w-full h-14 rounded-2xl font-black uppercase italic bg-blue-600" onClick={handleProcessBill} disabled={isProcessingBill || !billPhoto || !productPhoto}>{isProcessingBill ? <Loader2 className="animate-spin mr-2" /> : <Sparkles className="mr-2" />} Match & Merge to Stock</Button></DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            <Dialog open={!!selectedProductForStats} onOpenChange={open => !open && setSelectedProductForStats(null)}>
-                <DialogContent className="max-w-4xl rounded-[40px] p-0 overflow-hidden border-none bg-white">
-                    <div className="grid grid-cols-1 md:grid-cols-2">
-                        <div className="bg-slate-900 text-white p-10 space-y-8">
-                            {selectedProductForStats && (
-                                <>
-                                    <div className="flex gap-6 items-center">
-                                        <div className="relative w-24 h-24 rounded-3xl overflow-hidden shadow-2xl border-2 border-white/10"><Image src={selectedProductForStats.imageDataUri} fill alt="p" className="object-cover" unoptimized /></div>
-                                        <div className="space-y-1">
-                                            <h3 className="text-3xl font-black italic uppercase tracking-tighter leading-none">{selectedProductForStats.name}</h3>
-                                            <Badge variant="outline" className="text-blue-400 border-blue-400/30 uppercase text-[9px] font-black">Ref: {selectedProductForStats.id.substring(0,8)}</Badge>
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
-                                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Stock Level</p>
-                                            <p className="text-3xl font-black italic">{selectedProductForStats.quantity}</p>
-                                        </div>
-                                        <div className="p-4 bg-blue-600 rounded-2xl shadow-xl shadow-blue-900/20">
-                                            <p className="text-[10px] font-black text-blue-200 uppercase tracking-widest mb-1">Profit/Unit</p>
-                                            <p className="text-3xl font-black italic">₹{(selectedProductForStats.mrp - selectedProductForStats.wholesalePrice).toFixed(0)}</p>
-                                        </div>
-                                    </div>
-                                    <div className="space-y-4">
-                                        <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Wholesaler Details</Label>
-                                        <div className="space-y-3">
-                                            <div className="relative"><Factory className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" /><Input className="pl-9 h-11 bg-white/5 border-white/10 text-white rounded-xl" value={selectedProductForStats.supplierName || ''} onChange={e => updateItem(selectedProductForStats.id, { supplierName: e.target.value })} placeholder="Source/Supplier Name" /></div>
-                                            <div className="relative"><Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" /><Input className="pl-9 h-11 bg-white/5 border-white/10 text-white rounded-xl" value={selectedProductForStats.supplierContact || ''} onChange={e => updateItem(selectedProductForStats.id, { supplierContact: e.target.value })} placeholder="Supplier Contact" /></div>
-                                        </div>
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                        <div className="p-10 space-y-8">
-                            <div className="flex items-center justify-between">
-                                <h4 className="text-xl font-black italic uppercase tracking-tight flex items-center gap-2 text-slate-800"><TrendingUp className="text-blue-600"/> Performance</h4>
-                                <Badge className="bg-slate-100 text-slate-600 border-none uppercase text-[9px] font-bold">Sales Velocity</Badge>
-                            </div>
-                            <div className="h-64 w-full">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <LineChart data={productStats}>
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                        <XAxis dataKey="name" stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
-                                        <YAxis stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
-                                        <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }} />
-                                        <Line type="monotone" dataKey="sales" stroke="#2563eb" strokeWidth={4} dot={{ r: 4, fill: "#2563eb", strokeWidth: 2, stroke: "#fff" }} activeDot={{ r: 6 }} />
-                                    </LineChart>
-                                </ResponsiveContainer>
-                            </div>
-                            <div className="space-y-4 pt-4">
-                                <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-2"><History className="h-4 w-4"/> Stock History</h4>
-                                <div className="space-y-2">
-                                    {movements.filter(m => m.productId === selectedProductForStats?.id).slice(0, 3).map(m => (
-                                        <div key={m.id} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl border border-slate-100">
-                                            <div><p className="text-[10px] font-black uppercase text-slate-800">{m.type}</p><p className="text-[8px] text-slate-400 font-bold uppercase">{format(parseISO(m.date), 'PPP p')}</p></div>
-                                            <p className={cn("font-black italic", m.quantity > 0 ? "text-green-600" : "text-red-600")}>{m.quantity > 0 ? '+' : ''}{m.quantity}</p>
+                            </TableBody>
+                        </Table>
+                    </Card>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 no-print">
+                        {Object.entries(shelfGroups).map(([shelf, items]) => (
+                            <Card key={shelf} className="rounded-[32px] border-none shadow-lg bg-white overflow-hidden">
+                                <CardHeader className="bg-slate-50 border-b flex flex-row items-center justify-between py-4 px-6">
+                                    <div className="flex items-center gap-3"><div className="p-2 bg-emerald-100 text-emerald-600 rounded-xl font-black italic"><MapPin className="h-4 w-4" /></div><CardTitle className="text-sm font-black uppercase italic">Shelf {shelf}</CardTitle></div>
+                                    <Badge className="bg-slate-900 text-[10px] font-black italic">Qty: {items.reduce((sum, i) => sum + (i.quantity || 0), 0)}</Badge>
+                                </CardHeader>
+                                <CardContent className="p-4 space-y-3">
+                                    {items.slice(0, 3).map(item => (
+                                        <div key={item.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => setSelectedProductForStats(item)}>
+                                            <div className="relative h-8 w-8 rounded-lg overflow-hidden border"><Image src={item.imageDataUri} fill alt="p" className="object-cover" unoptimized /></div>
+                                            <div className="flex-1 min-w-0"><p className="text-[10px] font-black uppercase italic truncate">{item.name}</p><p className="text-[8px] font-bold text-emerald-500">₹{item.mrp}</p></div>
                                         </div>
                                     ))}
-                                </div>
-                            </div>
-                            <DialogClose asChild><Button className="w-full h-14 rounded-2xl font-black uppercase italic tracking-widest mt-4">Close Intelligence</Button></DialogClose>
-                        </div>
+                                </CardContent>
+                            </Card>
+                        ))}
                     </div>
-                </DialogContent>
-            </Dialog>
+                )}
 
-            <Dialog open={isScanning} onOpenChange={setIsScanning}>
-                <DialogContent className="max-w-sm rounded-[32px] p-6 no-print">
-                    <DialogHeader><DialogTitle className="text-center uppercase font-black">Mobile Scanner</DialogTitle></DialogHeader>
-                    <div id="partner-reader" className="w-full aspect-square rounded-2xl overflow-hidden border-2 bg-slate-50" />
-                    <DialogFooter><Button variant="outline" className="w-full rounded-xl" onClick={() => setIsScanning(false)}>Cancel</Button></DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            <Dialog open={!!selectedSaleItem} onOpenChange={(open) => !open && setSelectedSaleItem(null)}>
-                <DialogContent className="max-md rounded-[32px] p-8 no-print">
-                    <DialogHeader><DialogTitle className="text-2xl font-black italic uppercase">Confirm Sale</DialogTitle></DialogHeader>
-                    {selectedSaleItem && (
-                        <div className="space-y-6 pt-4">
-                            <div className="flex gap-4 p-4 bg-slate-50 rounded-2xl"><div className="relative h-16 w-16 rounded-xl overflow-hidden border bg-white"><Image src={selectedSaleItem.imageDataUri} fill alt="p" className="object-cover" unoptimized /></div><div><p className="font-black italic uppercase text-slate-800">{selectedSaleItem.name}</p><p className="text-xs text-blue-600 font-bold">Available: {selectedSaleItem.quantity}</p></div></div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">Qty</Label><Input type="number" className="h-12 rounded-xl font-bold" value={saleQty} onChange={e => setSaleQty(Number(e.target.value))} /></div>
-                                <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">Price (₹)</Label><Input type="number" className="h-12 rounded-xl font-bold" value={actualSellPrice} onChange={e => setSalePrice(Number(e.target.value))} /></div>
+                {/* MODALS */}
+                <Dialog open={isBillIntakeOpen} onOpenChange={setIsBillIntakeOpen}>
+                    <DialogContent className="max-w-2xl rounded-[32px] p-8 border-none no-print">
+                        <DialogHeader><DialogTitle className="text-2xl font-black italic uppercase text-slate-800">AI Bill Intake</DialogTitle></DialogHeader>
+                        <div className="grid grid-cols-2 gap-6 py-6">
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-black uppercase text-slate-400">Supplier Bill</Label>
+                                <div className="relative aspect-[3/4] border-2 border-dashed rounded-2xl flex flex-col items-center justify-center bg-slate-50 cursor-pointer overflow-hidden" onClick={() => billAiRef.current?.click()}>
+                                    {billPhoto ? <Image src={billPhoto} fill className="object-cover" alt="bill" /> : <><FileText className="h-8 w-8 text-slate-300" /><span className="text-[8px] font-bold uppercase mt-2">Upload Bill</span></>}
+                                </div>
+                                <input ref={billAiRef} type="file" accept="image/*" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if(f) setBillPhoto(await resizeImage(f)); }} />
                             </div>
-                            <Button className="w-full h-14 rounded-2xl font-black uppercase italic text-lg bg-emerald-600" onClick={async () => { await updateItem(selectedSaleItem.id, { quantity: (selectedSaleItem.quantity || 0) - saleQty }); setSelectedSaleItem(null); toast({ title: "Sale Recorded" }); }}>Confirm Transaction</Button>
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-black uppercase text-slate-400">Group Photo</Label>
+                                <div className="relative aspect-[3/4] border-2 border-dashed rounded-2xl flex flex-col items-center justify-center bg-slate-50 cursor-pointer overflow-hidden" onClick={() => prodGroupRef.current?.click()}>
+                                    {productPhoto ? <Image src={productPhoto} fill className="object-cover" alt="prod" /> : <><Camera className="h-8 w-8 text-slate-300" /><span className="text-[8px] font-bold uppercase mt-2">Upload Group</span></>}
+                                </div>
+                                <input ref={prodGroupRef} type="file" accept="image/*" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if(f) setProductPhoto(await resizeImage(f)); }} />
+                            </div>
                         </div>
-                    )}
-                </DialogContent>
-            </Dialog>
+                        <DialogFooter><Button className="w-full h-14 rounded-2xl font-black uppercase italic bg-blue-600" onClick={handleProcessBill} disabled={isProcessingBill || !billPhoto || !productPhoto}>{isProcessingBill ? <Loader2 className="animate-spin mr-2" /> : <Sparkles className="mr-2" />} Process Batch Intake</Button></DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                <Dialog open={!!selectedProductForStats} onOpenChange={open => !open && setSelectedProductForStats(null)}>
+                    <DialogContent className="max-w-4xl rounded-[40px] p-0 overflow-hidden border-none bg-white">
+                        <div className="grid grid-cols-1 md:grid-cols-2">
+                            <div className="bg-slate-900 text-white p-10 space-y-8">
+                                {selectedProductForStats && (
+                                    <>
+                                        <div className="flex gap-6 items-center">
+                                            <div className="relative w-24 h-24 rounded-3xl overflow-hidden shadow-2xl border-2 border-white/10"><Image src={selectedProductForStats.imageDataUri} fill alt="p" className="object-cover" unoptimized /></div>
+                                            <div className="space-y-1">
+                                                <h3 className="text-3xl font-black italic uppercase tracking-tighter leading-none">{selectedProductForStats.name}</h3>
+                                                <Badge variant="outline" className="text-emerald-400 border-emerald-400/30 uppercase text-[9px] font-black">SKU: {selectedProductForStats.id.substring(0,8)}</Badge>
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
+                                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Current Stock</p>
+                                                <p className="text-3xl font-black italic">{selectedProductForStats.quantity}</p>
+                                            </div>
+                                            <div className="p-4 bg-emerald-600 rounded-2xl shadow-xl shadow-emerald-900/20">
+                                                <p className="text-[10px] font-black text-emerald-200 uppercase tracking-widest mb-1">Net Profit/Unit</p>
+                                                <p className="text-3xl font-black italic">₹{(selectedProductForStats.mrp - selectedProductForStats.wholesalePrice).toFixed(0)}</p>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-4">
+                                            <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Supplier Data</Label>
+                                            <div className="space-y-3">
+                                                <div className="relative"><Factory className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" /><Input className="pl-9 h-11 bg-white/5 border-white/10 text-white rounded-xl" value={selectedProductForStats.supplierName || ''} onChange={e => updateItem(selectedProductForStats.id, { supplierName: e.target.value })} placeholder="Unknown Supplier" /></div>
+                                                <div className="relative"><Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" /><Input className="pl-9 h-11 bg-white/5 border-white/10 text-white rounded-xl" value={selectedProductForStats.supplierContact || ''} onChange={e => updateItem(selectedProductForStats.id, { supplierContact: e.target.value })} placeholder="Contact" /></div>
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                            <div className="p-10 space-y-8">
+                                <div className="flex items-center justify-between">
+                                    <h4 className="text-xl font-black italic uppercase tracking-tight flex items-center gap-2 text-slate-800"><TrendingUp className="text-emerald-600"/> Velocity</h4>
+                                    <Badge className="bg-slate-100 text-slate-600 border-none uppercase text-[9px] font-bold">Last 30 Days</Badge>
+                                </div>
+                                <div className="h-64 w-full">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <LineChart data={productStats}>
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                            <XAxis dataKey="name" stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
+                                            <YAxis stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
+                                            <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }} />
+                                            <Line type="monotone" dataKey="sales" stroke="#10b981" strokeWidth={4} dot={{ r: 4, fill: "#10b981", strokeWidth: 2, stroke: "#fff" }} activeDot={{ r: 6 }} />
+                                        </LineChart>
+                                    </ResponsiveContainer>
+                                </div>
+                                <div className="space-y-4">
+                                    <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-2"><History className="h-4 w-4"/> Stock History</h4>
+                                    <div className="space-y-2">
+                                        {movements.filter(m => m.productId === selectedProductForStats?.id).slice(0, 3).map(m => (
+                                            <div key={m.id} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                                <div><p className="text-[10px] font-black uppercase text-slate-800">{m.type}</p><p className="text-[8px] text-slate-400 font-bold uppercase">{format(parseISO(m.date), 'PPP p')}</p></div>
+                                                <p className={cn("font-black italic", m.quantity > 0 ? "text-emerald-600" : "text-red-600")}>{m.quantity > 0 ? '+' : ''}{m.quantity}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                <DialogClose asChild><Button className="w-full h-14 rounded-2xl font-black uppercase italic tracking-widest mt-4">Close Intelligence</Button></DialogClose>
+                            </div>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+
+                <Dialog open={isScanning} onOpenChange={setIsScanning}>
+                    <DialogContent className="max-w-sm rounded-[32px] p-6 no-print">
+                        <DialogHeader><DialogTitle className="text-center uppercase font-black">Mobile Scanner</DialogTitle></DialogHeader>
+                        <div id="partner-reader" className="w-full aspect-square rounded-2xl overflow-hidden border-2 bg-slate-50" />
+                        <DialogFooter><Button variant="outline" className="w-full rounded-xl" onClick={() => setIsScanning(false)}>Cancel</Button></DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                <Dialog open={!!selectedSaleItem} onOpenChange={(open) => !open && setSelectedSaleItem(null)}>
+                    <DialogContent className="max-md rounded-[32px] p-8 no-print">
+                        <DialogHeader><DialogTitle className="text-2xl font-black italic uppercase">Confirm Sale</DialogTitle></DialogHeader>
+                        {selectedSaleItem && (
+                            <div className="space-y-6 pt-4">
+                                <div className="flex gap-4 p-4 bg-slate-50 rounded-2xl"><div className="relative h-16 w-16 rounded-xl overflow-hidden border bg-white"><Image src={selectedSaleItem.imageDataUri} fill alt="p" className="object-cover" unoptimized /></div><div><p className="font-black italic uppercase text-slate-800">{selectedSaleItem.name}</p><p className="text-xs text-emerald-600 font-bold">Available: {selectedSaleItem.quantity}</p></div></div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">Qty</Label><Input type="number" className="h-12 rounded-xl font-bold" value={saleQty} onChange={e => setSaleQty(Number(e.target.value))} /></div>
+                                    <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-slate-400">Price (₹)</Label><Input type="number" className="h-12 rounded-xl font-bold" value={actualSellPrice} onChange={e => setSalePrice(Number(e.target.value))} /></div>
+                                </div>
+                                <Button className="w-full h-14 rounded-2xl font-black uppercase italic text-lg bg-emerald-600" onClick={async () => { await updateItem(selectedSaleItem.id, { quantity: (selectedSaleItem.quantity || 0) - saleQty }); setSelectedSaleItem(null); toast({ title: "Sale Recorded" }); }}>Confirm Transaction</Button>
+                            </div>
+                        )}
+                    </DialogContent>
+                </Dialog>
+            </main>
 
             <input ref={bulkSnapRef} type="file" accept="image/*" className="hidden" onChange={handleBulkIntake} />
             <input ref={imageUpdateRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if(f && updatingImageId) resizeImage(f).then(uri => updateItem(updatingImageId, { imageDataUri: uri })); }} />

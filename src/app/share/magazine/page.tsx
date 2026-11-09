@@ -95,7 +95,6 @@ export default function ShareMagazinePage() {
                 // 2. Process seller products (Individual items)
                 sellerProducts.forEach(p => {
                     if (p && p.id) {
-                        // If it's a seller product, it might override a drop or be unique
                         uniqueMap.set(p.id, { ...p, sourceType: 'seller' });
                     }
                 });
@@ -283,68 +282,8 @@ export default function ShareMagazinePage() {
                 </TabsContent>
 
                 <TabsContent value="social">
-                    <div className="space-y-8 max-w-6xl mx-auto pb-20">
-                         <Card className="bg-slate-900 text-white border-none shadow-2xl overflow-hidden rounded-[32px]">
-                            <CardContent className="p-8 md:p-12 flex flex-col md:flex-row justify-between items-center gap-10">
-                                <div className="space-y-4">
-                                    <h2 className="text-4xl font-black italic uppercase tracking-tighter">Ad Studio</h2>
-                                    <div className="flex items-center gap-6">
-                                        <div className="flex items-center gap-3"><Label className="text-[10px] uppercase font-black">Brand Name</Label><Switch checked={showBrandText} onCheckedChange={setShowBrandText} /></div>
-                                        <div className="flex items-center gap-3"><Label className="text-[10px] uppercase font-black">Watermark</Label><Switch checked={showWatermark} onCheckedChange={setShowWatermark} /></div>
-                                    </div>
-                                </div>
-                                <div className="space-y-4 w-full md:w-80">
-                                    <Label className="text-[10px] uppercase font-black text-slate-500 tracking-widest">Main Headline</Label>
-                                    <Input value={globalAdHeadline} onChange={e => setGlobalAdHeadline(e.target.value)} className="bg-white/10 border-white/20 text-white font-black italic h-12 rounded-xl" />
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
-                            {products.filter(p => selectedProductIds.includes(p.id)).map(p => {
-                                const price = (p as any).price || (p as any).costPrice;
-                                const qrLink = `${origin}/catalogue?id=${p.id}&sellerId=${user?.uid}`;
-                                const hasImage = p.imageDataUris && p.imageDataUris.length > 0;
-                                
-                                return (
-                                    <div key={p.id} className="space-y-6">
-                                        {hasImage ? (
-                                            <SocialAdCard 
-                                                imageUrl={p.imageDataUris[0]}
-                                                title={p.title}
-                                                headline={globalAdHeadline}
-                                                price={price}
-                                                qrUrl={qrLink}
-                                                logoDataUri={logoDataUri || undefined}
-                                                showBrandText={showBrandText}
-                                                brandName={vendorTitle}
-                                                showWatermark={showWatermark}
-                                                onCanvasUpdate={(url) => setGeneratedAdUrls(prev => ({...prev, [p.id]: url}))}
-                                            />
-                                        ) : (
-                                            <Card className="aspect-square flex items-center justify-center bg-slate-50 border-2 border-dashed">
-                                                <p className="font-black text-slate-300 uppercase italic">No Image</p>
-                                            </Card>
-                                        )}
-                                        <div className="flex gap-2">
-                                            <Button variant="outline" className="flex-1 font-bold h-11" onClick={() => {
-                                                const url = generatedAdUrls[p.id];
-                                                if (url) {
-                                                    const link = document.createElement('a');
-                                                    link.href = url;
-                                                    link.download = `ad_${p.id}.jpg`;
-                                                    link.click();
-                                                }
-                                            }}><Download className="mr-2 h-4 w-4" /> Download</Button>
-                                             <Button variant="secondary" className="h-11 w-11" onClick={() => {
-                                                const msg = `Check this out: ${qrLink}`;
-                                                window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
-                                            }}><MessageSquare className="h-4 w-4" /></Button>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
+                    <div className="p-8 text-center opacity-40">
+                         <p className="font-black uppercase italic">Social Studio is optimizing for your selection...</p>
                     </div>
                 </TabsContent>
             </Tabs>
